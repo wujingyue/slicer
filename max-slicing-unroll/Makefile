@@ -8,7 +8,7 @@
 ##===----------------------------------------------------------------------===##
 
 LEVEL = ../../llvm/llvm-obj
-LIBRARYNAME = tern-max-slicing-unroll
+LIBRARYNAME = max-slicing-unroll
 LOADABLE_MODULE = 1
 CFLAGS += -I$(LLVM_ROOT)
 CXXFLAGS += -I$(LLVM_ROOT)

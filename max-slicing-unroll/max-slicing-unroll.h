@@ -37,7 +37,8 @@ namespace slicer {
 		static char ID;
 
 		typedef DenseMap<Instruction *, InstList> CFG;
-		typedef DenseSet<InstPair> InstPairSet;
+		typedef InstPair Edge;
+		typedef DenseSet<Edge> EdgeSet;
 		typedef map<int, InstList> Trace;
 
 		MaxSlicingUnroll();
@@ -60,9 +61,7 @@ namespace slicer {
 				int parent_tid,
 				size_t trunk_id,
 				int child_tid);
-		void add_cfg_edge(CFG &cfg, CFG &cfg_r, Instruction *x, Instruction *y);
-		void remove_cfg_node(CFG &cfg, CFG &cfg_r, Instruction *x);
-		void remove_incoming_edges(CFG &cfg, CFG &cfg_r, Instruction *x);
+		void add_cfg_edge(Instruction *x, Instruction *y);
 		/*
 		 * Builds the control flow graph. 
 		 * Builds <clone_map> and <clone_map_r> as well. 
@@ -94,12 +93,43 @@ namespace slicer {
 				int thr_id,
 				size_t trunk_id,
 				CFG &cfg_of_trunk,
-				CFG &cfg_r_of_trunk,
 				vector<Instruction *> &call_stack);
 		/*
 		 * sp - Splicing point. 
 		 */
 		void splice_cfg(CFG &cfg_of_trunk, Instruction *sp, size_t trunk_id);
+		/*
+		 * Link the original instruction and the cloned instruction
+		 * in clone mappings.
+		 */
+		void link_orig_cloned(
+				Instruction *orig,
+				Instruction *cloned,
+				int thr_id,
+				size_t trunk_id);
+		/*
+		 * DFS algorithm used in reachability analysis. 
+		 * This one exploits the call stack and is different from
+		 * the standard one.
+		 */
+		void dfs(
+				Instruction *x,
+				const InstSet &cut,
+				InstSet &visited_nodes,
+				EdgeSet &visited_edges,
+				InstList &call_stack);
+		/*
+		 * A common function used in DFS.
+		 * Modifies visited_nodes and visited_edges,
+		 * and calls DFS recursively. 
+		 */
+		void move_on(
+				Instruction *x,
+				Instruction *y,
+				const InstSet &cut,
+				InstSet &visited_nodes,
+				EdgeSet &visited_edges,
+				InstList &call_stack);
 		/*
 		 * Assign each instruction a containing BB and a containing function. 
 		 * We calculate the assignment of an instruction according to its
@@ -151,42 +181,30 @@ namespace slicer {
 		 * and resolve function-local metadata.
 		 */
 		Instruction *clone_inst(const Instruction *x);
-		/*
-		 * <visited_insts> contain the visited instructions in the current trunk.
-		 * This function also updates the global mappings, e.g. <clone_map>
-		 * and <clone_map_r>. 
-		 */
-		void clone_insts_in_trunk(
-			const InstSet &visited_insts,
-			int thr_id,
-			size_t trunk_id);
-		/*
-		 * Get the next instructions of <x> in the original CFG.
-		 *
-		 * This function is used on the slightly modified CFG, in which 
-		 * instructions are cloned. However, we can still retrieve enough
-		 * CFG information according to the original instructions. Be careful
-		 * with def-use relations.
-		 *
-		 * e.g. pred_iterator cannot be used because it uses Value::use_iterator.
-		 */
-		InstList get_next_insts(Instruction *x);
+		void refine(
+				Instruction *start,
+				Instruction *end,
+				InstSet &visited_nodes,
+				EdgeSet &visited_edges);
 		void print_inst_set(const InstSet &s);
-		void print_edge_set(const InstPairSet &s);
+		void print_edge_set(const EdgeSet &s);
 		void print_cloned_inst(Instruction *ii);
 		void print_levels_in_thread(
 				int thr_id,
 				const DenseMap<Instruction *, int> &level);
 		/*
 		 * DFS the CFG. 
+		 *
 		 * <parent> contains <x>'s parent in the DFS tree. 
 		 * parent[start] = start.
 		 * <parent> indicates which instructions have been visited as well. 
+		 * 
+		 * The parameter <cfg> is necessary because it's not always used
+		 * for the global CFG. 
 		 */
 		void dfs_cfg(
-				Instruction *x,
-				Module &M,
 				const CFG &cfg,
+				Instruction *x,
 				InstMapping &parent);
 		Instruction *find_parent_at_same_level(
 				Instruction *x,

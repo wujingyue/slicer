@@ -178,10 +178,10 @@ namespace slicer {
 		cerr << endl;
 	}
 
-	void MaxSlicingUnroll::print_edge_set(const InstPairSet &s) {
+	void MaxSlicingUnroll::print_edge_set(const EdgeSet &s) {
 		ObjectID &IDM = getAnalysis<ObjectID>();
 		vector<pair<unsigned, unsigned> > edge_ids;
-		forallconst(InstPairSet, it, s) {
+		forallconst(EdgeSet, it, s) {
 			edge_ids.push_back(make_pair(
 						IDM.getInstructionID(it->first),
 						IDM.getInstructionID(it->second)));
@@ -192,56 +192,7 @@ namespace slicer {
 		cerr << endl;
 	}
 
-	void MaxSlicingUnroll::remove_incoming_edges(
-			CFG &cfg,
-			CFG &cfg_r,
-			Instruction *x) {
-		assert(find(cfg[x].begin(), cfg[x].end(), x) == cfg[x].end() &&
-				"There shouldn't be a self-loop");
-		assert(find(cfg_r[x].begin(), cfg_r[x].end(), x) == cfg_r[x].end() &&
-				"There shouldn't be a self-loop");
-		const InstList &prev_insts = cfg_r.lookup(x);
-		for (size_t j = 0; j < prev_insts.size(); ++j) {
-			Instruction *prev = prev_insts[j];
-			cfg[prev].resize(remove(cfg[prev].begin(), cfg[prev].end(), x) -
-					cfg[prev].begin());
-		}
-#ifdef VERBOSE
-		cerr << "remove_incoming_edges\n";
-#endif
-		cfg_r.erase(x);
-	}
-
-	void MaxSlicingUnroll::remove_cfg_node(
-			CFG &cfg,
-			CFG &cfg_r,
-			Instruction *x) {
-#ifdef VERBOSE
-		cerr << "remove_cfg_node\n";
-#endif
-		assert(find(cfg[x].begin(), cfg[x].end(), x) == cfg[x].end() &&
-				"There shouldn't be a self-loop");
-		assert(find(cfg_r[x].begin(), cfg_r[x].end(), x) == cfg_r[x].end() &&
-				"There shouldn't be a self-loop");
-		const InstList &prev_insts = cfg_r.lookup(x);
-		const InstList &next_insts = cfg.lookup(x);
-		for (size_t j = 0; j < prev_insts.size(); ++j) {
-			Instruction *prev = prev_insts[j];
-			cfg[prev].resize(remove(cfg[prev].begin(), cfg[prev].end(), x) -
-					cfg[prev].begin());
-		}
-		for (size_t j = 0; j < next_insts.size(); ++j) {
-			Instruction *next = next_insts[j];
-			cfg_r[next].resize(remove(cfg_r[next].begin(), cfg_r[next].end(), x) -
-					cfg_r[next].begin());
-		}
-		cfg.erase(x);
-		cfg_r.erase(x);
-	}
-
 	void MaxSlicingUnroll::add_cfg_edge(
-			CFG &cfg,
-			CFG &cfg_r,
 			Instruction *x,
 			Instruction *y) {
 		assert(clone_map_r.count(x) && "<x> must be in the cloned CFG");
@@ -292,77 +243,6 @@ namespace slicer {
 		return y;
 	}
 
-	void MaxSlicingUnroll::clone_insts_in_trunk(
-			const InstSet &visited_insts,
-			int thr_id,
-			size_t trunk_id) {
-		InstMapping clone_map_in_trunk;
-		forallconst(InstSet, it, visited_insts) {
-			// Note this cloneing changes the containing module. 
-			Instruction *cloned = clone_inst(*it);
-			clone_map_in_trunk[*it] = cloned;
-			clone_map_r[cloned] = *it;
-			cloned_to_trunk[cloned] = trunk_id;
-			cloned_to_tid[cloned] = thr_id;
-		}
-		clone_map[thr_id].push_back(clone_map_in_trunk);
-		assert(clone_map[thr_id].size() == trunk_id + 1);
-	}
-
-	InstList MaxSlicingUnroll::get_next_insts(Instruction *x) {
-		/*
-		 * TODO: This piece of code is mostly copied from Function <dfs> in
-		 * reach.cpp. Should reach.cpp expose an interface to get the next
-		 * instructions? 
-		 */
-		InstList next_insts; // Result
-		CallGraphFP &CG = getAnalysis<CallGraphFP>();
-		if (is_call(x) && !is_intrinsic_call(x)) {
-			const CallGraphFP::FuncList &callees = CG.get_called_functions(x);
-			for (size_t j = 0, E = callees.size(); j < E; ++j) {
-				if (!callees[j]->isDeclaration())
-					next_insts.push_back(callees[j]->getEntryBlock().begin());
-			}
-		}
-		if (isa<ReturnInst>(x) || isa<UnwindInst>(x)) {
-			const InstList &call_sites = CG.get_call_sites(
-					x->getParent()->getParent());
-			for (size_t j = 0, E = call_sites.size(); j < E; ++j) {
-				BasicBlock::iterator ret_addr;
-				// Get the return address of this ReturnInst or UnwindInst. 
-				if (isa<CallInst>(call_sites[j])) {
-					// Continue with the next instruction. 
-					// A CallInst must not be a terminator. 
-					ret_addr = call_sites[j];
-					++ret_addr;
-				} else if (isa<InvokeInst>(call_sites[j])) {
-					InvokeInst *inv = dyn_cast<InvokeInst>(call_sites[j]);
-					// If a regular return, continue with the normal destination;
-					// otherwise, continue with the unwind destination. 
-					if (isa<ReturnInst>(x))
-						ret_addr = inv->getNormalDest()->begin();
-					else
-						ret_addr = inv->getUnwindDest()->begin();
-				} else {
-					assert(false && "A call site must be either a CallInst"
-							"or an InvokeInst.");
-				}
-				next_insts.push_back(ret_addr);
-			}
-		}
-		if (!x->isTerminator()) {
-			// If <x> is not a terminator, continue with the next instruction. 
-			next_insts.push_back(++(BasicBlock::iterator)x);
-			// <x> gets changed. Be careful. 
-		} else {
-			// Continue with all successing BBs. 
-			TerminatorInst *ti = dyn_cast<TerminatorInst>(x);
-			for (unsigned j = 0; j < ti->getNumSuccessors(); ++j)
-				next_insts.push_back(ti->getSuccessor(j)->begin());
-		}
-		return next_insts;
-	}
-
 	void MaxSlicingUnroll::build_cfg_of_thread(
 			Module &M,
 			const InstList &thr_trace,
@@ -374,7 +254,7 @@ namespace slicer {
 		// Iterate through each trunk
 		for (size_t i = 0, E = thr_trace.size(); i + 1 < E; ++i) {
 			cerr << "Building CFG of trunk " << i << "...\n";
-			CFG cfg_of_trunk, cfg_r_of_trunk;
+			CFG cfg_of_trunk;
 			build_cfg_of_trunk(
 					thr_trace[i],
 					thr_trace[i + 1],
@@ -382,7 +262,6 @@ namespace slicer {
 					thr_id,
 					i,
 					cfg_of_trunk,
-					cfg_r_of_trunk,
 					call_stack);
 			splice_cfg(cfg_of_trunk, thr_trace[i], i);
 		}
@@ -403,8 +282,167 @@ namespace slicer {
 			int thr_id,
 			size_t trunk_id,
 			CFG &cfg_of_trunk,
-			CFG &cfg_r_of_trunk,
 			vector<Instruction *> &call_stack) {
+		// DFS in both directions to find the instructions may be
+		// visited in the trunk. 
+		InstSet visited_nodes; visited_nodes.insert(start);
+		EdgeSet visited_edges;
+		dfs(start, cut, visited_nodes, visited_edges, call_stack);
+		assert(visited_nodes.count(end) &&
+				"Unable to reach from <start> to <end>");
+		refine(start, end, visited_nodes, visited_edges);
+		// Clone instructions in this trunk. 
+		// Note <start> may equal <end>. 
+		forall(InstSet, it, visited_nodes) {
+			Instruction *orig = *it;
+			if (orig != start && orig != end)
+				link_orig_cloned(orig, clone_inst(orig), thr_id, trunk_id);
+		}
+		link_orig_cloned(end, clone_inst(end), thr_id, trunk_id + 1);
+		// Build CFGs. 
+		cfg_of_trunk.clear();
+		forall(EdgeSet, it, visited_edges) {
+			Instruction *x, *y, *x1, *y1;
+			x = it->first;
+			y = it->second;
+			x1 = clone_map[thr_id][trunk_id].lookup(x);
+			assert(x1);
+			if (y == end)
+				y1 = clone_map[thr_id][trunk_id + 1].lookup(y);
+			else
+				y1 = clone_map[thr_id][trunk_id].lookup(y);
+			add_cfg_edge(x1, y1);
+		}
+	}
+
+	void MaxSlicingUnroll::link_orig_cloned(
+			Instruction *orig,
+			Instruction *cloned,
+			int thr_id,
+			size_t trunk_id) {
+		cloned = clone_inst(orig);
+		clone_map[thr_id][trunk_id][orig] = cloned;
+		clone_map_r[cloned] = orig;
+		cloned_to_trunk[cloned] = trunk_id;
+		cloned_to_tid[cloned] = thr_id;
+	}
+
+	void MaxSlicingUnroll::refine(
+			Instruction *start,
+			Instruction *end,
+			InstSet &visited_nodes,
+			EdgeSet &visited_edges) {
+		// A temporary reverse CFG. 
+		CFG cfg_t;
+		forall(EdgeSet, it, visited_edges) {
+			Instruction *x = it->first, *y = it->second;
+			cfg_t[y].push_back(x);
+		}
+		// DFS from the end.
+		InstMapping parent;
+		parent[end] = end;
+		dfs_cfg(cfg_t, end, parent);
+		// Refine the visited_nodes and the visited_edges so that
+		// only nodes that can be visited in both directions are
+		// taken. 
+		InstSet orig_visited_nodes;
+		EdgeSet orig_visited_edges;
+		visited_nodes.clear();
+		visited_edges.clear();
+		forall(InstSet, it, orig_visited_nodes) {
+			if (parent.count(*it))
+				visited_nodes.insert(*it);
+		}
+		forall(EdgeSet, it, orig_visited_edges) {
+			if (parent.count(it->first) && parent.count(it->second))
+				visited_edges.insert(*it);
+		}
+	}
+	
+	void MaxSlicingUnroll::dfs(
+			Instruction *x,
+			const InstSet &cut,
+			InstSet &visited_nodes,
+			EdgeSet &visited_edges,
+			InstList &call_stack) {
+
+		assert(x && "<x> cannot be NULL");
+		assert(visited_nodes.count(x));
+
+		if (is_call(x) && !is_intrinsic_call(x)) {
+			bool may_exec_landmark = false;
+			CallGraphFP &CG = getAnalysis<CallGraphFP>();
+			MayExec &ME = getAnalysis<MayExec>();
+			const FuncList &callees = CG.get_called_functions(x);
+			for (size_t j = 0, E = callees.size(); j < E; ++j) {
+				if (ME.may_exec_landmark(callees[j]))
+					may_exec_landmark = true;
+			}
+			if (may_exec_landmark) {
+				for (size_t j = 0, E = callees.size(); j < E; ++j) {
+					if (callees[j]->isDeclaration())
+						continue;
+					Instruction *y = callees[j]->getEntryBlock().begin();
+					call_stack.push_back(x);
+					move_on(x, y, cut, visited_nodes, visited_edges, call_stack);
+				}
+				return;
+			}
+			// If the callee cannot execute any landmark,
+			// treat it as a regular instruction without
+			// going into the function body. 
+		} // if is_call
+
+		if (isa<ReturnInst>(x) || isa<UnwindInst>(x)) {
+			assert(!call_stack.empty());
+			BasicBlock::iterator ret_addr = call_stack.back();
+			BasicBlock::iterator y;
+			if (isa<CallInst>(ret_addr)) {
+				y = ret_addr; ++y;
+			} else if (isa<InvokeInst>(ret_addr)) {
+				InvokeInst *inv = dyn_cast<InvokeInst>(ret_addr);
+				if (isa<ReturnInst>(x))
+					y = inv->getNormalDest()->begin();
+				else
+					y = inv->getUnwindDest()->begin();
+			} else {
+				assert(false && "Only CallInsts and InvokeInsts can call functions");
+			}
+			call_stack.pop_back();
+			move_on(x, y, cut, visited_nodes, visited_edges, call_stack);
+			return;
+		}
+
+		if (!x->isTerminator()) {
+			BasicBlock::iterator y = x; ++y;
+			move_on(x, y, cut, visited_nodes, visited_edges, call_stack);
+		} else {
+			TerminatorInst *ti = dyn_cast<TerminatorInst>(x);
+			for (unsigned j = 0, E = ti->getNumSuccessors(); j < E; ++j) {
+				Instruction *y = ti->getSuccessor(j)->begin();
+				move_on(x, y, cut, visited_nodes, visited_edges, call_stack);
+			}
+		}
+	}
+
+	void MaxSlicingUnroll::move_on(
+			Instruction *x,
+			Instruction *y,
+			const InstSet &cut,
+			InstSet &visited_nodes,
+			EdgeSet &visited_edges,
+			InstList &call_stack) {
+		/*
+		 * No matter whether <y> is in the cut, we mark <y> and <x, y>
+		 * as visited. But we don't continue traversing <y> if <y>
+		 * is in the cut.
+		 */
+		visited_edges.insert(make_pair(x, y));
+		if (!visited_nodes.count(y)) {
+			visited_nodes.insert(y);
+			if (!cut.count(y))
+				dfs(y, cut, visited_nodes, visited_edges, call_stack);
+		}
 	}
 
 	void MaxSlicingUnroll::print_levels_in_thread(
@@ -425,39 +463,6 @@ namespace slicer {
 		for (size_t i = 0; i < leveled.size(); ++i) {
 			cerr << "{" << leveled[i].first.first << ":"
 				<< leveled[i].first.second << "} = " << leveled[i].second << endl;
-		}
-	}
-
-	void MaxSlicingUnroll::remove_unreachable_nodes_in_thread(
-			Instruction *start,
-			Module &M,
-			int thr_id,
-			CFG &cfg,
-			CFG &cfg_r) {
-		// Remove unreachable nodes since we may remove some cfg nodes above. 
-		InstMapping parent;
-		parent[start] = start;
-		dfs_cfg(start, M, cfg, parent);
-		InstList non_visited_nodes;
-		for (size_t i = 0; i < clone_map[thr_id].size(); ++i) {
-			forall(InstMapping, it, clone_map[thr_id][i]) {
-				if (!parent.count(it->second))
-					non_visited_nodes.push_back(it->second);
-			}
-		}
-		forall(InstList, it, non_visited_nodes) {
-			Instruction *cloned = *it;
-			Instruction *orig = clone_map_r.lookup(cloned);
-			assert(orig);
-			remove_cfg_node(cfg, cfg_r, cloned);
-			clone_map_r.erase(cloned);
-			clone_map[thr_id][cloned_to_trunk.lookup(cloned)].erase(orig);
-			cloned_to_trunk.erase(cloned);
-			cloned_to_tid.erase(cloned);
-			// Erase <cloned>. 
-			// <cloned> is not def-use linked with any other cloned instruction. 
-			// Therefore, we can simply delete it.
-			delete cloned;
 		}
 	}
 
@@ -596,9 +601,8 @@ namespace slicer {
 	}
 
 	void MaxSlicingUnroll::dfs_cfg(
-			Instruction *x,
-			Module &M,
 			const CFG &cfg,
+			Instruction *x,
 			InstMapping &parent) {
 		assert(x && "<x> cannot be NULL");
 		assert(parent.count(x) && "<x>'s parent hasn't been set");
@@ -608,7 +612,7 @@ namespace slicer {
 			if (parent.lookup(y) == NULL) {
 				// Has not visited <y>. 
 				parent[y] = x;
-				dfs_cfg(y, M, cfg, parent);
+				dfs_cfg(cfg, y, parent);
 			}
 		}
 	}
@@ -965,7 +969,7 @@ namespace slicer {
 			Instruction *start = clone_map[it->first][0].lookup(it->second[0]);
 			assert(start);
 			parent[start] = start;
-			dfs_cfg(start, M, cfg, parent);
+			dfs_cfg(cfg, start, parent);
 		}
 		// In SSA, a definition dominates all its uses. Therefore, if we trace
 		// back from a use via the DFS tree, we should always be able to find
