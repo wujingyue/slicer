@@ -92,12 +92,7 @@ namespace slicer {
 				const InstSet &cut,
 				int thr_id,
 				size_t trunk_id,
-				CFG &cfg_of_trunk,
 				vector<Instruction *> &call_stack);
-		/*
-		 * sp - Splicing point. 
-		 */
-		void splice_cfg(CFG &cfg_of_trunk, Instruction *sp, size_t trunk_id);
 		/*
 		 * Link the original instruction and the cloned instruction
 		 * in clone mappings.
@@ -157,16 +152,14 @@ namespace slicer {
 		int read_trace_and_cut(
 				const string &trace_file,
 				const string &cut_file,
-				Module &M,
 				Trace &trace,
 				vector<ThreadCreationRecord> &thr_cr_records,
 				InstSet &cut);
 		int read_trace(
 				const string &trace_file,
-				Module &M,
 				Trace &trace,
 				vector<ThreadCreationRecord> &thr_cr_records);
-		int read_cut(const string &cut_file, Module &M, InstSet &cut);
+		int read_cut(const string &cut_file, InstSet &cut);
 		/*
 		 * Get the type of the edge from <x> to <y>. 
 		 * <x> and <y> must be in the cloned CFG. 
@@ -184,6 +177,7 @@ namespace slicer {
 		void refine(
 				Instruction *start,
 				Instruction *end,
+				const InstSet &cut,
 				InstSet &visited_nodes,
 				EdgeSet &visited_edges);
 		void print_inst_set(const InstSet &s);
@@ -201,10 +195,13 @@ namespace slicer {
 		 * 
 		 * The parameter <cfg> is necessary because it's not always used
 		 * for the global CFG. 
+		 *
+		 * Stop DFSing at <cut>. 
 		 */
 		void dfs_cfg(
 				const CFG &cfg,
 				Instruction *x,
+				const InstSet &cut,
 				InstMapping &parent);
 		Instruction *find_parent_at_same_level(
 				Instruction *x,

@@ -67,7 +67,6 @@ namespace slicer {
 
 	int MaxSlicingUnroll::read_trace(
 			const string &trace_file,
-			Module &M,
 			Trace &trace,
 			vector<ThreadCreationRecord> &thr_cr_records) {
 		if (trace_file == "") {
@@ -118,7 +117,6 @@ namespace slicer {
 
 	int MaxSlicingUnroll::read_cut(
 			const string &cut_file,
-			Module &M,
 			InstSet &cut) {
 		if (cut_file == "") {
 			cerr << "Didn't specify the cut file. Do nothing.\n";
@@ -146,15 +144,14 @@ namespace slicer {
 	int MaxSlicingUnroll::read_trace_and_cut(
 			const string &trace_file,
 			const string &cut_file,
-			Module &M,
 			Trace &trace,
 			vector<ThreadCreationRecord> &thr_cr_records,
 			InstSet &cut) {
 		// Read the trace. 
-		if (read_trace(trace_file, M, trace, thr_cr_records))
+		if (read_trace(trace_file, trace, thr_cr_records))
 			return -1;
 		// Collect all instructions that should be recorded once executed. 
-		if (read_cut(cut_file, M, cut))
+		if (read_cut(cut_file, cut))
 			return -1;
 		// <cut> should also contain all instructions in the trace. 
 		for (Trace::iterator it = trace.begin();
@@ -253,26 +250,23 @@ namespace slicer {
 		vector<Instruction *> call_stack;
 		// Iterate through each trunk
 		for (size_t i = 0, E = thr_trace.size(); i + 1 < E; ++i) {
-			cerr << "Building CFG of trunk " << i << "...\n";
-			CFG cfg_of_trunk;
+			cerr << "Building CFG of Trunk " << i << "...\n";
 			build_cfg_of_trunk(
 					thr_trace[i],
 					thr_trace[i + 1],
 					cut,
 					thr_id,
 					i,
-					cfg_of_trunk,
 					call_stack);
-			splice_cfg(cfg_of_trunk, thr_trace[i], i);
 		}
 
-		// Assign containers. 
-		Instruction *start = clone_map[thr_id][0].lookup(thr_trace[0]);
-		// assign containers
-		assign_containers(M, start);
 #ifdef VERBOSE
 		dump_thr_cfg(cfg, thr_id);
 #endif
+		// Assign containers. 
+		Instruction *start = clone_map[thr_id][0].lookup(thr_trace[0]);
+		assert(start);
+		assign_containers(M, start);
 	}
 
 	void MaxSlicingUnroll::build_cfg_of_trunk(
@@ -281,7 +275,6 @@ namespace slicer {
 			const InstSet &cut,
 			int thr_id,
 			size_t trunk_id,
-			CFG &cfg_of_trunk,
 			vector<Instruction *> &call_stack) {
 		// DFS in both directions to find the instructions may be
 		// visited in the trunk. 
@@ -290,27 +283,37 @@ namespace slicer {
 		dfs(start, cut, visited_nodes, visited_edges, call_stack);
 		assert(visited_nodes.count(end) &&
 				"Unable to reach from <start> to <end>");
-		refine(start, end, visited_nodes, visited_edges);
+		refine(start, end, cut, visited_nodes, visited_edges);
 		// Clone instructions in this trunk. 
 		// Note <start> may equal <end>. 
+		clone_map[thr_id].push_back(InstMapping());
 		forall(InstSet, it, visited_nodes) {
 			Instruction *orig = *it;
-			if (orig != start && orig != end)
+			// <start> should be already cloned in the last trunk
+			// except for the first trunk. 
+			// <end> should be cloned into the next trunk. 
+			if (orig != end && (orig != start || trunk_id == 0))
 				link_orig_cloned(orig, clone_inst(orig), thr_id, trunk_id);
 		}
 		link_orig_cloned(end, clone_inst(end), thr_id, trunk_id + 1);
-		// Build CFGs. 
-		cfg_of_trunk.clear();
+#ifdef VERBOSE
+		print_inst_set(visited_nodes);
+		print_edge_set(visited_edges);
+#endif
+		// Add this trunk to the CFG. 
 		forall(EdgeSet, it, visited_edges) {
 			Instruction *x, *y, *x1, *y1;
 			x = it->first;
 			y = it->second;
 			x1 = clone_map[thr_id][trunk_id].lookup(x);
+			if (!x1)
+				x->dump();
 			assert(x1);
 			if (y == end)
 				y1 = clone_map[thr_id][trunk_id + 1].lookup(y);
 			else
 				y1 = clone_map[thr_id][trunk_id].lookup(y);
+			assert(y1);
 			add_cfg_edge(x1, y1);
 		}
 	}
@@ -320,7 +323,8 @@ namespace slicer {
 			Instruction *cloned,
 			int thr_id,
 			size_t trunk_id) {
-		cloned = clone_inst(orig);
+		while (trunk_id >= clone_map[thr_id].size())
+			clone_map[thr_id].push_back(InstMapping());
 		clone_map[thr_id][trunk_id][orig] = cloned;
 		clone_map_r[cloned] = orig;
 		cloned_to_trunk[cloned] = trunk_id;
@@ -330,6 +334,7 @@ namespace slicer {
 	void MaxSlicingUnroll::refine(
 			Instruction *start,
 			Instruction *end,
+			const InstSet &cut,
 			InstSet &visited_nodes,
 			EdgeSet &visited_edges) {
 		// A temporary reverse CFG. 
@@ -341,12 +346,12 @@ namespace slicer {
 		// DFS from the end.
 		InstMapping parent;
 		parent[end] = end;
-		dfs_cfg(cfg_t, end, parent);
+		dfs_cfg(cfg_t, end, cut, parent);
 		// Refine the visited_nodes and the visited_edges so that
 		// only nodes that can be visited in both directions are
 		// taken. 
-		InstSet orig_visited_nodes;
-		EdgeSet orig_visited_edges;
+		InstSet orig_visited_nodes(visited_nodes);
+		EdgeSet orig_visited_edges(visited_edges);
 		visited_nodes.clear();
 		visited_edges.clear();
 		forall(InstSet, it, orig_visited_nodes) {
@@ -603,6 +608,7 @@ namespace slicer {
 	void MaxSlicingUnroll::dfs_cfg(
 			const CFG &cfg,
 			Instruction *x,
+			const InstSet &cut,
 			InstMapping &parent) {
 		assert(x && "<x> cannot be NULL");
 		assert(parent.count(x) && "<x>'s parent hasn't been set");
@@ -612,7 +618,8 @@ namespace slicer {
 			if (parent.lookup(y) == NULL) {
 				// Has not visited <y>. 
 				parent[y] = x;
-				dfs_cfg(cfg, y, parent);
+				if (!cut.count(y))
+					dfs_cfg(cfg, y, cut, parent);
 			}
 		}
 	}
@@ -681,7 +688,7 @@ namespace slicer {
 		Trace trace;
 		vector<ThreadCreationRecord> thr_cr_records;
 		InstSet cut;
-		if (read_trace_and_cut(TraceFile, CutFile, M, trace, thr_cr_records, cut))
+		if (read_trace_and_cut(TraceFile, CutFile, trace, thr_cr_records, cut))
 			return false;
 
 		// Which functions may execute a landmark? 
@@ -887,27 +894,6 @@ namespace slicer {
 			<< "ID = " << IDM.getInstructionID(ii) << endl;
 	}
 
-#if 0
-	Instruction *MaxSlicingUnroll::get_cloned_inst(
-			int thr_id,
-			unsigned trunk_id,
-			Instruction *orig) const {
-		if (!clone_map.count(thr_id))
-			return NULL;
-		const vector<InstMapping> &clone_map_in_thread =
-			clone_map.find(thr_id)->second;
-		if (trunk_id >= clone_map_in_thread.size())
-			return NULL;
-		const InstMapping &clone_map_in_trunk = clone_map_in_thread[trunk_id];
-		return clone_map_in_trunk.lookup(orig);
-	}
-
-	Instruction *MaxSlicingUnroll::get_orig_inst(Instruction *cloned) const {
-		// Returns NULL on NULL. 
-		return clone_map_r.lookup(cloned);
-	}
-#endif
-
 	void MaxSlicingUnroll::fix_def_use_func_call(Module &M) {
 		cerr << "Fixing function calls in def-use graph...\n";
 		forall(InstMapping, it, clone_map_r) {
@@ -965,11 +951,14 @@ namespace slicer {
 		cerr << "Fixing instructions in def-use graph...\n";
 		// Construct the DFS tree. 
 		InstMapping parent;
+		// We borrow assign_level to calculate <parent>. 
+		// <level> is actually unused.
+		DenseMap<Instruction *, int> level;
 		forallconst(Trace, it, trace) {
 			Instruction *start = clone_map[it->first][0].lookup(it->second[0]);
 			assert(start);
 			parent[start] = start;
-			dfs_cfg(cfg, start, parent);
+			assign_level(start, level, parent);
 		}
 		// In SSA, a definition dominates all its uses. Therefore, if we trace
 		// back from a use via the DFS tree, we should always be able to find
