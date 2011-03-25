@@ -1,8 +1,5 @@
 /**
  * Author: Jingyue
- *
- * FIXME: Does not handle recursive functions for now.
- * FIXME: Remove unnecessary parameters M. 
  */
 
 #include "llvm/Module.h"
