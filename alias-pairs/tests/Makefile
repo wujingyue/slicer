@@ -9,5 +9,8 @@ all: test.ap
 		-load $(LLVM_ROOT)/install/lib/libalias-pairs.so \
 		-alias-pairs -analyze < $< > $@
 
+%.ll: %.bc
+	llvm-dis $<
+
 clean:
 	rm -rf *.ap

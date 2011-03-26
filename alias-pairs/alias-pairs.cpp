@@ -22,21 +22,30 @@ namespace slicer {
 		virtual void print(raw_ostream &O, const Module *M) const;
 
 	private:
+		void print_inst(Instruction *ins, raw_ostream &O) const;
 		vector<InstPair> ww_races, rw_races;
 	};
+
+	void AliasPairs::print_inst(Instruction *ins, raw_ostream &O) const {
+		BasicBlock *bb = ins->getParent();
+		Function *func = bb->getParent();
+		O << func->getNameStr() << ":" << bb->getNameStr() << ":\t";
+		ins->print(O);
+		O << "\n";
+	}
 
 	void AliasPairs::print(raw_ostream &O, const Module *M) const {
 		O << "\nWrite-write potential races:\n";
 		forallconst(vector<InstPair>, it, ww_races) {
 			O << string(10, '=') << "\n";
-			it->first->print(O); O << "\n";
-			it->second->print(O); O << "\n";
+			print_inst(it->first, O);
+			print_inst(it->second, O);
 		}
 		O << "\nRead-write potential races:\n";
 		forallconst(vector<InstPair>, it, rw_races) {
 			O << string(10, '=') << "\n";
-			it->first->print(O); O << "\n";
-			it->second->print(O); O << "\n";
+			print_inst(it->first, O);
+			print_inst(it->second, O);
 		}
 	}
 
