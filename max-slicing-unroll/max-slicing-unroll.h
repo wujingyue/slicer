@@ -2,8 +2,8 @@
  * Author: Jingyue
  */
 
-#ifndef __MAX_SLICING_UNROLL_H
-#define __MAX_SLICING_UNROLL_H
+#ifndef __SLICER_MAX_SLICING_UNROLL_H
+#define __SLICER_MAX_SLICING_UNROLL_H
 
 #include "llvm/Pass.h"
 #include "llvm/ADT/DenseSet.h"
@@ -52,6 +52,11 @@ namespace slicer {
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual bool runOnModule(Module &M);
 		virtual void print(raw_ostream &O, const Module *M) const;
+		Instruction *get_cloned_inst(
+				int thr_id,
+				unsigned trunk_id,
+				Instruction *orig) const;
+		Instruction *get_orig_inst(Instruction *cloned) const;
 
 	private:
 		void dump_thr_cfg(const CFG &cfg, int thr_id);

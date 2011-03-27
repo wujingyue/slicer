@@ -24,7 +24,7 @@ namespace {
 		X("max-slicing-unroll",
 				"Unroll the program according to the trace",
 				false,
-				true);
+				true); // is analysis
 	static cl::opt<string> TraceFile(
 			"trace",
 			cl::NotHidden,
@@ -232,6 +232,9 @@ namespace slicer {
 		M.dump();
 #endif
 
+		bool modified = getAnalysis<ObjectID>().runOnModule(M);
+		assert(!modified && "ObjectID shouldn't modify the module");
+
 		return true;
 	}
 
@@ -264,8 +267,38 @@ namespace slicer {
 	}
 
 	void MaxSlicingUnroll::print(raw_ostream &O, const Module *M) const {
+		ObjectID &IDM = getAnalysis<ObjectID>();
+		forallconst(InstMapping, it, clone_map_r) {
+			Instruction *cloned = it->first;
+			Instruction *orig = it->second;
+			int thr_id = cloned_to_tid.lookup(cloned);
+			unsigned trunk_id = cloned_to_trunk.lookup(cloned);
+			O << thr_id << " "
+				<< trunk_id << " "
+				<< IDM.getInstructionID(orig) << " "
+				<< IDM.getInstructionID(cloned) << "\n";
+		}
 	}
 
+	Instruction *MaxSlicingUnroll::get_cloned_inst(
+			int thr_id,
+			unsigned trunk_id,
+			Instruction *orig) const {
+		if (!clone_map.count(thr_id))
+			return NULL;
+		const vector<InstMapping> &clone_map_in_thread =
+			clone_map.find(thr_id)->second;
+		if (trunk_id >= clone_map_in_thread.size())
+			return NULL;
+		const InstMapping &clone_map_in_trunk = clone_map_in_thread[trunk_id];
+		return clone_map_in_trunk.lookup(orig);
+	}
+
+	Instruction *MaxSlicingUnroll::get_orig_inst(Instruction *cloned) const {
+		// Returns NULL on NULL. 
+		return clone_map_r.lookup(cloned);
+	}
+	
 	char MaxSlicingUnroll::ID = 0;
 }
 
