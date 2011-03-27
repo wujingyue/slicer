@@ -1,3 +1,7 @@
+/**
+ * Author: Jingyue
+ */
+
 #ifndef __MAX_SLICING_UNROLL_H
 #define __MAX_SLICING_UNROLL_H
 
@@ -9,6 +13,7 @@
 
 #include <vector>
 #include <string>
+#include <map>
 
 using namespace std;
 using namespace llvm;
@@ -49,7 +54,6 @@ namespace slicer {
 		virtual void print(raw_ostream &O, const Module *M) const;
 
 	private:
-		void init();
 		void dump_thr_cfg(const CFG &cfg, int thr_id);
 		void link_thr_funcs(
 				Module &M,
@@ -70,9 +74,6 @@ namespace slicer {
 				Module &M,
 				const Trace &trace,
 				const InstSet &cut);
-		void build_reverse_cfg(
-				const CFG &cfg,
-				CFG &cfg_r);
 		/*
 		 * <cfg> and <parent> are shared by all threads.
 		 * Do *not* clear them in this function. 
@@ -174,12 +175,21 @@ namespace slicer {
 		 * and resolve function-local metadata.
 		 */
 		Instruction *clone_inst(const Instruction *x);
-		void refine(
+		/*
+		 * This function is called after dfs.
+		 *
+		 * dfs traverses the CFG from <start>
+		 * to end without touching anything in the cut. However, it doesn't
+		 * guarantee that the CFG of the trunk stops at <end>. This function
+		 * refines backwards the CFG of the trunk from <end>. 
+		 */
+		void refine_from_end(
 				Instruction *start,
 				Instruction *end,
 				const InstSet &cut,
 				InstSet &visited_nodes,
 				EdgeSet &visited_edges);
+		/* For debugging */
 		void print_inst_set(const InstSet &s);
 		void print_edge_set(const EdgeSet &s);
 		void print_cloned_inst(Instruction *ii);
@@ -203,10 +213,17 @@ namespace slicer {
 				Instruction *x,
 				const InstSet &cut,
 				InstMapping &parent);
+		/*
+		 * Traces back through <parent> and finds the latest ancestor with
+		 * the same level. 
+		 */
 		Instruction *find_parent_at_same_level(
 				Instruction *x,
 				const DenseMap<Instruction *, int> &level,
 				const InstMapping &parent);
+		/*
+		 * Fix the def-use graph. 
+		 */
 		void fix_def_use(
 				Module &M,
 				const Trace &trace);
@@ -222,12 +239,6 @@ namespace slicer {
 		void fix_def_use_func_param(Module &M);
 		void fix_def_use_func_call(Module &M);
 		void redirect_program_entry(Module &M, Instruction *old_start);
-		void remove_unreachable_nodes_in_thread(
-				Instruction *start,
-				Module &M,
-				int thr_id,
-				CFG &cfg,
-				CFG &cfg_r);
 		void stat(Module &M);
 
 		// Maps from a cloned instruction to the original instruction. 
