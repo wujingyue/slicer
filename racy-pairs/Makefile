@@ -10,8 +10,8 @@
 LEVEL = ../../llvm/llvm-obj
 LIBRARYNAME = racy-pairs
 LOADABLE_MODULE = 1
-CFLAGS += -I$(LLVM_ROOT)
-CXXFLAGS += -I$(LLVM_ROOT)
+CFLAGS += -I$(LLVM_ROOT) -I$(TERN_ROOT)
+CXXFLAGS += -I$(LLVM_ROOT) -I$(TERN_ROOT)
 include $(LEVEL)/Makefile.common
 
 # Build test from scratch each time. 
