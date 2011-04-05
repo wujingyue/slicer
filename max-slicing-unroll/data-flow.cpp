@@ -313,6 +313,7 @@ namespace slicer {
 		// The thread function in the cloned program. 
 		Function *thr_func = new_entry->getParent()->getParent();
 		// Replace the target function in pthread_create to <thr_func>.
+		orig_site->dump();
 		assert(is_call(new_site) && !is_intrinsic_call(new_site));
 		CallSite cs(new_site);
 		Function *callee = cs.getCalledFunction();

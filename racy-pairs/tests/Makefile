@@ -1,4 +1,9 @@
-all: test-race.orig-rp test-race.cloned-rp
+ifndef SAMPLE
+SAMPLE = 1
+endif
+
+all: test-race.orig-rp test-race.cloned-rp test-context.orig-rp \
+	test-context.cloned-rp
 
 %.bc: %.c
 	llvm-gcc -o $@ $< -c -emit-llvm
@@ -15,37 +20,37 @@ all: test-race.orig-rp test-race.cloned-rp
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
 		-load $(LLVM_ROOT)/install/lib/libmay-exec.so \
+		-load $(LLVM_ROOT)/install/lib/libtern-trace-manager.so \
 		-load $(LLVM_ROOT)/install/lib/libmax-slicing-unroll.so \
 		-max-slicing-unroll \
-		-trace $(<:.bc=.trace) -cut $(<:.bc=.cut) < $<
-
-%.map: %.bc %.trace %.cut
-	opt -analyze \
-		-load $(LLVM_ROOT)/install/lib/libidm.so \
-		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
-		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
-		-load $(LLVM_ROOT)/install/lib/libmay-exec.so \
-		-load $(LLVM_ROOT)/install/lib/libmax-slicing-unroll.so \
-		-max-slicing-unroll \
+		-fulltrace $(<:.bc=.ft) \
 		-trace $(<:.bc=.trace) -cut $(<:.bc=.cut) \
-		< $< > $@
+		-mapping $(<:.bc=.map) < $<
 
 %.orig-rp: %.slice.bc %.trace %.map
 	opt -analyze \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
+		-load $(LLVM_ROOT)/install/lib/libtern-trace-manager.so \
+		-load $(LLVM_ROOT)/install/lib/libtern-add-calling-context.so \
 		-load $(LLVM_ROOT)/install/lib/libracy-pairs.so \
+		-fulltrace $(<:.slice.bc=.ft) \
 		-trace $(<:.slice.bc=.trace) \
 		-clone-map $(<:.slice.bc=.map) \
+		-sample $(SAMPLE) \
 		-racy-pairs < $< > $@
 
 %.cloned-rp: %.slice.bc %.trace %.map
 	opt -analyze \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
+		-load $(LLVM_ROOT)/install/lib/libtern-trace-manager.so \
+		-load $(LLVM_ROOT)/install/lib/libtern-add-calling-context.so \
 		-load $(LLVM_ROOT)/install/lib/libracy-pairs.so \
+		-fulltrace $(<:.slice.bc=.ft) \
 		-trace $(<:.slice.bc=.trace) \
 		-clone-map $(<:.slice.bc=.map) \
+		-sample $(SAMPLE) \
 		-racy-pairs -cloned < $< > $@
 
 %.ll: %.bc

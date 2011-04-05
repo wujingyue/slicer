@@ -5,14 +5,17 @@ import sys
 if __name__ == "__main__":
     verbose = False
     check = False
+    context = False
     for arg in sys.argv[1:]:
         if arg == "-v" or arg == "--verbose":
             verbose = True
         if arg == "-c" or arg == "--check":
             check = True
+        if arg == "--context":
+            context = True
     fout = open("config.h", "w")
-    fout.write("#ifndef __MAX_SLICING_UNROLL_CONFIG_H\n")
-    fout.write("#define __MAX_SLICING_UNROLL_CONFIG_H\n")
+    fout.write("#ifndef __RACY_PAIRS_CONFIG_H\n")
+    fout.write("#define __RACY_PAIRS_CONFIG_H\n")
     fout.write("\n")
 
     if verbose:
@@ -24,6 +27,11 @@ if __name__ == "__main__":
         fout.write("#define CHECK\n")
     else:
         fout.write("#undef CHECK\n")
+
+    if context:
+        fout.write("#define CONTEXT\n");
+    else:
+        fout.write("#undef CONTEXT\n");
 
     fout.write("\n")
     fout.write("#endif\n")

@@ -21,29 +21,40 @@ namespace slicer {
 
 		typedef map<int, vector<unsigned> > ThreadToTrunk;
 
-		RacyPairs(): ModulePass(&ID) {}
+		RacyPairs(): ModulePass(&ID), counter(0) {}
 		
 		virtual bool runOnModule(Module &M);
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual void print(raw_ostream &O, const Module *M) const;
 
 	private:
-		void read_trunks(
-				const string &trace_file,
-				ThreadToTrunk &trunks) const;
-		void read_clone_map(
-				const string &clone_map_file,
-				map<int, vector<InstMapping> > &clone_map) const;
+		void read_trunks(const string &trace_file);
+		void read_clone_map(const string &clone_map_file);
 		void print_inst(Instruction *ins, raw_ostream &O) const;
+		void print_context(const CallStack &cs) const;
 		void extract_racy_pairs(
 				int t1, unsigned s1, unsigned e1,
-				int t2, unsigned s2, unsigned e2,
-				const ThreadToTrunk &trunks,
-				const map<int, vector<InstMapping> > &clone_map);
+				int t2, unsigned s2, unsigned e2);
 		size_t find_next_enforce(const vector<unsigned> &indices, size_t j) const;
-		static vector<CallInst *> convert_context(const CallStack &cs);
+		vector<User *> compute_context(
+				const CallStack &cs,
+				int thr_id,
+				bool cloned) const;
+		Instruction *compute_inst(
+				unsigned idx,
+				int thr_id,
+				bool cloned) const;
 
+		void select_load_store(
+				unsigned s, unsigned e,
+				int tid,
+				bool cloned,
+				vector<pair<Instruction *, CallStack> > &load_stores);
+
+		ThreadToTrunk trunks;
+		map<int, vector<InstMapping> > clone_map;
 		vector<InstPair> racy_pairs;
+		int counter;
 	};
 }
 

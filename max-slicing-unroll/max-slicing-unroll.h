@@ -201,6 +201,7 @@ namespace slicer {
 		void print_levels_in_thread(
 				int thr_id,
 				const DenseMap<Instruction *, int> &level);
+		void print_mapping(Module &M) const;
 		/*
 		 * DFS the CFG. 
 		 *

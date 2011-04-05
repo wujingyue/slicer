@@ -11,6 +11,7 @@
 #include "idm/id.h"
 #include "common/callgraph-fp/callgraph-fp.h"
 #include "common/may-exec/may-exec.h"
+#include "llvm-instrument/trace-manager/trace-manager.h"
 
 #include <iostream>
 #include <fstream>
@@ -18,6 +19,7 @@
 
 using namespace llvm;
 using namespace std;
+using namespace tern;
 
 namespace {
 	static RegisterPass<slicer::MaxSlicingUnroll>
@@ -36,6 +38,11 @@ namespace {
 			cl::NotHidden,
 			cl::desc("Set of instructions that should be traced"),
 			cl::init(""));
+	static cl::opt<string> MappingFile(
+			"mapping",
+			cl::NotHidden,
+			cl::desc("Output file containing the clone mapping"),
+			cl::init(""));
 }
 
 namespace slicer {
@@ -44,6 +51,7 @@ namespace slicer {
 		AU.addRequired<ObjectID>();
 		AU.addRequired<CallGraphFP>();
 		AU.addRequired<MayExec>();
+		AU.addRequired<TraceManager>();
 		ModulePass::getAnalysisUsage(AU);
 	}
 
@@ -66,19 +74,18 @@ namespace slicer {
 		trace.clear();
 		thr_cr_records.clear();
 		string line;
-		ObjectID &IDM = getAnalysis<ObjectID>();
 
+		TraceManager &TM = getAnalysis<TraceManager>();
 		while (getline(fin, line)) {
 			istringstream iss(line);
-			int thr_id, ins_id, child_tid;
-			if (iss >> thr_id >> ins_id >> child_tid) {
-				Instruction *ins = IDM.getInstruction(ins_id);
-				if (ins == NULL) {
-					cerr << "Cannot find the instruction with ID " << ins_id << endl;
-					return -1;
-				}
+			unsigned idx;
+			if (iss >> idx) {
+				TraceRecord record = TM.get_record(idx);
+				int thr_id = record.thr_id;
+				Instruction *ins = record.ins;
+				int child_tid = record.child_tid;
 				trace[thr_id].push_back(ins);
-				if (child_tid != -1) {
+				if (child_tid >= 0 && child_tid != thr_id) {
 					// A thread creation
 					thr_cr_records.push_back(
 							ThreadCreationRecord(
@@ -231,9 +238,7 @@ namespace slicer {
 		cerr << "Dumping module...\n";
 		M.dump();
 #endif
-
-		bool modified = getAnalysis<ObjectID>().runOnModule(M);
-		assert(!modified && "ObjectID shouldn't modify the module");
+		print_mapping(M);
 
 		return true;
 	}
@@ -266,18 +271,27 @@ namespace slicer {
 			<< "ID = " << IDM.getInstructionID(ii) << endl;
 	}
 
-	void MaxSlicingUnroll::print(raw_ostream &O, const Module *M) const {
+	void MaxSlicingUnroll::print_mapping(Module &M) const {
+		if (MappingFile == "")
+			return;
 		ObjectID &IDM = getAnalysis<ObjectID>();
+		bool modified = IDM.runOnModule(M);
+		assert(!modified && "IDM shouldn't modify the module");
+		ofstream fout(MappingFile.c_str());
 		forallconst(InstMapping, it, clone_map_r) {
 			Instruction *cloned = it->first;
 			Instruction *orig = it->second;
+			assert(orig->getOpcode() == cloned->getOpcode());
 			int thr_id = cloned_to_tid.lookup(cloned);
 			unsigned trunk_id = cloned_to_trunk.lookup(cloned);
-			O << thr_id << " "
+			fout << thr_id << " "
 				<< trunk_id << " "
 				<< IDM.getInstructionID(orig) << " "
 				<< IDM.getInstructionID(cloned) << "\n";
 		}
+	}
+
+	void MaxSlicingUnroll::print(raw_ostream &O, const Module *M) const {
 	}
 
 	Instruction *MaxSlicingUnroll::get_cloned_inst(
