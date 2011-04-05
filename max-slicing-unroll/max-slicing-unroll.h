@@ -52,11 +52,13 @@ namespace slicer {
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual bool runOnModule(Module &M);
 		virtual void print(raw_ostream &O, const Module *M) const;
+#if 0
 		Instruction *get_cloned_inst(
 				int thr_id,
 				unsigned trunk_id,
 				Instruction *orig) const;
 		Instruction *get_orig_inst(Instruction *cloned) const;
+#endif
 
 	private:
 		void dump_thr_cfg(const CFG &cfg, int thr_id);
@@ -244,8 +246,12 @@ namespace slicer {
 				const Trace &trace);
 		void fix_def_use_func_param(Module &M);
 		void fix_def_use_func_call(Module &M);
-		void redirect_program_entry(Module &M, Instruction *old_start);
+		void redirect_program_entry(
+				Instruction *old_start,
+				Instruction *new_start);
 		void stat(Module &M);
+		// Similar to <clone_map> but its keys are IDs rather than instructions.
+		void build_clone_id_map();
 
 		// Maps from a cloned instruction to the original instruction. 
 		InstMapping clone_map_r;
@@ -256,6 +262,17 @@ namespace slicer {
 		// the cloned program. However, there can be at most one of them in each
 		// trunk. Therefore, each trunk has a clone map.
 		map<int, vector<InstMapping> > clone_map;
+		// From an old instruction ID to a cloned instruction. 
+		map<int, vector<DenseMap<unsigned, Instruction *> > > clone_id_map;
+		/*
+		 * max-slicing-unroll prints the clone mapping in the end
+		 * in the format of <old ID> => <new ID>.
+		 * Here the old ID means the ID in the original module,
+		 * rather than the ID of an original instruction
+		 * in the sliced program. 
+		 * Therefore, we need to save the old id mapping. 
+		 */
+		DenseMap<Instruction *, unsigned> old_id_map;
 		// CFG and reversed CFG
 		CFG cfg, cfg_r;
 	};

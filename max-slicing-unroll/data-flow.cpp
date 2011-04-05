@@ -22,14 +22,9 @@ using namespace std;
 namespace slicer {
 
 	void MaxSlicingUnroll::redirect_program_entry(
-			Module &M,
-			Instruction *old_start) {
-		assert(!clone_map.empty());
-		assert(clone_map.count(0));
-		// The main thread ID is always 0. 
-		Instruction *start = clone_map[0][0].lookup(old_start);
-		assert(start && "Cannot find the program entry in the cloned CFG");
-		Function *main = start->getParent()->getParent();
+			Instruction *old_start,
+			Instruction *new_start) {
+		Function *main = new_start->getParent()->getParent();
 		Function *old_main = old_start->getParent()->getParent();
 		old_main->deleteBody();
 		BasicBlock *bb = BasicBlock::Create(

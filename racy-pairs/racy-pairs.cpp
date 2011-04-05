@@ -56,6 +56,13 @@ namespace slicer {
 		O << "\n";
 	}
 
+	void RacyPairs::dump_inst(Instruction *ins) const {
+		BasicBlock *bb = ins->getParent();
+		Function *func = bb->getParent();
+		cerr << func->getNameStr() << ":" << bb->getNameStr() << ":\t";
+		ins->dump();
+	}
+
 	void RacyPairs::print(raw_ostream &O, const Module *M) const {
 		cerr << "# of racy pairs = " << racy_pairs.size() << endl;
 		forallconst(vector<InstPair>, it, racy_pairs) {
@@ -170,12 +177,10 @@ namespace slicer {
 				vector<User *> ctxt1, ctxt2;
 				ctxt1 = compute_context(b1[i1].second, t1, Cloned);
 				ctxt2 = compute_context(b2[i2].second, t2, Cloned);
-				if (v1->getNameStr() == "myNum_addr" && v2->getName() == "myNum_addr") {
-					ins1->dump();
-					ins2->dump();
-					print_context(b1[i1].second);
-					print_context(b2[i2].second);
-				}
+				print_context(b1[i1].second);
+				dump_inst(ins1);
+				print_context(b2[i2].second);
+				dump_inst(ins2);
 				if (BAA.alias(&ctxt1, v1, 0, &ctxt2, v2, 0)) {
 					racy_pairs.push_back(make_pair(ins1, ins2));
 				}
@@ -244,10 +249,9 @@ namespace slicer {
 #if 1
 		ObjectID &IDM = getAnalysis<ObjectID>();
 		vector<User *> ctxt1, ctxt2;
-		ctxt1.push_back(IDM.getInstruction(4564));
-		ctxt2.push_back(IDM.getInstruction(4564));
-		Value *v1 = dyn_cast<StoreInst>(IDM.getInstruction(4420))->getPointerOperand();
-		Value *v2 = dyn_cast<StoreInst>(IDM.getInstruction(4420))->getPointerOperand();
+		ctxt1.push_back(IDM.getInstruction(6266));
+		Value *v1 = dyn_cast<StoreInst>(IDM.getInstruction(4881))->getPointerOperand();
+		Value *v2 = dyn_cast<LoadInst>(IDM.getInstruction(4508))->getPointerOperand();
 		BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
 		cerr << BAA.alias(&ctxt1, v1, 0, &ctxt2, v2, 0) << endl;
 #endif

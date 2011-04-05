@@ -202,45 +202,74 @@ namespace slicer {
 	}
 
 	bool MaxSlicingUnroll::runOnModule(Module &M) {
+		// Save the old id mapping before everything. 
+		ObjectID &IDM = getAnalysis<ObjectID>();
+		unsigned n_insts = IDM.getNumInstructions();
+		for (unsigned i = 0; i < n_insts; ++i) {
+			assert(IDM.getInstruction(i));
+			old_id_map[IDM.getInstruction(i)] = i;
+		}
 		// Read the trace and the cut. 
 		Trace trace;
 		vector<ThreadCreationRecord> thr_cr_records;
 		InstSet cut;
 		if (read_trace_and_cut(TraceFile, CutFile, trace, thr_cr_records, cut))
 			return false;
-
 		// Which functions may execute a landmark? 
 		MayExec &ME = getAnalysis<MayExec>();
 		ME.setup_landmarks(cut);
 		ME.run();
-
 		// Build the control flow graph. 
 		// Output to <cfg>. 
 		build_cfg(M, trace, cut);
 		// Fix the def-use graph. 
 		fix_def_use(M, trace);
-
 		// Stat before the clone mappings become invalid.
 		stat(M);
-
-#if 0
+		// Link thread functions. 
+		link_thr_funcs(M, trace, thr_cr_records);
+		// <redirect_program_entry> invalidates <clone_map>.
+		// Therefore, we build <clone_id_map> before that. 
+		build_clone_id_map();
 		// Redirect the program entry to main.TERN. 
+		assert(trace.count(0) && trace[0].size() > 0);
+		Instruction *old_start = trace[0][0];
+		assert(clone_map.count(0) && clone_map[0].size() > 0);
+		Instruction *new_start = clone_map[0][0].lookup(old_start);
+		assert(new_start && "Cannot find the program entry in the cloned CFG");
 		// Remove all instructions in main, and add a call to main.TERN instead. 
 		// Note that this will invalidate some entries in <clone_map> and
 		// <clone_map_r>. 
-		assert(trace.count(0));
-		redirect_program_entry(M, trace[0][0]);
-#endif
-		// Link thread functions. 
-		link_thr_funcs(M, trace, thr_cr_records);
-
+		clone_map.clear();
+		clone_map_r.clear();
+		cloned_to_tid.clear();
+		cloned_to_trunk.clear();
+		redirect_program_entry(old_start, new_start);
 #ifdef VERBOSE
 		cerr << "Dumping module...\n";
 		M.dump();
 #endif
+		// Print the ID mapping. 
 		print_mapping(M);
-
 		return true;
+	}
+
+	void MaxSlicingUnroll::build_clone_id_map() {
+		for (map<int, vector<InstMapping> >::iterator it = clone_map.begin();
+				it != clone_map.end(); ++it) {
+			int thr_id = it->first;
+			for (size_t tr_id = 0; tr_id < it->second.size(); ++tr_id) {
+				DenseMap<unsigned, Instruction *> trunk_id_map;
+				forall(InstMapping, j, it->second[tr_id]) {
+					Instruction *orig = j->first;
+					Instruction *cloned = j->second;
+					assert(old_id_map.count(orig));
+					trunk_id_map[old_id_map.lookup(orig)] = cloned;
+				}
+				clone_id_map[thr_id].push_back(trunk_id_map);
+			}
+			assert(clone_id_map[thr_id].size() == clone_map[thr_id].size());
+		}
 	}
 
 	void MaxSlicingUnroll::stat(Module &M) {
@@ -278,22 +307,30 @@ namespace slicer {
 		bool modified = IDM.runOnModule(M);
 		assert(!modified && "IDM shouldn't modify the module");
 		ofstream fout(MappingFile.c_str());
-		forallconst(InstMapping, it, clone_map_r) {
-			Instruction *cloned = it->first;
-			Instruction *orig = it->second;
-			assert(orig->getOpcode() == cloned->getOpcode());
-			int thr_id = cloned_to_tid.lookup(cloned);
-			unsigned trunk_id = cloned_to_trunk.lookup(cloned);
-			fout << thr_id << " "
-				<< trunk_id << " "
-				<< IDM.getInstructionID(orig) << " "
-				<< IDM.getInstructionID(cloned) << "\n";
+		map<int, vector<DenseMap<unsigned, Instruction *> > >::const_iterator it;
+		for (it = clone_id_map.begin(); it != clone_id_map.end(); ++it) {
+			int thr_id = it->first;
+			for (size_t tr_id = 0; tr_id < it->second.size(); ++tr_id) {
+				DenseMap<unsigned, Instruction *>::const_iterator j;
+				for (j = it->second[tr_id].begin();
+						j != it->second[tr_id].end(); ++j) {
+					unsigned old_id = j->first;
+					Instruction *cloned = j->second;
+					unsigned new_id = IDM.getInstructionID(cloned);
+					assert(new_id != ObjectID::INVALID_ID);
+					fout << thr_id << " "
+						<< tr_id << " "
+						<< old_id << " "
+						<< new_id << "\n";
+				}
+			}
 		}
 	}
 
 	void MaxSlicingUnroll::print(raw_ostream &O, const Module *M) const {
 	}
 
+#if 0
 	Instruction *MaxSlicingUnroll::get_cloned_inst(
 			int thr_id,
 			unsigned trunk_id,
@@ -312,6 +349,7 @@ namespace slicer {
 		// Returns NULL on NULL. 
 		return clone_map_r.lookup(cloned);
 	}
+#endif
 	
 	char MaxSlicingUnroll::ID = 0;
 }

@@ -31,6 +31,7 @@ namespace slicer {
 		void read_trunks(const string &trace_file);
 		void read_clone_map(const string &clone_map_file);
 		void print_inst(Instruction *ins, raw_ostream &O) const;
+		void dump_inst(Instruction *ins) const;
 		void print_context(const CallStack &cs) const;
 		void extract_racy_pairs(
 				int t1, unsigned s1, unsigned e1,
@@ -40,11 +41,20 @@ namespace slicer {
 				const CallStack &cs,
 				int thr_id,
 				bool cloned) const;
+		/*
+		 * Compute the instruction according to its trace index and tid. 
+		 * If <cloned> is specified, returns the cloned instruction. 
+		 */
 		Instruction *compute_inst(
 				unsigned idx,
 				int thr_id,
 				bool cloned) const;
-
+		/*
+		 * Selects loads and stores invoked by <tid> from the index range [s, e). 
+		 * Saves them to <load_stores>.
+		 * If <cloned> is true, we look at their counterparts
+		 * in the cloned program. 
+		 */
 		void select_load_store(
 				unsigned s, unsigned e,
 				int tid,
