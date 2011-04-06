@@ -14,6 +14,18 @@ all: test-race.orig-rp test-race.cloned-rp test-context.orig-rp \
 %.id: %.bc
 	$(LLVM_ROOT)/scripts/print-id insts $< > $@
 
+%.trace: %.bc %.ft
+	opt -analyze \
+		-load $(LLVM_ROOT)/install/lib/libidm.so \
+		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
+		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/libidentify-thread-funcs.so \
+		-load $(LLVM_ROOT)/install/lib/libmay-exec.so \
+		-load $(LLVM_ROOT)/install/lib/libtern-trace.so \
+		-tern-landmark-trace \
+		-fulltrace $(<:.bc=.ft) \
+		< $< > $@
+
 %.slice.bc: %.bc %.trace %.cut
 	opt -o $@ \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
