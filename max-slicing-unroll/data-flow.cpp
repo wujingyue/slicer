@@ -24,8 +24,26 @@ namespace slicer {
 	void MaxSlicingUnroll::redirect_program_entry(
 			Instruction *old_start,
 			Instruction *new_start) {
-		Function *main = new_start->getParent()->getParent();
+		Function *new_main = new_start->getParent()->getParent();
 		Function *old_main = old_start->getParent()->getParent();
+		StringRef old_main_name = old_main->getName();
+		old_main->setName(old_main_name + ".OLDMAIN");
+		new_main->setName(old_main_name);
+#if 0
+		// Need to modify <clone_id_map> as well because some instructions
+		// become invalid after deleteBody.
+		vector<unsigned> ids_to_delete;
+		DenseMap<unsigned, Instruction *>::iterator it;
+		// We only modify clone_id_map[-1][0] because other parts of
+		// <clone_id_map> contain cloned instructions only which will
+		// not be deleted by old_main->deleteBody(). 
+		for (it = clone_id_map[-1][0].begin();
+				it != clone_id_map[-1][0].end(); ++it) {
+			if (it->second->getParent()->getParent() == old_main)
+				ids_to_delete.push_back(it->first);
+		}
+		forall(vector<unsigned>, it, ids_to_delete)
+			clone_id_map[-1][0].erase(*it);
 		old_main->deleteBody();
 		BasicBlock *bb = BasicBlock::Create(
 				getGlobalContext(),
@@ -35,8 +53,9 @@ namespace slicer {
 		for (Function::arg_iterator ai = old_main->arg_begin();
 				ai != old_main->arg_end(); ++ai)
 			args.push_back(ai);
-		Value *ret = CallInst::Create(main, args.begin(), args.end(), "", bb);
+		Value *ret = CallInst::Create(new_main, args.begin(), args.end(), "", bb);
 		ReturnInst::Create(getGlobalContext(), ret, bb);
+#endif
 	}
 
 	void MaxSlicingUnroll::fix_def_use_bb(

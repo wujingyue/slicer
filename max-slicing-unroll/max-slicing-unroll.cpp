@@ -76,13 +76,15 @@ namespace slicer {
 		string line;
 
 		TraceManager &TM = getAnalysis<TraceManager>();
+		ObjectID &IDM = getAnalysis<ObjectID>();
 		while (getline(fin, line)) {
 			istringstream iss(line);
 			unsigned idx;
 			if (iss >> idx) {
 				TraceRecord record = TM.get_record(idx);
 				int thr_id = record.thr_id;
-				Instruction *ins = record.ins;
+				Instruction *ins = IDM.getInstruction(record.ins_id);
+				assert(ins != NULL);
 				int child_tid = record.child_tid;
 				trace[thr_id].push_back(ins);
 				if (child_tid >= 0 && child_tid != thr_id) {
@@ -244,6 +246,7 @@ namespace slicer {
 		clone_map_r.clear();
 		cloned_to_tid.clear();
 		cloned_to_trunk.clear();
+		old_id_map.clear();
 		redirect_program_entry(old_start, new_start);
 #ifdef VERBOSE
 		cerr << "Dumping module...\n";
@@ -269,6 +272,12 @@ namespace slicer {
 				clone_id_map[thr_id].push_back(trunk_id_map);
 			}
 			assert(clone_id_map[thr_id].size() == clone_map[thr_id].size());
+		}
+		// So that clone_id_map[-1][0] is valid. 
+		clone_id_map[-1].push_back(DenseMap<unsigned, Instruction *>());
+		for (DenseMap<Instruction *, unsigned>::iterator it = old_id_map.begin();
+				it != old_id_map.end(); ++it) {
+			clone_id_map[-1][0][it->second] = it->first;
 		}
 	}
 

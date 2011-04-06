@@ -1,20 +1,22 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_os_ostream.h"
-
-#include "config.h"
-#include "racy-pairs.h"
 #include "idm/id.h"
-#include "bc2bdd/BddAliasAnalysis.h"
 #include "common/include/util.h"
-#include "llvm-instrument/trace-manager/trace-manager.h"
+using namespace llvm;
+
+#include "llvm-instrument/trace/landmark-trace.h"
+#include "llvm-instrument/trace/trace-manager.h"
+using namespace tern;
 
 #include <fstream>
 #include <sstream>
-
-using namespace llvm;
-using namespace repair;
 using namespace std;
-using namespace tern;
+
+#include "bc2bdd/BddAliasAnalysis.h"
+using namespace repair;
+
+#include "config.h"
+#include "racy-pairs.h"
 
 namespace {
 	static RegisterPass<slicer::RacyPairs> X(
@@ -22,23 +24,6 @@ namespace {
 			"Dumps all racy pairs",
 			false,
 			true); // is analysis
-	static cl::opt<string> CloneMapFile(
-			"clone-map",
-			cl::NotHidden,
-			cl::ValueRequired,
-			cl::desc("The clone mapping"));
-	// We need this to get the trunk ID and therefore use the clone mapping.
-	static cl::opt<string> TraceFile(
-			"trace",
-			cl::NotHidden,
-			cl::ValueRequired,
-			cl::desc("The landmark trace"));
-	static cl::opt<bool> Cloned(
-			"cloned",
-			cl::NotHidden,
-			cl::desc("True if working on the cloned program; False if working "
-				"on the original program"),
-			cl::init(false));
 	static cl::opt<int> SampleRate(
 			"sample",
 			cl::NotHidden,
@@ -75,58 +60,16 @@ namespace slicer {
 		}
 	}
 
-	void RacyPairs::read_trunks(const string &trace_file) {
-
-		ifstream fin(trace_file.c_str());
-		assert(fin && "Cannot open the specified landmark trace");
-
-		trunks.clear();
-		string line;
-		while (getline(fin, line)) {
-			istringstream iss(line);
-			int idx;
-			if (iss >> idx) {
-				TraceManager &TM = getAnalysis<TraceManager>();
-				trunks[TM.get_record(idx).thr_id].push_back(idx);
-			}
-		}
-	}
-
-	void RacyPairs::read_clone_map(const string &clone_map_file) {
-		assert(clone_map_file.length() > 0 && "Didn't specify -clone-map");
-		ifstream fin(clone_map_file.c_str());
-		assert(fin && "Cannot open the specified clone map file");
-
-		clone_map.clear();
-		string line;
-		while (getline(fin, line)) {
-			istringstream iss(line);
-			int thr_id;
-			size_t trunk_id;
-			unsigned orig_id, cloned_id;
-			if (iss >> thr_id >> trunk_id >> orig_id >> cloned_id) {
-				while (trunk_id >= clone_map[thr_id].size())
-					clone_map[thr_id].push_back(InstMapping());
-				ObjectID &IDM = getAnalysis<ObjectID>();
-				Instruction *orig = IDM.getInstruction(orig_id);
-				Instruction *cloned = IDM.getInstruction(cloned_id);
-				assert(orig && cloned);
-				assert(orig->getOpcode() == cloned->getOpcode());
-				clone_map[thr_id][trunk_id][orig] = cloned;
-			}
-		}
-	}
-
 	void RacyPairs::select_load_store(
 			unsigned s, unsigned e,
 			int tid,
-			bool cloned,
 			vector<pair<Instruction *, CallStack> > &load_stores) {
-		load_stores.clear();
+		TraceManager &TM = getAnalysis<TraceManager>();
 		for (unsigned p = s; p < e; ++p) {
-			if (getAnalysis<TraceManager>().get_record(p).thr_id != tid)
+			const TraceRecord &record = TM.get_record(p);
+			if (record.thr_id != tid)
 				continue;
-			Instruction *ins = compute_inst(p, tid, cloned);
+			Instruction *ins = record.ins;
 			if (!isa<LoadInst>(ins) && !isa<StoreInst>(ins))
 				continue;
 #ifdef CONTEXT
@@ -149,8 +92,8 @@ namespace slicer {
 		
 		// Select only load/store instructions. 
 		vector<pair<Instruction *, CallStack> > b1, b2;
-		select_load_store(s1, e1, t1, Cloned, b1);
-		select_load_store(s2, e2, t2, Cloned, b2);
+		select_load_store(s1, e1, t1, b1);
+		select_load_store(s2, e2, t2, b2);
 		// TODO: Can be optimized. a1 and a2 are ordered. 
 		for (size_t i1 = 0; i1 < b1.size(); ++i1) {
 			Instruction *ins1 = b1[i1].first;
@@ -175,8 +118,8 @@ namespace slicer {
 						dyn_cast<StoreInst>(ins2)->getPointerOperand());
 #ifdef CONTEXT
 				vector<User *> ctxt1, ctxt2;
-				ctxt1 = compute_context(b1[i1].second, t1, Cloned);
-				ctxt2 = compute_context(b2[i2].second, t2, Cloned);
+				ctxt1 = convert_context(b1[i1].second);
+				ctxt2 = convert_context(b2[i2].second);
 				print_context(b1[i1].second);
 				dump_inst(ins1);
 				print_context(b2[i2].second);
@@ -199,36 +142,14 @@ namespace slicer {
 		cerr << endl;
 	}
 
-	vector<User *> RacyPairs::compute_context(
-			const CallStack &cs,
-			int thr_id,
-			bool cloned) const {
-		vector<User *> res;
-		for (size_t i = 0, E = cs.size(); i < E; ++i)
-			res.push_back(compute_inst(cs[i], thr_id, cloned));
-		return res;
-	}
-
-	Instruction *RacyPairs::compute_inst(
-			unsigned idx,
-			int tid,
-			bool cloned) const {
-		assert(trunks.count(tid) && clone_map.count(tid));
-		const vector<unsigned> &thr_trunks = trunks.find(tid)->second;
-		const vector<InstMapping> &thr_clone_map = clone_map.find(tid)->second;
+	vector<User *> RacyPairs::convert_context(const CallStack &cs) const {
 		TraceManager &TM = getAnalysis<TraceManager>();
-		Instruction *ins = TM.get_record(idx).ins;
-		if (cloned) {
-			size_t tr = (upper_bound(
-						thr_trunks.begin(),
-						thr_trunks.end(),
-						idx) - thr_trunks.begin()) - 1;
-			assert(tr < thr_clone_map.size());
-			Instruction *c = thr_clone_map[tr].lookup(ins);
-			if (c)
-				ins = c;
+		vector<User *> res;
+		for (size_t i = 0, E = cs.size(); i < E; ++i) {
+			const TraceRecord &record = TM.get_record(cs[i]);
+			res.push_back(record.ins);
 		}
-		return ins;
+		return res;
 	}
 
 	size_t RacyPairs::find_next_enforce(
@@ -237,7 +158,7 @@ namespace slicer {
 		size_t k = j + 1;
 		while (k < indices.size()) {
 			TraceManager &TM = getAnalysis<TraceManager>();
-			TraceRecord record = TM.get_record(indices[k]);
+			const TraceRecord &record = TM.get_record(indices[k]);
 			if (record.type == TR_LANDMARK_ENFORCE)
 				break;
 			++k;
@@ -246,28 +167,31 @@ namespace slicer {
 	}
 
 	bool RacyPairs::runOnModule(Module &M) {
-#if 1
+#if 0
 		ObjectID &IDM = getAnalysis<ObjectID>();
 		vector<User *> ctxt1, ctxt2;
 		ctxt1.push_back(IDM.getInstruction(6266));
-		Value *v1 = dyn_cast<StoreInst>(IDM.getInstruction(4881))->getPointerOperand();
-		Value *v2 = dyn_cast<LoadInst>(IDM.getInstruction(4508))->getPointerOperand();
+		ctxt1.push_back(IDM.getInstruction(4917));
+		ctxt1.push_back(IDM.getInstruction(3233));
+		ctxt1.push_back(IDM.getInstruction(2996));
+		ctxt1.push_back(IDM.getInstruction(361));
+		Value *v1 = dyn_cast<StoreInst>(IDM.getInstruction(12))->getPointerOperand();
+		ctxt2.push_back(IDM.getInstruction(6233));
+		Value *v2 = dyn_cast<LoadInst>(IDM.getInstruction(4531))->getPointerOperand();
 		BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
 		cerr << BAA.alias(&ctxt1, v1, 0, &ctxt2, v2, 0) << endl;
 #endif
-#if 0
-		// Read the landmark trace. 
-		read_trunks(TraceFile);
-		// Read the clone mapping. 
-		read_clone_map(CloneMapFile);
+#if 1
 		// Calculate <sync_trunks> based on <trunks>.
 		// A trunk may be bounded by non-enforcing landmarks. 
 		// A sync trunk must be bounded by enforcing landmarks (except
 		// the beginning and the end). 
-		ThreadToTrunk sync_trunks;
-		forall(ThreadToTrunk, it, trunks) {
-			int thr_id = it->first;
-			const vector<unsigned> &indices = it->second;
+		map<int, vector<unsigned> > sync_trunks;
+		LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
+		vector<int> thr_ids = LT.get_thr_ids();
+		forall(vector<int>, it, thr_ids) {
+			int thr_id = *it;
+			const vector<unsigned> &indices = LT.get_thr_trunks(thr_id);
 			size_t j = 0;
 			while (j < indices.size()) {
 				sync_trunks[thr_id].push_back(indices[j]);
@@ -280,7 +204,7 @@ namespace slicer {
 		// Collect racy pairs. 
 		// Scan sync_trunks instead of trunks. 
 		racy_pairs.clear();
-		ThreadToTrunk::iterator i1, i2;
+		map<int, vector<unsigned> >::iterator i1, i2;
 		for (i1 = sync_trunks.begin(); i1 != sync_trunks.end(); ++i1) {
 			int t1 = i1->first;
 			for (i2 = i1, ++i2; i2 != sync_trunks.end(); ++i2) {
@@ -328,6 +252,7 @@ namespace slicer {
 		AU.setPreservesAll();
 		AU.addRequired<ObjectID>();
 		AU.addRequired<BddAliasAnalysis>();
+		AU.addRequired<LandmarkTrace>();
 		AU.addRequired<TraceManager>();
 #ifdef CONTEXT
 		AU.addRequired<AddCallingContext>();
