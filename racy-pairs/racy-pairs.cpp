@@ -167,7 +167,7 @@ namespace slicer {
 	}
 
 	bool RacyPairs::runOnModule(Module &M) {
-#if 0
+#if 1
 		ObjectID &IDM = getAnalysis<ObjectID>();
 		vector<User *> ctxt1, ctxt2;
 		ctxt1.push_back(IDM.getInstruction(6266));
@@ -181,7 +181,7 @@ namespace slicer {
 		BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
 		cerr << BAA.alias(&ctxt1, v1, 0, &ctxt2, v2, 0) << endl;
 #endif
-#if 1
+#if 0
 		// Calculate <sync_trunks> based on <trunks>.
 		// A trunk may be bounded by non-enforcing landmarks. 
 		// A sync trunk must be bounded by enforcing landmarks (except

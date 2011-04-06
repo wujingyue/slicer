@@ -26,38 +26,42 @@ all: test-race.orig-rp test-race.cloned-rp test-context.orig-rp \
 		-fulltrace $(<:.bc=.ft) \
 		< $< > $@
 
-%.slice.bc: %.bc %.trace %.cut
+%.slice.bc: %.bc
 	opt -o $@ \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
 		-load $(LLVM_ROOT)/install/lib/libmay-exec.so \
+		-load $(LLVM_ROOT)/install/lib/libidentify-thread-funcs.so \
 		-load $(LLVM_ROOT)/install/lib/libtern-trace.so \
 		-load $(LLVM_ROOT)/install/lib/libmax-slicing-unroll.so \
 		-max-slicing-unroll \
 		-fulltrace $(<:.bc=.ft) \
-		-trace $(<:.bc=.trace) -cut $(<:.bc=.cut) \
 		-mapping $(<:.bc=.map) < $<
 
-%.orig-rp: %.bc %.trace
+%.orig-rp: %.bc
 	opt -analyze \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
+		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/libmay-exec.so \
+		-load $(LLVM_ROOT)/install/lib/libidentify-thread-funcs.so \
 		-load $(LLVM_ROOT)/install/lib/libtern-trace.so \
 		-load $(LLVM_ROOT)/install/lib/libracy-pairs.so \
 		-fulltrace $(<:.bc=.ft) \
-		-trace $(<:.bc=.trace) \
 		-sample $(SAMPLE) \
 		-racy-pairs < $< > $@
 
-%.cloned-rp: %.slice.bc %.trace
+%.cloned-rp: %.slice.bc
 	opt -analyze \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
+		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/libmay-exec.so \
+		-load $(LLVM_ROOT)/install/lib/libidentify-thread-funcs.so \
 		-load $(LLVM_ROOT)/install/lib/libtern-trace.so \
 		-load $(LLVM_ROOT)/install/lib/libracy-pairs.so \
 		-fulltrace $(<:.bc=.ft) \
-		-trace $(<:.slice.bc=.trace) \
 		-sample $(SAMPLE) \
 		-racy-pairs < $< > $@
 
