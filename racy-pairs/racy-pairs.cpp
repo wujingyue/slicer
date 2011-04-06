@@ -60,11 +60,26 @@ namespace slicer {
 		}
 	}
 
+	bool RacyPairs::exclude_context(
+			Instruction *ins,
+			const vector<User *> &ctxt) const {
+		ObjectID &IDM = getAnalysis<ObjectID>();
+		if (IDM.exclude(ins))
+			return true;
+		for (size_t i = 0; i < ctxt.size(); ++i) {
+			const Instruction *c = dyn_cast<Instruction>(ctxt[i]);
+			if (IDM.exclude(c))
+				return true;
+		}
+		return false;
+	}
+
 	void RacyPairs::select_load_store(
 			unsigned s, unsigned e,
 			int tid,
-			vector<pair<Instruction *, CallStack> > &load_stores) {
+			vector<pair<Instruction *, vector<User *> > > &load_stores) {
 		TraceManager &TM = getAnalysis<TraceManager>();
+		AddCallingContext &ACC = getAnalysis<AddCallingContext>();
 		for (unsigned p = s; p < e; ++p) {
 			const TraceRecord &record = TM.get_record(p);
 			if (record.thr_id != tid)
@@ -72,12 +87,15 @@ namespace slicer {
 			Instruction *ins = record.ins;
 			if (!isa<LoadInst>(ins) && !isa<StoreInst>(ins))
 				continue;
+			const CallStack &cs = ACC.get_calling_context(p);
+			vector<User *> ctxt = convert_context(cs);
+			if (!exclude_context(ins, ctxt)) {
 #ifdef CONTEXT
-			AddCallingContext &ACC = getAnalysis<AddCallingContext>();
-			load_stores.push_back(make_pair(ins, ACC.get_calling_context(p)));
+				load_stores.push_back(make_pair(ins, ctxt));
 #else
-			load_stores.push_back(make_pair(ins, CallStack()));
+				load_stores.push_back(make_pair(ins, vector<User *>()));
 #endif
+			}
 		}
 #ifdef VERBOSE
 		cerr << "# of loads/stores = " << load_stores.size() << endl;
@@ -91,7 +109,7 @@ namespace slicer {
 		BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
 		
 		// Select only load/store instructions. 
-		vector<pair<Instruction *, CallStack> > b1, b2;
+		vector<pair<Instruction *, vector<User *> > > b1, b2;
 		select_load_store(s1, e1, t1, b1);
 		select_load_store(s2, e2, t2, b2);
 		// TODO: Can be optimized. a1 and a2 are ordered. 
@@ -117,13 +135,8 @@ namespace slicer {
 						dyn_cast<LoadInst>(ins2)->getPointerOperand() :
 						dyn_cast<StoreInst>(ins2)->getPointerOperand());
 #ifdef CONTEXT
-				vector<User *> ctxt1, ctxt2;
-				ctxt1 = convert_context(b1[i1].second);
-				ctxt2 = convert_context(b2[i2].second);
-				print_context(b1[i1].second);
-				dump_inst(ins1);
-				print_context(b2[i2].second);
-				dump_inst(ins2);
+				vector<User *> ctxt1 = b1[i1].second;
+				vector<User *> ctxt2 = b2[i2].second;
 				if (BAA.alias(&ctxt1, v1, 0, &ctxt2, v2, 0)) {
 					racy_pairs.push_back(make_pair(ins1, ins2));
 				}
@@ -167,7 +180,7 @@ namespace slicer {
 	}
 
 	bool RacyPairs::runOnModule(Module &M) {
-#if 1
+#if 0
 		ObjectID &IDM = getAnalysis<ObjectID>();
 		vector<User *> ctxt1, ctxt2;
 		ctxt1.push_back(IDM.getInstruction(6266));
@@ -181,7 +194,7 @@ namespace slicer {
 		BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
 		cerr << BAA.alias(&ctxt1, v1, 0, &ctxt2, v2, 0) << endl;
 #endif
-#if 0
+#if 1
 		// Calculate <sync_trunks> based on <trunks>.
 		// A trunk may be bounded by non-enforcing landmarks. 
 		// A sync trunk must be bounded by enforcing landmarks (except
@@ -254,9 +267,7 @@ namespace slicer {
 		AU.addRequired<BddAliasAnalysis>();
 		AU.addRequired<LandmarkTrace>();
 		AU.addRequired<TraceManager>();
-#ifdef CONTEXT
 		AU.addRequired<AddCallingContext>();
-#endif
 		ModulePass::getAnalysisUsage(AU);
 	}
 

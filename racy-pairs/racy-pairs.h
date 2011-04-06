@@ -34,16 +34,20 @@ namespace slicer {
 				int t2, unsigned s2, unsigned e2);
 		size_t find_next_enforce(const vector<unsigned> &indices, size_t j) const;
 		vector<User *> convert_context(const CallStack &cs) const;
+		bool exclude_context(Instruction *ins, const vector<User *> &ctxt) const;
 		/*
 		 * Selects loads and stores invoked by <tid> from the index range [s, e). 
 		 * Saves them to <load_stores>.
-		 * If <CloneMapFile> is specified, we look at their counterparts
-		 * in the cloned program. 
+		 * This function filters out instructions
+		 * invoked by white-listed functions.
+		 * Specifically, it filters out an instruction when this instruction
+		 * is in a white-listed function or any function on its callstack
+		 * is white-listed. 
 		 */
 		void select_load_store(
 				unsigned s, unsigned e,
 				int tid,
-				vector<pair<Instruction *, CallStack> > &load_stores);
+				vector<pair<Instruction *, vector<User *> > > &load_stores);
 
 		map<int, vector<DenseMap<unsigned, unsigned> > > clone_id_map;
 		vector<InstPair> racy_pairs;
