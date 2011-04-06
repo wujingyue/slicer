@@ -5,21 +5,23 @@
 #include "llvm/Module.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Support/CommandLine.h"
-
-#include "config.h"
-#include "max-slicing-unroll.h"
 #include "idm/id.h"
 #include "common/callgraph-fp/callgraph-fp.h"
 #include "common/may-exec/may-exec.h"
-#include "llvm-instrument/trace-manager/trace-manager.h"
+using namespace llvm;
+
+#include "llvm-instrument/trace/trace-manager.h"
+#include "llvm-instrument/trace/mark-landmarks.h"
+#include "llvm-instrument/trace/landmark-trace.h"
+using namespace tern;
 
 #include <iostream>
 #include <fstream>
 #include <sstream>
-
-using namespace llvm;
 using namespace std;
-using namespace tern;
+
+#include "config.h"
+#include "max-slicing-unroll.h"
 
 namespace {
 	static RegisterPass<slicer::MaxSlicingUnroll>
@@ -27,17 +29,6 @@ namespace {
 				"Unroll the program according to the trace",
 				false,
 				true); // is analysis
-	static cl::opt<string> TraceFile(
-			"trace",
-			cl::NotHidden,
-			cl::desc("A trace of instructions according to which we will slice"
-				" the program"),
-			cl::init(""));
-	static cl::opt<string> CutFile(
-			"cut",
-			cl::NotHidden,
-			cl::desc("Set of instructions that should be traced"),
-			cl::init(""));
 	static cl::opt<string> MappingFile(
 			"mapping",
 			cl::NotHidden,
@@ -52,109 +43,12 @@ namespace slicer {
 		AU.addRequired<CallGraphFP>();
 		AU.addRequired<MayExec>();
 		AU.addRequired<TraceManager>();
+		AU.addRequired<MarkLandmarks>();
+		AU.addRequired<LandmarkTrace>();
 		ModulePass::getAnalysisUsage(AU);
 	}
 
 	MaxSlicingUnroll::MaxSlicingUnroll(): ModulePass(&ID) {}
-
-	int MaxSlicingUnroll::read_trace(
-			const string &trace_file,
-			Trace &trace,
-			vector<ThreadCreationRecord> &thr_cr_records) {
-		if (trace_file == "") {
-			cerr << "Didn't specify the trace file. Do nothing.\n";
-			return -1;
-		}
-		ifstream fin(trace_file.c_str());
-		if (!fin) {
-			cerr << "Cannot open file " << trace_file << endl;
-			return -1;
-		}
-
-		trace.clear();
-		thr_cr_records.clear();
-		string line;
-
-		TraceManager &TM = getAnalysis<TraceManager>();
-		ObjectID &IDM = getAnalysis<ObjectID>();
-		while (getline(fin, line)) {
-			istringstream iss(line);
-			unsigned idx;
-			if (iss >> idx) {
-				TraceRecord record = TM.get_record(idx);
-				int thr_id = record.thr_id;
-				Instruction *ins = IDM.getInstruction(record.ins_id);
-				assert(ins != NULL);
-				int child_tid = record.child_tid;
-				trace[thr_id].push_back(ins);
-				if (child_tid >= 0 && child_tid != thr_id) {
-					// A thread creation
-					thr_cr_records.push_back(
-							ThreadCreationRecord(
-								thr_id,
-								trace[thr_id].size() - 1,
-								child_tid));
-				}
-			}
-		}
-		
-		forall(Trace, it, trace) {
-			if (it->second.size() < 2) {
-				cerr << "There should be at least two entries in a trace\n";
-				return -1;
-			}
-		}
-		
-		return 0;
-	}
-
-	int MaxSlicingUnroll::read_cut(
-			const string &cut_file,
-			InstSet &cut) {
-		if (cut_file == "") {
-			cerr << "Didn't specify the cut file. Do nothing.\n";
-			return -1;
-		}
-		ifstream fin(cut_file.c_str());
-		string line;
-		ObjectID &IDM = getAnalysis<ObjectID>();
-		cut.clear();
-		while (getline(fin, line)) {
-			istringstream iss(line);
-			int i;
-			if (iss >> i) {
-				Instruction *ins = IDM.getInstruction(i);
-				if (ins == NULL) {
-					cerr << "Cannot find the instruction with ID " << i << endl;
-					return -1;
-				}
-				cut.insert(ins);
-			}
-		}
-		return 0;
-	}
-
-	int MaxSlicingUnroll::read_trace_and_cut(
-			const string &trace_file,
-			const string &cut_file,
-			Trace &trace,
-			vector<ThreadCreationRecord> &thr_cr_records,
-			InstSet &cut) {
-		// Read the trace. 
-		if (read_trace(trace_file, trace, thr_cr_records))
-			return -1;
-		// Collect all instructions that should be recorded once executed. 
-		if (read_cut(cut_file, cut))
-			return -1;
-		// <cut> should also contain all instructions in the trace. 
-		for (Trace::iterator it = trace.begin();
-				it != trace.end(); ++it) {
-			for (size_t i = 0, E = it->second.size(); i < E; ++i)
-				cut.insert(it->second[i]);
-		}
-		assert(!trace.empty() && "A trace cannot be empty");
-		return 0;
-	}
 
 	void MaxSlicingUnroll::print_inst_set(const InstSet &s) {
 		ObjectID &IDM = getAnalysis<ObjectID>();
@@ -203,6 +97,31 @@ namespace slicer {
 		}
 	}
 
+	void MaxSlicingUnroll::read_trace_and_cut(
+			Trace &trace,
+			vector<ThreadCreationRecord> &thr_cr_records,
+			InstSet &cut) {
+		
+		LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
+		MarkLandmarks &ML = getAnalysis<MarkLandmarks>();
+		TraceManager &TM = getAnalysis<TraceManager>();
+		// cut
+		cut = ML.get_landmarks();
+		// trace and thr_cr_records
+		vector<int> thr_ids = LT.get_thr_ids();
+		for (size_t i = 0; i < thr_ids.size(); ++i) {
+			int thr_id = thr_ids[i];
+			const vector<unsigned> thr_indices = LT.get_thr_trunks(thr_id);
+			for (size_t j = 0; j < thr_indices.size(); ++j) {
+				const TraceRecord &record = TM.get_record(thr_indices[j]);
+				trace[thr_id].push_back(record.ins);
+				if (record.child_tid != -1 && record.child_tid != thr_id)
+					thr_cr_records.push_back(
+							ThreadCreationRecord(thr_id, j, record.child_tid));
+			}
+		}
+	}
+
 	bool MaxSlicingUnroll::runOnModule(Module &M) {
 		// Save the old id mapping before everything. 
 		ObjectID &IDM = getAnalysis<ObjectID>();
@@ -215,8 +134,7 @@ namespace slicer {
 		Trace trace;
 		vector<ThreadCreationRecord> thr_cr_records;
 		InstSet cut;
-		if (read_trace_and_cut(TraceFile, CutFile, trace, thr_cr_records, cut))
-			return false;
+		read_trace_and_cut(trace, thr_cr_records, cut);
 		// Which functions may execute a landmark? 
 		MayExec &ME = getAnalysis<MayExec>();
 		ME.setup_landmarks(cut);

@@ -2,6 +2,11 @@
  * Author: Jingyue
  */
 
+/**
+ * TODO: redirect_program_entry does not remove any instructions now. 
+ * Therefore, we can print the clone mapping in an much easier way. 
+ */
+
 #ifndef __SLICER_MAX_SLICING_UNROLL_H
 #define __SLICER_MAX_SLICING_UNROLL_H
 
@@ -61,6 +66,10 @@ namespace slicer {
 #endif
 
 	private:
+		void read_trace_and_cut(
+				Trace &trace,
+				vector<ThreadCreationRecord> &thr_cr_records,
+				InstSet &cut);
 		void dump_thr_cfg(const CFG &cfg, int thr_id);
 		void link_thr_funcs(
 				Module &M,
@@ -157,17 +166,6 @@ namespace slicer {
 				Instruction *x,
 				DenseMap<Instruction *, int> &level,
 				InstMapping &parent);
-		int read_trace_and_cut(
-				const string &trace_file,
-				const string &cut_file,
-				Trace &trace,
-				vector<ThreadCreationRecord> &thr_cr_records,
-				InstSet &cut);
-		int read_trace(
-				const string &trace_file,
-				Trace &trace,
-				vector<ThreadCreationRecord> &thr_cr_records);
-		int read_cut(const string &cut_file, InstSet &cut);
 		/*
 		 * Get the type of the edge from <x> to <y>. 
 		 * <x> and <y> must be in the cloned CFG. 
