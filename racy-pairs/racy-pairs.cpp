@@ -34,6 +34,8 @@ namespace {
 namespace slicer {
 
 	void RacyPairs::print_inst(Instruction *ins, raw_ostream &O) const {
+		ObjectID &IDM = getAnalysis<ObjectID>();
+		O << "[" << IDM.getInstructionID(ins) << "] ";
 		BasicBlock *bb = ins->getParent();
 		Function *func = bb->getParent();
 		O << func->getNameStr() << ":" << bb->getNameStr() << ":\t";
@@ -50,6 +52,7 @@ namespace slicer {
 
 	void RacyPairs::print(raw_ostream &O, const Module *M) const {
 		cerr << "# of racy pairs = " << racy_pairs.size() << endl;
+#if 0
 		forallconst(vector<InstPair>, it, racy_pairs) {
 			if ((it - racy_pairs.begin()) % 10000 == 0)
 				cerr << "Progress: " << it - racy_pairs.begin()
@@ -57,6 +60,28 @@ namespace slicer {
 			O << string(10, '=') << "\n";
 			print_inst(it->first, O);
 			print_inst(it->second, O);
+		}
+#endif
+#if 0
+		vector<pair<unsigned, unsigned> > racy_pair_ids;
+		ObjectID &IDM = getAnalysis<ObjectID>();
+		forallconst(vector<InstPair>, it, racy_pairs) {
+			unsigned id1 = IDM.getInstructionID(it->first);
+			unsigned id2 = IDM.getInstructionID(it->second);
+			assert(id1 != ObjectID::INVALID_ID && id2 != ObjectID::INVALID_ID);
+			if (id1 > id2)
+				swap(id1, id2);
+			racy_pair_ids.push_back(make_pair(id1, id2));
+		}
+		sort(racy_pair_ids.begin(), racy_pair_ids.end());
+		racy_pair_ids.resize(unique(racy_pair_ids.begin(), racy_pair_ids.end()) -
+				racy_pair_ids.begin());
+		for (size_t i = 0; i < racy_pair_ids.size(); ++i)
+			O << racy_pair_ids[i].first << ' ' << racy_pair_ids[i].second << "\n";
+#endif
+		for (size_t i = 0; i < racy_pair_indices.size(); ++i) {
+			O << racy_pair_indices[i].first << ' '
+				<< racy_pair_indices[i].second << "\n";
 		}
 	}
 
@@ -77,7 +102,8 @@ namespace slicer {
 	void RacyPairs::select_load_store(
 			unsigned s, unsigned e,
 			int tid,
-			vector<pair<Instruction *, vector<User *> > > &load_stores) {
+			vector<pair<Instruction *, vector<User *> > > &load_stores,
+			vector<unsigned> *selected_indices) {
 		TraceManager &TM = getAnalysis<TraceManager>();
 		AddCallingContext &ACC = getAnalysis<AddCallingContext>();
 		for (unsigned p = s; p < e; ++p) {
@@ -95,6 +121,13 @@ namespace slicer {
 #else
 				load_stores.push_back(make_pair(ins, vector<User *>()));
 #endif
+				if (selected_indices)
+					selected_indices->push_back(p);
+				if (p == 9169 || p == 8872) {
+					cerr << "!!!!!!!!!!!!!!!!!!!!!!!!\n";
+					print_context(ctxt);
+					cerr << "selected " << p << " in Tid " << tid << endl;
+				}
 			}
 		}
 #ifdef VERBOSE
@@ -110,8 +143,9 @@ namespace slicer {
 		
 		// Select only load/store instructions. 
 		vector<pair<Instruction *, vector<User *> > > b1, b2;
-		select_load_store(s1, e1, t1, b1);
-		select_load_store(s2, e2, t2, b2);
+		vector<unsigned> c1, c2;
+		select_load_store(s1, e1, t1, b1, &c1);
+		select_load_store(s2, e2, t2, b2, &c2);
 		// TODO: Can be optimized. a1 and a2 are ordered. 
 		for (size_t i1 = 0; i1 < b1.size(); ++i1) {
 			Instruction *ins1 = b1[i1].first;
@@ -134,16 +168,24 @@ namespace slicer {
 				Value *v2 = (isa<LoadInst>(ins2) ?
 						dyn_cast<LoadInst>(ins2)->getPointerOperand() :
 						dyn_cast<StoreInst>(ins2)->getPointerOperand());
+				bool racy;
 #ifdef CONTEXT
 				vector<User *> ctxt1 = b1[i1].second;
 				vector<User *> ctxt2 = b2[i2].second;
-				if (BAA.alias(&ctxt1, v1, 0, &ctxt2, v2, 0)) {
-					racy_pairs.push_back(make_pair(ins1, ins2));
-				}
+				racy = BAA.alias(&ctxt1, v1, 0, &ctxt2, v2, 0);
 #else
-				if (BAA.alias(v1, 0, v2, 0))
-					racy_pairs.push_back(make_pair(ins1, ins2));
+				racy = BAA.alias(v1, 0, v2, 0);
 #endif
+				if (c1[i1] == 9169 && c2[i2] == 8874) {
+					ObjectID &IDM = getAnalysis<ObjectID>();
+					cerr << "***********\n";
+					cerr << IDM.getInstructionID(ins1) << endl;
+					cerr << IDM.getInstructionID(ins2) << endl;
+				}
+				if (racy) {
+					racy_pairs.push_back(make_pair(ins1, ins2));
+					racy_pair_indices.push_back(make_pair(c1[i1], c2[i2]));
+				}
 			}
 		}
 	}
@@ -152,6 +194,16 @@ namespace slicer {
 		cerr << "Context:";
 		for (size_t i = 0, E = cs.size(); i < E; ++i)
 			cerr << ' ' << cs[i];
+		cerr << endl;
+	}
+
+	void RacyPairs::print_context(const vector<User *> &cs) const {
+		ObjectID &IDM = getAnalysis<ObjectID>();
+		cerr << "Context:";
+		for (size_t i = 0, E = cs.size(); i < E; ++i) {
+			assert(isa<Instruction>(cs[i]));
+			cerr << ' ' << IDM.getInstructionID(dyn_cast<Instruction>(cs[i]));
+		}
 		cerr << endl;
 	}
 
@@ -180,21 +232,21 @@ namespace slicer {
 	}
 
 	bool RacyPairs::runOnModule(Module &M) {
-#if 0
+#if 1
 		ObjectID &IDM = getAnalysis<ObjectID>();
 		vector<User *> ctxt1, ctxt2;
-		ctxt1.push_back(IDM.getInstruction(6266));
-		ctxt1.push_back(IDM.getInstruction(4917));
-		ctxt1.push_back(IDM.getInstruction(3233));
-		ctxt1.push_back(IDM.getInstruction(2996));
-		ctxt1.push_back(IDM.getInstruction(361));
-		Value *v1 = dyn_cast<StoreInst>(IDM.getInstruction(12))->getPointerOperand();
-		ctxt2.push_back(IDM.getInstruction(6233));
-		Value *v2 = dyn_cast<LoadInst>(IDM.getInstruction(4531))->getPointerOperand();
+		ctxt1.push_back(IDM.getInstruction(1383));
+		ctxt1.push_back(IDM.getInstruction(749));
+		ctxt1.push_back(IDM.getInstruction(573));
+		ctxt2.push_back(IDM.getInstruction(1367));
+		ctxt2.push_back(IDM.getInstruction(749));
+		ctxt2.push_back(IDM.getInstruction(573));
+		Value *v1 = dyn_cast<StoreInst>(IDM.getInstruction(214))->getPointerOperand();
+		Value *v2 = dyn_cast<StoreInst>(IDM.getInstruction(214))->getPointerOperand();
 		BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
 		cerr << BAA.alias(&ctxt1, v1, 0, &ctxt2, v2, 0) << endl;
 #endif
-#if 1
+#if 0
 		// Calculate <sync_trunks> based on <trunks>.
 		// A trunk may be bounded by non-enforcing landmarks. 
 		// A sync trunk must be bounded by enforcing landmarks (except
@@ -217,6 +269,7 @@ namespace slicer {
 		// Collect racy pairs. 
 		// Scan sync_trunks instead of trunks. 
 		racy_pairs.clear();
+		racy_pair_indices.clear();
 		map<int, vector<unsigned> >::iterator i1, i2;
 		for (i1 = sync_trunks.begin(); i1 != sync_trunks.end(); ++i1) {
 			int t1 = i1->first;
@@ -257,13 +310,14 @@ namespace slicer {
 				}
 			}
 		}
+		sort(racy_pair_indices.begin(), racy_pair_indices.end());
 #endif
 		return false;
 	}
 
 	void RacyPairs::getAnalysisUsage(AnalysisUsage &AU) const {
 		AU.setPreservesAll();
-		AU.addRequired<ObjectID>();
+		AU.addRequiredTransitive<ObjectID>();
 		AU.addRequired<BddAliasAnalysis>();
 		AU.addRequired<LandmarkTrace>();
 		AU.addRequired<TraceManager>();

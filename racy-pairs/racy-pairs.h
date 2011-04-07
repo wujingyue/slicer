@@ -29,6 +29,7 @@ namespace slicer {
 		void print_inst(Instruction *ins, raw_ostream &O) const;
 		void dump_inst(Instruction *ins) const;
 		void print_context(const CallStack &cs) const;
+		void print_context(const vector<User *> &cs) const;
 		void extract_racy_pairs(
 				int t1, unsigned s1, unsigned e1,
 				int t2, unsigned s2, unsigned e2);
@@ -38,19 +39,26 @@ namespace slicer {
 		/*
 		 * Selects loads and stores invoked by <tid> from the index range [s, e). 
 		 * Saves them to <load_stores>.
+		 *
 		 * This function filters out instructions
 		 * invoked by white-listed functions.
 		 * Specifically, it filters out an instruction when this instruction
 		 * is in a white-listed function or any function on its callstack
 		 * is white-listed. 
+		 * 
+		 * <selected_indices> returns the selected indices in the range [s, e). 
+		 * If it's NULL, the function simply ignores it. 
+		 * It's for debugging use only. 
 		 */
 		void select_load_store(
 				unsigned s, unsigned e,
 				int tid,
-				vector<pair<Instruction *, vector<User *> > > &load_stores);
+				vector<pair<Instruction *, vector<User *> > > &load_stores,
+				vector<unsigned> *selected_indices);
 
 		map<int, vector<DenseMap<unsigned, unsigned> > > clone_id_map;
 		vector<InstPair> racy_pairs;
+		vector<pair<unsigned, unsigned> > racy_pair_indices;
 		int counter;
 	};
 }
