@@ -52,7 +52,7 @@ namespace slicer {
 
 	void RacyPairs::print(raw_ostream &O, const Module *M) const {
 		cerr << "# of racy pairs = " << racy_pairs.size() << endl;
-#if 0
+#if 1
 		forallconst(vector<InstPair>, it, racy_pairs) {
 			if ((it - racy_pairs.begin()) % 10000 == 0)
 				cerr << "Progress: " << it - racy_pairs.begin()
@@ -79,10 +79,12 @@ namespace slicer {
 		for (size_t i = 0; i < racy_pair_ids.size(); ++i)
 			O << racy_pair_ids[i].first << ' ' << racy_pair_ids[i].second << "\n";
 #endif
+#if 0
 		for (size_t i = 0; i < racy_pair_indices.size(); ++i) {
 			O << racy_pair_indices[i].first << ' '
 				<< racy_pair_indices[i].second << "\n";
 		}
+#endif
 	}
 
 	bool RacyPairs::exclude_context(
@@ -123,11 +125,6 @@ namespace slicer {
 #endif
 				if (selected_indices)
 					selected_indices->push_back(p);
-				if (p == 9169 || p == 8872) {
-					cerr << "!!!!!!!!!!!!!!!!!!!!!!!!\n";
-					print_context(ctxt);
-					cerr << "selected " << p << " in Tid " << tid << endl;
-				}
 			}
 		}
 #ifdef VERBOSE
@@ -176,12 +173,6 @@ namespace slicer {
 #else
 				racy = BAA.alias(v1, 0, v2, 0);
 #endif
-				if (c1[i1] == 9169 && c2[i2] == 8874) {
-					ObjectID &IDM = getAnalysis<ObjectID>();
-					cerr << "***********\n";
-					cerr << IDM.getInstructionID(ins1) << endl;
-					cerr << IDM.getInstructionID(ins2) << endl;
-				}
 				if (racy) {
 					racy_pairs.push_back(make_pair(ins1, ins2));
 					racy_pair_indices.push_back(make_pair(c1[i1], c2[i2]));
@@ -232,21 +223,21 @@ namespace slicer {
 	}
 
 	bool RacyPairs::runOnModule(Module &M) {
-#if 1
+#if 0
 		ObjectID &IDM = getAnalysis<ObjectID>();
 		vector<User *> ctxt1, ctxt2;
-		ctxt1.push_back(IDM.getInstruction(1383));
-		ctxt1.push_back(IDM.getInstruction(749));
-		ctxt1.push_back(IDM.getInstruction(573));
-		ctxt2.push_back(IDM.getInstruction(1367));
-		ctxt2.push_back(IDM.getInstruction(749));
-		ctxt2.push_back(IDM.getInstruction(573));
+		ctxt1.push_back(IDM.getInstruction(2059));
+		ctxt1.push_back(IDM.getInstruction(2487));
+		ctxt1.push_back(IDM.getInstruction(2600));
+		ctxt2.push_back(IDM.getInstruction(2050));
+		ctxt2.push_back(IDM.getInstruction(3505));
+		ctxt2.push_back(IDM.getInstruction(3618));
 		Value *v1 = dyn_cast<StoreInst>(IDM.getInstruction(214))->getPointerOperand();
 		Value *v2 = dyn_cast<StoreInst>(IDM.getInstruction(214))->getPointerOperand();
 		BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
 		cerr << BAA.alias(&ctxt1, v1, 0, &ctxt2, v2, 0) << endl;
 #endif
-#if 0
+#if 1
 		// Calculate <sync_trunks> based on <trunks>.
 		// A trunk may be bounded by non-enforcing landmarks. 
 		// A sync trunk must be bounded by enforcing landmarks (except
