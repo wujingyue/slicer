@@ -35,12 +35,11 @@ namespace slicer {
 	private:
 		void capture_in_func(Function *f);
 		void declare_bounds_in_func(Function *f);
+		void simplify_constraints();
 		void calc_end_bb_bounds(BasicBlock *bb, ValueBoundsInBB &end_bb_bounds);
 		// TODO: <bb> is not necessary. 
-		void gen_bounds(
-				Value *v, BasicBlock *bb, ValueBoundsInBB &end_bb_bounds);
-		void gen_bound_of_user(
-				User *v, BasicBlock *bb, ValueBoundsInBB &end_bb_bounds);
+		void gen_bounds(Value *v, ValueBoundsInBB &end_bb_bounds);
+		void gen_bound_of_user(User *v, ValueBoundsInBB &end_bb_bounds);
 		void collect_inter_bb_constraints(
 				BasicBlock *x, BasicBlock *y, const ValueBoundsInBB &end_bb_bounds);
 		void collect_branch_constraints(

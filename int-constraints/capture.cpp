@@ -62,9 +62,13 @@ namespace slicer {
 			print_bool_expr(O, c->be);
 			return;
 		}
+		O << "(";
 		print_clause(O, c->c1);
-		O << (c->op == Clause::And ? " AND " : " OR ");
+		O << ") ";
+		O << (c->op == Clause::And ? "AND" : "OR");
+		O << " (";
 		print_clause(O, c->c2);
+		O << ")";
 	}
 
 	void CaptureConstraints::print_bool_expr(
@@ -102,8 +106,8 @@ namespace slicer {
 				continue;
 			// A function parameter dominates all BBs.
 			for (Function::iterator bi = f->begin(); bi != f->end(); ++bi) {
-				Expr ub = create_new_symbol();
 				Expr lb = create_new_symbol();
+				Expr ub = create_new_symbol();
 				start_bb_bounds[bi][ai] = make_pair(lb, ub);
 			}
 		}
@@ -121,9 +125,9 @@ namespace slicer {
 				forall(BBList, it, dominated) {
 					BasicBlock *dom = *it;
 					if (dom != bi || isa<PHINode>(ii)) {
-						start_bb_bounds[dom][ii] = make_pair(
-								create_new_symbol(),
-								create_new_symbol());
+						Expr lb = create_new_symbol();
+						Expr ub = create_new_symbol();
+						start_bb_bounds[dom][ii] = make_pair(lb, ub);
 					}
 				}
 			}
@@ -137,8 +141,7 @@ namespace slicer {
 	}
 
 	void CaptureConstraints::gen_bound_of_user(
-			User *user, BasicBlock *bb,
-			ValueBoundsInBB &end_bb_bounds) {
+			User *user, ValueBoundsInBB &end_bb_bounds) {
 		assert(user->getNumOperands() == 1 || user->getNumOperands() == 2);
 		Value *op1 = (user->getNumOperands() >= 1 ? user->getOperand(0) : NULL);
 		Value *op2 = (user->getNumOperands() >= 2 ? user->getOperand(1) : NULL);
@@ -266,12 +269,8 @@ namespace slicer {
 	}
 
 	void CaptureConstraints::gen_bounds(
-			Value *v, BasicBlock *bb,
-			ValueBoundsInBB &end_bb_bounds) {
+			Value *v, ValueBoundsInBB &end_bb_bounds) {
 		assert(v);
-		cerr << "gen_bounds:";
-		v->dump();
-
 		// Skip if not an integer.
 		if (!isa<IntegerType>(v->getType()))
 			return;
@@ -319,10 +318,10 @@ namespace slicer {
 		for (User::op_iterator oi = u->op_begin();
 				oi != u->op_end(); ++oi) {
 			Value *opr = *oi;
-			gen_bounds(opr, bb, end_bb_bounds);
+			gen_bounds(opr, end_bb_bounds);
 		}
 		// The bound of each operand has been calculated. 
-		gen_bound_of_user(u, bb, end_bb_bounds);
+		gen_bound_of_user(u, end_bb_bounds);
 	}
 
 	void CaptureConstraints::calc_end_bb_bounds(
@@ -335,7 +334,7 @@ namespace slicer {
 			// We'll handle PHI nodes later. 
 			if (!isa<PHINode>(ii)) {
 				// Collect constraints from instruction <ii>.
-				gen_bounds(ii, bb, end_bb_bounds);
+				gen_bounds(ii, end_bb_bounds);
 			}
 		}
 	}
@@ -454,9 +453,11 @@ namespace slicer {
 				Value *v1 = cond->getOperand(0), *v2 = cond->getOperand(1);
 				CmpInst::Predicate pred = cond->getPredicate();
 				// Negate the predicate if <y> is the false branch. 
+#if 0
 				// TODO: hack
 				if (pred == CmpInst::ICMP_EQ)
 					pred = CmpInst::ICMP_SGE;
+#endif
 				if (y == bi->getSuccessor(1))
 					pred = CmpInst::getInversePredicate(pred);
 				collect_branch_constraints(v1, v2, pred, end_bb_bounds, branch_bounds);
@@ -498,44 +499,48 @@ namespace slicer {
 		// in BB <y>
 		Expr lb = bound_y.lookup(vy).first, ub = bound_y.lookup(vy).second;
 
+		vx->dump();
 		if (isa<Constant>(vx)) {
 			ValueBoundsInBB tmp_bounds;
-			gen_bounds(vx, x, tmp_bounds);
+			gen_bounds(vx, tmp_bounds);
 			assert(tmp_bounds.count(vx));
 			constraints.push_back(Clause::create_bool_expr(
 						BoolExpr(lb, tmp_bounds[vx].first)));
 			constraints.push_back(Clause::create_bool_expr(
 						BoolExpr(tmp_bounds[vx].second, ub)));
-		} else {
-			assert(end_bb_bounds.count(vx));
-			Clause *root = NULL;
-			for (size_t j = 0; j < branch_bounds.size(); ++j) {
-				if (branch_bounds[j].first == vx) {
-					Clause *cur = Clause::create_and(
-							Clause::create_or(
-								Clause::create_bool_expr(
-									BoolExpr(lb, end_bb_bounds.lookup(vx).first)),
-								Clause::create_bool_expr(
-									BoolExpr(lb, branch_bounds[j].second.first))),
-							Clause::create_or(
-								Clause::create_bool_expr(
-									BoolExpr(end_bb_bounds.lookup(vx).second, ub)),
-								Clause::create_bool_expr(
-									BoolExpr(branch_bounds[j].second.second, ub))));
-					if (root == NULL)
-						root = cur;
-					else
-						root = Clause::create_or(root, cur);
-				}
+			return;
+		}
+
+		if (!end_bb_bounds.count(vx))
+			return;
+
+		Clause *root = NULL;
+		for (size_t j = 0; j < branch_bounds.size(); ++j) {
+			if (branch_bounds[j].first == vx) {
+				Clause *cur = Clause::create_and(
+						Clause::create_or(
+							Clause::create_bool_expr(
+								BoolExpr(lb, end_bb_bounds.lookup(vx).first)),
+							Clause::create_bool_expr(
+								BoolExpr(lb, branch_bounds[j].second.first))),
+						Clause::create_or(
+							Clause::create_bool_expr(
+								BoolExpr(end_bb_bounds.lookup(vx).second, ub)),
+							Clause::create_bool_expr(
+								BoolExpr(branch_bounds[j].second.second, ub))));
+				if (root == NULL)
+					root = cur;
+				else
+					root = Clause::create_or(root, cur);
 			}
-			if (root)
-				constraints.push_back(root);
-			else {
-				constraints.push_back(Clause::create_bool_expr(
-							BoolExpr(lb, end_bb_bounds.lookup(vx).first)));
-				constraints.push_back(Clause::create_bool_expr(
-							BoolExpr(end_bb_bounds.lookup(vx).second, ub)));
-			}
+		}
+		if (root)
+			constraints.push_back(root);
+		else {
+			constraints.push_back(Clause::create_bool_expr(
+						BoolExpr(lb, end_bb_bounds.lookup(vx).first)));
+			constraints.push_back(Clause::create_bool_expr(
+						BoolExpr(end_bb_bounds.lookup(vx).second, ub)));
 		}
 	}
 
@@ -544,7 +549,21 @@ namespace slicer {
 			if (!fi->isDeclaration())
 				capture_in_func(fi);
 		}
+		simplify_constraints();
 		return false;
+	}
+
+	void CaptureConstraints::simplify_constraints() {
+		size_t i = 0;
+		while (i < constraints.size()) {
+			Clause *c = constraints[i];
+			if (c->op == Clause::None && c->be.e1 == c->be.e2) {
+				delete c;
+				constraints.erase(constraints.begin() + i);
+				continue;
+			}
+			++i;
+		}
 	}
 
 	void CaptureConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
