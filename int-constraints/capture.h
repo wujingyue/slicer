@@ -25,10 +25,10 @@ namespace slicer {
 
 		CaptureConstraints();
 		virtual ~CaptureConstraints();
-		
 		virtual bool runOnModule(Module &M);
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual void print(raw_ostream &O, const Module *M) const;
+
 		unsigned get_num_constraints() const;
 		const Clause *get_constraint(unsigned i) const;
 

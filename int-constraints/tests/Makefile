@@ -1,7 +1,7 @@
 CFLAGS=-g -O2
 CXXFLAGS=-g -O2
 
-all: test-race.bc test-context.bc test-gep.bc test-int.bc
+all: test-race.bc test-context.bc test-gep.bc test-int.bc test-recursive.bc
 
 %.bc: %.c
 	llvm-gcc -o $@ $< -c -emit-llvm $(CFLAGS)
@@ -17,6 +17,15 @@ all: test-race.bc test-context.bc test-gep.bc test-int.bc
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libint-constraints.so \
 		-capture-constraints \
+		< $< > $@
+
+%.scc: %.bc
+	opt -analyze \
+		-load $(LLVM_ROOT)/install/lib/libidm.so \
+		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
+		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/libint-constraints.so \
+		-exec-once \
 		< $< > $@
 
 %.ll: %.bc
