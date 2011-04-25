@@ -28,6 +28,15 @@ all: test-race.bc test-context.bc test-gep.bc test-int.bc test-recursive.bc
 		-exec-once \
 		< $< > $@
 
+%.ma: %.bc
+	opt -analyze \
+		-load $(LLVM_ROOT)/install/lib/libidm.so \
+		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
+		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/libint-constraints.so \
+		-must-alias \
+		< $< > $@
+
 %.ll: %.bc
 	llvm-dis $<
 
