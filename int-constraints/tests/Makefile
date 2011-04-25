@@ -19,7 +19,7 @@ all: test-race.bc test-context.bc test-gep.bc test-int.bc test-recursive.bc
 		-capture-constraints \
 		< $< > $@
 
-%.scc: %.bc
+%.eo: %.bc
 	opt -analyze \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \

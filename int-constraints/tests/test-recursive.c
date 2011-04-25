@@ -14,9 +14,12 @@ int fib(int n) {
 
 int main(int argc, char *argv[]) {
 	assert(argc >= 2);
-	int n = atoi(argv[1]);
-	assert(n >= 0);
-	printf("%d\n", fib(n));
+	int i;
+	for (i = 0; i < argc; ++i) {
+		int n = atoi(argv[1]);
+		assert(n >= 0);
+		printf("%d\n", fib(n));
+	}
 	return 0;
 }
 

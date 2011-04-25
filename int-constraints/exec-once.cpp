@@ -30,7 +30,16 @@ namespace slicer {
 	}
 
 	void ExecOnce::print(raw_ostream &O, const Module *M) const {
-		// TODO
+		O << "List of BBs that can be executed only once:\n";
+		forallconst(Module, fi, *M) {
+			forallconst(Function, bi, *fi) {
+				const BasicBlock *bb = bi;
+				if (executed_once(const_cast<BasicBlock *>(bb))) {
+					O << bb->getParent()->getNameStr() << "."
+						<< bb->getNameStr() << "\n";
+				}
+			}
+		}
 	}
 
 	bool ExecOnce::runOnModule(Module &M) {
@@ -81,6 +90,10 @@ namespace slicer {
 				}
 			}
 		}
+		// Check <starts>.
+		// No starting point can be NULL. 
+		forall(FuncSet, it, starts)
+			assert(*it);
 	}
 
 	void ExecOnce::identify_twice_funcs(Module &M) {
@@ -94,6 +107,10 @@ namespace slicer {
 	}
 
 	void ExecOnce::propagate_via_cg(Function *f) {
+		// The call graph contains some external nodes which don't represent
+		// any function. 
+		if (!f)
+			return;
 		if (twice_funcs.count(f))
 			return;
 		twice_funcs.insert(f);
@@ -138,6 +155,14 @@ namespace slicer {
 	}
 
 	bool ExecOnce::executed_once(BasicBlock *bb) const {
+#if 0
+		forallconst(FuncSet, it, twice_funcs)
+			cerr << "twice_funcs: " << (*it)->getNameStr() << endl;
+		forallconst(BBSet, it, twice_bbs) {
+			cerr << "twice_bbs: " << (*it)->getParent()->getNameStr() << "."
+				<< (*it)->getNameStr() << endl;
+		}
+#endif
 		return !twice_funcs.count(bb->getParent()) && !twice_bbs.count(bb);
 	}
 
