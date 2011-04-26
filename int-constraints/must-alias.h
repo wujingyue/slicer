@@ -5,6 +5,7 @@
 
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
+#include "common/include/typedefs.h"
 using namespace llvm;
 
 #include <vector>
@@ -23,6 +24,7 @@ namespace slicer {
 		};
 
 		MustAlias(): ModulePass(&ID) {}
+		~MustAlias();
 		virtual bool runOnModule(Module &M);
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual void print(raw_ostream &O, const Module *M) const;
@@ -31,14 +33,24 @@ namespace slicer {
 		bool must_alias(
 				vector<User *> *ctxt1, const Value *v1,
 				vector<User *> *ctxt2, const Value *v2) const;
+		// Context-insensitive. 
+		// Use the alias sets. 
+		bool fast_must_alias(const Value *v1, const Value *v2) const;
 
 	private:
+		// Called by <get_all_candidates>.
 		void get_all_pointers(
-				const Module &M, vector<const Value *> &pointers) const;
+				const Module &M, ConstValueList &pointers) const;
+		void get_all_candidates(
+				const Module &M, ConstValueList &candidates) const;
 		bool get_single_pointee(
 				vector<User *> *ctxt, const Value *v,
 				PointeeType &ptt, const Value *&pt) const;
 		static void print_value(raw_ostream &O, const Value *v);
+
+		// root[v] means the representative of v's containing set. 
+		ConstValueMapping root;
+		DenseMap<const Value *, ConstValueSet *> alias_sets;
 	};
 }
 
