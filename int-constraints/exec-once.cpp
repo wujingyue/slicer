@@ -9,6 +9,7 @@ using namespace llvm;
 using namespace std;
 
 #include "exec-once.h"
+#include "config.h"
 
 namespace {
 
@@ -150,11 +151,12 @@ namespace slicer {
 		}
 	}
 
-	bool ExecOnce::executed_once(Instruction *ins) const {
+	bool ExecOnce::executed_once(const Instruction *ins) const {
 		return executed_once(ins->getParent());
 	}
 
-	bool ExecOnce::executed_once(BasicBlock *bb) const {
+	bool ExecOnce::executed_once(const BasicBlock *b) const {
+		BasicBlock *bb = const_cast<BasicBlock *>(b);
 #if 0
 		forallconst(FuncSet, it, twice_funcs)
 			cerr << "twice_funcs: " << (*it)->getNameStr() << endl;
@@ -166,7 +168,8 @@ namespace slicer {
 		return !twice_funcs.count(bb->getParent()) && !twice_bbs.count(bb);
 	}
 
-	bool ExecOnce::executed_once(Function *func) const {
+	bool ExecOnce::executed_once(const Function *f) const {
+		Function *func = const_cast<Function *>(f);
 		return !twice_funcs.count(func);
 	}
 

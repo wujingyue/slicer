@@ -24,9 +24,9 @@ namespace slicer {
 		virtual void print(raw_ostream &O, const Module *M) const;
 
 		/* Executed only once? */
-		bool executed_once(Instruction *ins) const;
-		bool executed_once(BasicBlock *bb) const;
-		bool executed_once(Function *func) const;
+		bool executed_once(const Instruction *ins) const;
+		bool executed_once(const BasicBlock *bb) const;
+		bool executed_once(const Function *func) const;
 
 	private:
 		// Used in <identify_twice_funcs>. 

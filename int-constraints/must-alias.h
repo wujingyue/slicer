@@ -16,6 +16,12 @@ namespace slicer {
 
 		static char ID;
 
+		enum PointeeType {
+			GLOBAL_VAR,
+			STACK_LOC,
+			HEAP_LOC
+		};
+
 		MustAlias(): ModulePass(&ID) {}
 		virtual bool runOnModule(Module &M);
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
@@ -29,6 +35,10 @@ namespace slicer {
 	private:
 		void get_all_pointers(
 				const Module &M, vector<const Value *> &pointers) const;
+		bool get_single_pointee(
+				vector<User *> *ctxt, const Value *v,
+				PointeeType &ptt, const Value *&pt) const;
+		static void print_value(raw_ostream &O, const Value *v);
 	};
 }
 
