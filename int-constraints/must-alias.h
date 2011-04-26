@@ -36,6 +36,10 @@ namespace slicer {
 		// Context-insensitive. 
 		// Use the alias sets. 
 		bool fast_must_alias(const Value *v1, const Value *v2) const;
+		// Returns NULL if <v> is not even a candidate. 
+		// In that case, it's not even aliasing with itself, because
+		// it may point to multiple dynamic locations. 
+		const ConstValueSet *get_alias_set(const Value *v) const;
 
 	private:
 		// Called by <get_all_candidates>.

@@ -154,6 +154,9 @@ namespace slicer {
 		O << "\n";
 	}
 
+	const ConstValueSet *MustAlias::get_alias_set(const Value *v) const {
+		return alias_sets.lookup(v);
+	}
 
 	bool MustAlias::must_alias(
 			vector<User *> *ctxt1, const Value *v1,
