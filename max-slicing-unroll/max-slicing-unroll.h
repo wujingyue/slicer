@@ -51,8 +51,7 @@ namespace slicer {
 		typedef DenseSet<Edge> EdgeSet;
 		typedef map<int, InstList> Trace;
 
-		MaxSlicingUnroll();
-		MaxSlicingUnroll(const string &trace_file, const string &cut_file);
+		MaxSlicingUnroll(): ModulePass(&ID) {}
 
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual bool runOnModule(Module &M);

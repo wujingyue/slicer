@@ -36,47 +36,24 @@ namespace slicer {
 		ModulePass::getAnalysisUsage(AU);
 	}
 	
-	MustAlias::~MustAlias() {
-		DenseMap<const Value *, ConstValueSet *>::iterator it, E;
-		for (it = alias_sets.begin(), E = alias_sets.end(); it != E; ++it) {
-			delete it->second;
-			it->second = NULL;
-		}
-	}
-
 	bool MustAlias::runOnModule(Module &M) {
 		ConstValueList candidates;
 		get_all_candidates(M, candidates);
-		forall(ConstValueList, it, candidates)
-			root[*it] = *it;
-		// Build <root>
-		for (size_t i = 0, E = candidates.size(); i < E; ++i) {
-			const Value *x = candidates[i];
-			// Already included in other groups. 
-			if (root.lookup(x) != x)
-				continue;
-			for (size_t j = i + 1; j < E; ++j) {
-				const Value *y = candidates[j];
-				if (root.lookup(y) != y)
-					continue;
-				if (must_alias(x, y))
-					root[y] = x;
-			}
-		}
-		// Build <alias_set>. 
-		forall(ConstValueMapping, it, root) {
-			const Value *x = it->first, *y = it->second;
-			if (!alias_sets.count(y))
-				alias_sets[y] = new ConstValueSet();
-			alias_sets.lookup(y)->insert(x);
-			alias_sets[x] = alias_sets.lookup(y);
+		forall(ConstValueList, it, candidates) {
+			const Value *v = *it;
+			PointeeType ptt;
+			const Value *pt;
+			bool ret = get_single_pointee(NULL, v, ptt, pt);
+			assert(ret && "How was it put to the candidate set?!");
+			ptr_pt[v] = pt;
+			pt_ptr[pt].push_back(v);
 		}
 		return false;
 	}
 
 	bool MustAlias::fast_must_alias(const Value *v1, const Value *v2) const {
-		return root.count(v1) && root.count(v2) &&
-			root.lookup(v1) == root.lookup(v2);
+		return ptr_pt.count(v1) && ptr_pt.count(v2) &&
+			ptr_pt.lookup(v1) == ptr_pt.lookup(v2);
 	}
 
 	void MustAlias::get_all_pointers(
@@ -125,15 +102,12 @@ namespace slicer {
 
 	void MustAlias::print(raw_ostream &O, const Module *M) const {
 		// Print all alias sets. 
-		DenseSet<ConstValueSet *> printed;
-		DenseMap<const Value *, ConstValueSet *>::const_iterator it, E;
+		DenseMap<const Value *, ConstValueList>::const_iterator it, E;
 		unsigned set_id = 0;
-		for (it = alias_sets.begin(), E = alias_sets.end(); it != E; ++it) {
-			if (printed.count(it->second))
-				continue;
-			printed.insert(it->second);
+		for (it = pt_ptr.begin(), E = pt_ptr.end(); it != E; ++it) {
 			O << "Set " << set_id << ":\n";
-			forall(ConstValueSet, j, *(it->second)) {
+			++set_id;
+			forallconst(ConstValueList, j, it->second) {
 				O << "\t";
 				print_value(O, *j);
 			}
@@ -154,8 +128,11 @@ namespace slicer {
 		O << "\n";
 	}
 
-	const ConstValueSet *MustAlias::get_alias_set(const Value *v) const {
-		return alias_sets.lookup(v);
+	const ConstValueList *MustAlias::get_alias_set(const Value *v) const {
+		const Value *pt = ptr_pt.lookup(v);
+		if (!pt)
+			return NULL;
+		return &(pt_ptr.find(pt)->second);
 	}
 
 	bool MustAlias::must_alias(

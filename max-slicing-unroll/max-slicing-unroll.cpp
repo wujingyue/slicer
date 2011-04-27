@@ -48,8 +48,6 @@ namespace slicer {
 		ModulePass::getAnalysisUsage(AU);
 	}
 
-	MaxSlicingUnroll::MaxSlicingUnroll(): ModulePass(&ID) {}
-
 	void MaxSlicingUnroll::print_inst_set(const InstSet &s) {
 		ObjectID &IDM = getAnalysis<ObjectID>();
 		vector<unsigned> inst_ids;

@@ -24,7 +24,6 @@ namespace slicer {
 		};
 
 		MustAlias(): ModulePass(&ID) {}
-		~MustAlias();
 		virtual bool runOnModule(Module &M);
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual void print(raw_ostream &O, const Module *M) const;
@@ -39,7 +38,7 @@ namespace slicer {
 		// Returns NULL if <v> is not even a candidate. 
 		// In that case, it's not even aliasing with itself, because
 		// it may point to multiple dynamic locations. 
-		const ConstValueSet *get_alias_set(const Value *v) const;
+		const ConstValueList *get_alias_set(const Value *v) const;
 
 	private:
 		// Called by <get_all_candidates>.
@@ -52,9 +51,10 @@ namespace slicer {
 				PointeeType &ptt, const Value *&pt) const;
 		static void print_value(raw_ostream &O, const Value *v);
 
-		// root[v] means the representative of v's containing set. 
-		ConstValueMapping root;
-		DenseMap<const Value *, ConstValueSet *> alias_sets;
+		// Pointer => pointee
+		ConstValueMapping ptr_pt;
+		// Pointee => pointer
+		DenseMap<const Value *, ConstValueList> pt_ptr;
 	};
 }
 

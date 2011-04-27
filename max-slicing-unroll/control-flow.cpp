@@ -5,6 +5,7 @@
 #include "llvm/Module.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Transforms/Utils/ValueMapper.h"
 
 #include "config.h"
 #include "max-slicing-unroll.h"
@@ -404,6 +405,8 @@ namespace slicer {
 				if (ME.may_exec_landmark(callees[j]))
 					may_exec_landmark = true;
 			}
+			// If no callees may execute landmarks, we don't dive into the callee. 
+			// Instead, we simply call the original function. 
 			if (may_exec_landmark) {
 				for (size_t j = 0, E = callees.size(); j < E; ++j) {
 					if (callees[j]->isDeclaration())

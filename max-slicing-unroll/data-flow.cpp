@@ -209,7 +209,8 @@ namespace slicer {
 				Function *callee = NULL;
 				for (size_t j = 0; j < next_insts.size(); ++j) {
 					if (get_edge_type(ins, next_insts[j]) == EDGE_CALL) {
-						// FIXME: does not handle function pointers. 
+						// FIXME: does not handle function pointers with more than
+						// one possible targets in the sliced program. 
 						assert(callee == NULL && "For now, we allow only one target");
 						callee = next_insts[j]->getParent()->getParent();
 					}
