@@ -2,6 +2,9 @@
 #define __SLICER_CAPTURE_H
 
 #include "llvm/Module.h"
+#include "llvm/Pass.h"
+#include "llvm/Instructions.h"
+#include "llvm/ADT/DenseMap.h"
 using namespace llvm;
 
 #include <vector>
