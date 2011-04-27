@@ -4,9 +4,10 @@
 #include "llvm/Analysis/Passes.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/LLVMContext.h"
-#include "idm/id.h"
 #include "common/include/util.h"
 #include "common/include/typedefs.h"
+#include "must-alias.h"
+#include "../max-slicing-unroll/clone-map-manager.h"
 using namespace llvm;
 
 #include <fstream>
@@ -172,11 +173,13 @@ namespace slicer {
 
 	bool CaptureConstraints::runOnModule(Module &M) {
 		// Collect constraints on top-level variables.
+		// TODO: Handle function parameters. 
 		forallfunc(M, fi) {
 			if (!fi->isDeclaration())
 				capture_in_func(fi);
 		}
 		// Collect constraints on address-taken variables. 
+		capture_addr_taken_vars(M);
 		simplify_constraints();
 		return false;
 	}
@@ -196,8 +199,10 @@ namespace slicer {
 
 	void CaptureConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
 		AU.setPreservesAll();
+		// FIXME: is it necessary? 
 		AU.addRequired<DominatorTree>();
-		AU.addRequiredTransitive<ObjectID>();
+		AU.addRequired<MustAlias>();
+		AU.addRequired<CloneMapManager>();
 		ModulePass::getAnalysisUsage(AU);
 	}
 

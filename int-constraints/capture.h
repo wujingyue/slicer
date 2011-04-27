@@ -36,11 +36,10 @@ namespace slicer {
 		const Clause *get_constraint(unsigned i) const;
 
 	private:
+		// TODO: Need a better name. 
 		void capture_in_func(Function *f);
 		void declare_bounds_in_func(Function *f);
-		void simplify_constraints();
 		void calc_end_bb_bounds(BasicBlock *bb, ValueBoundsInBB &end_bb_bounds);
-		// TODO: <bb> is not necessary. 
 		void gen_bounds(Value *v, ValueBoundsInBB &end_bb_bounds);
 		void gen_bound_of_user(User *v, ValueBoundsInBB &end_bb_bounds);
 		void collect_inter_bb_constraints(
@@ -58,6 +57,10 @@ namespace slicer {
 				const ValueBoundsInBB &start_bb_bounds); // y
 		Expr get_lower_bound(Value *v, const ValueBoundsInBB &end_bb_bounds);
 		Expr get_upper_bound(Value *v, const ValueBoundsInBB &end_bb_bounds);
+
+		void capture_addr_taken_vars(Module &M);
+
+		void simplify_constraints();
 
 		void print_bounds_in_bb(
 				raw_ostream &O, const ValueBoundsInBB &bounds) const;

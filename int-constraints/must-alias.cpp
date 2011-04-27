@@ -192,5 +192,13 @@ namespace slicer {
 		return true;
 	}
 
+	vector<const ConstValueList *> MustAlias::get_all_alias_sets() const {
+		vector<const ConstValueList *> res;
+		DenseMap<const Value *, ConstValueList>::const_iterator it, E;
+		for (it = pt_ptr.begin(), E = pt_ptr.end(); it != E; ++it)
+			res.push_back(&(it->second));
+		return res;
+	}
+
 	char MustAlias::ID = 0;
 }
