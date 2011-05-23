@@ -49,7 +49,17 @@ namespace slicer {
 			records.push_back(record);
 
 		compute_record_infos(M);
+
+		validate_trace(M);
+
 		return false;
+	}
+
+	void TraceManager::validate_trace(Module &M) {
+		for (size_t i = 0, E = records.size(); i < E; ++i) {
+			TraceRecordInfo info = record_infos[i];
+			assert(!isa<PHINode>(info.ins));
+		}
 	}
 
 	void TraceManager::compute_record_infos(Module &M) {

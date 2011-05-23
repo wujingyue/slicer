@@ -48,14 +48,12 @@ namespace slicer {
 	private:
 		/*
 		 * Returns true if we successfully get a trace record. 
+		 * fin must be opened in the binary mode.
 		 */
 		bool read_record(istream &fin, TraceRecord &record) const;
-		/*
-		 * Returns false if the line does not specify a record.
-		 */
-		bool gen_record(const TraceRecord &record, string &str) const;
 		int get_normalized_tid(unsigned long raw_tid);
 		void compute_record_infos(Module &M);
+		void validate_trace(Module &M);
 
 		vector<TraceRecord> records;
 		vector<TraceRecordInfo> record_infos;

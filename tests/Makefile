@@ -1,11 +1,11 @@
-ORIG_PROGS=test-loop.llvm test-thread.llvm
-SLICED_PROGS=$(ORIG_PROGS:.llvm=.slice.llvm)
+ORIG_PROGS=test-thread
+SLICED_PROGS=$(ORIG_PROGS>.slice)
 PROGS=$(ORIG_PROGS) $(SLICED_PROGS)
 
 CFLAGS=-g -O2 -Wall
 CXXFLAGS=-g -O2 -Wall
 
-all: $(PROGS:.llvm=.ll) $(PROGS)
+all: $(PROGS:>.ll) $(PROGS)
 
 %.bc: %.c
 	llvm-gcc -o $@ $< -c -emit-llvm $(CFLAGS)
@@ -16,11 +16,16 @@ all: $(PROGS:.llvm=.ll) $(PROGS)
 %.s: %.bc
 	llc $< -o $@
 
+# pthread may not always be necessary, but does no harm
+# Also, most of our test programs are multi-threaded
 %: %.s
-	g++ $< -o $@
+	$(CXX) $< -o $@ -pthread
 
-%.trace: %.trace.s
-	g++ $< -o $@ -pthread
+# Cancel the implicit rules from *.c to *
+%: %.c
+
+# Cancel the implicit rules from *.cpp to *
+%: %.cpp
 
 %.id: %.bc
 	$(LLVM_ROOT)/scripts/print-id insts $< > $@
@@ -87,21 +92,6 @@ all: $(PROGS:.llvm=.ll) $(PROGS)
 
 %.trace.bc: %.bc1 ../trace/tracing/tracing.bc
 	llvm-ld $^ -b $@
-
-%.llvm: %.s
-	$(CXX) -o $@ $< $(CXXFLAGS)
-
-test-thread.llvm: test-thread.s
-	$(CXX) -o $@ $< $(CXXFLAGS) -lpthread
-
-test-thread.slice.llvm: test-thread.slice.s
-	$(CXX) -o $@ $< $(CXXFLAGS) -lpthread
-
-test-dual.llvm: test-dual.s
-	$(CXX) -o $@ $< $(CXXFLAGS) -lpthread
-
-test-dual.slice.llvm: test-dual.slice.s
-	$(CXX) -o $@ $< $(CXXFLAGS) -lpthread
 
 clean:
 	rm -rf *.id *.ll *.loop *.bc1 *.trace.bc *.s $(PROGS)
