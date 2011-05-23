@@ -25,11 +25,13 @@ using namespace std;
 #include "trace/landmark-trace.h"
 
 namespace {
-	static RegisterPass<slicer::MaxSlicingUnroll>
-		X("max-slicing-unroll",
-				"Unroll the program according to the trace",
-				false,
-				true); // is analysis
+
+	static RegisterPass<slicer::MaxSlicingUnroll> X(
+			"max-slicing-unroll",
+			"Unroll the program according to the trace",
+			false,
+			true); // is analysis
+
 	/* Instructions that are not cloned will be contained in Thread -1 */
 	static cl::opt<string> MappingFile(
 			"mapping",
@@ -45,6 +47,7 @@ namespace slicer {
 		AU.addRequired<CallGraphFP>();
 		AU.addRequired<MayExec>();
 		AU.addRequired<TraceManager>();
+		cerr << "!!!!!!!!!!!!!!!!!!!!!!!!!!\n";
 		AU.addRequired<MarkLandmarks>();
 		AU.addRequired<LandmarkTrace>();
 		ModulePass::getAnalysisUsage(AU);

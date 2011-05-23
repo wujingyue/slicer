@@ -13,6 +13,12 @@ using namespace boost;
 #include "slicer-landmarks.h"
 
 namespace {
+
+	static RegisterPass<slicer::TraceManager> X(
+			"trace-manager",
+			"Trace manager",
+			false,
+			true);
 	
 	static cl::opt<string> FullTraceFile(
 			"fulltrace",

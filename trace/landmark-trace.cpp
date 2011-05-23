@@ -5,7 +5,7 @@
 namespace {
 
 	static RegisterPass<slicer::LandmarkTrace> X(
-			"slicer-landmark-trace",
+			"landmark-trace",
 			"Generates the landmark trace",
 			false,
 			true); // is analysis

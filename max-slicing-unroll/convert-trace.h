@@ -10,9 +10,6 @@ using namespace llvm;
 #include <vector>
 using namespace std;
 
-#include "trace-manager.h"
-#include "trace.h"
-
 namespace slicer {
 	
 	struct ConvertTrace: public ModulePass {

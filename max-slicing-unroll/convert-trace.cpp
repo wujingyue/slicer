@@ -10,8 +10,8 @@ using namespace std;
 using namespace boost;
 
 #include "convert-trace.h"
-#include "trace-manager.h"
-#include "landmark-trace.h"
+#include "trace/trace-manager.h"
+#include "trace/landmark-trace.h"
 #include "max-slicing-unroll/clone-map-manager.h"
 
 /* Apply it on the cloned program. */
@@ -84,6 +84,7 @@ namespace slicer {
 		AU.addRequired<ObjectID>();
 		AU.addRequired<LandmarkTrace>();
 		AU.addRequired<TraceManager>();
+		AU.addRequired<CloneMapManager>();
 		ModulePass::getAnalysisUsage(AU);
 	}
 
