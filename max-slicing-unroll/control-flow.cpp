@@ -284,6 +284,12 @@ namespace slicer {
 		InstSet visited_nodes; visited_nodes.insert(start);
 		EdgeSet visited_edges;
 		dfs(start, cut, visited_nodes, visited_edges, call_stack);
+#ifdef VERBOSE
+		if (!visited_nodes.count(end)) {
+			start->dump();
+			end->dump();
+		}
+#endif
 		assert(visited_nodes.count(end) &&
 				"Unable to reach from <start> to <end>");
 		refine_from_end(start, end, cut, visited_nodes, visited_edges);
@@ -396,6 +402,11 @@ namespace slicer {
 		assert(x && "<x> cannot be NULL");
 		assert(visited_nodes.count(x));
 
+#ifdef VERBOSE
+		cerr << "dfs:";
+		x->dump();
+#endif
+
 		if (is_call(x) && !is_intrinsic_call(x)) {
 			bool may_exec_landmark = false;
 			CallGraphFP &CG = getAnalysis<CallGraphFP>();
@@ -461,6 +472,10 @@ namespace slicer {
 			InstSet &visited_nodes,
 			EdgeSet &visited_edges,
 			InstList &call_stack) {
+#ifdef VERBOSE
+		cerr << "move_on:";
+		y->dump();
+#endif
 		/*
 		 * No matter whether <y> is in the cut, we mark <y> and <x, y>
 		 * as visited. But we don't continue traversing <y> if <y>

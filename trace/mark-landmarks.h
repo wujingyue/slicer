@@ -31,10 +31,10 @@ namespace slicer {
 		void mark_thread(Module &M);
 		// Read landmarks from the specified file. 
 		void read_landmarks(const string &cut_file);
+		// DEPRECATED: Added this because of Tern
 		// Get the first non-intrinsic instruction in a basic block. 
 		// Returns NULL if all instructions in its BB are intrinsic. 
 		Instruction *get_first_non_intrinsic(Instruction *start) const;
-
 		InstSet landmarks;
 	};
 }

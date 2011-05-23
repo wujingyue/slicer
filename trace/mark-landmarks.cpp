@@ -69,8 +69,7 @@ namespace slicer {
 			if (fi->isDeclaration())
 				continue;
 			if (ITF.is_thread_func(fi) || fi->getNameStr() == "main") {
-				Instruction *first = get_first_non_intrinsic(
-						fi->getEntryBlock().begin());
+				Instruction *first = fi->getEntryBlock().getFirstNonPHI();
 				landmarks.insert(first);
 				forall(Function, bi, *fi) {
 					if (succ_begin(bi) == succ_end(bi))
@@ -99,7 +98,7 @@ namespace slicer {
 			if (bi && !OB.omit(bi)) {
 				for (unsigned i = 0; i < bi->getNumSuccessors(); ++i) {
 					BasicBlock *succ = bi->getSuccessor(i);
-					landmarks.insert(get_first_non_intrinsic(succ->begin()));
+					landmarks.insert(succ->getFirstNonPHI());
 				}
 			}
 		}

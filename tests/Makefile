@@ -1,5 +1,4 @@
-ORIG_PROGS=test.llvm test-skip.llvm test-loop.llvm test-sync-loop.llvm \
-	   test-thread.llvm test-dual.llvm test-sync-br.llvm
+ORIG_PROGS=test-loop.llvm test-thread.llvm
 SLICED_PROGS=$(ORIG_PROGS:.llvm=.slice.llvm)
 PROGS=$(ORIG_PROGS) $(SLICED_PROGS)
 
@@ -62,6 +61,30 @@ all: $(PROGS:.llvm=.ll) $(PROGS)
 		-fulltrace $(<:.bc=.ft) \
 		-mapping $(<:.bc=.map) < $<
 
+%.lt: %.bc %.ft
+	opt -analyze \
+		-load $(LLVM_ROOT)/install/lib/libidm.so \
+		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
+		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/libmay-exec.so \
+		-load $(LLVM_ROOT)/install/lib/libidentify-thread-funcs.so \
+		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
+		-landmark-trace \
+		-fulltrace $(<:.bc=.ft) \
+		< $<
+
+%.ml: %.bc %.ft
+	opt -analyze \
+		-load $(LLVM_ROOT)/install/lib/libidm.so \
+		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
+		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/libmay-exec.so \
+		-load $(LLVM_ROOT)/install/lib/libidentify-thread-funcs.so \
+		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
+		-mark-landmarks \
+		-fulltrace $(<:.bc=.ft) \
+		< $<
+
 %.trace.bc: %.bc1 ../trace/tracing/tracing.bc
 	llvm-ld $^ -b $@
 
@@ -81,6 +104,4 @@ test-dual.slice.llvm: test-dual.slice.s
 	$(CXX) -o $@ $< $(CXXFLAGS) -lpthread
 
 clean:
-	rm -rf *.id *.ll *.loop *.bc1 *.trace.bc *.s $(PROGS);
-
-
+	rm -rf *.id *.ll *.loop *.bc1 *.trace.bc *.s $(PROGS)
