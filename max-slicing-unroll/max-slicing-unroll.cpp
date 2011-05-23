@@ -47,7 +47,6 @@ namespace slicer {
 		AU.addRequired<CallGraphFP>();
 		AU.addRequired<MayExec>();
 		AU.addRequired<TraceManager>();
-		cerr << "!!!!!!!!!!!!!!!!!!!!!!!!!!\n";
 		AU.addRequired<MarkLandmarks>();
 		AU.addRequired<LandmarkTrace>();
 		ModulePass::getAnalysisUsage(AU);

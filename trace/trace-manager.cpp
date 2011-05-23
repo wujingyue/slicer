@@ -73,6 +73,7 @@ namespace slicer {
 			info.child_tid = get_normalized_tid(records[i].raw_child_tid);
 			record_infos.push_back(info);
 		}
+		assert(record_infos.size() == records.size());
 	}
 
 	int TraceManager::get_normalized_tid(unsigned long raw_tid) {
@@ -96,6 +97,11 @@ namespace slicer {
 	const TraceRecord &TraceManager::get_record(unsigned idx) const {
 		assert(idx < records.size());
 		return records[idx];
+	}
+
+	const TraceRecordInfo &TraceManager::get_record_info(unsigned idx) const {
+		assert(idx < record_infos.size());
+		return record_infos[idx];
 	}
 
 	char TraceManager::ID = 0;
