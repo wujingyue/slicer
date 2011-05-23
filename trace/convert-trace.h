@@ -25,18 +25,6 @@ namespace slicer {
 
 		virtual bool runOnModule(Module &M);
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
-
-	private:
-		void read_clone_map(const string &clone_map_file);
-		bool write_record(
-				ostream &fout,
-				unsigned idx,
-				unsigned ins_id,
-				int thr_id,
-				int child_tid,
-				TraceRecordType type) const;
-
-		map<int, vector<DenseMap<unsigned, unsigned> > > clone_map;
 	};
 }
 

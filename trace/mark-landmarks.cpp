@@ -15,7 +15,7 @@ using namespace std;
 namespace {
 	
 	static RegisterPass<slicer::MarkLandmarks> X(
-			"tern-mark-landmarks",
+			"mark-landmarks",
 			"Mark landmarks",
 			false,
 			true); // is analysis

@@ -79,5 +79,15 @@ namespace slicer {
 		return cloned_to_trunk.lookup(new_inst);
 	}
 
+	Instruction *CloneMapManager::get_cloned_inst(
+			int thr_id, size_t trunk_id, Instruction *old_inst) const {
+		if (!clone_map.count(thr_id))
+			return NULL;
+		const vector<InstMapping> &thr_clone_map = clone_map.find(thr_id)->second;
+		if (trunk_id >= thr_clone_map.size())
+			return NULL;
+		return thr_clone_map[trunk_id].lookup(old_inst);
+	}
+
 	char CloneMapManager::ID = 0;
 }

@@ -30,6 +30,7 @@ namespace {
 				"Unroll the program according to the trace",
 				false,
 				true); // is analysis
+	/* Instructions that are not cloned will be contained in Thread -1 */
 	static cl::opt<string> MappingFile(
 			"mapping",
 			cl::NotHidden,

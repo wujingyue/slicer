@@ -14,7 +14,7 @@ using namespace boost;
 namespace {
 	
 	static RegisterPass<slicer::AddCallingContext> X(
-			"tern-add-calling-context",
+			"add-calling-context",
 			"Add a calling context for each instruction in the full trace",
 			false,
 			true); // is analysis
