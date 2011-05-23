@@ -17,7 +17,6 @@ namespace slicer {
 		CloneMapManager(): ModulePass(&ID) {}
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual bool runOnModule(Module &M);
-		virtual void print(raw_ostream &O, const Module *M) const;
 
 		vector<int> get_thr_ids() const;
 		size_t get_n_trunks(int thr_id) const;

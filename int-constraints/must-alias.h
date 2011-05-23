@@ -38,9 +38,9 @@ namespace slicer {
 		// Returns NULL if <v> is not even a candidate. 
 		// In that case, it's not even aliasing with itself, because
 		// it may point to multiple dynamic locations. 
-		const ConstValueList *get_alias_set(const Value *v) const;
-		// TODO: Return vector<const ConstValueList &>? 
-		vector<const ConstValueList *> get_all_alias_sets() const;
+		const ConstValueSet *get_alias_set(const Value *v) const;
+		// TODO: Return vector<const ConstValueSet &>? 
+		vector<const ConstValueSet *> get_all_alias_sets() const;
 
 	private:
 		// Called by <get_all_candidates>.
@@ -56,7 +56,7 @@ namespace slicer {
 		// Pointer => pointee
 		ConstValueMapping ptr_pt;
 		// Pointee => pointer
-		DenseMap<const Value *, ConstValueList> pt_ptr;
+		DenseMap<const Value *, ConstValueSet> pt_ptr;
 	};
 }
 

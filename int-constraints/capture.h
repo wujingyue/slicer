@@ -5,9 +5,12 @@
 #include "llvm/Pass.h"
 #include "llvm/Instructions.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/DenseSet.h"
+#include "common/include/typedefs.h"
 using namespace llvm;
 
 #include <vector>
+#include <map>
 using namespace std;
 
 #include "expression.h"
@@ -20,6 +23,13 @@ namespace slicer {
 	struct CaptureConstraints: public ModulePass {
 
 		static char ID;
+
+		enum EdgeType {
+			EDGE_CALL,
+			EDGE_INTER_BB,
+			EDGE_INTRA_BB,
+			EDGE_RET
+		};
 
 		const static unsigned INVALID_VAR_ID = (unsigned)-1;
 
@@ -57,19 +67,30 @@ namespace slicer {
 				const ValueBoundsInBB &start_bb_bounds); // y
 		Expr get_lower_bound(Value *v, const ValueBoundsInBB &end_bb_bounds);
 		Expr get_upper_bound(Value *v, const ValueBoundsInBB &end_bb_bounds);
-
-		void capture_addr_taken_vars(Module &M);
+		// Address taken variables. 
+		void capture_addr_taken(Module &M);
+		void add_addr_taken_eq(Value *v1, Value *v2);
+		void get_all_sources(Instruction *ins, Value *p, ValueList &srcs);
+		void search_all_sources(
+				MicroBasicBlock *mbb, MicroBasicBlock::iterator ins,
+				Value *p, ValueList &srcs);
 
 		void simplify_constraints();
 
-		void print_bounds_in_bb(
-				raw_ostream &O, const ValueBoundsInBB &bounds) const;
-		void print_bool_expr(
-				raw_ostream &O, const BoolExpr &be) const;
-		void print_constraint(
-				raw_ostream &O, const Constraint &c) const;
-		void print_clause(
-				raw_ostream &O, const Clause *c) const;
+		void stat(Module &M);
+
+		static void print_bounds_in_bb(
+				raw_ostream &O, const ValueBoundsInBB &bounds);
+		static void print_bool_expr(
+				raw_ostream &O, const BoolExpr &be);
+		static void print_constraint(
+				raw_ostream &O, const Constraint &c);
+		static void print_clause(
+				raw_ostream &O, const Clause *c);
+		static void print_value(raw_ostream &O, const Value *v);
+#if 0
+		static void print_alias_set(raw_ostream &O, const ConstValueSet &as);
+#endif
 
 		static Expr get_const_expr(ConstantInt *v);
 		static bool is_int_operation(unsigned opcode);
@@ -86,6 +107,7 @@ namespace slicer {
 		DenseMap<BasicBlock *, ValueBoundsInBB> start_bb_bounds;
 		unsigned n_symbols;
 		vector<Clause *> constraints;
+		vector<ValuePair> addr_taken_eqs;
 	};
 }
 

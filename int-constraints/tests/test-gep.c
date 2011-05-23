@@ -1,18 +1,17 @@
 #include <stdio.h>
 
-int a[5];
+#define N (1024)
 
-void foo() {
-	fprintf(stderr, "%d\n", a[1]);
-}
+int a[N];
 
-void bar() {
-	a[1] = 3;
-}
-
-int main() {
-	foo();
-	bar();
+int main(int argc, char *argv[]) {
+	int i;
+	for (i = 0; i < argc; ++i)
+		a[i] = i * i;
+	int sum = 0;
+	for (i = 0; i < argc; ++i)
+		sum += a[i] * a[i];
+	printf("%d\n", sum);
 	return 0;
 }
 

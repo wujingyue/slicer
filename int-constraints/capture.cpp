@@ -6,6 +6,8 @@
 #include "llvm/LLVMContext.h"
 #include "common/include/util.h"
 #include "common/include/typedefs.h"
+#include "common/reach/reach.h"
+#include "common/reach/icfg.h"
 #include "must-alias.h"
 #include "../max-slicing-unroll/clone-map-manager.h"
 using namespace llvm;
@@ -51,14 +53,48 @@ namespace slicer {
 			print_clause(O, *it);
 			O << "\n";
 		}
+#if 0
+		O << "\nOverwriting:\n";
+		map<int, vector<DenseSet<const ConstValueSet *> > >::const_iterator i, E;
+		for (i = overwriting.begin(), E = overwriting.end(); i != E; ++i) {
+			for (size_t trunk_id = 0; trunk_id < i->second.size(); ++trunk_id) {
+				O << "Thread " << i->first << " Trunk " << trunk_id << ":\n";
+				forallconst(DenseSet<const ConstValueSet *>, j, i->second[trunk_id])
+					print_alias_set(O, *(*j));
+			}
+		}
+#endif
 	}
+
+	void CaptureConstraints::print_value(raw_ostream &O, const Value *v) {
+		if (isa<GlobalVariable>(v))
+			O << "[global] ";
+		else if (const Argument *arg = dyn_cast<Argument>(v))
+			O << "[arg] (" << arg->getParent()->getNameStr() << ") ";
+		else if (const Instruction *ins = dyn_cast<Instruction>(v))
+			O << "[inst] (" << ins->getParent()->getParent()->getNameStr() << "." 
+				<< ins->getParent()->getNameStr() << ") ";
+		else
+			assert(false && "Not supported");
+		v->print(O);
+		O << "\n";
+	}
+
+#if 0
+	void CaptureConstraints::print_alias_set(
+			raw_ostream &O, const ConstValueSet &as) {
+		O << "Must-aliasing set:\n";
+		forallconst(ConstValueSet, it, as)
+			print_value(O, *it);
+	}
+#endif
 
 	const Clause *CaptureConstraints::get_constraint(unsigned i) const {
 		return constraints[i];
 	}
 
 	void CaptureConstraints::print_clause(
-			raw_ostream &O, const Clause *c) const {
+			raw_ostream &O, const Clause *c) {
 		if (c->op == Clause::None) {
 			print_bool_expr(O, c->be);
 			return;
@@ -73,17 +109,17 @@ namespace slicer {
 	}
 
 	void CaptureConstraints::print_bool_expr(
-			raw_ostream &O, const BoolExpr &be) const {
+			raw_ostream &O, const BoolExpr &be) {
 		O << be.e1 << " <= " << be.e2;
 	}
 
 	void CaptureConstraints::print_constraint(
-			raw_ostream &O, const Constraint &c) const {
+			raw_ostream &O, const Constraint &c) {
 		O << c.first << " <= " << c.second;
 	}
 
 	void CaptureConstraints::print_bounds_in_bb(
-			raw_ostream &O, const ValueBoundsInBB &bounds) const {
+			raw_ostream &O, const ValueBoundsInBB &bounds) {
 		forallconst(ValueBoundsInBB, it, bounds) {
 			O << "\t";
 			it->first->print(O);
@@ -171,7 +207,26 @@ namespace slicer {
 		}
 	}
 
+	void CaptureConstraints::stat(Module &M) {
+		unsigned n_ints = 0;
+		forallfunc(M, fi) {
+			for (Function::arg_iterator ai = fi->arg_begin();
+					ai != fi->arg_end(); ++ai) {
+				if (isa<IntegerType>(ai->getType()))
+					++n_ints;
+			}
+			forall(Function, bi, *fi) {
+				forall(BasicBlock, ii, *bi) {
+					if (isa<IntegerType>(ii->getType()))
+						++n_ints;
+				}
+			}
+		}
+		cerr << "# of integers = " << n_ints << endl;
+	}
+
 	bool CaptureConstraints::runOnModule(Module &M) {
+		stat(M);
 		// Collect constraints on top-level variables.
 		// TODO: Handle function parameters. 
 		forallfunc(M, fi) {
@@ -179,7 +234,7 @@ namespace slicer {
 				capture_in_func(fi);
 		}
 		// Collect constraints on address-taken variables. 
-		capture_addr_taken_vars(M);
+		// capture_addr_taken_vars(M);
 		simplify_constraints();
 		return false;
 	}
@@ -201,8 +256,7 @@ namespace slicer {
 		AU.setPreservesAll();
 		// FIXME: is it necessary? 
 		AU.addRequired<DominatorTree>();
-		AU.addRequired<MustAlias>();
-		AU.addRequired<CloneMapManager>();
+		AU.addRequired<ICFG>();
 		ModulePass::getAnalysisUsage(AU);
 	}
 

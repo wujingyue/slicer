@@ -1,7 +1,8 @@
 CFLAGS=-g -O2
 CXXFLAGS=-g -O2
 
-all: test-race.bc test-context.bc test-gep.bc test-int.bc test-recursive.bc
+all: test-race.bc test-context.bc test-gep.bc test-int.bc test-recursive.bc \
+	test-const.bc
 
 %.bc: %.c
 	llvm-gcc -o $@ $< -c -emit-llvm $(CFLAGS)
@@ -15,6 +16,8 @@ all: test-race.bc test-context.bc test-gep.bc test-int.bc test-recursive.bc
 %.ic: %.bc
 	opt -analyze \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
+		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
+		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
 		-load $(LLVM_ROOT)/install/lib/libint-constraints.so \
 		-capture-constraints \
 		< $< > $@
@@ -33,6 +36,11 @@ all: test-race.bc test-context.bc test-gep.bc test-int.bc test-recursive.bc
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/libmay-exec.so \
+		-load $(LLVM_ROOT)/install/lib/libidentify-thread-funcs.so \
+		-load $(LLVM_ROOT)/install/lib/libtern-trace.so \
+		-load $(LLVM_ROOT)/install/lib/libmax-slicing-unroll.so \
+		-load $(LLVM_ROOT)/install/lib/libreach.so \
 		-load $(LLVM_ROOT)/install/lib/libint-constraints.so \
 		-must-alias \
 		< $< > $@

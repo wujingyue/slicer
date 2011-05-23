@@ -46,7 +46,7 @@ namespace slicer {
 			bool ret = get_single_pointee(NULL, v, ptt, pt);
 			assert(ret && "How was it put to the candidate set?!");
 			ptr_pt[v] = pt;
-			pt_ptr[pt].push_back(v);
+			pt_ptr[pt].insert(v);
 		}
 		return false;
 	}
@@ -102,12 +102,12 @@ namespace slicer {
 
 	void MustAlias::print(raw_ostream &O, const Module *M) const {
 		// Print all alias sets. 
-		DenseMap<const Value *, ConstValueList>::const_iterator it, E;
+		DenseMap<const Value *, ConstValueSet>::const_iterator it, E;
 		unsigned set_id = 0;
 		for (it = pt_ptr.begin(), E = pt_ptr.end(); it != E; ++it) {
 			O << "Set " << set_id << ":\n";
 			++set_id;
-			forallconst(ConstValueList, j, it->second) {
+			forallconst(ConstValueSet, j, it->second) {
 				O << "\t";
 				print_value(O, *j);
 			}
@@ -128,7 +128,7 @@ namespace slicer {
 		O << "\n";
 	}
 
-	const ConstValueList *MustAlias::get_alias_set(const Value *v) const {
+	const ConstValueSet *MustAlias::get_alias_set(const Value *v) const {
 		const Value *pt = ptr_pt.lookup(v);
 		if (!pt)
 			return NULL;
@@ -187,14 +187,17 @@ namespace slicer {
 		}
 		// If <pt> is an array, <pt> may actually point to any part of the array.
 		// Therefore, we cannot infer that it can only point to one location. 
+		// FIXME:
+		// Simply testing whether it is of ArrayType isn't enough. Some arrays
+		// are declared as pointers. 
 		if (isa<ArrayType>(pt->getType()))
 			return false;
 		return true;
 	}
 
-	vector<const ConstValueList *> MustAlias::get_all_alias_sets() const {
-		vector<const ConstValueList *> res;
-		DenseMap<const Value *, ConstValueList>::const_iterator it, E;
+	vector<const ConstValueSet *> MustAlias::get_all_alias_sets() const {
+		vector<const ConstValueSet *> res;
+		DenseMap<const Value *, ConstValueSet>::const_iterator it, E;
 		for (it = pt_ptr.begin(), E = pt_ptr.end(); it != E; ++it)
 			res.push_back(&(it->second));
 		return res;

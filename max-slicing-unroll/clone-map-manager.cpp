@@ -11,7 +11,7 @@ using namespace std;
 namespace {
 	// It's a manager pass. It does not need a command line option. 
 	static cl::opt<string> MappingFile(
-			"mapping",
+			"clone-map",
 			cl::NotHidden,
 			cl::desc("Output file containing the clone mapping"),
 			cl::init(""));

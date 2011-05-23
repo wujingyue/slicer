@@ -7,17 +7,19 @@
 # 
 ##===----------------------------------------------------------------------===##
 
-LEVEL = ../../llvm/llvm-obj
-LIBRARYNAME = int-constraints
+LEVEL = $(shell $(LLVM_ROOT)/scripts/level-to-llvm-root)/llvm-obj
+LIBRARYNAME = slicer-trace
 LOADABLE_MODULE = 1
 
 include $(LEVEL)/Makefile.common
 
-CXXFLAGS += -I$(LLVM_ROOT) -I$(TERN_ROOT)
+CXXFLAGS += -I$(LLVM_ROOT) -frtti
+LDFLAGS += -lboost_regex
 
-# Build test from scratch each time. 
-test::
-	make -C tests -B
+all::
+	make -C tracing
+	make -C display
 
 clean::
-	make -C tests clean
+	make -C tracing clean
+	make -C display clean

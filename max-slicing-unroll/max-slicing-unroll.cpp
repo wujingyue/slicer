@@ -1,5 +1,8 @@
 /**
  * Author: Jingyue
+ *
+ * TODO: Save space and time by building the control flow graph
+ * on MicroBasicBlocks instead of Instructions. 
  */
 
 #include "llvm/Module.h"
@@ -106,16 +109,17 @@ namespace slicer {
 		// cut
 		cut = ML.get_landmarks();
 		// trace and thr_cr_records
-		vector<int> thr_ids = LT.get_thr_ids();
+		const vector<int> &thr_ids = LT.get_thr_ids();
 		for (size_t i = 0; i < thr_ids.size(); ++i) {
 			int thr_id = thr_ids[i];
-			const vector<unsigned> thr_indices = LT.get_thr_trunks(thr_id);
+			const vector<unsigned> &thr_indices = LT.get_thr_trunks(thr_id);
 			for (size_t j = 0; j < thr_indices.size(); ++j) {
 				const TraceRecord &record = TM.get_record(thr_indices[j]);
 				trace[thr_id].push_back(record.ins);
-				if (record.child_tid != -1 && record.child_tid != thr_id)
+				if (record.child_tid != -1 && record.child_tid != thr_id) {
 					thr_cr_records.push_back(
 							ThreadCreationRecord(thr_id, j, record.child_tid));
+				}
 			}
 		}
 	}
