@@ -88,7 +88,7 @@ namespace slicer {
 
 	int TraceManager::get_normalized_tid(unsigned long raw_tid) {
 		if (raw_tid == INVALID_RAW_TID)
-			return -1;
+			return INVALID_TID;
 		if (!raw_tid_to_tid.count(raw_tid))
 			raw_tid_to_tid[raw_tid] = (int)raw_tid_to_tid.size();
 		return raw_tid_to_tid[raw_tid];
@@ -112,6 +112,17 @@ namespace slicer {
 	const TraceRecordInfo &TraceManager::get_record_info(unsigned idx) const {
 		assert(idx < record_infos.size());
 		return record_infos[idx];
+	}
+
+	void TraceManager::print(raw_ostream &O, const Module *M) const {
+		for (size_t i = 0, E = record_infos.size(); i < E; ++i) {
+			const TraceRecordInfo &info = record_infos[i];
+			const TraceRecord &record = records[i];
+			O << "[" << info.tid << "] " << record.ins_id;
+			if (info.child_tid != INVALID_TID)
+				O << " creates Thread " << info.child_tid;
+			O << "\n";
+		}
 	}
 
 	char TraceManager::ID = 0;

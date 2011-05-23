@@ -267,9 +267,15 @@ namespace slicer {
 		dump_thr_cfg(cfg, thr_id);
 #endif
 		// Assign containers. 
-		Instruction *start = clone_map[thr_id][0].lookup(thr_trace[0]);
-		assert(start);
-		assign_containers(M, start);
+		assert(!thr_trace.empty());
+		// TODO: It's possible that the CFG of a thread is incomplete
+		// due to not exiting normally. We need to detect incomplete functions
+		// and delete them. 
+		if (!clone_map[thr_id].empty()) {
+			Instruction *start = clone_map[thr_id][0].lookup(thr_trace[0]);
+			assert(start);
+			assign_containers(M, start);
+		}
 	}
 
 	void MaxSlicingUnroll::build_cfg_of_trunk(

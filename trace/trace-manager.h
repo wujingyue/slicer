@@ -20,6 +20,8 @@ namespace slicer {
 		TR_LANDMARK_NO_ENFORCE = 2 // not used for now
 	};
 
+	const static int INVALID_TID = -1;
+
 	// Computed by TraceManager
 	struct TraceRecordInfo {
 		Instruction *ins;
@@ -38,6 +40,7 @@ namespace slicer {
 		TraceManager(): ModulePass(&ID) {}
 
 		virtual bool runOnModule(Module &M);
+		virtual void print(raw_ostream &O, const Module *M) const;
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		const TraceRecord &get_record(unsigned idx) const;
 		const TraceRecordInfo &get_record_info(unsigned idx) const;

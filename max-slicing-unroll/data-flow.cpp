@@ -263,6 +263,10 @@ namespace slicer {
 		// <level> is actually unused.
 		DenseMap<Instruction *, int> level;
 		forallconst(Trace, it, trace) {
+			// There can be incomplete functions, due to not exiting normally. 
+			// In that case, we skip this thread. 
+			if (clone_map[it->first].empty())
+				continue;
 			Instruction *start = clone_map[it->first][0].lookup(it->second[0]);
 			assert(start);
 			parent[start] = start;
@@ -323,13 +327,17 @@ namespace slicer {
 		Instruction *orig_entry = j->second[0];
 		// New thread entry.
 		assert(clone_map.count(child_tid));
+		// It's possible that the cloned thread function is not complete due to
+		// not exiting normally. 
+		// In that case, we still call the old thread function. 
+		if (clone_map[child_tid].empty())
+			return;
 		Instruction *new_entry = clone_map[child_tid][0].lookup(orig_entry);
 		assert(new_entry &&
 				"Cannot find the thread entry in the cloned program.");
 		// The thread function in the cloned program. 
 		Function *thr_func = new_entry->getParent()->getParent();
 		// Replace the target function in pthread_create to <thr_func>.
-		orig_site->dump();
 		assert(is_call(new_site) && !is_intrinsic_call(new_site));
 		CallSite cs(new_site);
 		Function *callee = cs.getCalledFunction();
