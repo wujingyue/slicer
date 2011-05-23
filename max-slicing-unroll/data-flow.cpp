@@ -24,6 +24,7 @@ namespace slicer {
 	void MaxSlicingUnroll::redirect_program_entry(
 			Instruction *old_start,
 			Instruction *new_start) {
+		// We simply swap the names of the old and new main. 
 		Function *new_main = new_start->getParent()->getParent();
 		Function *old_main = old_start->getParent()->getParent();
 		StringRef old_main_name = old_main->getName();

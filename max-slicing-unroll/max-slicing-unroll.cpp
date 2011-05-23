@@ -13,11 +13,6 @@
 #include "common/may-exec/may-exec.h"
 using namespace llvm;
 
-#include "llvm-instrument/trace/trace-manager.h"
-#include "llvm-instrument/trace/mark-landmarks.h"
-#include "llvm-instrument/trace/landmark-trace.h"
-using namespace tern;
-
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -25,6 +20,9 @@ using namespace std;
 
 #include "config.h"
 #include "max-slicing-unroll.h"
+#include "trace/trace-manager.h"
+#include "trace/mark-landmarks.h"
+#include "trace/landmark-trace.h"
 
 namespace {
 	static RegisterPass<slicer::MaxSlicingUnroll>
@@ -114,11 +112,11 @@ namespace slicer {
 			int thr_id = thr_ids[i];
 			const vector<unsigned> &thr_indices = LT.get_thr_trunks(thr_id);
 			for (size_t j = 0; j < thr_indices.size(); ++j) {
-				const TraceRecord &record = TM.get_record(thr_indices[j]);
-				trace[thr_id].push_back(record.ins);
-				if (record.child_tid != -1 && record.child_tid != thr_id) {
+				const TraceRecordInfo &info = TM.get_record_info(thr_indices[j]);
+				trace[thr_id].push_back(info.ins);
+				if (info.child_tid != -1 && info.child_tid != thr_id) {
 					thr_cr_records.push_back(
-							ThreadCreationRecord(thr_id, j, record.child_tid));
+							ThreadCreationRecord(thr_id, j, info.child_tid));
 				}
 			}
 		}
@@ -153,13 +151,13 @@ namespace slicer {
 		// <redirect_program_entry> invalidates <clone_map>.
 		// Therefore, we build <clone_id_map> before that. 
 		build_clone_id_map();
-		// Redirect the program entry to main.TERN. 
+		// Redirect the program entry to main.SLICER. 
 		assert(trace.count(0) && trace[0].size() > 0);
 		Instruction *old_start = trace[0][0];
 		assert(clone_map.count(0) && clone_map[0].size() > 0);
 		Instruction *new_start = clone_map[0][0].lookup(old_start);
 		assert(new_start && "Cannot find the program entry in the cloned CFG");
-		// Remove all instructions in main, and add a call to main.TERN instead. 
+		// Remove all instructions in main, and add a call to main.SLICER instead. 
 		// Note that this will invalidate some entries in <clone_map> and
 		// <clone_map_r>. 
 		clone_map.clear();

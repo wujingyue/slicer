@@ -7,9 +7,13 @@ using namespace slicer;
 
 #include "pthread.h"
 
-void append_to_trace(const TraceRecord &record) {
+static pthread_mutex_t trace_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+static void append_to_trace(const TraceRecord &record) {
+	pthread_mutex_lock(&trace_mutex);
 	ofstream fout("/tmp/fulltrace", ios::binary | ios::app);
 	fout.write((char *)&record, sizeof record);
+	pthread_mutex_unlock(&trace_mutex);
 }
 
 /*

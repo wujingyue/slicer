@@ -12,16 +12,14 @@
 
 #include "llvm/Pass.h"
 #include "llvm/ADT/DenseSet.h"
-
 #include "idm/id.h"
 #include "common/include/typedefs.h"
+using namespace llvm;
 
 #include <vector>
 #include <string>
 #include <map>
-
 using namespace std;
-using namespace llvm;
 
 namespace slicer {
 

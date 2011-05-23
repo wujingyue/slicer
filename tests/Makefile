@@ -1,7 +1,12 @@
-CFLAGS=-g -O2
-CXXFLAGS=-g -O2
+ORIG_PROGS=test.llvm test-skip.llvm test-loop.llvm test-sync-loop.llvm \
+	   test-thread.llvm test-dual.llvm test-sync-br.llvm
+SLICED_PROGS=$(ORIG_PROGS:.llvm=.slice.llvm)
+PROGS=$(ORIG_PROGS) $(SLICED_PROGS)
 
-all: test-loop.bc test-thread.bc
+CFLAGS=-g -O2 -Wall
+CXXFLAGS=-g -O2 -Wall
+
+all: $(PROGS:.llvm=.ll) $(PROGS)
 
 %.bc: %.c
 	llvm-gcc -o $@ $< -c -emit-llvm $(CFLAGS)
@@ -41,8 +46,41 @@ all: test-loop.bc test-thread.bc
 		-instrument \
 		< $< > $@
 
+%.display: %.ft
+	../trace/display/display $<
+
+%.slice.bc: %.bc %.ft
+	opt -o $@ \
+		-load $(LLVM_ROOT)/install/lib/libidm.so \
+		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
+		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/libmay-exec.so \
+		-load $(LLVM_ROOT)/install/lib/libidentify-thread-funcs.so \
+		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
+		-load $(LLVM_ROOT)/install/lib/libmax-slicing-unroll.so \
+		-max-slicing-unroll \
+		-fulltrace $(<:.bc=.ft) \
+		-mapping $(<:.bc=.map) < $<
+
 %.trace.bc: %.bc1 ../trace/tracing/tracing.bc
 	llvm-ld $^ -b $@
 
+%.llvm: %.s
+	$(CXX) -o $@ $< $(CXXFLAGS)
+
+test-thread.llvm: test-thread.s
+	$(CXX) -o $@ $< $(CXXFLAGS) -lpthread
+
+test-thread.slice.llvm: test-thread.slice.s
+	$(CXX) -o $@ $< $(CXXFLAGS) -lpthread
+
+test-dual.llvm: test-dual.s
+	$(CXX) -o $@ $< $(CXXFLAGS) -lpthread
+
+test-dual.slice.llvm: test-dual.slice.s
+	$(CXX) -o $@ $< $(CXXFLAGS) -lpthread
+
 clean:
-	rm -rf *.id *.ll *.loop *.bc1 *.trace.bc *.s
+	rm -rf *.id *.ll *.loop *.bc1 *.trace.bc *.s $(PROGS);
+
+
