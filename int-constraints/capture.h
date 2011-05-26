@@ -17,9 +17,6 @@ using namespace std;
 
 namespace slicer {
 
-	// Constraint (a, b) means (a <= b).
-	typedef pair<Expr, Expr> Constraint;
-
 	struct CaptureConstraints: public ModulePass {
 
 		static char ID;
@@ -46,6 +43,7 @@ namespace slicer {
 		const Clause *get_constraint(unsigned i) const;
 
 	private:
+#if 0
 		// TODO: Need a better name. 
 		void capture_in_func(Function *f);
 		void declare_bounds_in_func(Function *f);
@@ -67,6 +65,7 @@ namespace slicer {
 				const ValueBoundsInBB &start_bb_bounds); // y
 		Expr get_lower_bound(Value *v, const ValueBoundsInBB &end_bb_bounds);
 		Expr get_upper_bound(Value *v, const ValueBoundsInBB &end_bb_bounds);
+#endif
 		// Address taken variables. 
 		void capture_addr_taken(Module &M);
 		void add_addr_taken_eq(Value *v1, Value *v2);
@@ -79,21 +78,18 @@ namespace slicer {
 
 		void stat(Module &M);
 
-		static void print_bounds_in_bb(
-				raw_ostream &O, const ValueBoundsInBB &bounds);
-		static void print_bool_expr(
-				raw_ostream &O, const BoolExpr &be);
-		static void print_constraint(
-				raw_ostream &O, const Constraint &c);
-		static void print_clause(
-				raw_ostream &O, const Clause *c);
-		static void print_value(raw_ostream &O, const Value *v);
+		void setup(Module &M);
+
+		void print_value(raw_ostream &O, const Value *v) const;
+		void print_clause(raw_ostream &O, const Clause *c) const;
+		void print_bool_expr(raw_ostream &O, const BoolExpr *be) const;
+		void print_expr(raw_ostream &O, const Expr *e) const;
 #if 0
 		static void print_alias_set(raw_ostream &O, const ConstValueSet &as);
 #endif
 
+#if 0
 		static Expr get_const_expr(ConstantInt *v);
-		static bool is_int_operation(unsigned opcode);
 		static string get_symbol_name(unsigned sym_id);
 		Expr create_new_symbol();
 		static bool is_infty(const Expr &e);
@@ -103,11 +99,30 @@ namespace slicer {
 		static Expr get_infty_small();
 		static Expr create_expr(
 				const string &op, const Expr &op1, const Expr &op2);
+#endif
+		static bool is_int_operation(unsigned opcode);
+		/* Integer constants and pointer constants */
+		void identify_constants(Module &M);
+		/* 
+		 * Extract constants from constant <c>.
+		 * <c> might be a constant expression, so we need extract constants
+		 * recursively.
+		 */
+		void extract_consts(Constant *c);
+		void add_eq_constraint(Value *v1, Value *v2);
+		void capture_constraints_on_consts(Module &M);
+		void capture_in_user(User *user);
+		void capture_in_binary(User *user, unsigned opcode);
+		void capture_in_gep(User *user);
+		/* in bits */
+		static unsigned get_type_size(const Type *type);
 
 		DenseMap<BasicBlock *, ValueBoundsInBB> start_bb_bounds;
 		unsigned n_symbols;
 		vector<Clause *> constraints;
 		vector<ValuePair> addr_taken_eqs;
+		ValueSet constants;
+		const Type *int_type;
 	};
 }
 

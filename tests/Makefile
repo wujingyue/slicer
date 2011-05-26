@@ -5,7 +5,7 @@ PROGS=$(ORIG_PROGS) $(SLICED_PROGS)
 CFLAGS=-g -O2 -Wall
 CXXFLAGS=-g -O2 -Wall
 
-all: $(PROGS:>.ll) $(PROGS)
+all: $(PROGS>.ll) $(PROGS)
 
 %.bc: %.c
 	llvm-gcc -o $@ $< -c -emit-llvm $(CFLAGS)
@@ -29,6 +29,9 @@ all: $(PROGS:>.ll) $(PROGS)
 
 %.id: %.bc
 	$(LLVM_ROOT)/scripts/print-id insts $< > $@
+
+%.vid: %.bc
+	$(LLVM_ROOT)/scripts/print-id values $< > $@
 
 %.ll: %.bc
 	llvm-dis $<
@@ -104,6 +107,16 @@ all: $(PROGS:>.ll) $(PROGS)
 
 %.trace.bc: %.bc1 ../trace/tracing/tracing.bc
 	llvm-ld $^ -b $@
+
+%.ic: %.bc
+	opt -analyze -time-passes\
+		-load $(LLVM_ROOT)/install/lib/libidm.so \
+		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
+		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/libicfg.so \
+		-load $(LLVM_ROOT)/install/lib/libint-constraints.so \
+		-capture-constraints \
+		< $< > $@
 
 clean:
 	rm -rf *.id *.ll *.loop *.bc1 *.trace.bc *.s $(PROGS)

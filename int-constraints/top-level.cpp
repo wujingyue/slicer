@@ -9,6 +9,7 @@ using namespace llvm;
 
 namespace slicer {
 
+#if 0
 	void CaptureConstraints::capture_in_func(Function *f) {
 		// Declare all lower bounds and upper bounds. 
 		declare_bounds_in_func(f);
@@ -381,5 +382,5 @@ namespace slicer {
 			end_bb_bounds[user] = make_pair(get_infty_small(), get_infty_large());
 		}
 	}
-
+#endif
 }

@@ -8,8 +8,7 @@
 #include "common/include/typedefs.h"
 #include "common/reach/reach.h"
 #include "common/reach/icfg.h"
-#include "must-alias.h"
-#include "../max-slicing-unroll/clone-map-manager.h"
+#include "common/callgraph-fp/callgraph-fp.h"
 using namespace llvm;
 
 #include <fstream>
@@ -18,6 +17,9 @@ using namespace std;
 
 #include "config.h"
 #include "capture.h"
+#include "must-alias.h"
+#include "exec-once.h"
+#include "../max-slicing-unroll/clone-map-manager.h"
 
 namespace {
 	static RegisterPass<slicer::CaptureConstraints> X(
@@ -39,6 +41,7 @@ namespace slicer {
 	}
 
 	void CaptureConstraints::print(raw_ostream &O, const Module *M) const {
+#if 0
 		O << "Start-BB bounds:\n";
 		DenseMap<BasicBlock *, ValueBoundsInBB>::const_iterator it;
 		for (it = start_bb_bounds.begin();
@@ -48,11 +51,7 @@ namespace slicer {
 				<< bb->getNameStr() << "\n";
 			print_bounds_in_bb(O, it->second);
 		}
-		O << "\nConstraints:\n";
-		forallconst(vector<Clause *>, it, constraints) {
-			print_clause(O, *it);
-			O << "\n";
-		}
+#endif
 #if 0
 		O << "\nOverwriting:\n";
 		map<int, vector<DenseSet<const ConstValueSet *> > >::const_iterator i, E;
@@ -64,9 +63,17 @@ namespace slicer {
 			}
 		}
 #endif
+		O << "\nConstants:\n";
+		forallconst(ValueSet, it, constants) {
+			print_value(O, *it);
+		}
+		O << "\nConstraints:\n";
+		forallconst(vector<Clause *>, it, constraints) {
+			print_clause(O, *it);
+		}
 	}
 
-	void CaptureConstraints::print_value(raw_ostream &O, const Value *v) {
+	void CaptureConstraints::print_value(raw_ostream &O, const Value *v) const {
 		if (isa<GlobalVariable>(v))
 			O << "[global] ";
 		else if (const Argument *arg = dyn_cast<Argument>(v))
@@ -74,6 +81,8 @@ namespace slicer {
 		else if (const Instruction *ins = dyn_cast<Instruction>(v))
 			O << "[inst] (" << ins->getParent()->getParent()->getNameStr() << "." 
 				<< ins->getParent()->getNameStr() << ") ";
+		else if (isa<Constant>(v))
+			O << "[const] ";
 		else
 			assert(false && "Not supported");
 		v->print(O);
@@ -93,31 +102,8 @@ namespace slicer {
 		return constraints[i];
 	}
 
-	void CaptureConstraints::print_clause(
-			raw_ostream &O, const Clause *c) {
-		if (c->op == Clause::None) {
-			print_bool_expr(O, c->be);
-			return;
-		}
-		O << "(";
-		print_clause(O, c->c1);
-		O << ") ";
-		O << (c->op == Clause::And ? "AND" : "OR");
-		O << " (";
-		print_clause(O, c->c2);
-		O << ")";
-	}
 
-	void CaptureConstraints::print_bool_expr(
-			raw_ostream &O, const BoolExpr &be) {
-		O << be.e1 << " <= " << be.e2;
-	}
-
-	void CaptureConstraints::print_constraint(
-			raw_ostream &O, const Constraint &c) {
-		O << c.first << " <= " << c.second;
-	}
-
+#if 0
 	void CaptureConstraints::print_bounds_in_bb(
 			raw_ostream &O, const ValueBoundsInBB &bounds) {
 		forallconst(ValueBoundsInBB, it, bounds) {
@@ -127,61 +113,7 @@ namespace slicer {
 			O << "\t[" << it->second.first << ", " << it->second.second << "]\n";
 		}
 	}
-
-	string CaptureConstraints::get_symbol_name(unsigned sym_id) {
-		ostringstream oss;
-		oss << "x" << sym_id;
-		return oss.str();
-	}
-
-	Expr CaptureConstraints::create_new_symbol() {
-		Expr res = get_symbol_name(n_symbols);
-		n_symbols++;
-		return res;
-	}
-
-	Expr CaptureConstraints::get_lower_bound(
-			Value *v, const ValueBoundsInBB &end_bb_bounds) {
-		assert(end_bb_bounds.count(v));
-		return end_bb_bounds.lookup(v).first;
-	}
-
-	Expr CaptureConstraints::get_upper_bound(
-			Value *v, const ValueBoundsInBB &end_bb_bounds) {
-		assert(end_bb_bounds.count(v));
-		return end_bb_bounds.lookup(v).second;
-	}
-
-	Expr CaptureConstraints::get_const_expr(ConstantInt *v) {
-		ostringstream oss;
-		oss << v->getSExtValue();
-		return oss.str();
-	}
-
-	bool CaptureConstraints::is_infty_large(const Expr &e) {
-		return e == "infty";
-	}
-
-	bool CaptureConstraints::is_infty_small(const Expr &e) {
-		return e == "-infty";
-	}
-
-	bool CaptureConstraints::is_infty(const Expr &e) {
-		return is_infty_large(e) || is_infty_small(e);
-	}
-
-	Expr CaptureConstraints::get_infty_large() {
-		return "infty";
-	}
-
-	Expr CaptureConstraints::get_infty_small() {
-		return "-infty";
-	}
-
-	Expr CaptureConstraints::create_expr(
-			const string &op, const Expr &op1, const Expr &op2) {
-		return string("(") + op1 + " " + op + " " + op2 + ")";
-	}
+#endif
 
 	bool CaptureConstraints::is_int_operation(unsigned opcode) {
 		switch (opcode) {
@@ -225,14 +157,24 @@ namespace slicer {
 		cerr << "# of integers = " << n_ints << endl;
 	}
 
+	void CaptureConstraints::setup(Module &M) {
+		// int is always 32-bit long. 
+		int_type = IntegerType::get(getGlobalContext(), 32);
+	}
+
 	bool CaptureConstraints::runOnModule(Module &M) {
+		setup(M);
 		stat(M);
+#if 0
 		// Collect constraints on top-level variables.
 		// TODO: Handle function parameters. 
 		forallfunc(M, fi) {
 			if (!fi->isDeclaration())
 				capture_in_func(fi);
 		}
+#endif
+		identify_constants(M);
+		capture_constraints_on_consts(M);
 		// Collect constraints on address-taken variables. 
 		// capture_addr_taken_vars(M);
 		simplify_constraints();
@@ -240,22 +182,14 @@ namespace slicer {
 	}
 
 	void CaptureConstraints::simplify_constraints() {
-		size_t i = 0;
-		while (i < constraints.size()) {
-			Clause *c = constraints[i];
-			if (c->op == Clause::None && c->be.e1 == c->be.e2) {
-				delete c;
-				constraints.erase(constraints.begin() + i);
-				continue;
-			}
-			++i;
-		}
 	}
 
 	void CaptureConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
 		AU.setPreservesAll();
 		// FIXME: is it necessary? 
 		AU.addRequired<DominatorTree>();
+		AU.addRequired<CallGraphFP>();
+		AU.addRequired<ExecOnce>();
 		AU.addRequired<ICFG>();
 		ModulePass::getAnalysisUsage(AU);
 	}
