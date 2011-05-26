@@ -9,6 +9,7 @@
 #include "common/reach/reach.h"
 #include "common/reach/icfg.h"
 #include "common/callgraph-fp/callgraph-fp.h"
+#include "idm/id.h"
 using namespace llvm;
 
 #include <fstream>
@@ -70,6 +71,7 @@ namespace slicer {
 		O << "\nConstraints:\n";
 		forallconst(vector<Clause *>, it, constraints) {
 			print_clause(O, *it);
+			O << "\n";
 		}
 	}
 
@@ -187,6 +189,7 @@ namespace slicer {
 	void CaptureConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
 		AU.setPreservesAll();
 		// FIXME: is it necessary? 
+		AU.addRequired<ObjectID>();
 		AU.addRequired<DominatorTree>();
 		AU.addRequired<CallGraphFP>();
 		AU.addRequired<ExecOnce>();

@@ -1,4 +1,5 @@
 #include "common/callgraph-fp/callgraph-fp.h"
+#include "idm/id.h"
 using namespace llvm;
 
 #include "capture.h"
@@ -160,6 +161,7 @@ namespace slicer {
 		}
 		if (const IntegerType *it = dyn_cast<IntegerType>(type))
 			return it->getBitWidth();
+		// TODO: sure?
 		if (isa<PointerType>(type))
 			return __WORDSIZE;
 		if (const ArrayType *at = dyn_cast<ArrayType>(type))
@@ -178,11 +180,14 @@ namespace slicer {
 				ret = max(ret, get_type_size(ut->getElementType(i)));
 			return ret;
 		}
-		type->print(errs());
 		assert(false && "The type is not sized");
 	}
 
 	void CaptureConstraints::capture_in_gep(User *user) {
+#if 0
+		outs() << "capture_in_gep: "
+			<< getAnalysis<ObjectID>().getValueID(user) << "\n";
+#endif
 		Value *base = user->getOperand(0);
 		Expr *cur = new Expr(base);
 		// <cur> and <type> need be consistent. 
@@ -201,17 +206,19 @@ namespace slicer {
 				ConstantInt *idx = dyn_cast<ConstantInt>(user->getOperand(i));
 				assert(idx && "Not supported");
 				unsigned m = idx->getZExtValue();
-				for (unsigned j = 0; j < m; ++j) {
-					Expr *delta = new Expr(ConstantInt::get(
-								int_type,
-								get_type_size(st->getElementType(j))));
-					cur = new Expr(Instruction::Add, cur, delta);
-				}
+				assert(m < st->getNumElements());
+				unsigned offset = 0;
+				for (unsigned j = 0; j < m; ++j)
+					offset += get_type_size(st->getElementType(j));
+				Expr *delta = new Expr(ConstantInt::get(int_type, offset));
+				cur = new Expr(Instruction::Add, cur, delta);
 				type = st->getElementType(m);
 			} else {
 				assert(false && "Not supported");
 			}
 		}
+		constraints.push_back(Clause::create_bool_expr(new BoolExpr(
+						CmpInst::ICMP_EQ, new Expr(user), cur)));
 	}
 
 	void CaptureConstraints::add_eq_constraint(Value *v1, Value *v2) {
