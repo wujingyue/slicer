@@ -23,6 +23,7 @@ using namespace std;
 #include "../max-slicing-unroll/clone-map-manager.h"
 
 namespace {
+	
 	static RegisterPass<slicer::CaptureConstraints> X(
 			"capture-constraints",
 			"Capture all integer constraints",
@@ -134,7 +135,7 @@ namespace slicer {
 				}
 			}
 		}
-		cerr << "# of integers = " << n_ints << endl;
+		errs() << "# of integers = " << n_ints << "\n";
 	}
 
 	void CaptureConstraints::setup(Module &M) {

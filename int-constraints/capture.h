@@ -21,12 +21,14 @@ namespace slicer {
 
 		static char ID;
 
+#if 0
 		enum EdgeType {
 			EDGE_CALL,
 			EDGE_INTER_BB,
 			EDGE_INTRA_BB,
 			EDGE_RET
 		};
+#endif
 
 		const static unsigned INVALID_VAR_ID = (unsigned)-1;
 
