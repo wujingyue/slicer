@@ -10,6 +10,16 @@ using namespace llvm;
 namespace slicer {
 
 #if 0
+	void CaptureConstraints::print_bounds_in_bb(
+			raw_ostream &O, const ValueBoundsInBB &bounds) {
+		forallconst(ValueBoundsInBB, it, bounds) {
+			O << "\t";
+			it->first->print(O);
+			O << "\n";
+			O << "\t[" << it->second.first << ", " << it->second.second << "]\n";
+		}
+	}
+
 	void CaptureConstraints::capture_in_func(Function *f) {
 		// Declare all lower bounds and upper bounds. 
 		declare_bounds_in_func(f);

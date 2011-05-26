@@ -91,31 +91,9 @@ namespace slicer {
 		O << "\n";
 	}
 
-#if 0
-	void CaptureConstraints::print_alias_set(
-			raw_ostream &O, const ConstValueSet &as) {
-		O << "Must-aliasing set:\n";
-		forallconst(ConstValueSet, it, as)
-			print_value(O, *it);
-	}
-#endif
-
 	const Clause *CaptureConstraints::get_constraint(unsigned i) const {
 		return constraints[i];
 	}
-
-
-#if 0
-	void CaptureConstraints::print_bounds_in_bb(
-			raw_ostream &O, const ValueBoundsInBB &bounds) {
-		forallconst(ValueBoundsInBB, it, bounds) {
-			O << "\t";
-			it->first->print(O);
-			O << "\n";
-			O << "\t[" << it->second.first << ", " << it->second.second << "]\n";
-		}
-	}
-#endif
 
 	bool CaptureConstraints::is_int_operation(unsigned opcode) {
 		switch (opcode) {
@@ -188,7 +166,6 @@ namespace slicer {
 
 	void CaptureConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
 		AU.setPreservesAll();
-		// FIXME: is it necessary? 
 		AU.addRequired<ObjectID>();
 		AU.addRequired<DominatorTree>();
 		AU.addRequired<CallGraphFP>();
@@ -198,7 +175,7 @@ namespace slicer {
 	}
 
 	unsigned CaptureConstraints::get_num_constraints() const {
-		return 0;
+		return (unsigned)constraints.size();
 	}
 
 	char CaptureConstraints::ID = 0;

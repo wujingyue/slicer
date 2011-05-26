@@ -70,4 +70,13 @@ namespace slicer {
 			}
 		}
 	}
+
+#if 0
+	void CaptureConstraints::print_alias_set(
+			raw_ostream &O, const ConstValueSet &as) {
+		O << "Must-aliasing set:\n";
+		forallconst(ConstValueSet, it, as)
+			print_value(O, *it);
+	}
+#endif
 }
