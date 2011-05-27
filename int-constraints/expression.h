@@ -1,43 +1,75 @@
 #ifndef __SLICER_EXPRESSION_H
 #define __SLICER_EXPRESSION_H
 
-#include <string>
-using namespace std;
+#include "llvm/Instruction.h"
+using namespace llvm;
 
 namespace slicer {
 
 	inline void print_opcode(raw_ostream &O, unsigned op) {
 		switch (op) {
-			case Instruction::Add: O << "+"; break;
-			case Instruction::Sub: O << "-"; break;
-			case Instruction::Mul: O << "*"; break;
+			case Instruction::Add:
+				O << "+";
+				break;
+			case Instruction::Sub:
+				O << "-";
+				break;
+			case Instruction::Mul:
+				O << "*";
+				break;
 			case Instruction::UDiv:
-			case Instruction::SDiv: O << "/"; break;
+			case Instruction::SDiv:
+				O << "/";
+				break;
 			case Instruction::URem:
-			case Instruction::SRem: O << "%"; break;
-			case Instruction::Shl: O << "<<"; break;
+			case Instruction::SRem:
+				O << "%";
+				break;
+			case Instruction::Shl:
+				O << "<<";
+				break;
 			case Instruction::LShr:
-			case Instruction::AShr: O << ">>"; break; // FIXME: distinguish them
-			case Instruction::And: O << "&"; break;
-			case Instruction::Or: O << "|"; break;
-			case Instruction::Xor: O << "^"; break;
-			default: assert(false && "Not supported");
+			case Instruction::AShr:
+				O << ">>";
+				break; // FIXME: distinguish them
+			case Instruction::And:
+				O << "&";
+				break;
+			case Instruction::Or:
+				O << "|";
+				break;
+			case Instruction::Xor:
+				O << "^";
+				break;
+			default: assert_not_supported();
 		}
 	}
 
 	inline void print_predicate(raw_ostream &O, CmpInst::Predicate p) {
 		switch (p) {
-			case CmpInst::ICMP_EQ: O << "="; break;
-			case CmpInst::ICMP_NE: O << "!="; break;
+			case CmpInst::ICMP_EQ:
+				O << "=";
+				break;
+			case CmpInst::ICMP_NE:
+				O << "!=";
+				break;
 			case CmpInst::ICMP_UGT:
-			case CmpInst::ICMP_SGT: O << ">"; break;
+			case CmpInst::ICMP_SGT:
+				O << ">";
+				break;
 			case CmpInst::ICMP_UGE:
-			case CmpInst::ICMP_SGE: O << ">="; break;
+			case CmpInst::ICMP_SGE:
+				O << ">=";
+				break;
 			case CmpInst::ICMP_ULT:
-			case CmpInst::ICMP_SLT: O << "<"; break;
+			case CmpInst::ICMP_SLT:
+				O << "<";
+				break;
 			case CmpInst::ICMP_ULE:
-			case CmpInst::ICMP_SLE: O << "<="; break;
-			default: assert(false && "Not supported");
+			case CmpInst::ICMP_SLE:
+				O << "<=";
+				break;
+			default: assert(false && "Invalid predicate");
 		}
 	}
 
@@ -57,21 +89,35 @@ namespace slicer {
 			e1 = e2 = NULL;
 		}
 
-		Expr(unsigned opcode, Expr *expr): op(opcode), e1(expr) {
-			type = Unary;
-			v = NULL;
-			e2 = NULL;
+		Expr(unsigned opcode, Expr *expr):
+			type(Unary), op(opcode), e1(expr), e2(NULL), v(NULL)
+		{
+			assert_not_supported();
 		}
 
-		Expr(unsigned opcode, Expr *expr1, Expr *expr2) {
-			type = Binary;
-			op = opcode;
-			e1 = expr1;
-			e2 = expr2;
-			v = NULL;
+		Expr(unsigned opcode, Expr *expr1, Expr *expr2):
+			type(Binary), op(opcode), e1(expr1), e2(expr2), v(NULL)
+		{
+			switch (opcode) {
+				case Instruction::Add:
+				case Instruction::Sub:
+				case Instruction::Mul:
+				case Instruction::UDiv:
+				case Instruction::SDiv:
+				case Instruction::URem:
+				case Instruction::SRem:
+				case Instruction::Shl:
+				case Instruction::LShr:
+				case Instruction::AShr:
+				case Instruction::And:
+				case Instruction::Or:
+				case Instruction::Xor:
+					break;
+				default: assert_not_supported();
+			}
 		}
 
-		virtual ~Expr() {
+		~Expr() {
 			if (e1) {
 				delete e1;
 				e1 = NULL;
@@ -90,7 +136,23 @@ namespace slicer {
 		Expr *e1, *e2;
 
 		BoolExpr(CmpInst::Predicate pred, Expr *expr1, Expr *expr2):
-			p(pred), e1(expr1), e2(expr2) {}
+			p(pred), e1(expr1), e2(expr2)
+		{
+			switch (p) {
+				case CmpInst::ICMP_EQ:
+				case CmpInst::ICMP_NE:
+				case CmpInst::ICMP_UGT:
+				case CmpInst::ICMP_UGE:
+				case CmpInst::ICMP_ULT:
+				case CmpInst::ICMP_ULE:
+				case CmpInst::ICMP_SGT:
+				case CmpInst::ICMP_SGE:
+				case CmpInst::ICMP_SLT:
+				case CmpInst::ICMP_SLE:
+					break;
+				default: assert(false && "Invalid predicate");
+			}
+		}
 
 		~BoolExpr() {
 			delete e1;
@@ -102,40 +164,17 @@ namespace slicer {
 	// A clause is a set of boolean expressions connected with AND or OR. 
 	struct Clause {
 
-		enum Op {
-			None,
-			And,
-			Or
-		} op;
-
+		unsigned op;
 		BoolExpr *be;
 		Clause *c1, *c2;
 
-		static Clause *create_and(Clause *lhs, Clause *rhs) {
-			Clause *c = new Clause();
-			c->op = And;
-			c->be = NULL;
-			c->c1 = lhs;
-			c->c2 = rhs;
-			return c;
+		Clause(unsigned opcode, Clause *lhs, Clause *rhs):
+			op(opcode), be(NULL), c1(lhs), c2(lhs)
+		{
+			assert(op == Instruction::And || op == Instruction::Or);
 		}
 
-		static Clause *create_or(Clause *lhs, Clause *rhs) {
-			Clause *c = new Clause();
-			c->op = Or;
-			c->be = NULL;
-			c->c1 = lhs;
-			c->c2 = rhs;
-			return c;
-		}
-
-		static Clause *create_bool_expr(BoolExpr *expr) {
-			Clause *c = new Clause();
-			c->op = None;
-			c->be = expr;
-			c->c1 = c->c2 = NULL;
-			return c;
-		}
+		Clause(BoolExpr *expr): op(0), be(expr), c1(NULL), c2(NULL) {}
 
 		~Clause() {
 			if (c1) {

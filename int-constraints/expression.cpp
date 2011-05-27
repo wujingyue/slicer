@@ -53,13 +53,13 @@ namespace slicer {
 	}
 
 	void CaptureConstraints::print_clause(raw_ostream &O, const Clause *c) const {
-		if (c->op == Clause::None) {
+		if (c->be) {
 			print_bool_expr(O, c->be);
 			return;
 		}
 		O << "(";
 		print_clause(O, c->c1);
-		O << (c->op == Clause::And ? " AND " : " OR ");
+		O << (c->op == Instruction::And ? " AND " : " OR ");
 		print_clause(O, c->c2);
 		O << ")";
 	}

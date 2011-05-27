@@ -149,7 +149,7 @@ namespace slicer {
 				new Expr(user->getOperand(0)),
 				new Expr(user->getOperand(1)));
 		BoolExpr *be = new BoolExpr(CmpInst::ICMP_EQ, e1, e2);
-		constraints.push_back(Clause::create_bool_expr(be));
+		constraints.push_back(new Clause(be));
 	}
 
 	unsigned CaptureConstraints::get_type_size(const Type *type) {
@@ -217,12 +217,12 @@ namespace slicer {
 				assert(false && "Not supported");
 			}
 		}
-		constraints.push_back(Clause::create_bool_expr(new BoolExpr(
+		constraints.push_back(new Clause(new BoolExpr(
 						CmpInst::ICMP_EQ, new Expr(user), cur)));
 	}
 
 	void CaptureConstraints::add_eq_constraint(Value *v1, Value *v2) {
 		BoolExpr *be = new BoolExpr(CmpInst::ICMP_EQ, new Expr(v1), new Expr(v2));
-		constraints.push_back(Clause::create_bool_expr(be));
+		constraints.push_back(new Clause(be));
 	}
 }

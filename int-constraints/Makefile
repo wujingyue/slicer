@@ -13,7 +13,8 @@ LOADABLE_MODULE = 1
 
 include $(LEVEL)/Makefile.common
 
-CXXFLAGS += -I$(LLVM_ROOT) -I$(TERN_ROOT)
+CXXFLAGS += -I$(LLVM_ROOT) -I$(SLICER_ROOT)/stp/src/c_interface/
+LDFLAGS += -L$(SLICER_ROOT)/stp/lib -lstp
 
 # Build test from scratch each time. 
 test::

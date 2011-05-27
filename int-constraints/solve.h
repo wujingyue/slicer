@@ -1,7 +1,19 @@
+/**
+ * Author: Jingyue
+ */
+
+// TODO: Supports 32-bit signed integers only. 
+
 #ifndef __SLICER_SOLVER_H
 #define __SLICER_SOLVER_H
 
 #include "expression.h"
+
+#define Expr VCExpr
+#define Type VCType
+#include "c_interface.h"
+#undef Expr
+#undef Type
 
 namespace slicer {
 
@@ -14,15 +26,23 @@ namespace slicer {
 
 		static char ID;
 
-		SolveConstraints(): ModulePass(&ID) {}
+		SolveConstraints();
+		~SolveConstraints();
 		virtual bool runOnModule(Module &M);
 		virtual void print(raw_ostream &O, const Module *M) const;
-		// Remember to add CaptureConstraints transitively. 
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 
-		bool satisfiable(const vector<Clause *> &more_clauses);
+		bool satisfiable(const vector<const Clause *> &more_clauses);
+		bool provable(const vector<const Clause *> &more_clauses);
 
 	private:
+		// Intermediate VC expressions will be inserted to member <vc>. 
+		VCExpr translate_to_vc(const Clause *c);
+		VCExpr translate_to_vc(const BoolExpr *be);
+		VCExpr translate_to_vc(const Expr *e);
+		VCExpr translate_to_vc(const Value *v);
+
+		VC vc;
 	};
 }
 
