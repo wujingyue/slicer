@@ -68,6 +68,7 @@ namespace slicer {
 		Expr get_lower_bound(Value *v, const ValueBoundsInBB &end_bb_bounds);
 		Expr get_upper_bound(Value *v, const ValueBoundsInBB &end_bb_bounds);
 #endif
+		static void print_value(raw_ostream &O, const Value *v);
 		// Address taken variables. 
 		void capture_addr_taken(Module &M);
 		void add_addr_taken_eq(Value *v1, Value *v2);
@@ -75,6 +76,8 @@ namespace slicer {
 		void search_all_sources(
 				MicroBasicBlock *mbb, MicroBasicBlock::iterator ins,
 				Value *p, ValueList &srcs);
+		Value *get_pointer_operand(Instruction *i) const;
+		Value *get_value_operand(Instruction *i) const;
 
 		void simplify_constraints();
 
@@ -82,10 +85,6 @@ namespace slicer {
 
 		void setup(Module &M);
 
-		void print_value(raw_ostream &O, const Value *v) const;
-		void print_clause(raw_ostream &O, const Clause *c) const;
-		void print_bool_expr(raw_ostream &O, const BoolExpr *be) const;
-		void print_expr(raw_ostream &O, const Expr *e) const;
 #if 0
 		static void print_alias_set(raw_ostream &O, const ConstValueSet &as);
 #endif

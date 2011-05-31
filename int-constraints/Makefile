@@ -13,6 +13,6 @@ LOADABLE_MODULE = 1
 
 include $(LEVEL)/Makefile.common
 
-CXXFLAGS += -I$(LLVM_ROOT) -I$(SLICER_ROOT)/stp/src/c_interface/
+CXXFLAGS += -I$(LLVM_ROOT) -I$(SLICER_ROOT)/stp/install/include
 LDFLAGS += -L$(SLICER_ROOT)/stp/install/lib
 LIBS += -lstp

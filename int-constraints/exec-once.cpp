@@ -36,16 +36,20 @@ namespace slicer {
 			forallconst(Function, bi, *fi) {
 				const BasicBlock *bb = bi;
 				if (executed_once(const_cast<BasicBlock *>(bb))) {
-					O << bb->getParent()->getNameStr() << "."
+					O << "\t" << bb->getParent()->getNameStr() << "."
 						<< bb->getNameStr() << "\n";
 				}
 			}
 		}
+		O << "List of reachable functions:\n";
+		forallconst(FuncSet, it, reachable_funcs)
+			O << "\t" << (*it)->getNameStr() << "\n";
 	}
 
 	bool ExecOnce::runOnModule(Module &M) {
 		identify_twice_bbs(M);
 		identify_twice_funcs(M);
+		identify_reachable_funcs(M);
 		return false;
 	}
 
@@ -104,23 +108,30 @@ namespace slicer {
 		// Propagate via the call graph. 
 		twice_funcs.clear();
 		forall(FuncSet, it, starts)
-			propagate_via_cg(*it);
+			propagate_via_cg(*it, twice_funcs);
 	}
 
-	void ExecOnce::propagate_via_cg(Function *f) {
+	void ExecOnce::identify_reachable_funcs(Module &M) {
+		Function *main = M.getFunction("main");
+		assert(main && "Cannot find the main function");
+		reachable_funcs.clear();
+		propagate_via_cg(main, reachable_funcs);
+	}
+
+	void ExecOnce::propagate_via_cg(Function *f, FuncSet &visited) {
 		// The call graph contains some external nodes which don't represent
 		// any function. 
 		if (!f)
 			return;
-		if (twice_funcs.count(f))
+		if (visited.count(f))
 			return;
-		twice_funcs.insert(f);
+		visited.insert(f);
 		CallGraph &CG = getAnalysis<CallGraphFP>();
 		// Operator [] does not change the function mapping. 
 		CallGraphNode *x = CG[f];
 		for (unsigned i = 0; i < x->size(); ++i) {
 			CallGraphNode *y = (*x)[i];
-			propagate_via_cg(y->getFunction());
+			propagate_via_cg(y->getFunction(), visited);
 		}
 	}
 
@@ -171,6 +182,18 @@ namespace slicer {
 	bool ExecOnce::executed_once(const Function *f) const {
 		Function *func = const_cast<Function *>(f);
 		return !twice_funcs.count(func);
+	}
+
+	bool ExecOnce::not_executed(const Instruction *ins) const {
+		return not_executed(ins->getParent());
+	}
+
+	bool ExecOnce::not_executed(const BasicBlock *bb) const {
+		return not_executed(bb->getParent());
+	}
+	
+	bool ExecOnce::not_executed(const Function *func) const {
+		return !reachable_funcs.count(const_cast<Function *>(func));
 	}
 
 	char ExecOnce::ID = 0;

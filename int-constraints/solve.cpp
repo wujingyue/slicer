@@ -27,6 +27,7 @@ namespace slicer {
 
 	SolveConstraints::SolveConstraints(): ModulePass(&ID) {
 		vc = vc_createValidityChecker();
+		vc_setFlags(vc, 'p');
 	}
 
 	SolveConstraints::~SolveConstraints() {
@@ -35,8 +36,7 @@ namespace slicer {
 
 	bool SolveConstraints::runOnModule(Module &M) {
 		CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
-		errs() << "# of constraints = " << CC.get_num_constraints() << "\n";
-		for (unsigned i = 0; i < 1714; ++i) {
+		for (unsigned i = 0; i < CC.get_num_constraints(); ++i) {
 			const Clause *c = CC.get_constraint(i);
 			VCExpr vc_expr = translate_to_vc(c);
 			vc_assertFormula(vc, vc_expr);
@@ -122,9 +122,13 @@ namespace slicer {
 				case Instruction::UDiv:
 				case Instruction::SDiv:
 					// TODO: not sure why sbvDivExpr not working. 
-					return vc_bvDivExpr(vc, 32, left, right);
+					vc_assertFormula(vc,
+							vc_bvGtExpr(vc, right, vc_bv32ConstExprFromInt(vc, 0)));
+					return vc_sbvDivExpr(vc, 32, left, right);
 				case Instruction::URem:
 				case Instruction::SRem:
+					vc_assertFormula(vc,
+							vc_bvGtExpr(vc, right, vc_bv32ConstExprFromInt(vc, 0)));
 					return vc_bvModExpr(vc, 32, left, right);
 				case Instruction::Shl:
 					// left << right

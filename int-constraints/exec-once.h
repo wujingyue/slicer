@@ -23,10 +23,15 @@ namespace slicer {
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual void print(raw_ostream &O, const Module *M) const;
 
-		/* Executed only once? */
+		/* Executed <= once? */
 		bool executed_once(const Instruction *ins) const;
 		bool executed_once(const BasicBlock *bb) const;
 		bool executed_once(const Function *func) const;
+
+		/* Not executed at all */
+		bool not_executed(const Instruction *ins) const;
+		bool not_executed(const BasicBlock *bb) const;
+		bool not_executed(const Function *func) const;
 
 	private:
 		// Used in <identify_twice_funcs>. 
@@ -37,12 +42,15 @@ namespace slicer {
 		// Note that this set isn't equivalent to all the BBs that can be
 		// executed more than once. 
 		void identify_twice_bbs(Module &M);
-		// Used in <identify_twice_funcs>.
+		// Identify all reachable functions.
+		void identify_reachable_funcs(Module &M);
 		// DFS from a starting function via the call graph. 
-		void propagate_via_cg(Function *f);
+		void propagate_via_cg(Function *f, FuncSet &visited);
 
 		// Results of function <identify_twice_funcs>.
 		FuncSet twice_funcs;
+		// Results of function <identify_reachable_funcs>.
+		FuncSet reachable_funcs;
 		// Results of function <identify_twice_bbs>.
 		BBSet twice_bbs;
 	};

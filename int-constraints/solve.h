@@ -11,7 +11,7 @@
 
 #define Expr VCExpr
 #define Type VCType
-#include "c_interface.h"
+#include "stp/c_interface.h"
 #undef Expr
 #undef Type
 

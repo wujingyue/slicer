@@ -12,6 +12,9 @@
 #include "idm/id.h"
 using namespace llvm;
 
+#include "bc2bdd/BddAliasAnalysis.h"
+using namespace repair;
+
 #include <fstream>
 #include <sstream>
 using namespace std;
@@ -71,12 +74,12 @@ namespace slicer {
 		}
 		O << "\nConstraints:\n";
 		forallconst(vector<Clause *>, it, constraints) {
-			print_clause(O, *it);
+			print_clause(O, *it, getAnalysis<ObjectID>());
 			O << "\n";
 		}
 	}
 
-	void CaptureConstraints::print_value(raw_ostream &O, const Value *v) const {
+	void CaptureConstraints::print_value(raw_ostream &O, const Value *v) {
 		if (isa<GlobalVariable>(v))
 			O << "[global] ";
 		else if (const Argument *arg = dyn_cast<Argument>(v))
@@ -157,18 +160,23 @@ namespace slicer {
 		identify_constants(M);
 		capture_constraints_on_consts(M);
 		// Collect constraints on address-taken variables. 
-		// capture_addr_taken_vars(M);
+		capture_addr_taken(M);
 		simplify_constraints();
 		return false;
 	}
 
 	void CaptureConstraints::simplify_constraints() {
+		// Sort constraints on the alphabetical order
+		sort(
+				constraints.begin(), constraints.end(),
+				CompareClause(getAnalysis<ObjectID>()));
 	}
 
 	void CaptureConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
 		AU.setPreservesAll();
-		AU.addRequired<ObjectID>();
+		AU.addRequiredTransitive<ObjectID>();
 		AU.addRequired<DominatorTree>();
+		AU.addRequired<BddAliasAnalysis>();
 		AU.addRequired<CallGraphFP>();
 		AU.addRequired<ExecOnce>();
 		AU.addRequired<ICFG>();

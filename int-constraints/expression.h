@@ -1,77 +1,18 @@
+/**
+ * Author: Jingyue
+ */
+
 #ifndef __SLICER_EXPRESSION_H
 #define __SLICER_EXPRESSION_H
 
 #include "llvm/Instruction.h"
+#include "idm/id.h"
 using namespace llvm;
 
+#include <cstdio>
+using namespace std;
+
 namespace slicer {
-
-	inline void print_opcode(raw_ostream &O, unsigned op) {
-		switch (op) {
-			case Instruction::Add:
-				O << "+";
-				break;
-			case Instruction::Sub:
-				O << "-";
-				break;
-			case Instruction::Mul:
-				O << "*";
-				break;
-			case Instruction::UDiv:
-			case Instruction::SDiv:
-				O << "/";
-				break;
-			case Instruction::URem:
-			case Instruction::SRem:
-				O << "%";
-				break;
-			case Instruction::Shl:
-				O << "<<";
-				break;
-			case Instruction::LShr:
-			case Instruction::AShr:
-				O << ">>";
-				break; // FIXME: distinguish them
-			case Instruction::And:
-				O << "&";
-				break;
-			case Instruction::Or:
-				O << "|";
-				break;
-			case Instruction::Xor:
-				O << "^";
-				break;
-			default: assert_not_supported();
-		}
-	}
-
-	inline void print_predicate(raw_ostream &O, CmpInst::Predicate p) {
-		switch (p) {
-			case CmpInst::ICMP_EQ:
-				O << "=";
-				break;
-			case CmpInst::ICMP_NE:
-				O << "!=";
-				break;
-			case CmpInst::ICMP_UGT:
-			case CmpInst::ICMP_SGT:
-				O << ">";
-				break;
-			case CmpInst::ICMP_UGE:
-			case CmpInst::ICMP_SGE:
-				O << ">=";
-				break;
-			case CmpInst::ICMP_ULT:
-			case CmpInst::ICMP_SLT:
-				O << "<";
-				break;
-			case CmpInst::ICMP_ULE:
-			case CmpInst::ICMP_SLE:
-				O << "<=";
-				break;
-			default: assert(false && "Invalid predicate");
-		}
-	}
 
 	struct Expr {
 
@@ -169,9 +110,10 @@ namespace slicer {
 		Clause *c1, *c2;
 
 		Clause(unsigned opcode, Clause *lhs, Clause *rhs):
-			op(opcode), be(NULL), c1(lhs), c2(lhs)
+			op(opcode), be(NULL), c1(lhs), c2(rhs)
 		{
 			assert(op == Instruction::And || op == Instruction::Or);
+			assert(c1 != this && c2 != this && c1 != c2);
 		}
 
 		Clause(BoolExpr *expr): op(0), be(expr), c1(NULL), c2(NULL) {}
@@ -186,6 +128,31 @@ namespace slicer {
 				c2 = NULL;
 			}
 		}
+	};
+
+	void print_opcode(raw_ostream &O, unsigned op);
+	void print_predicate(raw_ostream &O, CmpInst::Predicate p);
+	void print_expr(raw_ostream &O, const Expr *e, ObjectID &OI);
+	void print_bool_expr(raw_ostream &O, const BoolExpr *be, ObjectID &OI);
+	void print_clause(raw_ostream &O, const Clause *c, ObjectID &OI);
+
+	/*
+	 * Sort the clauses according to the alphabetic order
+	 */
+	struct CompareClause {
+
+		CompareClause(ObjectID &IDM): OI(IDM) {}
+		
+		bool operator()(const Clause *a, const Clause *b) {
+			string str_a, str_b;
+			raw_string_ostream oss_a(str_a), oss_b(str_b);
+			print_clause(oss_a, a, OI);
+			print_clause(oss_b, b, OI);
+			return oss_a.str() < oss_b.str();
+		}
+
+	private:
+		ObjectID &OI;
 	};
 }
 

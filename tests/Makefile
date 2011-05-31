@@ -118,6 +118,16 @@ all: $(PROGS>.ll) $(PROGS)
 		-capture-constraints \
 		< $< > $@
 
+%.eo: %.bc
+	opt -analyze \
+		-load $(LLVM_ROOT)/install/lib/libidm.so \
+		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
+		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/libicfg.so \
+		-load $(LLVM_ROOT)/install/lib/libint-constraints.so \
+		-exec-once \
+		< $<
+
 %.solve: %.bc
 	opt -analyze -time-passes \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
