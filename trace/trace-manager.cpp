@@ -6,9 +6,6 @@ using namespace llvm;
 #include <sstream>
 using namespace std;
 
-#include <boost/regex.hpp>
-using namespace boost;
-
 #include "trace-manager.h"
 #include "slicer-landmarks.h"
 

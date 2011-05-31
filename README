@@ -1,1 +1,3 @@
 Put the STP root directory here. 
+
+./clean-install.sh --with-g++='g++ -fPIC' --with-gcc='gcc -fPIC' --with-prefix=$PWD/install > stdout

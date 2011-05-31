@@ -34,6 +34,8 @@ namespace slicer {
 
 		bool satisfiable(const vector<const Clause *> &more_clauses);
 		bool provable(const vector<const Clause *> &more_clauses);
+		bool may_equal(const Value *v1, const Value *v2);
+		bool must_equal(const Value *v1, const Value *v2);
 
 	private:
 		// Intermediate VC expressions will be inserted to member <vc>. 
@@ -41,6 +43,8 @@ namespace slicer {
 		VCExpr translate_to_vc(const BoolExpr *be);
 		VCExpr translate_to_vc(const Expr *e);
 		VCExpr translate_to_vc(const Value *v);
+
+		void run_tests(Module &M);
 
 		VC vc;
 	};

@@ -1,3 +1,4 @@
+#include "llvm/Support/CommandLine.h"
 #include "common/include/util.h"
 #include "idm/id.h"
 using namespace llvm;
@@ -15,6 +16,11 @@ namespace {
 			"Solve captured constraints using STP",
 			false,
 			true); // is analysis
+
+	static cl::opt<bool> RunTest(
+			"test",
+			cl::desc("Whether to run tests"),
+			cl::init(false));
 }
 
 namespace slicer {
@@ -29,12 +35,38 @@ namespace slicer {
 
 	bool SolveConstraints::runOnModule(Module &M) {
 		CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
-		for (unsigned i = 0; i < CC.get_num_constraints(); ++i) {
+		errs() << "# of constraints = " << CC.get_num_constraints() << "\n";
+		for (unsigned i = 0; i < 1714; ++i) {
 			const Clause *c = CC.get_constraint(i);
 			VCExpr vc_expr = translate_to_vc(c);
 			vc_assertFormula(vc, vc_expr);
 		}
+		run_tests(M);
 		return false;
+	}
+
+	bool SolveConstraints::may_equal(const Value *v1, const Value *v2) {
+		const Clause *c = new Clause(new BoolExpr(
+					CmpInst::ICMP_EQ,
+					new Expr(v1),
+					new Expr(v2)));
+		return satisfiable(vector<const Clause *>(1, c));
+	}
+
+	bool SolveConstraints::must_equal(const Value *v1, const Value *v2) {
+		const Clause *c = new Clause(new BoolExpr(
+					CmpInst::ICMP_EQ,
+					new Expr(v1),
+					new Expr(v2)));
+		return provable(vector<const Clause *>(1, c));
+	}
+
+	void SolveConstraints::run_tests(Module &M) {
+		ObjectID &OI = getAnalysis<ObjectID>();
+		Value *v1 = OI.getValue(3138);
+		Value *v2 = OI.getValue(3204);
+		errs() << "may: " << may_equal(v1, v2) << "\n";
+		errs() << "must: " << must_equal(v1, v2) << "\n";
 	}
 
 	VCExpr SolveConstraints::translate_to_vc(const Clause *c) {

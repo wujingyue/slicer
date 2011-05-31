@@ -109,7 +109,7 @@ all: $(PROGS>.ll) $(PROGS)
 	llvm-ld $^ -b $@
 
 %.ic: %.bc
-	opt -analyze -time-passes\
+	opt -analyze -time-passes \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
@@ -117,6 +117,17 @@ all: $(PROGS>.ll) $(PROGS)
 		-load $(LLVM_ROOT)/install/lib/libint-constraints.so \
 		-capture-constraints \
 		< $< > $@
+
+%.solve: %.bc
+	opt -analyze -time-passes \
+		-load $(LLVM_ROOT)/install/lib/libidm.so \
+		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
+		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/libicfg.so \
+		-load $(LLVM_ROOT)/install/lib/libint-constraints.so \
+		-solve-constraints \
+		-test \
+		< $<
 
 clean:
 	rm -rf *.id *.ll *.loop *.bc1 *.trace.bc *.s $(PROGS)

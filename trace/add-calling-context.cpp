@@ -5,9 +5,6 @@ using namespace llvm;
 #include <fstream>
 using namespace std;
 
-#include <boost/regex.hpp>
-using namespace boost;
-
 #include "trace-manager.h"
 #include "add-calling-context.h"
 
@@ -48,8 +45,8 @@ namespace slicer {
 					} else {
 						// May be ret from main or
 						// ret from the static initialization function. 
-						cerr << "[Warning] Calls and rets don't match: "
-							<< "[" << record_info.tid << "]" << i << endl;
+						errs() << "[Warning] Calls and rets don't match: "
+							<< "[" << record_info.tid << "]" << i << "\n";
 					}
 				}
 				contexts.push_back(cur);
@@ -97,10 +94,10 @@ namespace slicer {
 
 	void AddCallingContext::print(raw_ostream &O, const Module *M) const {
 		for (size_t i = 0; i < contexts.size(); ++i) {
-			cerr << i << ":";
+			errs() << i << ":";
 			for (size_t j = 0; j < contexts[i].size(); ++j)
-				cerr << " " << contexts[i][j];
-			cerr << endl;
+				errs() << " " << contexts[i][j];
+			errs() << "\n";
 		}
 	}
 
