@@ -113,8 +113,14 @@ namespace slicer {
 		void add_eq_constraint(Value *v1, Value *v2);
 		void capture_constraints_on_consts(Module &M);
 		void capture_in_user(User *user);
+		/*
+		 * These capture_* functions need to check whether their operands
+		 * are constant.
+		 */
+		void capture_in_unary(User *user);
 		void capture_in_binary(User *user, unsigned opcode);
 		void capture_in_gep(User *user);
+		void capture_in_phi(PHINode *phi);
 		/* in bits */
 		static unsigned get_type_size(const Type *type);
 

@@ -92,6 +92,7 @@ namespace slicer {
 	void CaptureConstraints::capture_in_user(User *user) {
 		if (!isa<Instruction>(user) && !isa<ConstantExpr>(user))
 			return;
+#if 0
 		bool all_const = true;
 		for (unsigned i = 0; i < user->getNumOperands(); ++i) {
 			if (!constants.count(user->getOperand(i))) {
@@ -102,6 +103,7 @@ namespace slicer {
 		// We can't infer anything if some operands are not constant. 
 		if (!all_const)
 			return;
+#endif
 		unsigned opcode;
 		if (Instruction *ins = dyn_cast<Instruction>(user))
 			opcode = ins->getOpcode();
@@ -131,18 +133,50 @@ namespace slicer {
 			case Instruction::PtrToInt:
 			case Instruction::IntToPtr:
 			case Instruction::BitCast:
-				assert(user->getNumOperands() == 1);
-				add_eq_constraint(user, user->getOperand(0));
+				capture_in_unary(user);
 				break;
 			case Instruction::GetElementPtr:
 				capture_in_gep(user);
 				break;
-			// TODO: handle PHINodes
+			case Instruction::PHI:
+				capture_in_phi(dyn_cast<PHINode>(user));
+				break;
 		}
+	}
+
+	void CaptureConstraints::capture_in_unary(User *user) {
+		assert(user->getNumOperands() == 1);
+		if (!constants.count(user->getOperand(0)))
+			return;
+		add_eq_constraint(user, user->getOperand(0));
+	}
+
+	void CaptureConstraints::capture_in_phi(PHINode *phi) {
+		for (unsigned i = 0; i < phi->getNumIncomingValues(); ++i) {
+			if (!constants.count(phi->getIncomingValue(i)))
+				return;
+		}
+		Clause *disj = NULL;
+		for (unsigned i = 0; i < phi->getNumIncomingValues(); ++i) {
+			Clause *c = new Clause(new BoolExpr(
+						CmpInst::ICMP_EQ,
+						new Expr(phi),
+						new Expr(phi->getIncomingValue(i))));
+			if (!disj)
+				disj = c;
+			else
+				disj = new Clause(Instruction::Or, disj, c);
+		}
+		assert(disj && "Empty PHINode");
+		constraints.push_back(disj);
 	}
 
 	void CaptureConstraints::capture_in_binary(User *user, unsigned opcode) {
 		assert(user->getNumOperands() == 2);
+		if (!constants.count(user->getOperand(0)))
+			return;
+		if (!constants.count(user->getOperand(1)))
+			return;
 		Expr *e1 = new Expr(user);
 		Expr *e2 = new Expr(
 				opcode,
@@ -188,6 +222,10 @@ namespace slicer {
 		outs() << "capture_in_gep: "
 			<< getAnalysis<ObjectID>().getValueID(user) << "\n";
 #endif
+		for (unsigned i = 0; i < user->getNumOperands(); ++i) {
+			if (!constants.count(user->getOperand(i)))
+				return;
+		}
 		Value *base = user->getOperand(0);
 		Expr *cur = new Expr(base);
 		// <cur> and <type> need be consistent. 
