@@ -11,11 +11,9 @@
 #include "idm/mbb.h"
 using namespace llvm;
 
-#include "bc2bdd/BddAliasAnalysis.h"
-using namespace repair;
-
 namespace slicer {
 
+#if 0
 	// TODO: not used
 	void CaptureConstraints::add_addr_taken_eq(Value *v1, Value *v2) {
 		if (v1 > v2)
@@ -64,6 +62,7 @@ namespace slicer {
 			assert_not_implemented();
 		}
 	}
+#endif
 
 	Value *CaptureConstraints::get_pointer_operand(Instruction *i) const {
 		if (StoreInst *si = dyn_cast<StoreInst>(i))
@@ -109,11 +108,10 @@ namespace slicer {
 		}
 		errs() << "# of loads = " << all_loads.size() << "\n";
 		errs() << "# of stores = " << all_stores.size() << "\n";
-		BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
 		for (size_t i = 0; i < all_loads.size(); ++i) {
 			Clause *disj = NULL;
 			for (size_t j = 0; j < all_stores.size(); ++j) {
-				if (BAA.alias(
+				if (AA->alias(
 							all_loads[i]->getPointerOperand(), 0,
 							all_stores[j]->getPointerOperand(), 0)) {
 					Clause *c = new Clause(new BoolExpr(
@@ -131,6 +129,10 @@ namespace slicer {
 			if (disj)
 				constraints.push_back(disj);
 		}
+	}
+
+	void CaptureConstraints::replace_aa(AliasAnalysis *new_AA) {
+		AA = new_AA;
 	}
 
 #if 0

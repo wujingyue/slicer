@@ -218,10 +218,6 @@ namespace slicer {
 	}
 
 	void CaptureConstraints::capture_in_gep(User *user) {
-#if 0
-		outs() << "capture_in_gep: "
-			<< getAnalysis<ObjectID>().getValueID(user) << "\n";
-#endif
 		for (unsigned i = 0; i < user->getNumOperands(); ++i) {
 			if (!constants.count(user->getOperand(i)))
 				return;

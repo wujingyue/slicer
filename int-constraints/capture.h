@@ -6,6 +6,7 @@
 #include "llvm/Instructions.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
+#include "llvm/Analysis/AliasAnalysis.h"
 #include "common/include/typedefs.h"
 using namespace llvm;
 
@@ -40,6 +41,8 @@ namespace slicer {
 		virtual bool runOnModule(Module &M);
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual void print(raw_ostream &O, const Module *M) const;
+
+		void replace_aa(AliasAnalysis *new_AA);
 
 		unsigned get_num_constraints() const;
 		const Clause *get_constraint(unsigned i) const;
@@ -124,12 +127,15 @@ namespace slicer {
 		/* in bits */
 		static unsigned get_type_size(const Type *type);
 
+#if 0
 		DenseMap<BasicBlock *, ValueBoundsInBB> start_bb_bounds;
 		unsigned n_symbols;
-		vector<Clause *> constraints;
 		vector<ValuePair> addr_taken_eqs;
+#endif
+		vector<Clause *> constraints;
 		ValueSet constants;
 		const Type *int_type;
+		AliasAnalysis *AA;
 	};
 }
 

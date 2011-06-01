@@ -36,7 +36,12 @@ namespace {
 
 namespace slicer {
 
-	CaptureConstraints::CaptureConstraints(): ModulePass(&ID), n_symbols(0) {}
+	CaptureConstraints::CaptureConstraints(): ModulePass(&ID) {
+#if 0
+		n_symbols = 0;
+#endif
+		AA = NULL;
+	}
 
 	CaptureConstraints::~CaptureConstraints() {
 		forall(vector<Clause *>, it, constraints) {
@@ -144,6 +149,7 @@ namespace slicer {
 	void CaptureConstraints::setup(Module &M) {
 		// int is always 32-bit long. 
 		int_type = IntegerType::get(getGlobalContext(), 32);
+		AA = &getAnalysis<BddAliasAnalysis>();
 	}
 
 	bool CaptureConstraints::runOnModule(Module &M) {
@@ -189,4 +195,3 @@ namespace slicer {
 
 	char CaptureConstraints::ID = 0;
 }
-

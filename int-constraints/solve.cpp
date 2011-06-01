@@ -66,7 +66,7 @@ namespace slicer {
 		Value *v1 = OI.getValue(3138);
 		Value *v2 = OI.getValue(3204);
 		errs() << "may: " << may_equal(v1, v2) << "\n";
-		// errs() << "must: " << must_equal(v1, v2) << "\n";
+		errs() << "must: " << must_equal(v1, v2) << "\n";
 	}
 
 	VCExpr SolveConstraints::translate_to_vc(const Clause *c) {

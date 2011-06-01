@@ -1,3 +1,9 @@
+/**
+ * Author: Jingyue
+ *
+ * Not actually used. 
+ */
+
 #ifndef __SLICER_MUST_ALIAS_H
 #define __SLICER_MUST_ALIAS_H
 
