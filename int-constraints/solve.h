@@ -4,8 +4,8 @@
 
 // TODO: Supports 32-bit signed integers only. 
 
-#ifndef __SLICER_SOLVER_H
-#define __SLICER_SOLVER_H
+#ifndef __SLICER_SOLVE_H
+#define __SLICER_SOLVE_H
 
 #include "expression.h"
 
