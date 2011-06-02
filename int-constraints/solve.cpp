@@ -16,11 +16,6 @@ namespace {
 			"Solve captured constraints using STP",
 			false,
 			true); // is analysis
-
-	static cl::opt<bool> RunTest(
-			"test",
-			cl::desc("Whether to run tests"),
-			cl::init(false));
 }
 
 namespace slicer {
@@ -41,7 +36,6 @@ namespace slicer {
 			VCExpr vc_expr = translate_to_vc(c);
 			vc_assertFormula(vc, vc_expr);
 		}
-		run_tests(M);
 		return false;
 	}
 
@@ -59,14 +53,6 @@ namespace slicer {
 					new Expr(v1),
 					new Expr(v2)));
 		return provable(vector<const Clause *>(1, c));
-	}
-
-	void SolveConstraints::run_tests(Module &M) {
-		ObjectID &OI = getAnalysis<ObjectID>();
-		Value *v1 = OI.getValue(3138);
-		Value *v2 = OI.getValue(3204);
-		errs() << "may: " << may_equal(v1, v2) << "\n";
-		errs() << "must: " << must_equal(v1, v2) << "\n";
 	}
 
 	VCExpr SolveConstraints::translate_to_vc(const Clause *c) {

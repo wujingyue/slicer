@@ -44,8 +44,6 @@ namespace slicer {
 		VCExpr translate_to_vc(const Expr *e);
 		VCExpr translate_to_vc(const Value *v);
 
-		void run_tests(Module &M);
-
 		VC vc;
 	};
 }

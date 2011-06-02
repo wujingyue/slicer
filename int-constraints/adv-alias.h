@@ -34,6 +34,11 @@ namespace slicer {
 		virtual AliasResult alias(
 				const Value *V1, unsigned V1Size,
 				const Value *V2, unsigned V2Size);
+
+	private:
+		void run_tests(Module &M);
+		void test1(Module &M);
+		void test2(Module &M);
 	};
 }
 

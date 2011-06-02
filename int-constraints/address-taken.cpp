@@ -114,6 +114,10 @@ namespace slicer {
 				if (AA->alias(
 							all_loads[i]->getPointerOperand(), 0,
 							all_stores[j]->getPointerOperand(), 0)) {
+					ObjectID &OI = getAnalysis<ObjectID>();
+					if (OI.getValueID(all_loads[i]) == 9175) {
+						errs() << "source:" << *all_stores[j] << "\n";
+					}
 					Clause *c = new Clause(new BoolExpr(
 								CmpInst::ICMP_EQ,
 								new Expr(all_loads[i]),

@@ -128,14 +128,14 @@ all: $(PROGS>.ll) $(PROGS)
 		-exec-once \
 		< $<
 
-%.solve: %.bc
+%.adv: %.bc
 	opt -analyze -time-passes \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
 		-load $(LLVM_ROOT)/install/lib/libicfg.so \
 		-load $(LLVM_ROOT)/install/lib/libint-constraints.so \
-		-solve-constraints \
+		-adv-alias \
 		-test \
 		< $<
 

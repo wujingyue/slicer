@@ -1,34 +1,35 @@
 #include "bc2bdd/BddAliasAnalysis.h"
 using namespace repair;
 
+#include "llvm/Support/CommandLine.h"
+using namespace llvm;
+
 #include "capture.h"
 #include "solve.h"
 #include "adv-alias.h"
 
+namespace {
+
+	static RegisterPass<slicer::AdvancedAlias> X(
+			"adv-alias",
+			"Iterative alias analysis",
+			false,
+			true); // is analysis
+}
+
 namespace slicer {
 
 	bool AdvancedAlias::runOnModule(Module &M) {
-		CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
-		SolveConstraints &SC = getAnalysis<SolveConstraints>();
-		CC.replace_aa(&getAnalysis<AdvancedAlias>());
-		unsigned n_constraints;
-		do {
-			errs() << "Iterating...\n";
-			n_constraints = CC.get_num_constraints();
-			CC.runOnModule(M);
-			SC.runOnModule(M);
-		} while (CC.get_num_constraints() == n_constraints);
 		return false;
 	}
 
 	void AdvancedAlias::print(raw_ostream &O, const Module *M) const {
-		// Not sure what to do. 
+		// Not sure what to do yet.
 	}
 
 	void AdvancedAlias::getAnalysisUsage(AnalysisUsage &AU) const {
 		AU.setPreservesAll();
 		AU.addRequired<BddAliasAnalysis>();
-		AU.addRequired<CaptureConstraints>();
 		AU.addRequired<SolveConstraints>();
 		ModulePass::getAnalysisUsage(AU);
 	}
