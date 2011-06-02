@@ -44,6 +44,8 @@ namespace slicer {
 		VCExpr translate_to_vc(const Expr *e);
 		VCExpr translate_to_vc(const Value *v);
 
+		static void vc_error_handler(const char *err_msg);
+
 		VC vc;
 	};
 }

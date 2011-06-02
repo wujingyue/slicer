@@ -21,8 +21,7 @@ namespace {
 namespace slicer {
 
 	SolveConstraints::SolveConstraints(): ModulePass(&ID) {
-		vc = vc_createValidityChecker();
-		vc_setFlags(vc, 'p');
+		vc = NULL;
 	}
 
 	SolveConstraints::~SolveConstraints() {
@@ -30,13 +29,27 @@ namespace slicer {
 	}
 
 	bool SolveConstraints::runOnModule(Module &M) {
+		
+		if (vc) {
+			vc_Destroy(vc);
+			vc = NULL;
+		}
+		vc = vc_createValidityChecker();
+		vc_setFlags(vc, 'p');
+		vc_registerErrorHandler(vc_error_handler);
+
 		CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 		for (unsigned i = 0; i < CC.get_num_constraints(); ++i) {
 			const Clause *c = CC.get_constraint(i);
 			VCExpr vc_expr = translate_to_vc(c);
 			vc_assertFormula(vc, vc_expr);
 		}
+
 		return false;
+	}
+
+	void SolveConstraints::vc_error_handler(const char *err_msg) {
+		errs() << err_msg << "\n";
 	}
 
 	bool SolveConstraints::may_equal(const Value *v1, const Value *v2) {

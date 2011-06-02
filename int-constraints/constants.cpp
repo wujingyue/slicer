@@ -259,4 +259,8 @@ namespace slicer {
 		BoolExpr *be = new BoolExpr(CmpInst::ICMP_EQ, new Expr(v1), new Expr(v2));
 		constraints.push_back(new Clause(be));
 	}
+
+	bool CaptureConstraints::is_constant(const Value *v) const {
+		return constants.count(const_cast<Value *>(v));
+	}
 }

@@ -30,15 +30,16 @@ namespace slicer {
 				return (AliasAnalysis*)this;
 			return this;
 		}
+		size_t get_cache_size() const {
+			return cache.size();
+		}
 		/* AliasAnalysis interfaces */
 		virtual AliasResult alias(
 				const Value *V1, unsigned V1Size,
 				const Value *V2, unsigned V2Size);
 
 	private:
-		void run_tests(Module &M);
-		void test1(Module &M);
-		void test2(Module &M);
+		DenseMap<ConstValuePair, AliasResult> cache;
 	};
 }
 

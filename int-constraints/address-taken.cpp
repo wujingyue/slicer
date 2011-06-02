@@ -4,12 +4,14 @@
  * Collect integer constraints on address-taken variables. 
  */
 #include "config.h"
-#include "capture.h"
-#include "exec-once.h"
-#include "must-alias.h"
 #include "common/reach/icfg.h"
 #include "idm/mbb.h"
 using namespace llvm;
+
+#include "capture.h"
+#include "exec-once.h"
+#include "must-alias.h"
+#include "adv-alias.h"
 
 namespace slicer {
 
@@ -98,8 +100,12 @@ namespace slicer {
 			if (EO.not_executed(ii))
 				continue;
 			Value *v = get_value_operand(ii);
-			if (v &&
-					(isa<IntegerType>(v->getType()) || isa<PointerType>(v->getType()))) {
+			if (!v)
+				continue;
+			// TODO: we may want to capture variables later. 
+			if (!is_constant(v))
+				continue;
+			if (isa<IntegerType>(v->getType()) || isa<PointerType>(v->getType())) {
 				if (StoreInst *si = dyn_cast<StoreInst>(ii))
 					all_stores.push_back(si);
 				if (LoadInst *li = dyn_cast<LoadInst>(ii))
@@ -109,6 +115,9 @@ namespace slicer {
 		errs() << "# of loads = " << all_loads.size() << "\n";
 		errs() << "# of stores = " << all_stores.size() << "\n";
 		for (size_t i = 0; i < all_loads.size(); ++i) {
+#if 0
+			errs() << "capture_addr_taken: " << i << "/" << all_loads.size() << "\n";
+#endif
 			Clause *disj = NULL;
 			for (size_t j = 0; j < all_stores.size(); ++j) {
 				if (AA->alias(

@@ -46,6 +46,8 @@ namespace slicer {
 
 		unsigned get_num_constraints() const;
 		const Clause *get_constraint(unsigned i) const;
+		/* In <constants>? */
+		bool is_constant(const Value *v) const;
 
 	private:
 #if 0

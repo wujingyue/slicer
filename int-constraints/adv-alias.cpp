@@ -20,6 +20,8 @@ namespace {
 namespace slicer {
 
 	bool AdvancedAlias::runOnModule(Module &M) {
+		// Clear the cache. 
+		cache.clear();
 		return false;
 	}
 
@@ -40,11 +42,14 @@ namespace slicer {
 		BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
 		if (BAA.alias(V1, V1Size, V2, V2Size) == NoAlias)
 			return NoAlias;
+		// TODO: could sort V1 and V2. 
+		ConstValuePair p(V1, V2);
+		if (cache.count(p))
+			return cache.lookup(p);
 		SolveConstraints &SC = getAnalysis<SolveConstraints>();
-		if (SC.may_equal(V1, V2))
-			return MayAlias;
-		else
-			return NoAlias;
+		AliasResult res = (SC.may_equal(V1, V2) ? MayAlias : NoAlias);
+		cache[p] = res;
+		return res;
 	}
 
 	char AdvancedAlias::ID = 0;

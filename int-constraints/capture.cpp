@@ -149,7 +149,8 @@ namespace slicer {
 	void CaptureConstraints::setup(Module &M) {
 		// int is always 32-bit long. 
 		int_type = IntegerType::get(getGlobalContext(), 32);
-		AA = &getAnalysis<BddAliasAnalysis>();
+		if (!AA)
+			AA = &getAnalysis<BddAliasAnalysis>();
 	}
 
 	bool CaptureConstraints::runOnModule(Module &M) {
@@ -163,6 +164,7 @@ namespace slicer {
 				capture_in_func(fi);
 		}
 #endif
+		constraints.clear();
 		identify_constants(M);
 		capture_constraints_on_consts(M);
 		// Collect constraints on address-taken variables. 

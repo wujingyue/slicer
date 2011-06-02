@@ -12,8 +12,8 @@ using namespace llvm;
 namespace {
 
 	static RegisterPass<slicer::Iterate> X(
-			"adv-alias",
-			"Iterative alias analysis",
+			"iterate",
+			"A iterator to provide more accurate analyses",
 			false,
 			false); // not an analysis
 	static cl::opt<bool> RunTest(
@@ -28,16 +28,22 @@ namespace slicer {
 
 		CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 		SolveConstraints &SC = getAnalysis<SolveConstraints>();
-		CC.replace_aa(&getAnalysis<AdvancedAlias>());
+		AdvancedAlias &AAA = getAnalysis<AdvancedAlias>();
+		CC.replace_aa(&AAA);
 		unsigned n_constraints;
 		do {
-			errs() << "Iterating...\n";
 			n_constraints = CC.get_num_constraints();
+			errs() << "Iterating... # of constraints = " << n_constraints << "\n";
+			errs() << "AAA cache size = " << AAA.get_cache_size() << "\n";
+			AAA.runOnModule(M); // Essentially clear the cache. 
 			CC.runOnModule(M);
 			SC.runOnModule(M);
-		} while (CC.get_num_constraints() == n_constraints);
+			assert(CC.get_num_constraints() <= n_constraints &&
+					"# of constraints should be reduced after an iteration");
+		} while (CC.get_num_constraints() != n_constraints);
 
-		run_tests(M);
+		if (RunTest)
+			run_tests(M);
 
 		return false;
 	}
@@ -64,9 +70,18 @@ namespace slicer {
 		errs() << "must: " << SC.provable(vector<const Clause *>(1, c)) << "\n";
 	}
 
+	void Iterate::test3(Module &M) {
+		ObjectID &OI = getAnalysis<ObjectID>();
+		SolveConstraints &SC = getAnalysis<SolveConstraints>();
+		Value *v1 = OI.getValue(9173);
+		Value *v2 = OI.getValue(9257);
+		errs() << "may: " << SC.may_equal(v1, v2) << "\n";
+	}
+
 	void Iterate::run_tests(Module &M) {
 		// test1(M);
-		test2(M);
+		// test2(M);
+		test3(M);
 	}
 
 	void Iterate::getAnalysisUsage(AnalysisUsage &AU) const {
