@@ -85,10 +85,9 @@ namespace slicer {
 		Value *get_value_operand(Instruction *i) const;
 
 		void simplify_constraints();
-
 		void stat(Module &M);
-
 		void setup(Module &M);
+		void test(Module &M);
 
 #if 0
 		static void print_alias_set(raw_ostream &O, const ConstValueSet &as);

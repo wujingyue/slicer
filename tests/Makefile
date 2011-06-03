@@ -139,5 +139,13 @@ all: $(PROGS>.ll) $(PROGS)
 		-test \
 		< $<
 
+%.loc: %.bc
+	opt -disable-output \
+		-load $(LLVM_ROOT)/install/lib/libidm.so \
+		-load $(LLVM_ROOT)/install/lib/libsrc-locator.so \
+		-src-locator \
+		-input $(ARG) \
+		< $<
+
 clean:
 	rm -rf *.id *.ll *.loop *.bc1 *.trace.bc *.s $(PROGS)

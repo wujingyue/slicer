@@ -153,9 +153,22 @@ namespace slicer {
 			AA = &getAnalysis<BddAliasAnalysis>();
 	}
 
+	void CaptureConstraints::test(Module &M) {
+		errs() << "===== test =====\n";
+		ObjectID &OI = getAnalysis<ObjectID>();
+		BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
+		LoadInst *li = dyn_cast<LoadInst>(OI.getInstruction(964));
+		StoreInst *si = dyn_cast<StoreInst>(OI.getInstruction(689));
+		assert(li && si);
+		errs() << BAA.alias(
+				li->getPointerOperand(), 0,
+				si->getPointerOperand(), 0) << "\n";
+	}
+
 	bool CaptureConstraints::runOnModule(Module &M) {
 		setup(M);
 		stat(M);
+		test(M);
 #if 0
 		// Collect constraints on top-level variables.
 		// TODO: Handle function parameters. 
