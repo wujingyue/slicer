@@ -3,12 +3,13 @@
 #include <fstream>
 #include <sstream>
 #include <cstdio>
+#include <map>
+#include <cstdlib>
+#include <cassert>
+#include <algorithm>
 using namespace std;
 
-#include <boost/unordered_map.hpp>
-using namespace boost;
-
-unordered_map<unsigned, unsigned> new_ids_to_old;
+map<unsigned, unsigned> new_ids_to_old;
 
 void print_usage(int argc, char *argv[]) {
 	fprintf(stderr, "%s <clone map>\n", argv[0]);

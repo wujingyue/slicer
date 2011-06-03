@@ -35,7 +35,7 @@ namespace slicer {
 			vc = NULL;
 		}
 		vc = vc_createValidityChecker();
-		vc_setFlags(vc, 'p');
+		// vc_setFlags(vc, 'p');
 		vc_registerErrorHandler(vc_error_handler);
 
 		CaptureConstraints &CC = getAnalysis<CaptureConstraints>();

@@ -102,9 +102,6 @@ namespace slicer {
 			Value *v = get_value_operand(ii);
 			if (!v)
 				continue;
-			// TODO: we may want to capture variables later. 
-			if (!is_constant(v))
-				continue;
 			if (isa<IntegerType>(v->getType()) || isa<PointerType>(v->getType())) {
 				if (StoreInst *si = dyn_cast<StoreInst>(ii))
 					all_stores.push_back(si);
@@ -126,6 +123,15 @@ namespace slicer {
 					ObjectID &OI = getAnalysis<ObjectID>();
 					if (OI.getValueID(all_loads[i]) == 9175) {
 						errs() << "source:" << *all_stores[j] << "\n";
+					}
+					// If at least one of them is not constant, the loaded value
+					// can be anything. So, no constraint will be captured in
+					// this case. 
+					if (!is_constant(all_stores[j]->getOperand(0))) {
+						if (disj)
+							delete disj;
+						disj = NULL;
+						break;
 					}
 					Clause *c = new Clause(new BoolExpr(
 								CmpInst::ICMP_EQ,
