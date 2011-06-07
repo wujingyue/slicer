@@ -36,12 +36,6 @@ namespace slicer {
 		bool provable(const vector<const Clause *> &more_clauses);
 		bool may_equal(const Value *v1, const Value *v2);
 		bool must_equal(const Value *v1, const Value *v2);
-		bool satisfiable(
-				const vector<const Clause *> &more_clauses,
-				const vector<const Instruction *> &insts);
-		bool provable(
-				const vector<const Clause *> &more_clauses,
-				const vector<const Instruction *> &insts);
 
 	private:
 		// Intermediate VC expressions will be inserted to member <vc>. 
@@ -49,6 +43,7 @@ namespace slicer {
 		VCExpr translate_to_vc(const BoolExpr *be);
 		VCExpr translate_to_vc(const Expr *e);
 		VCExpr translate_to_vc(const Value *v);
+		VCExpr translate_to_vc(const Use *u);
 
 		static void vc_error_handler(const char *err_msg);
 
@@ -59,7 +54,10 @@ namespace slicer {
 		 * and adds branch conditions that need to be satisfied along the way. 
 		 * TODO: inter-procedural
 		 */
-		void realize_inst(const Instruction *inst);
+		void realize_uses(const Clause *c);
+		void realize_uses(const BoolExpr *c);
+		void realize_uses(const Expr *c);
+		void realize_use(const Use *u);
 
 		VC vc;
 	};

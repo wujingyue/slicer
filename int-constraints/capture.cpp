@@ -168,7 +168,7 @@ namespace slicer {
 	bool CaptureConstraints::runOnModule(Module &M) {
 		setup(M);
 		stat(M);
-		test(M);
+		// test(M);
 #if 0
 		// Collect constraints on top-level variables.
 		// TODO: Handle function parameters. 

@@ -6,6 +6,7 @@
 #define __SLICER_EXPRESSION_H
 
 #include "llvm/Instruction.h"
+#include "llvm/Use.h"
 #include "idm/id.h"
 using namespace llvm;
 
@@ -17,16 +18,25 @@ namespace slicer {
 	struct Expr {
 
 		enum Type {
-			SingleValue,
+			SingleDef,
+			SingleUse,
 			Unary,
 			Binary
 		} type;
 		unsigned op;
 		Expr *e1, *e2;
-		const Value *v;
+		union {
+			const Value *v;
+			const Use *u;
+		};
 
-		Expr(const Value *val): v(val) {
-			type = SingleValue;
+		Expr(const Use *use): u(use) {
+			type = SingleUse;
+			e1 = e2 = NULL;
+		}
+		
+		Expr(const Value *value): v(value) {
+			type = SingleDef;
 			e1 = e2 = NULL;
 		}
 

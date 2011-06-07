@@ -1,6 +1,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Analysis/Dominators.h"
 #include "common/include/util.h"
+#include "common/reach/intra-reach.h"
 #include "idm/id.h"
 using namespace llvm;
 
@@ -58,7 +59,9 @@ namespace slicer {
 					CmpInst::ICMP_EQ,
 					new Expr(v1),
 					new Expr(v2)));
-		return satisfiable(vector<const Clause *>(1, c));
+		bool ret = satisfiable(vector<const Clause *>(1, c));
+		delete c;
+		return ret;
 	}
 
 	bool SolveConstraints::must_equal(const Value *v1, const Value *v2) {
@@ -66,7 +69,9 @@ namespace slicer {
 					CmpInst::ICMP_EQ,
 					new Expr(v1),
 					new Expr(v2)));
-		return provable(vector<const Clause *>(1, c));
+		bool ret = provable(vector<const Clause *>(1, c));
+		delete c;
+		return ret;
 	}
 
 	VCExpr SolveConstraints::translate_to_vc(const Clause *c) {
@@ -105,8 +110,10 @@ namespace slicer {
 	}
 
 	VCExpr SolveConstraints::translate_to_vc(const Expr *e) {
-		if (e->type == Expr::SingleValue)
+		if (e->type == Expr::SingleDef)
 			return translate_to_vc(e->v);
+		if (e->type == Expr::SingleUse)
+			return translate_to_vc(e->u);
 		if (e->type == Expr::Unary)
 			assert_not_supported();
 		if (e->type == Expr::Binary) {
@@ -161,6 +168,10 @@ namespace slicer {
 		return vc_varExpr(vc, oss.str().c_str(), int_type);
 	}
 
+	VCExpr SolveConstraints::translate_to_vc(const Use *u) {
+		return translate_to_vc(u->get());
+	}
+
 	void SolveConstraints::print(raw_ostream &O, const Module *M) const {
 		// Don't know what to do. 
 	}
@@ -169,16 +180,16 @@ namespace slicer {
 		AU.setPreservesAll();
 		AU.addRequiredTransitive<ObjectID>();
 		AU.addRequired<DominatorTree>();
+		AU.addRequired<IntraReach>();
 		AU.addRequired<CaptureConstraints>();
 		ModulePass::getAnalysisUsage(AU);
 	}
 
 	bool SolveConstraints::satisfiable(
-			const vector<const Clause *> &more_clauses,
-			const vector<const Instruction *> &insts) {
+			const vector<const Clause *> &more_clauses) {
 		vc_push(vc);
-		forallconst(vector<const Instruction *>, it, insts)
-			realize_inst(*it);
+		forallconst(vector<const Clause *>, it, more_clauses)
+			realize_uses(*it);
 		forallconst(vector<const Clause *>, it, more_clauses) {
 			const Clause *c = *it;
 			vc_assertFormula(vc, translate_to_vc(c));
@@ -189,17 +200,11 @@ namespace slicer {
 		return ret == 0;
 	}
 
-	bool SolveConstraints::satisfiable(
-			const vector<const Clause *> &more_clauses) {
-		return satisfiable(more_clauses, vector<const Instruction *>());
-	}
-
 	bool SolveConstraints::provable(
-			const vector<const Clause *> &more_clauses,
-			const vector<const Instruction *> &insts) {
+			const vector<const Clause *> &more_clauses) {
 		vc_push(vc);
-		forallconst(vector<const Instruction *>, it, insts)
-			realize_inst(*it);
+		forallconst(vector<const Clause *>, it, more_clauses)
+			realize_uses(*it);
 		VCExpr conj = vc_trueExpr(vc);
 		forallconst(vector<const Clause *>, it, more_clauses) {
 			const Clause *c = *it;
@@ -210,21 +215,84 @@ namespace slicer {
 		return ret == 1;
 	}
 
-	bool SolveConstraints::provable(
-			const vector<const Clause *> &more_clauses) {
-		return provable(more_clauses, vector<const Instruction *>());
+	void SolveConstraints::realize_uses(const Clause *c) {
+		if (c->be)
+			realize_uses(c->be);
+		else {
+			realize_uses(c->c1);
+			realize_uses(c->c2);
+		}
 	}
 
-	void SolveConstraints::realize_inst(const Instruction *inst) {
-#if 0
-		BasicBlock *bb = const_cast<BasicBlock *>(inst->getParent());
-		DominatorTree &DT = getAnalysis<DominatorTree>(*bb->getParent());
-		DomTreeNode *node = DT[bb];
-		while (node->getIDom()) {
+	void SolveConstraints::realize_uses(const BoolExpr *be) {
+		realize_uses(be->e1);
+		realize_uses(be->e2);
+	}
+
+	void SolveConstraints::realize_uses(const Expr *e) {
+		if (e->type == Expr::Unary) {
+			realize_uses(e->e1);
+		} else if (e->type == Expr::Binary) {
+			realize_uses(e->e1);
+			realize_uses(e->e2);
+		} else if (e->type == Expr::SingleUse) {
+			realize_use(e->u);
 		}
-		DT.findNearestCommonDominator(user->getParent(), user->getParent());
-#endif
-		assert_not_implemented();
+	}
+
+	void SolveConstraints::realize_use(const Use *u) {
+		const Instruction *ins = dyn_cast<Instruction>(u->getUser());
+		// The value of a llvm::Constant is compile-time known. Therefore,
+		// we don't need to capture extra constraints. 
+		if (!ins)
+			return;
+		BasicBlock *bb = const_cast<BasicBlock *>(ins->getParent());
+		Function *f = bb->getParent();
+		DominatorTree &DT = getAnalysis<DominatorTree>(*f);
+		IntraReach &IR = getAnalysis<IntraReach>(*f);
+		while (bb != &f->getEntryBlock()) {
+			DomTreeNode *node = DT[bb];
+			BasicBlock *p = node->getIDom()->getBlock();
+			assert(p);
+			CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
+			/* TODO: We only handle BranchInst with ICmpInst for now. */
+			if (BranchInst *bi = dyn_cast<BranchInst>(p->getTerminator())) {
+				ICmpInst *cond = dyn_cast<ICmpInst>(bi->getCondition());
+				if (cond && CC.is_constant(cond)) {
+					assert(bi->getNumSuccessors() == 2);
+					/*
+					 * -1: Neither leads to <bb> (Impossible)
+					 * 0: Only successor 0 leads to <bb>
+					 * 1: Only successor 1 leads to <bb>
+					 * -2: Both lead to <bb>
+					 */
+					int leads_to_bb = -1;
+					if (IR.reachable(bi->getSuccessor(0), bb))
+						leads_to_bb = 0;
+					if (IR.reachable(bi->getSuccessor(1), bb)) {
+						if (leads_to_bb >= 0)
+							leads_to_bb = -2;
+						else
+							leads_to_bb = 1;
+					}
+					assert(leads_to_bb != -1);
+					if (leads_to_bb == 0 || leads_to_bb == 1) {
+						CmpInst::Predicate pred = cond->getPredicate();
+						const Clause *c = new Clause(new BoolExpr(
+									leads_to_bb == 0 ? pred: CmpInst::getInversePredicate(pred),
+									new Expr(cond->getOperand(0)),
+									new Expr(cond->getOperand(1))));
+						errs() << "new clause:";
+						print_clause(errs(), c, getAnalysis<ObjectID>());
+						errs() << "\n";
+						VCExpr vce = translate_to_vc(c);
+						vc_assertFormula(vc, vce);
+						delete c;
+					}
+				}
+			}
+			bb = p;
+		}
 	}
 
 	char SolveConstraints::ID = 0;

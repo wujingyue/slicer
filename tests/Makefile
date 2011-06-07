@@ -1,4 +1,4 @@
-ORIG_PROGS=test-thread
+ORIG_PROGS=test-thread test-path
 SLICED_PROGS=$(ORIG_PROGS>.slice)
 PROGS=$(ORIG_PROGS) $(SLICED_PROGS)
 

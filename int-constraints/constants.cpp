@@ -92,18 +92,7 @@ namespace slicer {
 	void CaptureConstraints::capture_in_user(User *user) {
 		if (!isa<Instruction>(user) && !isa<ConstantExpr>(user))
 			return;
-#if 0
-		bool all_const = true;
-		for (unsigned i = 0; i < user->getNumOperands(); ++i) {
-			if (!constants.count(user->getOperand(i))) {
-				all_const = false;
-				break;
-			}
-		}
-		// We can't infer anything if some operands are not constant. 
-		if (!all_const)
-			return;
-#endif
+		/* TODO: may want to use llvm::Operator */
 		unsigned opcode;
 		if (Instruction *ins = dyn_cast<Instruction>(user))
 			opcode = ins->getOpcode();
