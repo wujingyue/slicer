@@ -185,12 +185,10 @@ namespace slicer {
 			ptt = HEAP_LOC;
 			pt = *epts.heapLocs.begin();
 		}
-		// If <pt> is an array, <pt> may actually point to any part of the array.
+		// If <pt> is an array,
+		// <pt> may actually point to any part of the region. 
 		// Therefore, we cannot infer that it can only point to one location. 
-		// FIXME:
-		// Simply testing whether it is of ArrayType isn't enough. Some arrays
-		// are declared as pointers. 
-		if (isa<ArrayType>(pt->getType()))
+		if (isa<SequentialType>(pt->getType()))
 			return false;
 		return true;
 	}

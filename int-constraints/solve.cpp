@@ -1,4 +1,5 @@
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Analysis/Dominators.h"
 #include "common/include/util.h"
 #include "idm/id.h"
 using namespace llvm;
@@ -167,13 +168,17 @@ namespace slicer {
 	void SolveConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
 		AU.setPreservesAll();
 		AU.addRequiredTransitive<ObjectID>();
+		AU.addRequired<DominatorTree>();
 		AU.addRequired<CaptureConstraints>();
 		ModulePass::getAnalysisUsage(AU);
 	}
 
 	bool SolveConstraints::satisfiable(
-			const vector<const Clause *> &more_clauses) {
+			const vector<const Clause *> &more_clauses,
+			const vector<const Instruction *> &insts) {
 		vc_push(vc);
+		forallconst(vector<const Instruction *>, it, insts)
+			realize_inst(*it);
 		forallconst(vector<const Clause *>, it, more_clauses) {
 			const Clause *c = *it;
 			vc_assertFormula(vc, translate_to_vc(c));
@@ -184,9 +189,17 @@ namespace slicer {
 		return ret == 0;
 	}
 
-	bool SolveConstraints::provable(
+	bool SolveConstraints::satisfiable(
 			const vector<const Clause *> &more_clauses) {
+		return satisfiable(more_clauses, vector<const Instruction *>());
+	}
+
+	bool SolveConstraints::provable(
+			const vector<const Clause *> &more_clauses,
+			const vector<const Instruction *> &insts) {
 		vc_push(vc);
+		forallconst(vector<const Instruction *>, it, insts)
+			realize_inst(*it);
 		VCExpr conj = vc_trueExpr(vc);
 		forallconst(vector<const Clause *>, it, more_clauses) {
 			const Clause *c = *it;
@@ -195,6 +208,23 @@ namespace slicer {
 		int ret = vc_query(vc, conj);
 		vc_pop(vc);
 		return ret == 1;
+	}
+
+	bool SolveConstraints::provable(
+			const vector<const Clause *> &more_clauses) {
+		return provable(more_clauses, vector<const Instruction *>());
+	}
+
+	void SolveConstraints::realize_inst(const Instruction *inst) {
+#if 0
+		BasicBlock *bb = const_cast<BasicBlock *>(inst->getParent());
+		DominatorTree &DT = getAnalysis<DominatorTree>(*bb->getParent());
+		DomTreeNode *node = DT[bb];
+		while (node->getIDom()) {
+		}
+		DT.findNearestCommonDominator(user->getParent(), user->getParent());
+#endif
+		assert_not_implemented();
 	}
 
 	char SolveConstraints::ID = 0;
