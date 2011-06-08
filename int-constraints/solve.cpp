@@ -37,7 +37,6 @@ namespace slicer {
 			vc = NULL;
 		}
 		vc = vc_createValidityChecker();
-		// vc_setFlags(vc, 'p');
 		vc_registerErrorHandler(vc_error_handler);
 
 		CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
@@ -95,16 +94,16 @@ namespace slicer {
 				return vc_notExpr(vc, vc_eqExpr(vc, vce1, vce2));
 			case CmpInst::ICMP_UGT:
 			case CmpInst::ICMP_SGT:
-				return vc_bvGtExpr(vc, vce1, vce2);
+				return vc_sbvGtExpr(vc, vce1, vce2);
 			case CmpInst::ICMP_UGE:
 			case CmpInst::ICMP_SGE:
-				return vc_bvGeExpr(vc, vce1, vce2);
+				return vc_sbvGeExpr(vc, vce1, vce2);
 			case CmpInst::ICMP_ULT:
 			case CmpInst::ICMP_SLT:
-				return vc_bvLtExpr(vc, vce1, vce2);
+				return vc_sbvLtExpr(vc, vce1, vce2);
 			case CmpInst::ICMP_ULE:
 			case CmpInst::ICMP_SLE:
-				return vc_bvLeExpr(vc, vce1, vce2);
+				return vc_sbvLeExpr(vc, vce1, vce2);
 			default: assert(false && "Invalid predicate");
 		}
 	}
@@ -119,6 +118,7 @@ namespace slicer {
 		if (e->type == Expr::Binary) {
 			VCExpr left = translate_to_vc(e->e1);
 			VCExpr right = translate_to_vc(e->e2);
+			avoid_overflow(e->op, left, right);
 			switch (e->op) {
 				case Instruction::Add:
 					return vc_bv32PlusExpr(vc, left, right);
@@ -128,15 +128,10 @@ namespace slicer {
 					return vc_bv32MultExpr(vc, left, right);
 				case Instruction::UDiv:
 				case Instruction::SDiv:
-					// TODO: not sure why sbvDivExpr not working. 
-					vc_assertFormula(vc,
-							vc_bvGtExpr(vc, right, vc_bv32ConstExprFromInt(vc, 0)));
 					return vc_sbvDivExpr(vc, 32, left, right);
 				case Instruction::URem:
 				case Instruction::SRem:
-					vc_assertFormula(vc,
-							vc_bvGtExpr(vc, right, vc_bv32ConstExprFromInt(vc, 0)));
-					return vc_bvModExpr(vc, 32, left, right);
+					return vc_sbvModExpr(vc, 32, left, right);
 				case Instruction::Shl:
 					// left << right
 					return vc_bvVar32LeftShiftExpr(vc, right, left);
@@ -282,9 +277,11 @@ namespace slicer {
 									leads_to_bb == 0 ? pred: CmpInst::getInversePredicate(pred),
 									new Expr(cond->getOperand(0)),
 									new Expr(cond->getOperand(1))));
+#if 0
 						errs() << "new clause:";
 						print_clause(errs(), c, getAnalysis<ObjectID>());
 						errs() << "\n";
+#endif
 						VCExpr vce = translate_to_vc(c);
 						vc_assertFormula(vc, vce);
 						delete c;
@@ -292,6 +289,74 @@ namespace slicer {
 				}
 			}
 			bb = p;
+		}
+	}
+
+	void SolveConstraints::avoid_overflow(
+			unsigned op, VCExpr left, VCExpr right) {
+		switch (op) {
+			case Instruction::Add:
+				// -oo <= left + right <= oo
+				// left >= 0: right <= oo - left
+				// left < 0: right >= -oo - left
+				vc_assertFormula(
+						vc,
+						vc_impliesExpr(
+							vc,
+							vc_sbvGeExpr(vc, left, vc_zero(vc)),
+							vc_sbvLeExpr(
+								vc,
+								right,
+								vc_bv32MinusExpr(vc, vc_int_max(vc), left))));
+				vc_assertFormula(
+						vc,
+						vc_impliesExpr(
+							vc,
+							vc_sbvLtExpr(vc, left, vc_zero(vc)),
+							vc_sbvGeExpr(
+								vc,
+								right,
+								vc_bv32MinusExpr(vc, vc_int_min(vc), left))));
+				break;
+			case Instruction::Sub:
+				// -oo <= left + (-right) <= oo
+				avoid_overflow(
+						Instruction::Add, left, vc_bv32MinusExpr(vc, vc_zero(vc), right));
+				break;
+			case Instruction::Mul:
+				// TODO: does not support negative numbers
+				// left >= 0, right >= 0, left * right <= oo
+				vc_assertFormula(vc, vc_sbvGeExpr(vc, left, vc_zero(vc)));
+				vc_assertFormula(vc, vc_sbvGeExpr(vc, right, vc_zero(vc)));
+				vc_assertFormula(
+						vc,
+						vc_impliesExpr(
+							vc,
+							vc_sbvGtExpr(vc, left, vc_zero(vc)),
+							vc_sbvLeExpr(
+								vc,
+								right,
+								vc_sbvDivExpr(vc, 32, vc_int_max(vc), left))));
+				vc_assertFormula(
+						vc,
+						vc_impliesExpr(
+							vc,
+							vc_sbvGtExpr(vc, right, vc_zero(vc)),
+							vc_sbvLeExpr(
+								vc,
+								left,
+								vc_sbvDivExpr(vc, 32, vc_int_max(vc), right))));
+				break;
+			case Instruction::UDiv:
+			case Instruction::SDiv:
+				// TODO: assume the divisor > 0
+				vc_assertFormula(vc, vc_sbvGtExpr(vc, right, vc_zero(vc)));
+				break;
+			case Instruction::URem:
+			case Instruction::SRem:
+				// TODO: assume the divisor > 0
+				vc_assertFormula(vc, vc_sbvGtExpr(vc, right, vc_zero(vc)));
+				break;
 		}
 	}
 

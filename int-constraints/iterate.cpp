@@ -83,6 +83,7 @@ namespace slicer {
 		ObjectID &OI = getAnalysis<ObjectID>();
 		SolveConstraints &SC = getAnalysis<SolveConstraints>();
 		const Use *v1 = &OI.getInstruction(4)->getOperandUse(1);
+		// const Value *v1 = OI.getValue(10);
 		const Type *int_type = IntegerType::get(getGlobalContext(), 32);
 		const Value *v2 = ConstantInt::get(int_type, 5);
 		assert(v1 && v2);

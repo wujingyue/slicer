@@ -2,7 +2,7 @@
  * Author: Jingyue
  */
 
-// TODO: Supports 32-bit signed integers only. 
+// TODO: Supports 32-bit unsigned integers only. 
 
 #ifndef __SLICER_SOLVE_H
 #define __SLICER_SOLVE_H
@@ -44,8 +44,21 @@ namespace slicer {
 		VCExpr translate_to_vc(const Expr *e);
 		VCExpr translate_to_vc(const Value *v);
 		VCExpr translate_to_vc(const Use *u);
+		void avoid_overflow(unsigned op, VCExpr left, VCExpr right);
 
 		static void vc_error_handler(const char *err_msg);
+		static VCExpr vc_zero(VC vc) {
+			return vc_bv32ConstExprFromInt(vc, 0);
+		}
+		static VCExpr vc_uint_max(VC vc) {
+			return vc_bv32ConstExprFromInt(vc, UINT_MAX);
+		}
+		static VCExpr vc_int_max(VC vc) {
+			return vc_bv32ConstExprFromInt(vc, INT_MAX);
+		}
+		static VCExpr vc_int_min(VC vc) {
+			return vc_bv32ConstExprFromInt(vc, INT_MIN);
+		}
 
 		/**
 		 * The place the value is used may give us extra constraints. 
