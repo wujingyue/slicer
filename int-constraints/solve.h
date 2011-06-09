@@ -71,6 +71,7 @@ namespace slicer {
 		void realize_uses(const BoolExpr *c);
 		void realize_uses(const Expr *c);
 		void realize_use(const Use *u);
+		BasicBlock *get_idom(BasicBlock *bb);
 
 		VC vc;
 	};

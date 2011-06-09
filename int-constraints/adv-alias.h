@@ -30,10 +30,14 @@ namespace slicer {
 				return (AliasAnalysis*)this;
 			return this;
 		}
+		// For debugging purpose. 
 		size_t get_cache_size() const {
 			return cache.size();
 		}
-		/* AliasAnalysis interfaces */
+		/*
+		 * AliasAnalysis interfaces.
+		 * Returns: NoAlias, MayAlias, or MustAlias
+		 */
 		virtual AliasResult alias(
 				const Value *V1, unsigned V1Size,
 				const Value *V2, unsigned V2Size);

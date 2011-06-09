@@ -7,6 +7,7 @@
 #include "common/include/util.h"
 #include "common/include/typedefs.h"
 #include "common/reach/reach.h"
+#include "common/reach/intra-reach.h"
 #include "common/reach/icfg.h"
 #include "common/callgraph-fp/callgraph-fp.h"
 #include "idm/id.h"
@@ -17,6 +18,7 @@ using namespace repair;
 
 #include <fstream>
 #include <sstream>
+#include <locale>
 using namespace std;
 
 #include "config.h"
@@ -194,9 +196,12 @@ namespace slicer {
 	}
 
 	void CaptureConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
+		// TODO: do we need to use addRequiredTransitive for all passes? 
+		// because CaptureConstraints.runOnModule is called in the iterator. 
 		AU.setPreservesAll();
 		AU.addRequiredTransitive<ObjectID>();
 		AU.addRequired<DominatorTree>();
+		AU.addRequired<IntraReach>();
 		AU.addRequired<BddAliasAnalysis>();
 		AU.addRequired<CallGraphFP>();
 		AU.addRequired<ExecOnce>();
@@ -206,6 +211,20 @@ namespace slicer {
 
 	unsigned CaptureConstraints::get_num_constraints() const {
 		return (unsigned)constraints.size();
+	}
+
+	long CaptureConstraints::get_fingerprint() const {
+		long res = 0;
+		ObjectID &OI = getAnalysis<ObjectID>();
+		locale loc;
+		const collate<char> &coll = use_facet<collate<char> >(loc);
+		for (size_t i = 0; i < constraints.size(); ++i) {
+			string str;
+			raw_string_ostream oss(str);
+			print_clause(oss, constraints[i], OI);
+			res += coll.hash(oss.str().data(), oss.str().data() + oss.str().length());
+		}
+		return res;
 	}
 
 	char CaptureConstraints::ID = 0;

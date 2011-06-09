@@ -46,6 +46,7 @@ namespace slicer {
 
 		unsigned get_num_constraints() const;
 		const Clause *get_constraint(unsigned i) const;
+		long get_fingerprint() const;
 		/* In <constants>? */
 		bool is_constant(const Value *v) const;
 
@@ -76,14 +77,35 @@ namespace slicer {
 		static void print_value(raw_ostream &O, const Value *v);
 		// Address taken variables. 
 		void capture_addr_taken(Module &M);
+		/*
+		 * i1: store v1, p || v1 = load p
+		 * i2: v2 = load q
+		 * i1 dominates i2
+		 * p and q must alias
+		 * No other store instructions that may overwrite p/q along the way 
+		 * =>
+		 * v1 = v2
+		 */
+		void capture_overwritten_in_func(Function *fi);
+		BasicBlock *get_idom(BasicBlock *bb);
+		Instruction *get_idom(Instruction *ins);
+		// Check if any instruction between <i1> and <i2> may write to <q>. 
+		// <i1> must dominate <i2>.
+		bool may_write(const Instruction *i1, const Instruction *i2, const Value *q);
+		// Check if instruction <i> may write to <q>. 
+		bool may_write(const Instruction *i, const Value *q);
+#if 0
 		void add_addr_taken_eq(Value *v1, Value *v2);
 		void get_all_sources(Instruction *ins, Value *p, ValueList &srcs);
 		void search_all_sources(
 				MicroBasicBlock *mbb, MicroBasicBlock::iterator ins,
 				Value *p, ValueList &srcs);
+#endif
 		Value *get_pointer_operand(Instruction *i) const;
 		Value *get_value_operand(Instruction *i) const;
-
+		const Value *get_pointer_operand(const Instruction *i) const;
+		const Value *get_value_operand(const Instruction *i) const;
+		// General functions. 
 		void simplify_constraints();
 		void stat(Module &M);
 		void setup(Module &M);

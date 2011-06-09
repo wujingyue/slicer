@@ -3,8 +3,10 @@
  *
  * Collect integer constraints on address-taken variables. 
  */
+#include "llvm/Analysis/Dominators.h"
 #include "config.h"
 #include "common/reach/icfg.h"
+#include "common/reach/intra-reach.h"
 #include "idm/mbb.h"
 using namespace llvm;
 
@@ -73,11 +75,29 @@ namespace slicer {
 			return li->getPointerOperand();
 		return NULL;
 	}
+	
+	const Value *CaptureConstraints::get_pointer_operand(
+			const Instruction *i) const {
+		if (const StoreInst *si = dyn_cast<StoreInst>(i))
+			return si->getPointerOperand();
+		if (const LoadInst *li = dyn_cast<LoadInst>(i))
+			return li->getPointerOperand();
+		return NULL;
+	}
 
 	Value *CaptureConstraints::get_value_operand(Instruction *i) const {
 		if (StoreInst *si = dyn_cast<StoreInst>(i))
 			return si->getOperand(0);
 		if (LoadInst *li = dyn_cast<LoadInst>(i))
+			return li;
+		return NULL;
+	}
+
+	const Value *CaptureConstraints::get_value_operand(
+			const Instruction *i) const {
+		if (const StoreInst *si = dyn_cast<StoreInst>(i))
+			return si->getOperand(0);
+		if (const LoadInst *li = dyn_cast<LoadInst>(i))
 			return li;
 		return NULL;
 	}
@@ -93,6 +113,13 @@ namespace slicer {
 			}
 		}
 #endif
+		/*
+		 * store v1, p
+		 * v2 = load q
+		 * p and q may alias
+		 * =>
+		 * v2 may = v1
+		 */
 		vector<StoreInst *> all_stores;
 		vector<LoadInst *> all_loads;
 		forallinst(M, ii) {
@@ -147,6 +174,89 @@ namespace slicer {
 			}
 			if (disj)
 				constraints.push_back(disj);
+		}
+		// TODO: we currently perform this analysis intra-procedurally
+		forallfunc(M, fi)
+			capture_overwritten_in_func(fi);
+	}
+
+	void CaptureConstraints::capture_overwritten_in_func(Function *fi) {
+		forall(Function, bi, *fi) {
+			forall(BasicBlock, ii, *bi) {
+				if (LoadInst *i2 = dyn_cast<LoadInst>(ii)) {
+					Value *q = i2->getPointerOperand();
+					// Find the latest dominator <i1> that stores to or loads from
+					// a pointer that must alias with <q>. 
+					Instruction *i1 = get_idom(i2);
+					while (i1) {
+						Value *p = get_pointer_operand(i1);
+						if (p && AA->alias(p, 0, q, 0) == AliasAnalysis::MustAlias)
+							break;
+						i1 = get_idom(i1);
+					}
+					// Is there any store along the path from <i1> to <i2>
+					// that may overwrite to <q>?
+					if (i1 && !may_write(i1, i2, q)) {
+						Clause *c = new Clause(new BoolExpr(
+									CmpInst::ICMP_EQ,
+									new Expr(i2),
+									new Expr(get_value_operand(i1))));
+						constraints.push_back(c);
+					}
+				}
+			}
+		}
+	}
+
+	bool CaptureConstraints::may_write(const Instruction *i, const Value *q) {
+		if (const StoreInst *si = dyn_cast<StoreInst>(i)) {
+			if (AA->alias(si->getPointerOperand(), 0, q, 0) != AliasAnalysis::NoAlias)
+				return true;
+		}
+		return false;
+	}
+
+	bool CaptureConstraints::may_write(
+			const Instruction *i1, const Instruction *i2, const Value *q) {
+		IntraReach &IR = getAnalysis<IntraReach>(
+				*const_cast<Function *>(i1->getParent()->getParent()));
+		ConstBBSet visited;
+		bool ret = IR.dfs_r(i2->getParent(), i1->getParent(), visited);
+		assert(ret && "<i1> should dominate <i2>");
+		forall(ConstBBSet, it, visited) {
+			const BasicBlock *bb = *it;
+			BasicBlock::const_iterator s = bb->begin(), e = bb->end();
+			if (i1->getParent() == bb) {
+				s = i1;
+				++s;
+			}
+			if (i2->getParent() == bb)
+				e = i2;
+			for (BasicBlock::const_iterator i = s; i != e; ++i) {
+				if (may_write(i, q))
+					return true;
+			}
+		}
+		return false;
+	}
+
+	BasicBlock *CaptureConstraints::get_idom(BasicBlock *bb) {
+		DominatorTree &DT = getAnalysis<DominatorTree>(*bb->getParent());
+		DomTreeNode *node = DT[bb];
+		DomTreeNode *idom = node->getIDom();
+		return (idom ? idom->getBlock() : NULL);
+	}
+
+	Instruction *CaptureConstraints::get_idom(Instruction *ins) {
+		BasicBlock *bb = ins->getParent();
+		if (ins == bb->begin()) {
+			BasicBlock *idom_bb = get_idom(bb);
+			if (!idom_bb)
+				return NULL;
+			else
+				return idom_bb->getTerminator();
+		} else {
+			return --(BasicBlock::iterator)ins;
 		}
 	}
 

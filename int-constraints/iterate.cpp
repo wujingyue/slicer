@@ -31,17 +31,21 @@ namespace slicer {
 		SolveConstraints &SC = getAnalysis<SolveConstraints>();
 		AdvancedAlias &AAA = getAnalysis<AdvancedAlias>();
 		CC.replace_aa(&AAA);
-		unsigned n_constraints;
+		/*
+		 * # of constraints is not a good indicator to decide whether we can
+		 * stop the iterating process. 
+		 * It may increase, decrease or unchange after an iteration. 
+		 */
+		long fingerprint;
 		do {
-			n_constraints = CC.get_num_constraints();
-			errs() << "Iterating... # of constraints = " << n_constraints << "\n";
+			fingerprint = CC.get_fingerprint();
+			errs() << "Iterating... # of constraints = "
+				<< CC.get_num_constraints() << "\n";
 			errs() << "AAA cache size = " << AAA.get_cache_size() << "\n";
 			AAA.runOnModule(M); // Essentially clear the cache. 
 			CC.runOnModule(M);
 			SC.runOnModule(M);
-			assert(CC.get_num_constraints() <= n_constraints &&
-					"# of constraints should be reduced after an iteration");
-		} while (CC.get_num_constraints() != n_constraints);
+		} while (CC.get_fingerprint() != fingerprint);
 
 		if (RunTest)
 			run_tests(M);
@@ -95,11 +99,17 @@ namespace slicer {
 		delete c;
 	}
 
+	void Iterate::test5(Module &M) {
+		CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
+		CC.print(outs(), &M);
+	}
+
 	void Iterate::run_tests(Module &M) {
 		// test1(M);
 		// test2(M);
 		// test3(M);
-		test4(M);
+		// test4(M);
+		test5(M);
 	}
 
 	void Iterate::getAnalysisUsage(AnalysisUsage &AU) const {

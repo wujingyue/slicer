@@ -42,12 +42,19 @@ namespace slicer {
 		BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
 		if (BAA.alias(V1, V1Size, V2, V2Size) == NoAlias)
 			return NoAlias;
-		// TODO: could sort V1 and V2. 
+		if (V1 > V2)
+			swap(V1, V2);
 		ConstValuePair p(V1, V2);
 		if (cache.count(p))
 			return cache.lookup(p);
 		SolveConstraints &SC = getAnalysis<SolveConstraints>();
-		AliasResult res = (SC.may_equal(V1, V2) ? MayAlias : NoAlias);
+		AliasResult res;
+		if (!SC.may_equal(V1, V2))
+			res = NoAlias;
+		else if (SC.must_equal(V1, V2))
+			res = MustAlias;
+		else
+			res = MayAlias;
 		cache[p] = res;
 		return res;
 	}

@@ -17,6 +17,7 @@ namespace slicer {
 		void test2(Module &M);
 		void test3(Module &M);
 		void test4(Module &M);
+		void test5(Module &M);
 	};
 }
 

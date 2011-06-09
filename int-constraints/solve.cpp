@@ -235,6 +235,13 @@ namespace slicer {
 		}
 	}
 
+	BasicBlock *SolveConstraints::get_idom(BasicBlock *bb) {
+		DominatorTree &DT = getAnalysis<DominatorTree>(*bb->getParent());
+		DomTreeNode *node = DT[bb];
+		DomTreeNode *idom = node->getIDom();
+		return (idom ? idom->getBlock() : NULL);
+	}
+
 	void SolveConstraints::realize_use(const Use *u) {
 		const Instruction *ins = dyn_cast<Instruction>(u->getUser());
 		// The value of a llvm::Constant is compile-time known. Therefore,
@@ -243,11 +250,9 @@ namespace slicer {
 			return;
 		BasicBlock *bb = const_cast<BasicBlock *>(ins->getParent());
 		Function *f = bb->getParent();
-		DominatorTree &DT = getAnalysis<DominatorTree>(*f);
 		IntraReach &IR = getAnalysis<IntraReach>(*f);
 		while (bb != &f->getEntryBlock()) {
-			DomTreeNode *node = DT[bb];
-			BasicBlock *p = node->getIDom()->getBlock();
+			BasicBlock *p = get_idom(bb);
 			assert(p);
 			CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 			/* TODO: We only handle BranchInst with ICmpInst for now. */
