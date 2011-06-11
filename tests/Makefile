@@ -1,4 +1,4 @@
-ORIG_PROGS=test-thread test-path test-overwrite test-ctxt
+ORIG_PROGS=test-thread test-path test-overwrite test-ctxt test-recursive
 SLICED_PROGS=$(ORIG_PROGS>.slice)
 PROGS=$(ORIG_PROGS) $(SLICED_PROGS)
 

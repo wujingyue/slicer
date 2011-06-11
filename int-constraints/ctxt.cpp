@@ -74,8 +74,14 @@ namespace slicer {
 			ans.push_back(make_pair(num_ctxts(fi), fi));
 		sort(ans.begin(), ans.end(),
 				greater<pair<unsigned long, const Function *> >());
-		for (size_t i = 0; i < ans.size(); ++i)
-			O << ans[i].second->getNameStr() << ": " << ans[i].first << "\n";
+		for (size_t i = 0; i < ans.size(); ++i) {
+			O << ans[i].second->getNameStr() << ": ";
+			if (ans[i].first == ULONG_MAX)
+				O << "oo";
+			else
+				O << ans[i].first;
+			O << "\n";
+		}
 	}
 
 	void CountCtxts::getAnalysisUsage(AnalysisUsage &AU) const {
