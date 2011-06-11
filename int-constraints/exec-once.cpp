@@ -24,7 +24,6 @@ namespace slicer {
 
 	void ExecOnce::getAnalysisUsage(AnalysisUsage &AU) const {
 		AU.setPreservesAll();
-		// TODO:
 		AU.addRequired<CallGraph>();
 		AU.addRequired<CallGraphFP>();
 		ModulePass::getAnalysisUsage(AU);
@@ -60,22 +59,10 @@ namespace slicer {
 		CallGraph &raw_CG = CG;
 		for (scc_iterator<CallGraph *> si = scc_begin(&raw_CG),
 				E = scc_end(&raw_CG); si != E; ++si) {
-			const vector<CallGraphNode *> &scc = *si;
-			assert(!scc.empty());
-			if (scc.size() > 1) {
-				// All functions in this SCC are recursive. 
-				for (size_t i = 0; i < scc.size(); ++i) {
-					Function *f = scc[i]->getFunction();
-					if (f)
+			if (si.hasLoop()) {
+				for (size_t i = 0; i < (*si).size(); ++i) {
+					if (Function *f = (*si)[i]->getFunction())
 						starts.insert(f);
-				}
-			} else {
-				// If it calls itself, then it's recursive. 
-				CallGraphNode *node = scc[0];
-				for (unsigned i = 0; i < node->size(); ++i) {
-					CallGraphNode *callee = (*node)[i];
-					if (callee == node)
-						starts.insert(node->getFunction());
 				}
 			}
 		} // for scc
@@ -88,7 +75,7 @@ namespace slicer {
 		forall(BBSet, it, twice_bbs) {
 			BasicBlock *bb = *it;
 			forall(BasicBlock, ii, *bb) {
-				if (is_call(ii) && !is_intrinsic_call(ii)) {
+				if (is_call(ii)) {
 					FuncList callees = CG.get_called_functions(ii);
 					for (size_t j = 0; j < callees.size(); ++j)
 						starts.insert(callees[j]);

@@ -1,4 +1,4 @@
-ORIG_PROGS=test-thread test-path test-overwrite
+ORIG_PROGS=test-thread test-path test-overwrite test-ctxt
 SLICED_PROGS=$(ORIG_PROGS>.slice)
 PROGS=$(ORIG_PROGS) $(SLICED_PROGS)
 
@@ -108,16 +108,6 @@ all: $(PROGS>.ll) $(PROGS)
 %.trace.bc: %.bc1 ../trace/tracing/tracing.bc
 	llvm-ld $^ -b $@
 
-%.ic: %.bc
-	opt -analyze -time-passes \
-		-load $(LLVM_ROOT)/install/lib/libidm.so \
-		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
-		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
-		-load $(LLVM_ROOT)/install/lib/libicfg.so \
-		-load $(LLVM_ROOT)/install/lib/libint-constraints.so \
-		-capture-constraints \
-		< $< > $@
-
 %.eo: %.bc
 	opt -analyze \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
@@ -146,6 +136,17 @@ all: $(PROGS>.ll) $(PROGS)
 		-src-locator \
 		-input $(ARG) \
 		< $<
+
+%.ctxt: %.bc
+	opt -analyze \
+		-load $(LLVM_ROOT)/install/lib/libidm.so \
+		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
+		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/libicfg.so \
+		-load $(LLVM_ROOT)/install/lib/libint-constraints.so \
+		-count-ctxts \
+		< $<
+
 
 clean:
 	rm -rf *.id *.ll *.loop *.bc1 *.trace.bc *.s $(PROGS)
