@@ -92,6 +92,7 @@ namespace slicer {
 
 	unsigned long CountCtxts::num_ctxts(const Function *f) const {
 		const CallGraphFP &CG = getAnalysis<CallGraphFP>();
+		errs() << f->getNameStr() << "\n";
 		const CallGraphNode *node = CG[f];
 		assert(node);
 		if (!node_to_scc.count(node)) {

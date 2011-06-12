@@ -45,7 +45,7 @@ namespace slicer {
 				cloned_to_tid[new_inst] = thr_id;
 				cloned_to_trunk[new_inst] = trunk_id;
 				while (trunk_id >= clone_map[thr_id].size())
-					clone_map[thr_id].push_back(InstMapping());
+					clone_map[thr_id].push_back(ConstInstMapping());
 				clone_map[thr_id][trunk_id][old_inst] = new_inst;
 			}
 		}
@@ -54,8 +54,8 @@ namespace slicer {
 
 	vector<int> CloneMapManager::get_thr_ids() const {
 		vector<int> res;
-		for (map<int, vector<InstMapping> >::const_iterator it = clone_map.begin();
-				it != clone_map.end(); ++it)
+		map<int, vector<ConstInstMapping> >::const_iterator it;
+		for (it = clone_map.begin(); it != clone_map.end(); ++it)
 			res.push_back(it->first);
 		return res;
 	}
@@ -65,25 +65,27 @@ namespace slicer {
 		return clone_map.find(thr_id)->second.size();
 	}
 
-	Instruction *CloneMapManager::get_orig_inst(Instruction *new_inst) const {
+	const Instruction *CloneMapManager::get_orig_inst(
+			const Instruction *new_inst) const {
 		return clone_map_r.lookup(new_inst);
 	}
 
-	int CloneMapManager::get_thr_id(Instruction *new_inst) const {
+	int CloneMapManager::get_thr_id(const Instruction *new_inst) const {
 		assert(cloned_to_tid.count(new_inst));
 		return cloned_to_tid.lookup(new_inst);
 	}
 
-	size_t CloneMapManager::get_trunk_id(Instruction *new_inst) const {
+	size_t CloneMapManager::get_trunk_id(const Instruction *new_inst) const {
 		assert(cloned_to_trunk.count(new_inst));
 		return cloned_to_trunk.lookup(new_inst);
 	}
 
-	Instruction *CloneMapManager::get_cloned_inst(
-			int thr_id, size_t trunk_id, Instruction *old_inst) const {
+	const Instruction *CloneMapManager::get_cloned_inst(
+			int thr_id, size_t trunk_id, const Instruction *old_inst) const {
 		if (!clone_map.count(thr_id))
 			return NULL;
-		const vector<InstMapping> &thr_clone_map = clone_map.find(thr_id)->second;
+		const vector<ConstInstMapping> &thr_clone_map =
+			clone_map.find(thr_id)->second;
 		if (trunk_id >= thr_clone_map.size())
 			return NULL;
 		return thr_clone_map[trunk_id].lookup(old_inst);

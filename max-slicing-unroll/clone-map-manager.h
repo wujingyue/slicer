@@ -20,22 +20,22 @@ namespace slicer {
 
 		vector<int> get_thr_ids() const;
 		size_t get_n_trunks(int thr_id) const;
-		Instruction *get_cloned_inst(
-				int thr_id, size_t trunk_id, Instruction *old_inst) const;
-		Instruction *get_orig_inst(Instruction *new_inst) const;
-		int get_thr_id(Instruction *new_inst) const;
-		size_t get_trunk_id(Instruction *new_inst) const;
+		const Instruction *get_cloned_inst(
+				int thr_id, size_t trunk_id, const Instruction *old_inst) const;
+		const Instruction *get_orig_inst(const Instruction *new_inst) const;
+		int get_thr_id(const Instruction *new_inst) const;
+		size_t get_trunk_id(const Instruction *new_inst) const;
 
 	private:
 		// Maps from a cloned instruction to the original instruction. 
-		InstMapping clone_map_r;
+		ConstInstMapping clone_map_r;
 		// The map between each cloned instruction to the trunk ID. 
-		DenseMap<Instruction *, size_t> cloned_to_trunk;
-		DenseMap<Instruction *, int> cloned_to_tid;
+		DenseMap<const Instruction *, size_t> cloned_to_trunk;
+		DenseMap<const Instruction *, int> cloned_to_tid;
 		// An original instruction can be mapped to multiple instructions in
 		// the cloned program. However, there can be at most one of them in each
 		// trunk. Therefore, each trunk has a clone map.
-		map<int, vector<InstMapping> > clone_map;
+		map<int, vector<ConstInstMapping> > clone_map;
 	};
 }
 

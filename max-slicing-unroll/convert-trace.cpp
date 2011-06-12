@@ -62,7 +62,7 @@ namespace slicer {
 			}
 			// Find the cloned instruction. 
 			CloneMapManager &CMM = getAnalysis<CloneMapManager>();
-			Instruction *new_ins = CMM.get_cloned_inst(tid, tr_id, info.ins);
+			const Instruction *new_ins = CMM.get_cloned_inst(tid, tr_id, info.ins);
 			ObjectID &OI = getAnalysis<ObjectID>();
 			unsigned new_ins_id = OI.getInstructionID(new_ins);
 			// Shouldn't use tid because it might be changed to -1 
