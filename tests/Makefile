@@ -30,6 +30,9 @@ all: $(PROGS>.ll) $(PROGS)
 %.id: %.bc
 	$(LLVM_ROOT)/scripts/print-id insts $< > $@
 
+%.mid: %.bc
+	$(LLVM_ROOT)/scripts/print-id mbbs $< > $@
+
 %.vid: %.bc
 	$(LLVM_ROOT)/scripts/print-id values $< > $@
 
@@ -67,7 +70,9 @@ all: $(PROGS>.ll) $(PROGS)
 		-load $(LLVM_ROOT)/install/lib/libmax-slicing-unroll.so \
 		-max-slicing-unroll \
 		-fulltrace $(<:.bc=.ft) \
-		-mapping $(<:.bc=.map) < $<
+		-output-clone-map $(<:.bc=.map) \
+		-output-cfg $(<:.bc=.cfg) \
+		< $<
 
 %.lt: %.bc %.ft
 	opt -analyze \

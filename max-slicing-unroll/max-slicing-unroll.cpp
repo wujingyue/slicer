@@ -34,9 +34,15 @@ namespace {
 
 	/* Instructions that are not cloned will be contained in Thread -1 */
 	static cl::opt<string> MappingFile(
-			"mapping",
+			"output-clone-map",
 			cl::NotHidden,
 			cl::desc("Output file containing the clone mapping"),
+			cl::init(""));
+	
+	static cl::opt<string> CFGFile(
+			"output-cfg",
+			cl::NotHidden,
+			cl::desc("Ooutput file containing the CFG of the cloned program"),
 			cl::init(""));
 }
 
@@ -44,6 +50,7 @@ namespace slicer {
 
 	void MaxSlicingUnroll::getAnalysisUsage(AnalysisUsage &AU) const {
 		AU.addRequired<ObjectID>();
+		AU.addRequired<MicroBasicBlockBuilder>();
 		AU.addRequired<CallGraphFP>();
 		AU.addRequired<MayExec>();
 		AU.addRequired<TraceManager>();
@@ -173,9 +180,25 @@ namespace slicer {
 		cerr << "Dumping module...\n";
 		M.dump();
 #endif
+		// Print auxiliary stuff. 
+		print_aux(M);
+		return true;
+	}
+
+	void MaxSlicingUnroll::print_aux(Module &M) const {
+		// Rerun ObjectID and MicroBasicBlockBuilder to get consistent info. 
+		bool modified;
+		MicroBasicBlockBuilder &MBBB = getAnalysis<MicroBasicBlockBuilder>();
+		modified = MBBB.runOnModule(M);
+		assert(!modified && "MicroBasicBlockBuilder shouldn't modify the module.");
+		// ObjectID requires MicroBasicBlockBuilder, thus we rerun MBBB first. 
+		ObjectID &OI = getAnalysis<ObjectID>();
+		modified = OI.runOnModule(M);
+		assert(!modified && "ObjectID shouldn't modify the module.");
 		// Print the ID mapping. 
 		print_mapping(M);
-		return true;
+		// Print the CFG of the cloned program. 
+		print_cfg(M);
 	}
 
 	void MaxSlicingUnroll::build_clone_id_map() {
@@ -230,12 +253,41 @@ namespace slicer {
 			<< "ID = " << IDM.getInstructionID(ii) << endl;
 	}
 
+	void MaxSlicingUnroll::print_cfg(Module &M) const {
+		if (CFGFile == "")
+			return;
+		ObjectID &OI = getAnalysis<ObjectID>();
+		MicroBasicBlockBuilder &MBBB = getAnalysis<MicroBasicBlockBuilder>();
+		ofstream fout(CFGFile.c_str());
+		forallbb(M, bi) {
+			for (mbb_iterator mi = MBBB.begin(bi); mi != MBBB.end(bi); ++mi) {
+				forall(MicroBasicBlock, ii, *mi) {
+					if (mi->getParent()->getTerminator() != ii) {
+						InstList nbrs = cfg.lookup(ii);
+						assert(nbrs.size() == 0 || nbrs.size() == 1);
+						for (size_t j = 0; j < nbrs.size(); ++j)
+							assert(MBBB.parent(ii) == MBBB.parent(nbrs[j]));
+					}
+				}
+				Instruction *last = mi->getLast();
+				if (cfg.count(last)) {
+					unsigned id_x = OI.getMicroBasicBlockID(mi);
+					InstList nbrs = cfg.lookup(last);
+					fout << id_x << ":";
+					for (size_t j = 0; j < nbrs.size(); ++j) {
+						MicroBasicBlock *y = MBBB.parent(nbrs[j]);
+						unsigned id_y = OI.getMicroBasicBlockID(y);
+						fout << " " << id_y;
+					}
+					fout << endl;
+				}
+			}
+		}
+	}
+
 	void MaxSlicingUnroll::print_mapping(Module &M) const {
 		if (MappingFile == "")
 			return;
-		ObjectID &IDM = getAnalysis<ObjectID>();
-		bool modified = IDM.runOnModule(M);
-		assert(!modified && "IDM shouldn't modify the module");
 		ofstream fout(MappingFile.c_str());
 		map<int, vector<DenseMap<unsigned, Instruction *> > >::const_iterator it;
 		for (it = clone_id_map.begin(); it != clone_id_map.end(); ++it) {
@@ -246,7 +298,7 @@ namespace slicer {
 						j != it->second[tr_id].end(); ++j) {
 					unsigned old_id = j->first;
 					Instruction *cloned = j->second;
-					unsigned new_id = IDM.getInstructionID(cloned);
+					unsigned new_id = getAnalysis<ObjectID>().getInstructionID(cloned);
 					assert(new_id != ObjectID::INVALID_ID);
 					fout << thr_id << " "
 						<< tr_id << " "

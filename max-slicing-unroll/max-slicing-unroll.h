@@ -5,6 +5,10 @@
 /**
  * TODO: redirect_program_entry does not remove any instructions now. 
  * Therefore, we can print the clone mapping in an much easier way. 
+ *
+ * Rename to be max-slicing
+ *
+ * CFG in the MBB-level. 
  */
 
 #ifndef __SLICER_MAX_SLICING_UNROLL_H
@@ -44,6 +48,7 @@ namespace slicer {
 
 		static char ID;
 
+		// TODO: in MBB-level.
 		typedef DenseMap<Instruction *, InstList> CFG;
 		typedef InstPair Edge;
 		typedef DenseSet<Edge> EdgeSet;
@@ -198,7 +203,20 @@ namespace slicer {
 		void print_levels_in_thread(
 				int thr_id,
 				const DenseMap<Instruction *, int> &level);
+		/**
+		 * Print auxiliary stuff for further analysis
+		 */
+		void print_aux(Module &M) const;
+		/**
+		 * Print the ID mapping. 
+		 */
 		void print_mapping(Module &M) const;
+		/**
+		 * Print the CFG of the cloned program.
+		 * Note that the cloned program may not contain every instructions. 
+		 * Note that the CFG doesn't contain the unreachable BBs. 
+		 */
+		void print_cfg(Module &M) const;
 		/*
 		 * DFS the CFG. 
 		 *

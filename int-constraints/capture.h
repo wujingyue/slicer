@@ -90,10 +90,14 @@ namespace slicer {
 		BasicBlock *get_idom(BasicBlock *bb);
 		Instruction *get_idom(Instruction *ins);
 		// Check if any instruction between <i1> and <i2> may write to <q>. 
-		// <i1> must dominate <i2>.
-		bool may_write(const Instruction *i1, const Instruction *i2, const Value *q);
+		// <i1> must dominate <i2>, and they are in the same function. 
+		bool path_may_write(
+				const Instruction *i1, const Instruction *i2, const Value *q);
 		// Check if instruction <i> may write to <q>. 
-		bool may_write(const Instruction *i, const Value *q);
+		bool may_write(
+				const Instruction *i, const Value *q, ConstFuncSet &visited_funcs);
+		bool may_write(
+				const Function *f, const Value *q, ConstFuncSet &visited_funcs);
 #if 0
 		void add_addr_taken_eq(Value *v1, Value *v2);
 		void get_all_sources(Instruction *ins, Value *p, ValueList &srcs);

@@ -65,7 +65,7 @@ namespace slicer {
 		forall(ValueSet, it, constants) {
 			if (Argument *arg = dyn_cast<Argument>(*it)) {
 				CallGraphFP &CG = getAnalysis<CallGraphFP>();
-				CallGraphFP::SiteList call_sites = CG.get_call_sites(arg->getParent());
+				InstList call_sites = CG.get_call_sites(arg->getParent());
 				// A function may have no callers after slicing. 
 				assert(call_sites.size() <= 1 && "Otherwise it shouldn't be a constant");
 				if (call_sites.size() == 1) {

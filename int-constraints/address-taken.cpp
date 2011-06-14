@@ -5,9 +5,10 @@
  */
 #include "llvm/Analysis/Dominators.h"
 #include "config.h"
+#include "idm/mbb.h"
 #include "common/reach/icfg.h"
 #include "common/reach/intra-reach.h"
-#include "idm/mbb.h"
+#include "common/callgraph-fp/callgraph-fp.h"
 using namespace llvm;
 
 #include "capture.h"
@@ -196,7 +197,7 @@ namespace slicer {
 					}
 					// Is there any store along the path from <i1> to <i2>
 					// that may overwrite to <q>?
-					if (i1 && !may_write(i1, i2, q)) {
+					if (i1 && !path_may_write(i1, i2, q)) {
 						Clause *c = new Clause(new BoolExpr(
 									CmpInst::ICMP_EQ,
 									new Expr(i2),
@@ -208,21 +209,52 @@ namespace slicer {
 		}
 	}
 
-	bool CaptureConstraints::may_write(const Instruction *i, const Value *q) {
+	bool CaptureConstraints::may_write(
+			const Instruction *i, const Value *q, ConstFuncSet &visited_funcs) {
 		if (const StoreInst *si = dyn_cast<StoreInst>(i)) {
 			if (AA->alias(si->getPointerOperand(), 0, q, 0) != AliasAnalysis::NoAlias)
 				return true;
+		}
+		// If <i> is a function call, go into the function. 
+		if (is_call(i)) {
+			CallGraphFP &CG = getAnalysis<CallGraphFP>();
+			FuncList callees = CG.get_called_functions(i);
+			for (size_t j = 0; j < callees.size(); ++j) {
+				if (may_write(callees[j], q, visited_funcs))
+					return true;
+			}
 		}
 		return false;
 	}
 
 	bool CaptureConstraints::may_write(
+			const Function *f, const Value *q, ConstFuncSet &visited_funcs) {
+		if (visited_funcs.count(f))
+			return false;
+		visited_funcs.insert(f);
+		// FIXME: need function summary
+		// For now, we assume external functions don't write to <q>. 
+		if (f->isDeclaration())
+			return false;
+		forallconst(Function, bi, *f) {
+			forallconst(BasicBlock, ii, *bi) {
+				if (may_write(ii, q, visited_funcs))
+					return true;
+			}
+		}
+		return false;
+	}
+
+	bool CaptureConstraints::path_may_write(
 			const Instruction *i1, const Instruction *i2, const Value *q) {
 		IntraReach &IR = getAnalysis<IntraReach>(
 				*const_cast<Function *>(i1->getParent()->getParent()));
 		ConstBBSet visited;
 		bool ret = IR.dfs_r(i2->getParent(), i1->getParent(), visited);
 		assert(ret && "<i1> should dominate <i2>");
+		// Functions visited in <may_write>s. 
+		// In order to handle recursive functions. 
+		ConstFuncSet visited_funcs;
 		forall(ConstBBSet, it, visited) {
 			const BasicBlock *bb = *it;
 			BasicBlock::const_iterator s = bb->begin(), e = bb->end();
@@ -233,7 +265,7 @@ namespace slicer {
 			if (i2->getParent() == bb)
 				e = i2;
 			for (BasicBlock::const_iterator i = s; i != e; ++i) {
-				if (may_write(i, q))
+				if (may_write(i, q, visited_funcs))
 					return true;
 			}
 		}
