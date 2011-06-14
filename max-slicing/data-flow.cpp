@@ -10,7 +10,7 @@
 #include "max-slicing.h"
 #include "idm/id.h"
 #include "common/callgraph-fp/callgraph-fp.h"
-#include "common/may-exec/may-exec.h"
+#include "common/cfg/may-exec.h"
 
 #include <iostream>
 #include <fstream>

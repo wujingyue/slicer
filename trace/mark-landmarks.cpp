@@ -1,7 +1,7 @@
 #include "llvm/Support/CFG.h"
 #include "llvm/Support/CommandLine.h"
 #include "idm/id.h"
-#include "common/identify-thread-funcs/identify-thread-funcs.h"
+#include "common/cfg/identify-thread-funcs.h"
 using namespace llvm;
 
 #include <fstream>

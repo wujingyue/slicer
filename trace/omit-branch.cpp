@@ -1,7 +1,7 @@
 #include "llvm/Module.h"
 #include "llvm/Analysis/PostDominators.h"
 #include "common/callgraph-fp/callgraph-fp.h"
-#include "common/may-exec/may-exec.h"
+#include "common/cfg/may-exec.h"
 #include "idm/id.h"
 using namespace llvm;
 
@@ -126,7 +126,7 @@ namespace slicer {
 					return false;
 				if (is_call(ii) && !is_intrinsic_call(ii)) {
 					CallGraphFP &CG = getAnalysis<CallGraphFP>();
-					const CallGraphFP::FuncList &called_funcs =
+					const FuncList &called_funcs =
 						CG.get_called_functions(ii);
 					for (size_t i = 0; i < called_funcs.size(); ++i) {
 						if (ME.may_exec_landmark(called_funcs[i]))

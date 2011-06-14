@@ -50,8 +50,7 @@ all: $(PROGS>.ll) $(PROGS)
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
-		-load $(LLVM_ROOT)/install/lib/libmay-exec.so \
-		-load $(LLVM_ROOT)/install/lib/libidentify-thread-funcs.so \
+		-load $(LLVM_ROOT)/install/lib/libcfg.so \
 		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
 		-instrument \
 		< $< > $@
@@ -64,8 +63,7 @@ all: $(PROGS>.ll) $(PROGS)
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
-		-load $(LLVM_ROOT)/install/lib/libmay-exec.so \
-		-load $(LLVM_ROOT)/install/lib/libidentify-thread-funcs.so \
+		-load $(LLVM_ROOT)/install/lib/libcfg.so \
 		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
 		-load $(LLVM_ROOT)/install/lib/libmax-slicing-unroll.so \
 		-max-slicing-unroll \
@@ -79,8 +77,7 @@ all: $(PROGS>.ll) $(PROGS)
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
-		-load $(LLVM_ROOT)/install/lib/libmay-exec.so \
-		-load $(LLVM_ROOT)/install/lib/libidentify-thread-funcs.so \
+		-load $(LLVM_ROOT)/install/lib/libcfg.so \
 		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
 		-landmark-trace \
 		-fulltrace $(<:.bc=.ft) \
@@ -91,8 +88,7 @@ all: $(PROGS>.ll) $(PROGS)
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
-		-load $(LLVM_ROOT)/install/lib/libmay-exec.so \
-		-load $(LLVM_ROOT)/install/lib/libidentify-thread-funcs.so \
+		-load $(LLVM_ROOT)/install/lib/libcfg.so \
 		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
 		-mark-landmarks \
 		-fulltrace $(<:.bc=.ft) \
@@ -103,8 +99,7 @@ all: $(PROGS>.ll) $(PROGS)
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
-		-load $(LLVM_ROOT)/install/lib/libmay-exec.so \
-		-load $(LLVM_ROOT)/install/lib/libidentify-thread-funcs.so \
+		-load $(LLVM_ROOT)/install/lib/libcfg.so \
 		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
 		-trace-manager \
 		-fulltrace $(<:.bc=.ft) \
@@ -118,7 +113,7 @@ all: $(PROGS>.ll) $(PROGS)
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
-		-load $(LLVM_ROOT)/install/lib/libicfg.so \
+		-load $(LLVM_ROOT)/install/lib/libcfg.so \
 		-load $(LLVM_ROOT)/install/lib/libint-constraints.so \
 		-exec-once \
 		< $<
@@ -128,7 +123,7 @@ all: $(PROGS>.ll) $(PROGS)
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
-		-load $(LLVM_ROOT)/install/lib/libicfg.so \
+		-load $(LLVM_ROOT)/install/lib/libcfg.so \
 		-load $(LLVM_ROOT)/install/lib/libint-constraints.so \
 		-iterate \
 		-test \
@@ -147,7 +142,7 @@ all: $(PROGS>.ll) $(PROGS)
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
-		-load $(LLVM_ROOT)/install/lib/libicfg.so \
+		-load $(LLVM_ROOT)/install/lib/libcfg.so \
 		-load $(LLVM_ROOT)/install/lib/libint-constraints.so \
 		-count-ctxts \
 		< $<
