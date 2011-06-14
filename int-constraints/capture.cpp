@@ -25,7 +25,7 @@ using namespace std;
 #include "capture.h"
 #include "must-alias.h"
 #include "exec-once.h"
-#include "../max-slicing-unroll/clone-map-manager.h"
+#include "../max-slicing/clone-map-manager.h"
 
 namespace {
 	
