@@ -7,7 +7,7 @@
 #include "llvm/Support/CommandLine.h"
 
 #include "config.h"
-#include "max-slicing-unroll.h"
+#include "max-slicing.h"
 #include "idm/id.h"
 #include "common/callgraph-fp/callgraph-fp.h"
 #include "common/may-exec/may-exec.h"
@@ -21,7 +21,7 @@ using namespace std;
 
 namespace slicer {
 
-	void MaxSlicingUnroll::redirect_program_entry(
+	void MaxSlicing::redirect_program_entry(
 			Instruction *old_start,
 			Instruction *new_start) {
 		// We simply swap the names of the old and new main. 
@@ -59,7 +59,7 @@ namespace slicer {
 #endif
 	}
 
-	void MaxSlicingUnroll::fix_def_use_bb(
+	void MaxSlicing::fix_def_use_bb(
 			Module &M) {
 		cerr << "Fixing BBs in def-use graph...\n";
 		DenseMap<Function *, BasicBlock *> unreach_bbs;
@@ -164,7 +164,7 @@ namespace slicer {
 #endif
 	}
 
-	Instruction *MaxSlicingUnroll::find_op_in_cloned(
+	Instruction *MaxSlicing::find_op_in_cloned(
 			Instruction *op,
 			Instruction *user,
 			const InstMapping &parent) {
@@ -180,7 +180,7 @@ namespace slicer {
 		return op2;
 	}
 
-	void MaxSlicingUnroll::fix_def_use(
+	void MaxSlicing::fix_def_use(
 			Module &M,
 			const Trace &trace) {
 		/*
@@ -201,7 +201,7 @@ namespace slicer {
 		cerr << "Done fix_def_use\n";
 	}
 
-	void MaxSlicingUnroll::fix_def_use_func_call(Module &M) {
+	void MaxSlicing::fix_def_use_func_call(Module &M) {
 		cerr << "Fixing function calls in def-use graph...\n";
 		forall(InstMapping, it, clone_map_r) {
 			Instruction *ins = it->first;
@@ -230,7 +230,7 @@ namespace slicer {
 		}
 	}
 
-	void MaxSlicingUnroll::fix_def_use_func_param(Module &M) {
+	void MaxSlicing::fix_def_use_func_param(Module &M) {
 		cerr << "Fixing function parameters in def-use graph...\n";
 		forall(InstMapping, it, clone_map_r) {
 			Instruction *ins = it->first;
@@ -253,7 +253,7 @@ namespace slicer {
 		}
 	}
 
-	void MaxSlicingUnroll::fix_def_use_insts(
+	void MaxSlicing::fix_def_use_insts(
 			Module &M,
 			const Trace &trace) {
 		cerr << "Fixing instructions in def-use graph...\n";
@@ -306,7 +306,7 @@ namespace slicer {
 		}
 	}
 
-	void MaxSlicingUnroll::link_thr_func(
+	void MaxSlicing::link_thr_func(
 			Module &M,
 			const Trace &trace,
 			int parent_tid,
@@ -369,7 +369,7 @@ namespace slicer {
 		}
 	}
 
-	void MaxSlicingUnroll::link_thr_funcs(
+	void MaxSlicing::link_thr_funcs(
 			Module &M,
 			const Trace &trace,
 			const vector<ThreadCreationRecord> &thr_cr_records) {

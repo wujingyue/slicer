@@ -11,8 +11,8 @@
  * CFG in the MBB-level. 
  */
 
-#ifndef __SLICER_MAX_SLICING_UNROLL_H
-#define __SLICER_MAX_SLICING_UNROLL_H
+#ifndef __SLICER_MAX_SLICING_H
+#define __SLICER_MAX_SLICING_H
 
 #include "llvm/Pass.h"
 #include "llvm/ADT/DenseSet.h"
@@ -29,7 +29,7 @@ namespace slicer {
 
 	const static string SLICER_SUFFIX = ".SLICER";
 
-	struct MaxSlicingUnroll: public ModulePass {
+	struct MaxSlicing: public ModulePass {
 
 		enum EdgeType {
 			EDGE_CALL,
@@ -54,18 +54,11 @@ namespace slicer {
 		typedef DenseSet<Edge> EdgeSet;
 		typedef map<int, InstList> Trace;
 
-		MaxSlicingUnroll(): ModulePass(&ID) {}
+		MaxSlicing(): ModulePass(&ID) {}
 
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual bool runOnModule(Module &M);
 		virtual void print(raw_ostream &O, const Module *M) const;
-#if 0
-		Instruction *get_cloned_inst(
-				int thr_id,
-				unsigned trunk_id,
-				Instruction *orig) const;
-		Instruction *get_orig_inst(Instruction *cloned) const;
-#endif
 
 	private:
 		void read_trace_and_cut(
@@ -278,7 +271,7 @@ namespace slicer {
 		// From an old instruction ID to a cloned instruction. 
 		map<int, vector<DenseMap<unsigned, Instruction *> > > clone_id_map;
 		/*
-		 * max-slicing-unroll prints the clone mapping in the end
+		 * max-slicing prints the clone mapping in the end
 		 * in the format of <old ID> => <new ID>.
 		 * Here the old ID means the ID in the original module,
 		 * rather than the ID of an original instruction

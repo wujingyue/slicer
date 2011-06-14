@@ -9,7 +9,7 @@ using namespace std;
 #include "convert-trace.h"
 #include "trace/trace-manager.h"
 #include "trace/landmark-trace.h"
-#include "max-slicing-unroll/clone-map-manager.h"
+#include "max-slicing/clone-map-manager.h"
 
 /* Apply it on the cloned program. */
 namespace {

@@ -8,7 +8,7 @@
 #include "llvm/Transforms/Utils/ValueMapper.h"
 
 #include "config.h"
-#include "max-slicing-unroll.h"
+#include "max-slicing.h"
 #include "idm/id.h"
 #include "common/callgraph-fp/callgraph-fp.h"
 #include "common/may-exec/may-exec.h"
@@ -22,7 +22,7 @@ using namespace std;
 
 namespace slicer {
 
-	void MaxSlicingUnroll::add_cfg_edge(
+	void MaxSlicing::add_cfg_edge(
 			Instruction *x,
 			Instruction *y) {
 		assert(clone_map_r.count(x) && "<x> must be in the cloned CFG");
@@ -31,7 +31,7 @@ namespace slicer {
 		cfg_r[y].push_back(x);
 	}
 
-	void MaxSlicingUnroll::build_cfg(
+	void MaxSlicing::build_cfg(
 			Module &M,
 			const Trace &trace,
 			const InstSet &cut) {
@@ -67,7 +67,7 @@ namespace slicer {
 		cerr << "Done building CFG\n";
 	}
 
-	void MaxSlicingUnroll::dump_thr_cfg(const CFG &cfg, int thr_id) {
+	void MaxSlicing::dump_thr_cfg(const CFG &cfg, int thr_id) {
 		cerr << "Printing CFG of Thread " << thr_id << "...\n";
 		ObjectID &IDM = getAnalysis<ObjectID>();
 		for (size_t i = 0; i < clone_map[thr_id].size(); ++i) {
@@ -91,7 +91,7 @@ namespace slicer {
 		}
 	}
 
-	Instruction *MaxSlicingUnroll::find_parent_at_same_level(
+	Instruction *MaxSlicing::find_parent_at_same_level(
 			Instruction *x,
 			const DenseMap<Instruction *, int> &level,
 			const InstMapping &parent) {
@@ -113,7 +113,7 @@ namespace slicer {
 		return p;
 	}
 
-	void MaxSlicingUnroll::assign_level(
+	void MaxSlicing::assign_level(
 			Instruction *x,
 			DenseMap<Instruction *, int> &level,
 			InstMapping &parent) {
@@ -135,7 +135,7 @@ namespace slicer {
 		}
 	}
 
-	void MaxSlicingUnroll::assign_containers(
+	void MaxSlicing::assign_containers(
 			Module &M,
 			Instruction *start) {
 		DenseMap<Instruction *, int> level;
@@ -147,7 +147,7 @@ namespace slicer {
 		assign_container(M, start, level, parent);
 	}
 
-	void MaxSlicingUnroll::assign_container(
+	void MaxSlicing::assign_container(
 			Module &M,
 			Instruction *x,
 			const DenseMap<Instruction *, int> &level,
@@ -201,7 +201,7 @@ namespace slicer {
 		}
 	}
 
-	MaxSlicingUnroll::EdgeType MaxSlicingUnroll::get_edge_type(
+	MaxSlicing::EdgeType MaxSlicing::get_edge_type(
 			Instruction *x,
 			Instruction *y) {
 		assert(x && y && "<x> and <y> cannot be NULL");
@@ -225,7 +225,7 @@ namespace slicer {
 			return EDGE_INTER_BB;
 	}
 
-	Instruction *MaxSlicingUnroll::clone_inst(const Instruction *x) {
+	Instruction *MaxSlicing::clone_inst(const Instruction *x) {
 		Instruction *y = x->clone();
 		y->setName(x->getName());
 		// Some operands need to be cloned as well, e.g. function-local
@@ -243,7 +243,7 @@ namespace slicer {
 		return y;
 	}
 
-	void MaxSlicingUnroll::build_cfg_of_thread(
+	void MaxSlicing::build_cfg_of_thread(
 			Module &M,
 			const InstList &thr_trace,
 			const InstSet &cut,
@@ -278,7 +278,7 @@ namespace slicer {
 		}
 	}
 
-	void MaxSlicingUnroll::build_cfg_of_trunk(
+	void MaxSlicing::build_cfg_of_trunk(
 			Instruction *start,
 			Instruction *end,
 			const InstSet &cut,
@@ -333,7 +333,7 @@ namespace slicer {
 		}
 	}
 
-	void MaxSlicingUnroll::link_orig_cloned(
+	void MaxSlicing::link_orig_cloned(
 			Instruction *orig,
 			Instruction *cloned,
 			int thr_id,
@@ -346,7 +346,7 @@ namespace slicer {
 		cloned_to_tid[cloned] = thr_id;
 	}
 
-	void MaxSlicingUnroll::refine_from_end(
+	void MaxSlicing::refine_from_end(
 			Instruction *start,
 			Instruction *end,
 			const InstSet &cut,
@@ -379,7 +379,7 @@ namespace slicer {
 		}
 	}
 	
-	void MaxSlicingUnroll::dfs_cfg(
+	void MaxSlicing::dfs_cfg(
 			const CFG &cfg,
 			Instruction *x,
 			const InstSet &cut,
@@ -398,7 +398,7 @@ namespace slicer {
 		}
 	}
 
-	void MaxSlicingUnroll::dfs(
+	void MaxSlicing::dfs(
 			Instruction *x,
 			const InstSet &cut,
 			InstSet &visited_nodes,
@@ -471,7 +471,7 @@ namespace slicer {
 		}
 	}
 
-	void MaxSlicingUnroll::move_on(
+	void MaxSlicing::move_on(
 			Instruction *x,
 			Instruction *y,
 			const InstSet &cut,

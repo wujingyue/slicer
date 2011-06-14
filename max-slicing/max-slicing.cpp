@@ -19,16 +19,16 @@ using namespace llvm;
 using namespace std;
 
 #include "config.h"
-#include "max-slicing-unroll.h"
+#include "max-slicing.h"
 #include "trace/trace-manager.h"
 #include "trace/mark-landmarks.h"
 #include "trace/landmark-trace.h"
 
 namespace {
 
-	static RegisterPass<slicer::MaxSlicingUnroll> X(
-			"max-slicing-unroll",
-			"Unroll the program according to the trace",
+	static RegisterPass<slicer::MaxSlicing> X(
+			"max-slicing",
+			"Slice and unroll the program according to the trace",
 			false,
 			true); // is analysis
 
@@ -48,7 +48,7 @@ namespace {
 
 namespace slicer {
 
-	void MaxSlicingUnroll::getAnalysisUsage(AnalysisUsage &AU) const {
+	void MaxSlicing::getAnalysisUsage(AnalysisUsage &AU) const {
 		AU.addRequired<ObjectID>();
 		AU.addRequired<MicroBasicBlockBuilder>();
 		AU.addRequired<CallGraphFP>();
@@ -59,7 +59,7 @@ namespace slicer {
 		ModulePass::getAnalysisUsage(AU);
 	}
 
-	void MaxSlicingUnroll::print_inst_set(const InstSet &s) {
+	void MaxSlicing::print_inst_set(const InstSet &s) {
 		ObjectID &IDM = getAnalysis<ObjectID>();
 		vector<unsigned> inst_ids;
 		for (InstSet::const_iterator it = s.begin();
@@ -71,7 +71,7 @@ namespace slicer {
 		cerr << endl;
 	}
 
-	void MaxSlicingUnroll::print_edge_set(const EdgeSet &s) {
+	void MaxSlicing::print_edge_set(const EdgeSet &s) {
 		ObjectID &IDM = getAnalysis<ObjectID>();
 		vector<pair<unsigned, unsigned> > edge_ids;
 		forallconst(EdgeSet, it, s) {
@@ -85,7 +85,7 @@ namespace slicer {
 		cerr << endl;
 	}
 
-	void MaxSlicingUnroll::print_levels_in_thread(
+	void MaxSlicing::print_levels_in_thread(
 			int thr_id,
 			const DenseMap<Instruction *, int> &level) {
 		vector<pair<pair<size_t, unsigned>, int> > leveled;
@@ -106,7 +106,7 @@ namespace slicer {
 		}
 	}
 
-	void MaxSlicingUnroll::read_trace_and_cut(
+	void MaxSlicing::read_trace_and_cut(
 			Trace &trace,
 			vector<ThreadCreationRecord> &thr_cr_records,
 			InstSet &cut) {
@@ -132,7 +132,7 @@ namespace slicer {
 		}
 	}
 
-	bool MaxSlicingUnroll::runOnModule(Module &M) {
+	bool MaxSlicing::runOnModule(Module &M) {
 		// Save the old id mapping before everything. 
 		ObjectID &IDM = getAnalysis<ObjectID>();
 		unsigned n_insts = IDM.getNumInstructions();
@@ -185,7 +185,7 @@ namespace slicer {
 		return true;
 	}
 
-	void MaxSlicingUnroll::print_aux(Module &M) const {
+	void MaxSlicing::print_aux(Module &M) const {
 		// Rerun ObjectID and MicroBasicBlockBuilder to get consistent info. 
 		bool modified;
 		MicroBasicBlockBuilder &MBBB = getAnalysis<MicroBasicBlockBuilder>();
@@ -201,7 +201,7 @@ namespace slicer {
 		print_cfg(M);
 	}
 
-	void MaxSlicingUnroll::build_clone_id_map() {
+	void MaxSlicing::build_clone_id_map() {
 		for (map<int, vector<InstMapping> >::iterator it = clone_map.begin();
 				it != clone_map.end(); ++it) {
 			int thr_id = it->first;
@@ -225,7 +225,7 @@ namespace slicer {
 		}
 	}
 
-	void MaxSlicingUnroll::stat(Module &M) {
+	void MaxSlicing::stat(Module &M) {
 		cerr << "Stat...\n";
 		unsigned n_orig_insts = 0;
 		InstSet cloned_orig_insts;
@@ -240,7 +240,7 @@ namespace slicer {
 			<< " instructions are still in the sliced program.\n";
 	}
 
-	void MaxSlicingUnroll::print_cloned_inst(Instruction *ins) {
+	void MaxSlicing::print_cloned_inst(Instruction *ins) {
 		assert(clone_map_r.count(ins));
 		assert(cloned_to_trunk.count(ins));
 		Instruction *ii = clone_map_r.lookup(ins);
@@ -253,7 +253,7 @@ namespace slicer {
 			<< "ID = " << IDM.getInstructionID(ii) << endl;
 	}
 
-	void MaxSlicingUnroll::print_cfg(Module &M) const {
+	void MaxSlicing::print_cfg(Module &M) const {
 		if (CFGFile == "")
 			return;
 		ObjectID &OI = getAnalysis<ObjectID>();
@@ -285,7 +285,7 @@ namespace slicer {
 		}
 	}
 
-	void MaxSlicingUnroll::print_mapping(Module &M) const {
+	void MaxSlicing::print_mapping(Module &M) const {
 		if (MappingFile == "")
 			return;
 		ofstream fout(MappingFile.c_str());
@@ -309,30 +309,9 @@ namespace slicer {
 		}
 	}
 
-	void MaxSlicingUnroll::print(raw_ostream &O, const Module *M) const {
+	void MaxSlicing::print(raw_ostream &O, const Module *M) const {
 	}
 
-#if 0
-	Instruction *MaxSlicingUnroll::get_cloned_inst(
-			int thr_id,
-			unsigned trunk_id,
-			Instruction *orig) const {
-		if (!clone_map.count(thr_id))
-			return NULL;
-		const vector<InstMapping> &clone_map_in_thread =
-			clone_map.find(thr_id)->second;
-		if (trunk_id >= clone_map_in_thread.size())
-			return NULL;
-		const InstMapping &clone_map_in_trunk = clone_map_in_thread[trunk_id];
-		return clone_map_in_trunk.lookup(orig);
-	}
-
-	Instruction *MaxSlicingUnroll::get_orig_inst(Instruction *cloned) const {
-		// Returns NULL on NULL. 
-		return clone_map_r.lookup(cloned);
-	}
-#endif
-	
-	char MaxSlicingUnroll::ID = 0;
+	char MaxSlicing::ID = 0;
 }
 

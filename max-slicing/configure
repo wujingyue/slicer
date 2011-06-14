@@ -11,8 +11,8 @@ if __name__ == "__main__":
         if arg == "-c" or arg == "--check":
             check = True
     fout = open("config.h", "w")
-    fout.write("#ifndef __MAX_SLICING_UNROLL_CONFIG_H\n")
-    fout.write("#define __MAX_SLICING_UNROLL_CONFIG_H\n")
+    fout.write("#ifndef __MAX_SLICING_CONFIG_H\n")
+    fout.write("#define __MAX_SLICING_CONFIG_H\n")
     fout.write("\n")
 
     if verbose:
