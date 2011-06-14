@@ -6,9 +6,9 @@
 #include "llvm/Analysis/Dominators.h"
 #include "config.h"
 #include "idm/mbb.h"
-#include "common/reach/icfg.h"
-#include "common/reach/intra-reach.h"
 #include "common/callgraph-fp/callgraph-fp.h"
+#include "common/cfg/icfg.h"
+#include "common/cfg/intra-reach.h"
 using namespace llvm;
 
 #include "capture.h"

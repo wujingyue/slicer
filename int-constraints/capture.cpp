@@ -4,13 +4,13 @@
 #include "llvm/Analysis/Passes.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/LLVMContext.h"
+#include "idm/id.h"
 #include "common/include/util.h"
 #include "common/include/typedefs.h"
-#include "common/reach/reach.h"
-#include "common/reach/intra-reach.h"
-#include "common/reach/icfg.h"
 #include "common/callgraph-fp/callgraph-fp.h"
-#include "idm/id.h"
+#include "common/cfg/reach.h"
+#include "common/cfg/intra-reach.h"
+#include "common/cfg/icfg.h"
 using namespace llvm;
 
 #include "bc2bdd/BddAliasAnalysis.h"

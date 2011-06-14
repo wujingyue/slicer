@@ -1,7 +1,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Analysis/Dominators.h"
 #include "common/include/util.h"
-#include "common/reach/intra-reach.h"
+#include "common/cfg/intra-reach.h"
 #include "idm/id.h"
 using namespace llvm;
 
