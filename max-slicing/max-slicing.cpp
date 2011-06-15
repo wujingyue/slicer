@@ -30,7 +30,7 @@ namespace {
 			"max-slicing",
 			"Slice and unroll the program according to the trace",
 			false,
-			true); // is analysis
+			false); // max-slicing is a pure transform pass. 
 
 	/* Instructions that are not cloned will be contained in Thread -1 */
 	static cl::opt<string> MappingFile(
@@ -307,9 +307,6 @@ namespace slicer {
 				}
 			}
 		}
-	}
-
-	void MaxSlicing::print(raw_ostream &O, const Module *M) const {
 	}
 
 	char MaxSlicing::ID = 0;

@@ -65,11 +65,11 @@ all: $(PROGS>.ll) $(PROGS)
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
 		-load $(LLVM_ROOT)/install/lib/libcfg.so \
 		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
-		-load $(LLVM_ROOT)/install/lib/libmax-slicing-unroll.so \
-		-max-slicing-unroll \
+		-load $(LLVM_ROOT)/install/lib/libmax-slicing.so \
+		-max-slicing \
 		-fulltrace $(<:.bc=.ft) \
-		-output-clone-map $(<:.bc=.map) \
-		-output-cfg $(<:.bc=.cfg) \
+		-output-clone-map $(@:.bc=.map) \
+		-output-cfg $(@:.bc=.cfg) \
 		< $<
 
 %.lt: %.bc %.ft
@@ -145,6 +145,20 @@ all: $(PROGS>.ll) $(PROGS)
 		-load $(LLVM_ROOT)/install/lib/libcfg.so \
 		-load $(LLVM_ROOT)/install/lib/libint-constraints.so \
 		-count-ctxts \
+		< $<
+
+# Inter-procedural dominator tree
+%.idt: %.bc 
+	opt -disable-output \
+		-load $(LLVM_ROOT)/install/lib/libidm.so \
+		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
+		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/libcfg.so \
+		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
+		-load $(LLVM_ROOT)/install/lib/libmax-slicing.so \
+		-load $(LLVM_ROOT)/install/lib/libtest-icfg.so \
+		-input-cfg $(<:.bc=.cfg) \
+		-test-icfg \
 		< $<
 
 

@@ -9,11 +9,17 @@ using namespace std;
 #include "clone-map-manager.h"
 
 namespace {
-	// It's a manager pass. It does not need a command line option. 
+
+	static RegisterPass<slicer::CloneMapManager> X(
+			"clone-map-manager",
+			"Clone mapping manager",
+			false,
+			true);
+
 	static cl::opt<string> MappingFile(
 			"input-clone-map",
 			cl::NotHidden,
-			cl::desc("Output file containing the clone mapping"),
+			cl::desc("Input file containing the clone mapping"),
 			cl::init(""));
 }
 
