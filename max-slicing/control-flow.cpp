@@ -292,8 +292,10 @@ namespace slicer {
 		dfs(start, cut, visited_nodes, visited_edges, call_stack);
 #ifdef VERBOSE
 		if (!visited_nodes.count(end)) {
-			start->dump();
-			end->dump();
+			ObjectID &OI = getAnalysis<ObjectID>();
+			errs() << "Cannot reach:\n";
+			errs() << OI.getInstructionID(start) << ":" << *start << "\n";
+			errs() << OI.getInstructionID(end) << ":" << *end << "\n";
 		}
 #endif
 		assert(visited_nodes.count(end) &&
@@ -413,7 +415,9 @@ namespace slicer {
 		x->dump();
 #endif
 
-		if (is_call(x) && !is_intrinsic_call(x)) {
+		// We are performing intra-thread analysis now. 
+		// Don't go to the thread function. 
+		if (is_call(x) && !is_pthread_create(x)) {
 			bool may_exec_landmark = false;
 			CallGraphFP &CG = getAnalysis<CallGraphFP>();
 			MayExec &ME = getAnalysis<MayExec>();
@@ -439,7 +443,7 @@ namespace slicer {
 			// going into the function body. 
 		} // if is_call
 
-		if (isa<ReturnInst>(x) || isa<UnwindInst>(x)) {
+		if (is_ret(x)) {
 			assert(!call_stack.empty());
 			BasicBlock::iterator ret_addr = call_stack.back();
 			BasicBlock::iterator y;
@@ -457,7 +461,7 @@ namespace slicer {
 			call_stack.pop_back();
 			move_on(x, y, cut, visited_nodes, visited_edges, call_stack);
 			return;
-		}
+		} // if is_ret
 
 		if (!x->isTerminator()) {
 			BasicBlock::iterator y = x; ++y;
@@ -479,8 +483,7 @@ namespace slicer {
 			EdgeSet &visited_edges,
 			InstList &call_stack) {
 #ifdef VERBOSE
-		cerr << "move_on:";
-		y->dump();
+		errs() << "move_on:" << *y << "\n";
 #endif
 		/*
 		 * No matter whether <y> is in the cut, we mark <y> and <x, y>
