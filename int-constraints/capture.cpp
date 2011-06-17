@@ -205,7 +205,7 @@ namespace slicer {
 		AU.addRequired<BddAliasAnalysis>();
 		AU.addRequired<CallGraphFP>();
 		AU.addRequired<ExecOnce>();
-		AU.addRequired<ICFG>();
+		// AU.addRequired<ICFGManager>();
 		ModulePass::getAnalysisUsage(AU);
 	}
 

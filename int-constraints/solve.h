@@ -56,6 +56,10 @@ namespace slicer {
 		static VCExpr vc_int_max(VC vc) {
 			return vc_bv32ConstExprFromInt(vc, INT_MAX);
 		}
+		// Returns the same value as <vc_int_max>, but in 64-bit. 
+		static VCExpr vc_int_max_64(VC vc) {
+			return vc_bvConstExprFromInt(vc, 64, INT_MAX);
+		}
 		static VCExpr vc_int_min(VC vc) {
 			return vc_bv32ConstExprFromInt(vc, INT_MIN);
 		}

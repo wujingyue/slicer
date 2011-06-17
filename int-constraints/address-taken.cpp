@@ -177,22 +177,33 @@ namespace slicer {
 				constraints.push_back(disj);
 		}
 		// TODO: we currently perform this analysis intra-procedurally
-		forallfunc(M, fi)
+		forallfunc(M, fi) {
+			if (fi->isDeclaration())
+				continue;
+			ExecOnce &EO = getAnalysis<ExecOnce>();
+			if (EO.not_executed(fi))
+				continue;
 			capture_overwritten_in_func(fi);
+		}
 	}
 
 	void CaptureConstraints::capture_overwritten_in_func(Function *fi) {
+		errs() << "capture_overwritten_in_func: " << fi->getNameStr() << "\n";
 		forall(Function, bi, *fi) {
 			forall(BasicBlock, ii, *bi) {
 				if (LoadInst *i2 = dyn_cast<LoadInst>(ii)) {
+					errs() << *i2 << "\n";
 					Value *q = i2->getPointerOperand();
 					// Find the latest dominator <i1> that stores to or loads from
 					// a pointer that must alias with <q>. 
 					Instruction *i1 = get_idom(i2);
 					while (i1) {
 						Value *p = get_pointer_operand(i1);
-						if (p && AA->alias(p, 0, q, 0) == AliasAnalysis::MustAlias)
-							break;
+						if (p) {
+							AliasAnalysis::AliasResult res = AA->alias(p, 0, q, 0);
+							if (res == AliasAnalysis::MustAlias)
+								break;
+						}
 						i1 = get_idom(i1);
 					}
 					// Is there any store along the path from <i1> to <i2>
@@ -247,6 +258,10 @@ namespace slicer {
 
 	bool CaptureConstraints::path_may_write(
 			const Instruction *i1, const Instruction *i2, const Value *q) {
+#if 1
+		errs() << "path_may_write:\n";
+		errs() << "\t" << *i1 << "\n" << "\t" << *i2 << "\n";
+#endif
 		IntraReach &IR = getAnalysis<IntraReach>(
 				*const_cast<Function *>(i1->getParent()->getParent()));
 		ConstBBSet visited;

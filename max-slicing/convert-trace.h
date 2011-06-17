@@ -1,5 +1,11 @@
-#ifndef __TERN_CONVERT_TRACE_H
-#define __TERN_CONVERT_TRACE_H
+/**
+ * Author: Jingyue
+ *
+ * Probably not useful anymore. 
+ */
+
+#ifndef __SLICER_CONVERT_TRACE_H
+#define __SLICER_CONVERT_TRACE_H
 
 #include "llvm/Pass.h"
 #include "llvm/Module.h"
@@ -26,4 +32,3 @@ namespace slicer {
 }
 
 #endif
-

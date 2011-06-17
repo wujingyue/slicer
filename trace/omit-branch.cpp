@@ -52,7 +52,8 @@ namespace slicer {
 	}
 
 	/* Copied from LLVM SVN */
-	BasicBlock *find_nearest_common_post_dominator(PostDominatorTree &PDT, BasicBlock *A, BasicBlock *B) {
+	BasicBlock *find_nearest_common_post_dominator(
+			PostDominatorTree &PDT, BasicBlock *A, BasicBlock *B) {
 		// If B dominates A then B is nearest common dominator.
 		if (PDT.dominates(B, A))
 			return B;

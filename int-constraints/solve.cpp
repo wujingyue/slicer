@@ -50,6 +50,7 @@ namespace slicer {
 	}
 
 	void SolveConstraints::vc_error_handler(const char *err_msg) {
+		errs() << "vc_error_handler\n";
 		errs() << err_msg << "\n";
 	}
 
@@ -128,10 +129,12 @@ namespace slicer {
 					return vc_bv32MultExpr(vc, left, right);
 				case Instruction::UDiv:
 				case Instruction::SDiv:
-					return vc_sbvDivExpr(vc, 32, left, right);
+					// FIXME: sbvDiv doesn't work. 
+					return vc_bvDivExpr(vc, 32, left, right);
 				case Instruction::URem:
 				case Instruction::SRem:
-					return vc_sbvModExpr(vc, 32, left, right);
+					// FIXME: sbvRem doesn't work. 
+					return vc_bvModExpr(vc, 32, left, right);
 				case Instruction::Shl:
 					// left << right
 					return vc_bvVar32LeftShiftExpr(vc, right, left);
@@ -330,9 +333,24 @@ namespace slicer {
 				break;
 			case Instruction::Mul:
 				// TODO: does not support negative numbers
+				/*
+				 * FIXME: impliesExpr doesn't work as expected. 
+				 * We expected to use it to get around the "div-by-zero" problem.
+				 * Therefore, we extend the operands to 64-bit integers, and check
+				 * whether the product is really out of range. 
+				 */
 				// left >= 0, right >= 0, left * right <= oo
-				vc_assertFormula(vc, vc_sbvGeExpr(vc, left, vc_zero(vc)));
-				vc_assertFormula(vc, vc_sbvGeExpr(vc, right, vc_zero(vc)));
+				{
+					vc_assertFormula(vc, vc_sbvGeExpr(vc, left, vc_zero(vc)));
+					vc_assertFormula(vc, vc_sbvGeExpr(vc, right, vc_zero(vc)));
+					VCExpr long_product = vc_bvMultExpr(
+							vc, 64,
+							vc_bvSignExtend(vc, left, 64), vc_bvSignExtend(vc, right, 64));
+					vc_assertFormula(
+							vc, vc_sbvLeExpr(vc, long_product, vc_int_max_64(vc)));
+				}
+#if 0
+				// left > 0 => right <= oo / left
 				vc_assertFormula(
 						vc,
 						vc_impliesExpr(
@@ -342,6 +360,7 @@ namespace slicer {
 								vc,
 								right,
 								vc_sbvDivExpr(vc, 32, vc_int_max(vc), left))));
+				// right > 0 => left <= oo / right
 				vc_assertFormula(
 						vc,
 						vc_impliesExpr(
@@ -351,6 +370,7 @@ namespace slicer {
 								vc,
 								left,
 								vc_sbvDivExpr(vc, 32, vc_int_max(vc), right))));
+#endif
 				break;
 			case Instruction::UDiv:
 			case Instruction::SDiv:
