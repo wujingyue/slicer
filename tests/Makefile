@@ -5,7 +5,7 @@ PROGS=$(ORIG_PROGS) $(SLICED_PROGS)
 CFLAGS=-g -O2 -Wall
 CXXFLAGS=-g -O2 -Wall
 
-all: $(PROGS>.ll) $(PROGS)
+all: $(PROGS>.ll) $(PROGS) test-icfg test-alias
 
 %.bc: %.c
 	llvm-gcc -o $@ $< -c -emit-llvm $(CFLAGS)

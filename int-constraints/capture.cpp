@@ -159,8 +159,8 @@ namespace slicer {
 		errs() << "===== test =====\n";
 		ObjectID &OI = getAnalysis<ObjectID>();
 		BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
-		LoadInst *li = dyn_cast<LoadInst>(OI.getInstruction(964));
-		StoreInst *si = dyn_cast<StoreInst>(OI.getInstruction(689));
+		LoadInst *li = dyn_cast<LoadInst>(OI.getInstruction(2548));
+		StoreInst *si = dyn_cast<StoreInst>(OI.getInstruction(2292));
 		assert(li && si);
 		errs() << BAA.alias(
 				li->getPointerOperand(), 0,

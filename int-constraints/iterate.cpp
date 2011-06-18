@@ -78,9 +78,11 @@ namespace slicer {
 	void Iterate::test3(Module &M) {
 		ObjectID &OI = getAnalysis<ObjectID>();
 		SolveConstraints &SC = getAnalysis<SolveConstraints>();
-		Value *v1 = OI.getValue(9173);
-		Value *v2 = OI.getValue(9257);
-		errs() << "may: " << SC.may_equal(v1, v2) << "\n";
+		Value *v1 = OI.getValue(3289);
+		Value *v2 = OI.getValue(3358);
+		Clause *c = new Clause(new BoolExpr(
+					CmpInst::ICMP_SLE, new Expr(v1), new Expr(v2)));
+		errs() << "v1 <= v2: " << SC.provable(vector<const Clause *>(1, c)) << "\n";
 	}
 
 	void Iterate::test4(Module &M) {
@@ -107,9 +109,9 @@ namespace slicer {
 	void Iterate::run_tests(Module &M) {
 		// test1(M);
 		// test2(M);
-		// test3(M);
+		test3(M);
 		// test4(M);
-		test5(M);
+		// test5(M);
 	}
 
 	void Iterate::getAnalysisUsage(AnalysisUsage &AU) const {

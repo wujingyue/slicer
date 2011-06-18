@@ -94,6 +94,10 @@ namespace slicer {
 		/* Calculate the nearest post dominator of <bb> */
 		PostDominatorTree &PDT = getAnalysis<PostDominatorTree>(*func);
 		BasicBlock *post_dominator_bb = branch->getSuccessor(0);
+		/*
+		 * If <bb> has only one successor, <post_dominator_bb> will be that
+		 * successor, and then <dfs> won't visit any BB. 
+		 */
 		for (unsigned i = 1; i < branch->getNumSuccessors(); i++) {
 			/*
 			 * findNearestCommonDominator does not work with a post dominator tree

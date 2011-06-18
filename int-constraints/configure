@@ -20,4 +20,3 @@ if __name__ == "__main__":
     fout.write("\n")
     fout.write("#endif\n")
     fout.close()
-

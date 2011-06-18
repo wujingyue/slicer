@@ -143,19 +143,27 @@ namespace slicer {
 #if 0
 			errs() << "capture_addr_taken: " << i << "/" << all_loads.size() << "\n";
 #endif
+			ObjectID &OI = getAnalysis<ObjectID>();
 			Clause *disj = NULL;
 			for (size_t j = 0; j < all_stores.size(); ++j) {
+				if (OI.getInstructionID(all_loads[i]) == 2548 &&
+						OI.getInstructionID(all_stores[j]) == 2292) {
+					errs() << "========== Found =============\n";
+				}
 				if (AA->alias(
 							all_loads[i]->getPointerOperand(), 0,
 							all_stores[j]->getPointerOperand(), 0)) {
-					ObjectID &OI = getAnalysis<ObjectID>();
-					if (OI.getValueID(all_loads[i]) == 9175) {
+					if (OI.getValueID(all_loads[i]) == 3601) {
 						errs() << "source:" << *all_stores[j] << "\n";
 					}
 					// If at least one of them is not constant, the loaded value
 					// can be anything. So, no constraint will be captured in
 					// this case. 
 					if (!is_constant(all_stores[j]->getOperand(0))) {
+						if (OI.getInstructionID(all_loads[i]) == 2548) {
+							errs() << "=== xixi ===\n";
+							errs() << *all_stores[j] << "\n";
+						}
 						if (disj)
 							delete disj;
 						disj = NULL;
@@ -172,7 +180,7 @@ namespace slicer {
 						disj = new Clause(Instruction::Or, disj, c);
 					}
 				}
-			}
+			} // for store
 			if (disj)
 				constraints.push_back(disj);
 		}

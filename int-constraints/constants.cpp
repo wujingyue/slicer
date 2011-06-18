@@ -1,3 +1,4 @@
+#include "llvm/LLVMContext.h"
 #include "common/callgraph-fp/callgraph-fp.h"
 #include "idm/id.h"
 using namespace llvm;
@@ -171,6 +172,18 @@ namespace slicer {
 				opcode,
 				new Expr(user->getOperand(0)),
 				new Expr(user->getOperand(1)));
+		// FIXME: Dirty hack. 
+		// If it's a shift by 32, treat it as shift by 0. 
+		if ((opcode == Instruction::Shl || opcode == Instruction::LShr ||
+				opcode == Instruction::AShr)) {
+			if (ConstantInt *ci = dyn_cast<ConstantInt>(user->getOperand(1))) {
+				if (ci->getSExtValue() == 32) {
+					delete e2->e2;
+					e2->e2 = new Expr(
+							ConstantInt::get(IntegerType::get(getGlobalContext(), 32), 0));
+				}
+			}
+		}
 		BoolExpr *be = new BoolExpr(CmpInst::ICMP_EQ, e1, e2);
 		constraints.push_back(new Clause(be));
 	}
