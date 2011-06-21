@@ -163,4 +163,5 @@ all: $(PROGS>.ll) $(PROGS) test-icfg test-alias
 
 
 clean:
-	rm -rf *.id *.ll *.loop *.bc1 *.trace.bc *.s $(PROGS)
+	rm -rf *.id *.ll *.loop *.bc1 *.trace.bc *.slice.bc \
+		*-nocrit.bc *.s $(PROGS)

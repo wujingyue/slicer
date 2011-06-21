@@ -15,6 +15,11 @@ using namespace std;
 
 namespace slicer {
 
+	/**
+	 * We don't allow any Expr, BoolExpr or Clause has more than one references. 
+	 * TODO: We could allow that by adding reference counting. 
+	 */
+
 	struct Expr {
 
 		enum Type {
@@ -29,6 +34,18 @@ namespace slicer {
 			const Value *v;
 			const Use *u;
 		};
+
+		Expr *clone() {
+			if (type == SingleDef)
+				return new Expr(v);
+			if (type == SingleUse)
+				return new Expr(u);
+			if (type == Unary)
+				assert_not_supported();
+			if (type == Binary)
+				return new Expr(op, e1->clone(), e2->clone());
+			assert_unreachable();
+		}
 
 		Expr(const Use *use): u(use) {
 			type = SingleUse;
@@ -86,6 +103,10 @@ namespace slicer {
 		CmpInst::Predicate p;
 		Expr *e1, *e2;
 
+		BoolExpr *clone() {
+			return new BoolExpr(p, e1->clone(), e2->clone());
+		}
+
 		BoolExpr(CmpInst::Predicate pred, Expr *expr1, Expr *expr2):
 			p(pred), e1(expr1), e2(expr2)
 		{
@@ -112,23 +133,32 @@ namespace slicer {
 		}
 	};
 
-	// A clause is a set of boolean expressions connected with AND or OR. 
+	// A clause is a set of boolean expressions connected with AND, OR, or XOR
 	struct Clause {
 
 		unsigned op;
 		BoolExpr *be;
 		Clause *c1, *c2;
 
+		Clause *clone() {
+			if (be)
+				return new Clause(be);
+			else
+				return new Clause(op, c1->clone(), c2->clone());
+		}
+
 		Clause(unsigned opcode, Clause *lhs, Clause *rhs):
 			op(opcode), be(NULL), c1(lhs), c2(rhs)
 		{
-			assert(op == Instruction::And || op == Instruction::Or);
+			assert(op == Instruction::And || op == Instruction::Or ||
+					op == Instruction::Xor);
 			assert(c1 != this && c2 != this && c1 != c2);
 		}
 
 		Clause(BoolExpr *expr): op(0), be(expr), c1(NULL), c2(NULL) {}
 
 		~Clause() {
+			// fprintf(stderr, "~Clause %p\n", (void *)this);
 			if (c1) {
 				delete c1;
 				c1 = NULL;

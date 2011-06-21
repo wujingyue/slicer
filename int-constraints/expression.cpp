@@ -120,7 +120,12 @@ namespace slicer {
 		}
 		O << "(";
 		print_clause(O, c->c1, OI);
-		O << (c->op == Instruction::And ? " AND " : " OR ");
+		if (c->op == Instruction::And)
+			O << " AND ";
+		else if (c->op == Instruction::Or)
+			O << " OR ";
+		else
+			O << " XOR ";
 		print_clause(O, c->c2, OI);
 		O << ")";
 	}

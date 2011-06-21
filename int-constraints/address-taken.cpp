@@ -146,24 +146,18 @@ namespace slicer {
 			ObjectID &OI = getAnalysis<ObjectID>();
 			Clause *disj = NULL;
 			for (size_t j = 0; j < all_stores.size(); ++j) {
-				if (OI.getInstructionID(all_loads[i]) == 2548 &&
-						OI.getInstructionID(all_stores[j]) == 2292) {
-					errs() << "========== Found =============\n";
-				}
 				if (AA->alias(
 							all_loads[i]->getPointerOperand(), 0,
 							all_stores[j]->getPointerOperand(), 0)) {
-					if (OI.getValueID(all_loads[i]) == 3601) {
-						errs() << "source:" << *all_stores[j] << "\n";
+					if (OI.getValueID(all_loads[i]) == 3605) {
+						errs() << "source " << OI.getInstructionID(all_stores[j]) << ":"
+							<< *all_stores[j] << "\n";
 					}
 					// If at least one of them is not constant, the loaded value
 					// can be anything. So, no constraint will be captured in
 					// this case. 
 					if (!is_constant(all_stores[j]->getOperand(0))) {
-						if (OI.getInstructionID(all_loads[i]) == 2548) {
-							errs() << "=== xixi ===\n";
-							errs() << *all_stores[j] << "\n";
-						}
+						// errs() << "[Warning] Stores a variable\n";
 						if (disj)
 							delete disj;
 						disj = NULL;
@@ -273,8 +267,10 @@ namespace slicer {
 		IntraReach &IR = getAnalysis<IntraReach>(
 				*const_cast<Function *>(i1->getParent()->getParent()));
 		ConstBBSet visited;
-		bool ret = IR.dfs_r(i2->getParent(), i1->getParent(), visited);
-		assert(ret && "<i1> should dominate <i2>");
+		ConstBBSet sink;
+		sink.insert(i1->getParent());
+		IR.floodfill_r(i2->getParent(), sink, visited);
+		assert(visited.count(i1->getParent()) && "<i1> should dominate <i2>");
 		// Functions visited in <may_write>s. 
 		// In order to handle recursive functions. 
 		ConstFuncSet visited_funcs;

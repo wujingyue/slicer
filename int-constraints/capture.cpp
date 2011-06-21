@@ -155,22 +155,9 @@ namespace slicer {
 			AA = &getAnalysis<BddAliasAnalysis>();
 	}
 
-	void CaptureConstraints::test(Module &M) {
-		errs() << "===== test =====\n";
-		ObjectID &OI = getAnalysis<ObjectID>();
-		BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
-		LoadInst *li = dyn_cast<LoadInst>(OI.getInstruction(2548));
-		StoreInst *si = dyn_cast<StoreInst>(OI.getInstruction(2292));
-		assert(li && si);
-		errs() << BAA.alias(
-				li->getPointerOperand(), 0,
-				si->getPointerOperand(), 0) << "\n";
-	}
-
 	bool CaptureConstraints::runOnModule(Module &M) {
 		setup(M);
 		stat(M);
-		// test(M);
 #if 0
 		// Collect constraints on top-level variables.
 		// TODO: Handle function parameters. 
@@ -184,6 +171,8 @@ namespace slicer {
 		capture_constraints_on_consts(M);
 		// Collect constraints on address-taken variables. 
 		capture_addr_taken(M);
+		// Collect constraints from unreachable blocks. 
+		capture_unreachable(M);
 		simplify_constraints();
 		return false;
 	}

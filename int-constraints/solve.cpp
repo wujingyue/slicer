@@ -81,8 +81,10 @@ namespace slicer {
 		VCExpr vce2 = translate_to_vc(c->c2);
 		if (c->op == Instruction::And)
 			return vc_andExpr(vc, vce1, vce2);
-		else
+		else if (c->op == Instruction::Or)
 			return vc_orExpr(vc, vce1, vce2);
+		else
+			return vc_xorExpr(vc, vce1, vce2);
 	}
 
 	VCExpr SolveConstraints::translate_to_vc(const BoolExpr *be) {
@@ -257,7 +259,23 @@ namespace slicer {
 		while (bb != &f->getEntryBlock()) {
 			BasicBlock *p = get_idom(bb);
 			assert(p);
-			CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
+			/*
+			 * If a successor of <p> cannot reach <bb>, the condition that leads
+			 * to that successor must not hold. 
+			 */ 
+			TerminatorInst *ti = p->getTerminator();
+			for (unsigned i = 0; i < ti->getNumSuccessors(); ++i) {
+				if (!IR.reachable(ti->getSuccessor(i), bb)) {
+					CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
+					const Clause *c = CC.get_avoid_branch(ti, i);
+					if (c) {
+						VCExpr vce = translate_to_vc(c);
+						vc_assertFormula(vc, vce);
+						delete c;
+					}
+				}
+			}
+#if 0
 			/* TODO: We only handle BranchInst with ICmpInst for now. */
 			if (BranchInst *bi = dyn_cast<BranchInst>(p->getTerminator())) {
 				ICmpInst *cond = dyn_cast<ICmpInst>(bi->getCondition());
@@ -285,17 +303,16 @@ namespace slicer {
 									leads_to_bb == 0 ? pred: CmpInst::getInversePredicate(pred),
 									new Expr(cond->getOperand(0)),
 									new Expr(cond->getOperand(1))));
-#if 0
 						errs() << "new clause:";
 						print_clause(errs(), c, getAnalysis<ObjectID>());
 						errs() << "\n";
-#endif
 						VCExpr vce = translate_to_vc(c);
 						vc_assertFormula(vc, vce);
 						delete c;
 					}
 				}
-			}
+			} // if BranchInst
+#endif
 			bb = p;
 		}
 	}

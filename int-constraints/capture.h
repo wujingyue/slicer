@@ -49,6 +49,12 @@ namespace slicer {
 		long get_fingerprint() const;
 		/* In <constants>? */
 		bool is_constant(const Value *v) const;
+		/*
+		 * Used by the solver as well, so need make it public.
+		 * Called internally by the module to capture constraints on
+		 * unreachable BBs. 
+		 */
+		const Clause *get_avoid_branch(const TerminatorInst *ti, unsigned i) const;
 
 	private:
 #if 0
@@ -113,7 +119,6 @@ namespace slicer {
 		void simplify_constraints();
 		void stat(Module &M);
 		void setup(Module &M);
-		void test(Module &M);
 
 #if 0
 		static void print_alias_set(raw_ostream &O, const ConstValueSet &as);
@@ -142,16 +147,24 @@ namespace slicer {
 		void extract_consts(Constant *c);
 		void add_eq_constraint(Value *v1, Value *v2);
 		void capture_constraints_on_consts(Module &M);
+		// TODO: We care about Instructions and ConstantExprs only. We could use
+		// Operator as the argument. 
 		void capture_in_user(User *user);
 		/*
 		 * These capture_* functions need to check whether their operands
 		 * are constant.
 		 */
+		void capture_in_icmp(ICmpInst *user);
 		void capture_in_unary(User *user);
 		void capture_in_binary(User *user, unsigned opcode);
 		void capture_in_gep(User *user);
 		void capture_in_phi(PHINode *phi);
-		/* in bits */
+		/* Constraints from unreachable blocks. */
+		void capture_unreachable(Module &M);
+		void capture_unreachable_in_func(Function *f);
+		static bool is_unreachable(const BasicBlock *bb);
+		/* Utility functions */
+		/* Returns the size of a type in bits */
 		static unsigned get_type_size(const Type *type);
 
 #if 0

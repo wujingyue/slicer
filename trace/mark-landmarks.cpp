@@ -68,7 +68,7 @@ namespace slicer {
 		forallfunc(M, fi) {
 			if (fi->isDeclaration())
 				continue;
-			if (ITF.is_thread_func(fi) || fi->getNameStr() == "main") {
+			if (ITF.is_thread_func(fi) || is_main(fi)) {
 				Instruction *first = fi->getEntryBlock().getFirstNonPHI();
 				landmarks.insert(first);
 				forall(Function, bi, *fi) {

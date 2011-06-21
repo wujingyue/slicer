@@ -91,6 +91,7 @@ namespace slicer {
 	}
 
 	void CaptureConstraints::capture_in_user(User *user) {
+		assert(is_constant(user));
 		if (!isa<Instruction>(user) && !isa<ConstantExpr>(user))
 			return;
 		/* TODO: may want to use llvm::Operator */
@@ -116,6 +117,11 @@ namespace slicer {
 			case Instruction::Xor:
 				capture_in_binary(user, opcode);
 				break;
+			// ICmpInst
+			case Instruction::ICmp:
+				assert(isa<ICmpInst>(user));
+				capture_in_icmp(dyn_cast<ICmpInst>(user));
+				break;
 			// Unary Instructions
 			case Instruction::Trunc:
 			case Instruction::ZExt:
@@ -139,6 +145,31 @@ namespace slicer {
 		if (!constants.count(user->getOperand(0)))
 			return;
 		add_eq_constraint(user, user->getOperand(0));
+	}
+
+	void CaptureConstraints::capture_in_icmp(ICmpInst *icmp) {
+		// icmp == 0 || icmp == 1
+		// TODO: After we create STP variables with different bit size, 
+		// this condition can be removed. 
+		Clause *eq_0 = new Clause(new BoolExpr(
+					CmpInst::ICMP_EQ,
+					new Expr(icmp),
+					new Expr(ConstantInt::get(int_type, 0))));
+		Clause *eq_1 = new Clause(new BoolExpr(
+					CmpInst::ICMP_EQ,
+					new Expr(icmp),
+					new Expr(ConstantInt::get(int_type, 1))));
+		constraints.push_back(new Clause(Instruction::Or, eq_0, eq_1));
+		// icmp == 1 <==> branch holds
+		// i.e. (icmp == 0) ^ (branch holds) == 1
+		const Value *op0 = icmp->getOperand(0);
+		const Value *op1 = icmp->getOperand(1);
+		if (!is_constant(op0) || !is_constant(op1))
+			return;
+		Clause *branch = new Clause(new BoolExpr(
+					icmp->getPredicate(), new Expr(op0), new Expr(op1)));
+		// We should never reuse a clause. Always create a new one. 
+		constraints.push_back(new Clause(Instruction::Xor, eq_0->clone(), branch));
 	}
 
 	void CaptureConstraints::capture_in_phi(PHINode *phi) {
