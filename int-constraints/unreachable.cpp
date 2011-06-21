@@ -6,15 +6,17 @@ using namespace llvm;
 using namespace slicer;
 
 void CaptureConstraints::capture_unreachable(Module &M) {
-	forallfunc(M, fi)
-		capture_unreachable_in_func(fi);
+	forallfunc(M, fi) {
+		if (!fi->isDeclaration())
+			capture_unreachable_in_func(fi);
+	}
 }
 
 bool CaptureConstraints::is_unreachable(const BasicBlock *bb) {
 	return isa<UnreachableInst>(bb->getTerminator());
 }
 
-const Clause *CaptureConstraints::get_avoid_branch(
+Clause *CaptureConstraints::get_avoid_branch(
 		const TerminatorInst *ti, unsigned i) const {
 	assert(ti->getNumSuccessors() > 1);
 	assert(isa<BranchInst>(ti) || isa<IndirectBrInst>(ti) ||
@@ -104,7 +106,6 @@ void CaptureConstraints::capture_unreachable_in_func(Function *f) {
 		if (is_unreachable(bi))
 			sink.insert(bi);
 	}
-	ConstBBSet post_doms;
 	forall(Function, bi, *f) {
 		bool already_in_sink = sink.count(bi);
 		if (!already_in_sink)
@@ -113,29 +114,28 @@ void CaptureConstraints::capture_unreachable_in_func(Function *f) {
 		IntraReach &IR = getAnalysis<IntraReach>(*f);
 		IR.floodfill(&f->getEntryBlock(), sink, visited);
 		// Assume <bi> post-dominates the function entry. 
-		// Will erase it if it doesn't. 
-		post_doms.insert(bi);
+		bool post_doms = true;
 		forall(Function, bj, *f) {
 			if (visited.count(bj) && !sink.count(bj) && is_ret(bj->getTerminator())) {
 				// Erase it from the set <post_doms> if it doesn't really
 				// post-dominate the function entry. 
-				post_doms.erase(bi);
+				post_doms = false;
 				break;
+			}
+		}
+		// TODO: It's also possible that a BB's only successor is unreachable,
+		// although unlikely. We don't handle this case for now. 
+		TerminatorInst *ti = bi->getTerminator();
+		if (post_doms && ti->getNumSuccessors() > 1) {
+			for (unsigned i = 0; i < ti->getNumSuccessors(); ++i) {
+				if (is_unreachable(ti->getSuccessor(i))) {
+					Clause *c = get_avoid_branch(ti, i);
+					if (c)
+						constraints.push_back(c);
+				}
 			}
 		}
 		if (!already_in_sink)
 			sink.erase(bi);
-	}
-#ifdef VERBOSE
-	errs() << "\tBBs that post-dominates the function entry:\n\t";
-	forall(ConstBBSet, it, post_doms)
-		errs() << (*it)->getNameStr() << " ";
-	errs() << "\n";
-#endif
-	forall(Function, bi, *f) {
-		if (!isa<UnreachableInst>(bi->getTerminator()))
-			continue;
-		// <bi> is an unreachable BB. 
-
 	}
 }

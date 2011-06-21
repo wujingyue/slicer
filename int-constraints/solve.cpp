@@ -189,7 +189,7 @@ namespace slicer {
 			const vector<const Clause *> &more_clauses) {
 		vc_push(vc);
 		forallconst(vector<const Clause *>, it, more_clauses)
-			realize_uses(*it);
+			realize(*it);
 		forallconst(vector<const Clause *>, it, more_clauses) {
 			const Clause *c = *it;
 			vc_assertFormula(vc, translate_to_vc(c));
@@ -204,7 +204,7 @@ namespace slicer {
 			const vector<const Clause *> &more_clauses) {
 		vc_push(vc);
 		forallconst(vector<const Clause *>, it, more_clauses)
-			realize_uses(*it);
+			realize(*it);
 		VCExpr conj = vc_trueExpr(vc);
 		forallconst(vector<const Clause *>, it, more_clauses) {
 			const Clause *c = *it;
@@ -215,28 +215,30 @@ namespace slicer {
 		return ret == 1;
 	}
 
-	void SolveConstraints::realize_uses(const Clause *c) {
+	void SolveConstraints::realize(const Clause *c) {
 		if (c->be)
-			realize_uses(c->be);
+			realize(c->be);
 		else {
-			realize_uses(c->c1);
-			realize_uses(c->c2);
+			realize(c->c1);
+			realize(c->c2);
 		}
 	}
 
-	void SolveConstraints::realize_uses(const BoolExpr *be) {
-		realize_uses(be->e1);
-		realize_uses(be->e2);
+	void SolveConstraints::realize(const BoolExpr *be) {
+		realize(be->e1);
+		realize(be->e2);
 	}
 
-	void SolveConstraints::realize_uses(const Expr *e) {
+	void SolveConstraints::realize(const Expr *e) {
 		if (e->type == Expr::Unary) {
-			realize_uses(e->e1);
+			realize(e->e1);
 		} else if (e->type == Expr::Binary) {
-			realize_uses(e->e1);
-			realize_uses(e->e2);
+			realize(e->e1);
+			realize(e->e2);
 		} else if (e->type == Expr::SingleUse) {
-			realize_use(e->u);
+			realize(e->u);
+		} else {
+			realize(dyn_cast<Instruction>(e->v));
 		}
 	}
 
@@ -247,10 +249,13 @@ namespace slicer {
 		return (idom ? idom->getBlock() : NULL);
 	}
 
-	void SolveConstraints::realize_use(const Use *u) {
-		const Instruction *ins = dyn_cast<Instruction>(u->getUser());
+	void SolveConstraints::realize(const Use *u) {
 		// The value of a llvm::Constant is compile-time known. Therefore,
 		// we don't need to capture extra constraints. 
+		realize(dyn_cast<Instruction>(u->getUser()));
+	}
+
+	void SolveConstraints::realize(const Instruction *ins) {
 		if (!ins)
 			return;
 		BasicBlock *bb = const_cast<BasicBlock *>(ins->getParent());

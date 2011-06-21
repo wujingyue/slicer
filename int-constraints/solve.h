@@ -71,10 +71,11 @@ namespace slicer {
 		 * and adds branch conditions that need to be satisfied along the way. 
 		 * TODO: inter-procedural
 		 */
-		void realize_uses(const Clause *c);
-		void realize_uses(const BoolExpr *c);
-		void realize_uses(const Expr *c);
-		void realize_use(const Use *u);
+		void realize(const Clause *c);
+		void realize(const BoolExpr *c);
+		void realize(const Expr *c);
+		void realize(const Use *u);
+		void realize(const Instruction *i);
 		BasicBlock *get_idom(BasicBlock *bb);
 
 		VC vc;

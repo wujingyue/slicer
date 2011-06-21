@@ -54,7 +54,7 @@ namespace slicer {
 		 * Called internally by the module to capture constraints on
 		 * unreachable BBs. 
 		 */
-		const Clause *get_avoid_branch(const TerminatorInst *ti, unsigned i) const;
+		Clause *get_avoid_branch(const TerminatorInst *ti, unsigned i) const;
 
 	private:
 #if 0

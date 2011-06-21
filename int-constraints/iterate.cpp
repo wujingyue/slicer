@@ -54,11 +54,13 @@ namespace slicer {
 	}
 
 	void Iterate::test1(Module &M) {
+		errs() << "===== test1 =====\n";
 		ObjectID &OI = getAnalysis<ObjectID>();
 		SolveConstraints &SC = getAnalysis<SolveConstraints>();
-		Value *v1 = OI.getValue(3138);
-		Value *v2 = OI.getValue(3204);
-		errs() << "may: " << SC.may_equal(v1, v2) << "\n";
+		const IntegerType *int_type = IntegerType::get(getGlobalContext(), 32);
+		const Value *v1 = OI.getValue(3392);
+		const Value *v2 = ConstantInt::get(int_type, 2);
+		errs() << SC.must_equal(v1, v2) << "\n";
 	}
 
 	void Iterate::test2(Module &M) {
@@ -68,11 +70,12 @@ namespace slicer {
 		Value *len1 = OI.getValue(9179);
 		Value *off2 = OI.getValue(17126);
 		// Value *len2 = OI.getValue(17130);
-		Clause *c = new Clause(new BoolExpr(
+		const Clause *c = new Clause(new BoolExpr(
 					CmpInst::ICMP_SLE,
 					new Expr(Instruction::Add, new Expr(off1), new Expr(len1)),
 					new Expr(off2)));
 		errs() << "must: " << SC.provable(vector<const Clause *>(1, c)) << "\n";
+		delete c;
 	}
 
 	void Iterate::test3(Module &M) {
@@ -80,15 +83,18 @@ namespace slicer {
 		SolveConstraints &SC = getAnalysis<SolveConstraints>();
 		Value *v1 = OI.getValue(3289);
 		Value *v2 = OI.getValue(3358);
-		Clause *c = new Clause(new BoolExpr(
+		const Clause *c = new Clause(new BoolExpr(
 					CmpInst::ICMP_SLE, new Expr(v1), new Expr(v2)));
 		errs() << "v1 <= v2: " << SC.provable(vector<const Clause *>(1, c)) << "\n";
+		delete c;
 	}
 
 	void Iterate::test4(Module &M) {
 		ObjectID &OI = getAnalysis<ObjectID>();
 		SolveConstraints &SC = getAnalysis<SolveConstraints>();
-		const Value *v1 = OI.getValue(8);
+		// const Value *v1 = OI.getInstruction(2)->getOperand(0);
+		// const Use *v1 = &OI.getInstruction(2)->getOperandUse(0);
+		const Instruction *v1 = OI.getInstruction(2);
 		const IntegerType *int_type = IntegerType::get(getGlobalContext(), 32);
 		const Value *v2 = ConstantInt::get(int_type, 5);
 		assert(v1 && v2);
@@ -97,6 +103,7 @@ namespace slicer {
 					new Expr(v1),
 					new Expr(v2)));
 		errs() << "must: " << SC.provable(vector<const Clause *>(1, c)) << "\n";
+		delete c;
 	}
 
 	void Iterate::test5(Module &M) {
@@ -105,10 +112,10 @@ namespace slicer {
 	}
 
 	void Iterate::run_tests(Module &M) {
-		// test1(M);
+		test1(M);
 		// test2(M);
 		// test3(M);
-		test4(M);
+		// test4(M);
 		// test5(M);
 	}
 
