@@ -125,7 +125,7 @@ void CaptureConstraints::capture_unreachable_in_func(Function *f) {
 		}
 #ifdef VERBOSE
 		if (post_doms)
-			errs() << bi->getNameStr() << " dominates the function entry.\n";
+			errs() << bi->getNameStr() << " post-dominates the function entry.\n";
 #endif
 		// TODO: It's also possible that a BB's only successor is unreachable,
 		// although unlikely. We don't handle this case for now. 
