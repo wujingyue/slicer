@@ -13,7 +13,20 @@ void CaptureConstraints::capture_unreachable(Module &M) {
 }
 
 bool CaptureConstraints::is_unreachable(const BasicBlock *bb) {
-	return isa<UnreachableInst>(bb->getTerminator());
+	if (!isa<UnreachableInst>(bb->getTerminator()))
+		return false;
+	forallconst(BasicBlock, ii, *bb) {
+		if (const CallInst *ci = dyn_cast<CallInst>(ii)) {
+			const Function *callee = ci->getCalledFunction();
+			if (callee && callee->getNameStr() == "llvm.trap")
+				assert(isa<IntrinsicInst>(ii));
+		}
+		if (const IntrinsicInst *intr = dyn_cast<IntrinsicInst>(ii)) {
+			if (intr->getIntrinsicID() == Intrinsic::trap)
+				return true;
+		}
+	}
+	return false;
 }
 
 Clause *CaptureConstraints::get_avoid_branch(
@@ -123,10 +136,6 @@ void CaptureConstraints::capture_unreachable_in_func(Function *f) {
 				break;
 			}
 		}
-#ifdef VERBOSE
-		if (post_doms)
-			errs() << bi->getNameStr() << " post-dominates the function entry.\n";
-#endif
 		// TODO: It's also possible that a BB's only successor is unreachable,
 		// although unlikely. We don't handle this case for now. 
 		TerminatorInst *ti = bi->getTerminator();

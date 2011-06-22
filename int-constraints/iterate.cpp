@@ -64,18 +64,42 @@ namespace slicer {
 	}
 
 	void Iterate::test2(Module &M) {
-		ObjectID &OI = getAnalysis<ObjectID>();
+		errs() << "===== test2 =====\n";
+		CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 		SolveConstraints &SC = getAnalysis<SolveConstraints>();
-		Value *off1 = OI.getValue(9175);
-		Value *len1 = OI.getValue(9179);
-		Value *off2 = OI.getValue(17126);
-		// Value *len2 = OI.getValue(17130);
-		const Clause *c = new Clause(new BoolExpr(
-					CmpInst::ICMP_SLE,
-					new Expr(Instruction::Add, new Expr(off1), new Expr(len1)),
-					new Expr(off2)));
-		errs() << "must: " << SC.provable(vector<const Clause *>(1, c)) << "\n";
-		delete c;
+		ObjectID &OI = getAnalysis<ObjectID>();
+		const IntegerType *int_type = IntegerType::get(getGlobalContext(), 32);
+		const Value *zero = ConstantInt::get(int_type, 0);
+		const Value *one = ConstantInt::get(int_type, 1);
+		forallinst(M, ii) {
+			if (BranchInst *bi = dyn_cast<BranchInst>(ii)) {
+				if (bi->isUnconditional())
+					continue;
+				const Value *cond = bi->getCondition();
+				if (!CC.is_constant(cond))
+					continue;
+				errs() << OI.getInstructionID(bi) << ":" << *bi;
+				Clause *c;
+				bool ret;
+				const Use *use_cond = &bi->getOperandUse(0);
+				c = new Clause(new BoolExpr(
+							CmpInst::ICMP_EQ, new Expr(use_cond), new Expr(one)));
+				ret = SC.provable(vector<const Clause *>(1, c));
+				delete c;
+				if (ret) {
+					errs() << " === True\n";
+					continue;
+				}
+				c = new Clause(new BoolExpr(
+							CmpInst::ICMP_EQ, new Expr(use_cond), new Expr(zero)));
+				ret = SC.provable(vector<const Clause *>(1, c));
+				if (ret) {
+					errs() << " === False\n";
+					continue;
+				}
+				errs() << " === Unknown\n";
+			}
+		}
 	}
 
 	void Iterate::test3(Module &M) {
@@ -112,8 +136,8 @@ namespace slicer {
 	}
 
 	void Iterate::run_tests(Module &M) {
-		test1(M);
-		// test2(M);
+		// test1(M);
+		test2(M);
 		// test3(M);
 		// test4(M);
 		// test5(M);

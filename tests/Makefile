@@ -1,9 +1,10 @@
-ORIG_PROGS=test-thread test-path test-overwrite test-ctxt test-recursive
+ORIG_PROGS=test-thread test-path test-overwrite test-ctxt test-recursive \
+	   test-branch
 SLICED_PROGS=$(ORIG_PROGS>.slice)
 PROGS=$(ORIG_PROGS) $(SLICED_PROGS)
 
-CFLAGS=-g -O2 -Wall
-CXXFLAGS=-g -O2 -Wall
+CFLAGS=-g -Wall
+CXXFLAGS=-g -Wall
 
 all: $(PROGS>.ll) $(PROGS) test-icfg test-alias
 

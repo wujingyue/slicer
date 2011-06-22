@@ -280,44 +280,6 @@ namespace slicer {
 					}
 				}
 			}
-#if 0
-			/* TODO: We only handle BranchInst with ICmpInst for now. */
-			if (BranchInst *bi = dyn_cast<BranchInst>(p->getTerminator())) {
-				ICmpInst *cond = dyn_cast<ICmpInst>(bi->getCondition());
-				if (cond && CC.is_constant(cond)) {
-					assert(bi->getNumSuccessors() == 2);
-					/*
-					 * -1: Neither leads to <bb> (Impossible)
-					 * 0: Only successor 0 leads to <bb>
-					 * 1: Only successor 1 leads to <bb>
-					 * -2: Both lead to <bb>
-					 */
-					int leads_to_bb = -1;
-					if (IR.reachable(bi->getSuccessor(0), bb))
-						leads_to_bb = 0;
-					if (IR.reachable(bi->getSuccessor(1), bb)) {
-						if (leads_to_bb >= 0)
-							leads_to_bb = -2;
-						else
-							leads_to_bb = 1;
-					}
-					assert(leads_to_bb != -1);
-					if (leads_to_bb == 0 || leads_to_bb == 1) {
-						CmpInst::Predicate pred = cond->getPredicate();
-						const Clause *c = new Clause(new BoolExpr(
-									leads_to_bb == 0 ? pred: CmpInst::getInversePredicate(pred),
-									new Expr(cond->getOperand(0)),
-									new Expr(cond->getOperand(1))));
-						errs() << "new clause:";
-						print_clause(errs(), c, getAnalysis<ObjectID>());
-						errs() << "\n";
-						VCExpr vce = translate_to_vc(c);
-						vc_assertFormula(vc, vce);
-						delete c;
-					}
-				}
-			} // if BranchInst
-#endif
 			bb = p;
 		}
 	}

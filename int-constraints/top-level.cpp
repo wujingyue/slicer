@@ -128,6 +128,9 @@ namespace slicer {
 		if (bi && bi->isConditional()) {
 			// We need to include the branch condition as well. 
 			assert(bi->getNumSuccessors() == 2);
+			assert_not_implemented();
+			// FIXME: bi->getCondition() will fail if <bi> is not a 
+			// conditional branch. 
 			ICmpInst *cond = dyn_cast<ICmpInst>(bi->getCondition());
 			if (cond) {
 				assert(cond->getNumOperands() == 2);

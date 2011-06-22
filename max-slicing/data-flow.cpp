@@ -110,38 +110,9 @@ void MaxSlicing::fix_def_use_bb(
 									getGlobalContext(),
 									"unreachable",
 									fi);
-#if 0
-							AttributeWithIndex awi = AttributeWithIndex::get(
-									~0u, Attribute::NoReturn | Attribute::NoUnwind);
-#endif
-#if 0
-							Function *func_abort = dyn_cast<Function>(M.getOrInsertFunction(
-									"abort",
-									FunctionType::get(
-										Type::getVoidTy(getGlobalContext()),
-										false)));
-							assert(func_abort && "Cannot find function abort()");
-							// TODO: not necessary to do it every time
-							func_abort->setDoesNotReturn();
-							func_abort->setDoesNotThrow();
-							CallInst *ci = CallInst::Create(func_abort, "", unreachable_bb);
-							ci->setAttributes(func_abort->getAttributes());
-#else
-							const Type *int_type = IntegerType::get(getGlobalContext(), 32);
-							Function *func_exit = dyn_cast<Function>(M.getOrInsertFunction(
-									"exit",
-									FunctionType::get(
-										Type::getVoidTy(getGlobalContext()),
-										vector<const Type *>(1, int_type),
-										false)));
-							assert(func_exit && "Cannot find function exit()");
-							// TODO: not necessary to do it every time
-							func_exit->setDoesNotReturn();
-							func_exit->setDoesNotThrow();
-							CallInst *ci = CallInst::Create(
-									func_exit, ConstantInt::get(int_type, 0), "", unreachable_bb);
-							ci->setAttributes(func_exit->getAttributes());
-#endif
+							// Insert an llvm.trap in the unreachable BB. 
+							Function *trap = Intrinsic::getDeclaration(&M, Intrinsic::trap);
+							CallInst::Create(trap, "", unreachable_bb);
 							new UnreachableInst(getGlobalContext(), unreachable_bb);
 							unreach_bbs[fi] = unreachable_bb;
 						}
