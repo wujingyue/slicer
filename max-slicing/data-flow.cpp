@@ -34,8 +34,8 @@ void MaxSlicing::fix_def_use_bb(
 		Module &M) {
 	cerr << "Fixing BBs in def-use graph...\n";
 	DenseMap<Function *, BasicBlock *> unreach_bbs;
-	for (Module::iterator fi = M.begin(); fi != M.end(); ++fi) {
-		for (Function::iterator bi = fi->begin(); bi != fi->end(); ++bi) {
+	forallfunc(M, fi) {
+		forall(Function, bi, *fi) {
 			assert(bi->begin() != bi->end());
 			// Skip original BBs. 
 			if (!clone_map_r.count(bi->begin()))
@@ -74,6 +74,8 @@ void MaxSlicing::fix_def_use_bb(
 			// Fix the terminator. 
 			TerminatorInst *ti = bi->getTerminator();
 			if (ti == NULL) {
+				errs() << "[Warning] No terminator: " << fi->getNameStr() << "."
+					<< bi->getNameStr() << "\n";
 				/*
 				 * Some BBs don't have a Terminator because they end with functions
 				 * such as pthread_exit() or exit(), or the CFG is not complete due
@@ -108,13 +110,38 @@ void MaxSlicing::fix_def_use_bb(
 									getGlobalContext(),
 									"unreachable",
 									fi);
-							Constant *func_abort = M.getOrInsertFunction(
+#if 0
+							AttributeWithIndex awi = AttributeWithIndex::get(
+									~0u, Attribute::NoReturn | Attribute::NoUnwind);
+#endif
+#if 0
+							Function *func_abort = dyn_cast<Function>(M.getOrInsertFunction(
 									"abort",
 									FunctionType::get(
 										Type::getVoidTy(getGlobalContext()),
-										false));
+										false)));
 							assert(func_abort && "Cannot find function abort()");
-							CallInst::Create(func_abort, "", unreachable_bb);
+							// TODO: not necessary to do it every time
+							func_abort->setDoesNotReturn();
+							func_abort->setDoesNotThrow();
+							CallInst *ci = CallInst::Create(func_abort, "", unreachable_bb);
+							ci->setAttributes(func_abort->getAttributes());
+#else
+							const Type *int_type = IntegerType::get(getGlobalContext(), 32);
+							Function *func_exit = dyn_cast<Function>(M.getOrInsertFunction(
+									"exit",
+									FunctionType::get(
+										Type::getVoidTy(getGlobalContext()),
+										vector<const Type *>(1, int_type),
+										false)));
+							assert(func_exit && "Cannot find function exit()");
+							// TODO: not necessary to do it every time
+							func_exit->setDoesNotReturn();
+							func_exit->setDoesNotThrow();
+							CallInst *ci = CallInst::Create(
+									func_exit, ConstantInt::get(int_type, 0), "", unreachable_bb);
+							ci->setAttributes(func_exit->getAttributes());
+#endif
 							new UnreachableInst(getGlobalContext(), unreachable_bb);
 							unreach_bbs[fi] = unreachable_bb;
 						}

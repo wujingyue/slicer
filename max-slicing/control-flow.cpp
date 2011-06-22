@@ -166,11 +166,17 @@ void MaxSlicing::assign_container(
 	if (old_x == old_bb->begin()) {
 		Function *func;
 		if (old_bb == old_func->begin()) {
+			// TODO: Very fragile. Need a robust way to copy the function
+			// prototype. 
 			func = Function::Create(
 					old_func->getFunctionType(),
 					old_func->getLinkage(),
 					old_func->getNameStr() + SLICER_SUFFIX,
 					&M);
+			func->setAttributes(old_func->getAttributes());
+			func->setCallingConv(old_func->getCallingConv());
+			if (old_func->hasGC())
+				func->setGC(old_func->getGC());
 			Function::arg_iterator ai = func->arg_begin();
 			Function::arg_iterator old_ai = old_func->arg_begin();
 			for (; ai != func->arg_end() && old_ai != old_func->arg_end();
