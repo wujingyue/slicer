@@ -34,8 +34,28 @@ namespace slicer {
 
 		bool satisfiable(const vector<const Clause *> &more_clauses);
 		bool provable(const vector<const Clause *> &more_clauses);
-		bool may_equal(const Value *v1, const Value *v2);
-		bool must_equal(const Value *v1, const Value *v2);
+
+		template <typename T1, typename T2>
+		bool may_equal(const T1 *v1, const T2 *v2) {
+			const Clause *c = new Clause(new BoolExpr(
+						CmpInst::ICMP_EQ,
+						new Expr(v1),
+						new Expr(v2)));
+			bool ret = satisfiable(vector<const Clause *>(1, c));
+			delete c;
+			return ret;
+		}
+
+		template <typename T1, typename T2>
+		bool must_equal(const T1 *v1, const T2 *v2) {
+			const Clause *c = new Clause(new BoolExpr(
+						CmpInst::ICMP_EQ,
+						new Expr(v1),
+						new Expr(v2)));
+			bool ret = provable(vector<const Clause *>(1, c));
+			delete c;
+			return ret;
+		}
 
 	private:
 		// Intermediate VC expressions will be inserted to member <vc>. 

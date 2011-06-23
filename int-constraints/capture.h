@@ -162,13 +162,13 @@ namespace slicer {
 		/* Constraints from unreachable blocks. */
 		void capture_unreachable(Module &M);
 		void capture_unreachable_in_func(Function *f);
+		/* Utility functions */
 		/*
 		 * Check whether <bb> is the unreachable BB we added. 
 		 * It not only has an UnreachableInst at the end, but also has
 		 * an llvm.trap instruction. 
 		 */
 		static bool is_unreachable(const BasicBlock *bb);
-		/* Utility functions */
 		/* Returns the size of a type in bits */
 		static unsigned get_type_size(const Type *type);
 

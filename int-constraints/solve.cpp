@@ -54,26 +54,6 @@ namespace slicer {
 		errs() << err_msg << "\n";
 	}
 
-	bool SolveConstraints::may_equal(const Value *v1, const Value *v2) {
-		const Clause *c = new Clause(new BoolExpr(
-					CmpInst::ICMP_EQ,
-					new Expr(v1),
-					new Expr(v2)));
-		bool ret = satisfiable(vector<const Clause *>(1, c));
-		delete c;
-		return ret;
-	}
-
-	bool SolveConstraints::must_equal(const Value *v1, const Value *v2) {
-		const Clause *c = new Clause(new BoolExpr(
-					CmpInst::ICMP_EQ,
-					new Expr(v1),
-					new Expr(v2)));
-		bool ret = provable(vector<const Clause *>(1, c));
-		delete c;
-		return ret;
-	}
-
 	VCExpr SolveConstraints::translate_to_vc(const Clause *c) {
 		if (c->be)
 			return translate_to_vc(c->be);
