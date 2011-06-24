@@ -24,7 +24,11 @@ namespace slicer {
 		 * Returns whether we've changed <bi>. 
 		 */
 		bool try_remove_branch(BranchInst *bi, BasicBlock *&unreachable_bb);
-		void remove_branch(
+		/*
+		 * This function does nothing if bi->getSuccessor(i) is already an
+		 * unreachable BB. It returns <false> in that case. 
+		 */
+		bool remove_branch(
 				TerminatorInst *bi, unsigned i, BasicBlock *&unreachable_bb);
 	};
 }

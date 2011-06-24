@@ -36,21 +36,43 @@ bool RemoveBranch::runOnModule(Module &M) {
 	forallfunc(M, f) {
 		BasicBlock *unreachable_bb = NULL;
 		forall(Function, bb, *f) {
+			CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
+			if (CC.is_unreachable(bb)) {
+				unreachable_bb = bb;
+				break;
+			}
+		}
+		forall(Function, bb, *f) {
 			// TODO: We could do the same thing for SwitchInsts too. 
 			if (BranchInst *bi = dyn_cast<BranchInst>(bb->getTerminator()))
 				changed |= try_remove_branch(bi, unreachable_bb);
 		}
-		// We added the unreachable BB after the loop, because it's a little
-		// dangerous to change the function while iterating through it. 
-		if (unreachable_bb)
+		/*
+		 * We added the unreachable BB after the loop, because it's a little
+		 * dangerous to change the function while iterating through it.
+		 *
+		 * Also, if we reused an unreachable BB in the function rather than
+		 * created a new one, we don't need to worry about parenting the BB. 
+		 */
+		if (unreachable_bb && unreachable_bb->getParent() == NULL)
 			f->getBasicBlockList().push_back(unreachable_bb);
 	}
 	return changed;
 }
 
-void RemoveBranch::remove_branch(
+bool RemoveBranch::remove_branch(
 		TerminatorInst *bi, unsigned i, BasicBlock *&unreachable_bb) {
+
 	assert(i < bi->getNumSuccessors());
+	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
+	/*
+	 * There may be multiple unreachable BBs in a function. Therefore, 
+	 * we should call function is_unreachable instead of simply comparing
+	 * the sucessor with <unreachable_bb>.
+	 */
+	if (CC.is_unreachable(bi->getSuccessor(i)))
+		return false;
+
 	errs() << "=== remove_branch ===\n";
 	++BranchesRemoved;
 	// Create the unreachable BB if necessary. 
@@ -64,6 +86,7 @@ void RemoveBranch::remove_branch(
 		new UnreachableInst(getGlobalContext(), unreachable_bb);
 	}
 	bi->setSuccessor(i, unreachable_bb);
+	return true;
 }
 
 bool RemoveBranch::try_remove_branch(
@@ -81,17 +104,12 @@ bool RemoveBranch::try_remove_branch(
 	
 	const IntegerType *int_type = IntegerType::get(getGlobalContext(), 32);
 	const Use *use_cond = &bi->getOperandUse(0);
-	if (SC.must_equal(use_cond, ConstantInt::get(int_type, 1))) {
-		// Remove the false branch. 
-		remove_branch(bi, 1, unreachable_bb);
-		return true;
-	}
-	if (SC.must_equal(use_cond, ConstantInt::get(int_type, 0))) {
-		// Remove the true branch.
-		remove_branch(bi, 0, unreachable_bb);
-		return true;
-	}
-
-	// Unknown. 
+	// Remove the false branch. 
+	if (SC.must_equal(use_cond, ConstantInt::get(int_type, 1)))
+		return remove_branch(bi, 1, unreachable_bb);
+	// Remove the true branch.
+	if (SC.must_equal(use_cond, ConstantInt::get(int_type, 0)))
+		return remove_branch(bi, 0, unreachable_bb);
+	// Do nothing if we cannot infer anything. 
 	return false;
 }

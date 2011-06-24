@@ -16,11 +16,6 @@ bool CaptureConstraints::is_unreachable(const BasicBlock *bb) {
 	if (!isa<UnreachableInst>(bb->getTerminator()))
 		return false;
 	forallconst(BasicBlock, ii, *bb) {
-		if (const CallInst *ci = dyn_cast<CallInst>(ii)) {
-			const Function *callee = ci->getCalledFunction();
-			if (callee && callee->getNameStr() == "llvm.trap")
-				assert(isa<IntrinsicInst>(ii));
-		}
 		if (const IntrinsicInst *intr = dyn_cast<IntrinsicInst>(ii)) {
 			if (intr->getIntrinsicID() == Intrinsic::trap)
 				return true;

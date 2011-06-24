@@ -55,6 +55,12 @@ namespace slicer {
 		 * unreachable BBs. 
 		 */
 		Clause *get_avoid_branch(const TerminatorInst *ti, unsigned i) const;
+		/*
+		 * Check whether <bb> is the unreachable BB we added. 
+		 * It not only has an UnreachableInst at the end, but also has
+		 * an llvm.trap instruction. 
+		 */
+		static bool is_unreachable(const BasicBlock *bb);
 
 	private:
 #if 0
@@ -163,12 +169,6 @@ namespace slicer {
 		void capture_unreachable(Module &M);
 		void capture_unreachable_in_func(Function *f);
 		/* Utility functions */
-		/*
-		 * Check whether <bb> is the unreachable BB we added. 
-		 * It not only has an UnreachableInst at the end, but also has
-		 * an llvm.trap instruction. 
-		 */
-		static bool is_unreachable(const BasicBlock *bb);
 		/* Returns the size of a type in bits */
 		static unsigned get_type_size(const Type *type);
 
