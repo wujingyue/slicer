@@ -30,8 +30,11 @@ namespace slicer {
 		// Global variables. 
 		for (Module::global_iterator gi = M.global_begin();
 				gi != M.global_end(); ++gi) {
-			if (isa<IntegerType>(gi->getType()) || isa<PointerType>(gi->getType()))
+			if (isa<IntegerType>(gi->getType()) || isa<PointerType>(gi->getType())) {
 				constants.insert(gi);
+				if (gi->hasInitializer())
+					extract_consts(gi->getInitializer());
+			}
 		}
 		// Instructions and their constant operands. 
 		forallinst(M, ii) {

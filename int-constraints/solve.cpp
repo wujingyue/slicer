@@ -37,20 +37,25 @@ namespace slicer {
 			vc = NULL;
 		}
 		vc = vc_createValidityChecker();
+		// vc_setFlags(vc, 'p');
 		vc_registerErrorHandler(vc_error_handler);
 
 		CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
+		// CC.print(errs(), &M);
 		for (unsigned i = 0; i < CC.get_num_constraints(); ++i) {
 			const Clause *c = CC.get_constraint(i);
 			VCExpr vc_expr = translate_to_vc(c);
 			vc_assertFormula(vc, vc_expr);
 		}
+		vc_push(vc);
+		assert(vc_query(vc, vc_falseExpr(vc)) == 0);
+		vc_pop(vc);
 
 		return false;
 	}
 
 	void SolveConstraints::vc_error_handler(const char *err_msg) {
-		errs() << "vc_error_handler\n";
+		errs() << "Error in VC: ";
 		errs() << err_msg << "\n";
 	}
 
@@ -170,8 +175,8 @@ namespace slicer {
 		vc_push(vc);
 		forallconst(vector<const Clause *>, it, more_clauses)
 			realize(*it);
-		forallconst(vector<const Clause *>, it, more_clauses) {
-			const Clause *c = *it;
+		for (size_t i = 0; i < more_clauses.size(); ++i) {
+			const Clause *c = more_clauses[i];
 			vc_assertFormula(vc, translate_to_vc(c));
 		}
 		int ret = vc_query(vc, vc_falseExpr(vc));
@@ -254,6 +259,11 @@ namespace slicer {
 					CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 					const Clause *c = CC.get_avoid_branch(ti, i);
 					if (c) {
+#if 0
+						errs() << "[realize] ";
+						print_clause(errs(), c, getAnalysis<ObjectID>());
+						errs() << "\n";
+#endif
 						VCExpr vce = translate_to_vc(c);
 						vc_assertFormula(vc, vce);
 						delete c;
@@ -268,6 +278,17 @@ namespace slicer {
 			unsigned op, VCExpr left, VCExpr right) {
 		switch (op) {
 			case Instruction::Add:
+				// TODO: Not sure which one is faster. 
+				{
+					VCExpr long_sum = vc_bvPlusExpr(
+							vc, 64,
+							vc_bvSignExtend(vc, left, 64), vc_bvSignExtend(vc, right, 64));
+					vc_assertFormula(
+							vc, vc_sbvLeExpr(vc, vc_int_min_64(vc), long_sum));
+					vc_assertFormula(
+							vc, vc_sbvLeExpr(vc, long_sum, vc_int_max_64(vc)));
+				}
+#if 0
 				// -oo <= left + right <= oo
 				// left >= 0: right <= oo - left
 				// left < 0: right >= -oo - left
@@ -289,11 +310,12 @@ namespace slicer {
 								vc,
 								right,
 								vc_bv32MinusExpr(vc, vc_int_min(vc), left))));
+#endif
 				break;
 			case Instruction::Sub:
 				// -oo <= left + (-right) <= oo
 				avoid_overflow(
-						Instruction::Add, left, vc_bv32MinusExpr(vc, vc_zero(vc), right));
+						Instruction::Add, left, vc_bvUMinusExpr(vc, right));
 				break;
 			case Instruction::Mul:
 				// TODO: does not support negative numbers

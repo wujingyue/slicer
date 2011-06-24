@@ -76,12 +76,19 @@ namespace slicer {
 		static VCExpr vc_int_max(VC vc) {
 			return vc_bv32ConstExprFromInt(vc, INT_MAX);
 		}
-		// Returns the same value as <vc_int_max>, but in 64-bit. 
+		static VCExpr vc_int_min(VC vc) {
+			return vc_bv32ConstExprFromInt(vc, INT_MIN);
+		}
+		// Returns the same value as <vc_int_max/min>, but in 64-bit. 
 		static VCExpr vc_int_max_64(VC vc) {
 			return vc_bvConstExprFromInt(vc, 64, INT_MAX);
 		}
-		static VCExpr vc_int_min(VC vc) {
-			return vc_bv32ConstExprFromInt(vc, INT_MIN);
+		static VCExpr vc_int_min_64(VC vc) {
+			// NOTE: The statement below is WRONG. 
+			// return vc_bvConstExprFromInt(vc, 64, INT_MIN);
+			// INT_MIN = 0x80000000. If directly converted into 64-bit, it
+			// will be a positive integer. 
+			return vc_bvSignExtend(vc, vc_int_min(vc), 64);
 		}
 
 		/**

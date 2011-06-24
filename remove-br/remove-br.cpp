@@ -2,7 +2,10 @@
  * Author: Jingyue
  */
 
+#define DEBUG_TYPE "remove-br"
+
 #include "llvm/LLVMContext.h"
+#include "llvm/ADT/Statistic.h"
 using namespace llvm;
 
 #include "remove-br.h"
@@ -16,6 +19,8 @@ static RegisterPass<RemoveBranch> X(
 		"Remove unreachable branches according to int-constraints",
 		false,
 		false);
+
+STATISTIC(BranchesRemoved, "Number of branches removed");
 
 char RemoveBranch::ID = 0;
 
@@ -36,12 +41,15 @@ bool RemoveBranch::runOnFunction(Function &f) {
 	}
 	if (unreachable_bb)
 		f.getBasicBlockList().push_back(unreachable_bb);
+	errs() << "RemoveBranch::runOnFunction returns " << changed << "\n";
 	return changed;
 }
 
 void RemoveBranch::remove_branch(
 		TerminatorInst *bi, unsigned i, BasicBlock *&unreachable_bb) {
 	assert(i < bi->getNumSuccessors());
+	errs() << "=== remove_branch ===\n";
+	++BranchesRemoved;
 	// Create the unreachable BB if necessary. 
 	if (!unreachable_bb) {
 		// We will insert <unreachable_bb> into the function later. 

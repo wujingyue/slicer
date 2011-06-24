@@ -118,13 +118,17 @@ int LoadPlugins() {
  * Returns -1 on failure. 
  * Returns 1 if <M> gets changed. 
  * Returns 0 if <M> is unchanged. 
+ *
+ * NOTE: -O3 changes the module even if the module is already O3'ed. 
+ * We shouldn't rely on the return value. 
  */
-int DoOneIteration(Module *M) {
+int RunOptimizationPasses(Module *M) {
 
 	// Create a PassManager to hold and optimize the collection of passes we are
 	// about to build...
 	PassManager Passes;
 
+	// TODO: Not sure if TargetData is necessary. 
 	// Add an appropriate TargetData instance for this module...
 	TargetData *TD = 0;
 	const std::string &ModuleDataLayout = M->getDataLayout();
@@ -139,37 +143,38 @@ int DoOneIteration(Module *M) {
 	if (TD)
 		FPasses->add(new TargetData(*TD));
 
-#if 0
-	// Add -O3. 
 	AddOptimizationPasses(Passes, *FPasses, 3);
-#endif
-#if 1
-	// Add BranchRemover. BranchRemover requires Iterator. 
-	const PassInfo *PI = listener.getBranchRemover();
-	if (!PI) {
-		errs() << "BranchRemover hasn't been loaded.\n";
-		return -1;
-	}
-	if (!PI->getNormalCtor()) {
-		errs() << "Cannot create Pass " << PI->getPassName() << "\n";
-		return -1;
-	}
-	Passes.add(PI->getNormalCtor()());
-#endif
 
+	bool changed = false;
+	/*
+	 * Run intra-procedural opts first.
+	 * We could also use just one pass manager, but then we would have
+	 * to be very careful about the order in which the passes are added
+	 * (e.g. Add FunctionPass's before ModulePass's). 
+	 */
 	FPasses->doInitialization();
 	for (Module::iterator I = M->begin(), E = M->end(); I != E; ++I)
-		FPasses->run(*I);
+		changed |= FPasses->run(*I);
 
 	// Now that we have all of the passes ready, run them.
-	if (Passes.run(*M))
-		return 1;
-	else
-		return 0;
+	changed |= Passes.run(*M);
+
+	return (changed ? 1 : 0);
 }
 
-void OutputModule(Module *M) {
+/*
+ * Run the passes in <PIs> in the specified order. 
+ *
+ * Returns -1 on failure. 
+ * Returns 1 if <M> gets changed. 
+ * Returns 0 if <M> is unchanged. 
+ */
+int RunPasses(Module *M, const vector<const PassInfo *> &PIs) {
+
+	// Create a PassManager to hold and optimize the collection of passes we are
+	// about to build...
 	PassManager Passes;
+	
 	// Add an appropriate TargetData instance for this module...
 	TargetData *TD = 0;
 	const std::string &ModuleDataLayout = M->getDataLayout();
@@ -177,8 +182,61 @@ void OutputModule(Module *M) {
 		TD = new TargetData(ModuleDataLayout);
 	if (TD)
 		Passes.add(TD);
+	
+	for (size_t i = 0; i < PIs.size(); ++i) {
+		const PassInfo *PI = PIs[i];
+		if (!PI->getNormalCtor()) {
+			errs() << "Cannot create Pass " << PI->getPassName() << "\n";
+			return -1;
+		}
+		Passes.add(PI->getNormalCtor()());
+	}
+
+	// Now that we have all of the passes ready, run them.
+	bool Changed = Passes.run(*M);
+	errs() << "RunPasses: " << Changed << "\n";
+	return (Changed ? 1 : 0);
+}
+
+/*
+ * Returns -1 on failure. 
+ * Returns 1 if <M> gets changed. 
+ * Returns 0 if <M> is unchanged. 
+ */
+int DoOneIteration(Module *M) {
+
+	if (RunOptimizationPasses(M) == -1)
+		return -1;
+	
+	// Run BranchRemover. 
+	// BranchRemover requires Iterator, so don't worry about Iterator. 
+	const PassInfo *PI = listener.getBranchRemover();
+	if (!PI) {
+		errs() << "BranchRemover hasn't been loaded.\n";
+		return -1;
+	}
+	
+	// Optimization passes seem to always change the module (maybe a bug
+	// in LLVM 2.7), so we only look at whether BranchRemover has changed
+	// the module or not. 
+	return RunPasses(M, vector<const PassInfo *>(1, PI));
+}
+
+void OutputModule(Module *M) {
+
+	PassManager Passes;
+
+	// Add an appropriate TargetData instance for this module...
+	TargetData *TD = 0;
+	const std::string &ModuleDataLayout = M->getDataLayout();
+	if (!ModuleDataLayout.empty())
+		TD = new TargetData(ModuleDataLayout);
+	if (TD)
+		Passes.add(TD);
+	
 	// Write bitcode or assembly out to disk or outs() as the last step...
 	Passes.add(createBitcodeWriterPass(outs()));
+	
 	// Now that we have all of the passes ready, run them.
 	Passes.run(*M);
 }

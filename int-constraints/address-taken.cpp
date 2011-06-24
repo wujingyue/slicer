@@ -115,14 +115,18 @@ namespace slicer {
 		}
 #endif
 		/*
-		 * store v1, p
+		 * store v1, p (including global variable initializers)
 		 * v2 = load q
 		 * p and q may alias
 		 * =>
 		 * v2 may = v1
 		 */
-		vector<StoreInst *> all_stores;
-		vector<LoadInst *> all_loads;
+		// <value, pointer>
+		vector<pair<const Value *, const Value *> > all_stores, all_loads;
+		// Scan through all loads and stores. 
+		// NOTE: We don't guarantee these stores and loads are constant. 
+		// Actually, we need consider non-constant stores here, because any
+		// instruction that loads from it may end up loading anything. 
 		forallinst(M, ii) {
 			ExecOnce &EO = getAnalysis<ExecOnce>();
 			if (EO.not_executed(ii))
@@ -132,9 +136,24 @@ namespace slicer {
 				continue;
 			if (isa<IntegerType>(v->getType()) || isa<PointerType>(v->getType())) {
 				if (StoreInst *si = dyn_cast<StoreInst>(ii))
-					all_stores.push_back(si);
+					all_stores.push_back(make_pair(v, si->getPointerOperand()));
 				if (LoadInst *li = dyn_cast<LoadInst>(ii))
-					all_loads.push_back(li);
+					all_loads.push_back(make_pair(v, li->getPointerOperand()));
+			}
+		}
+		// Scan through all global variables. 
+		for (Module::global_iterator gi = M.global_begin();
+				gi != M.global_end(); ++gi) {
+			// FIXME: We ignore pointers here. They are usually initialized as NULL.
+			// <gi> itself must be a pointer. 
+			assert(isa<PointerType>(gi->getType()));
+			const Type *ele_type =
+				dyn_cast<PointerType>(gi->getType())->getElementType();
+			if (!isa<IntegerType>(ele_type))
+				continue;
+			if (gi->hasInitializer()) {
+				if (ConstantInt *ci = dyn_cast<ConstantInt>(gi->getInitializer()))
+					all_stores.push_back(make_pair(ci, gi));
 			}
 		}
 		errs() << "# of loads = " << all_loads.size() << "\n";
@@ -143,20 +162,15 @@ namespace slicer {
 #if 0
 			errs() << "capture_addr_taken: " << i << "/" << all_loads.size() << "\n";
 #endif
-			ObjectID &OI = getAnalysis<ObjectID>();
+			if (!is_constant(all_loads[i].first))
+				continue;
 			Clause *disj = NULL;
 			for (size_t j = 0; j < all_stores.size(); ++j) {
-				if (AA->alias(
-							all_loads[i]->getPointerOperand(), 0,
-							all_stores[j]->getPointerOperand(), 0)) {
-					if (OI.getValueID(all_loads[i]) == 3605) {
-						errs() << "source " << OI.getInstructionID(all_stores[j]) << ":"
-							<< *all_stores[j] << "\n";
-					}
-					// If at least one of them is not constant, the loaded value
+				if (AA->alias(all_loads[i].second, 0, all_stores[j].second, 0)) {
+					// If the stored value is not constant, the loaded value
 					// can be anything. So, no constraint will be captured in
 					// this case. 
-					if (!is_constant(all_stores[j]->getOperand(0))) {
+					if (!is_constant(all_stores[j].first)) {
 						// errs() << "[Warning] Stores a variable\n";
 						if (disj)
 							delete disj;
@@ -165,8 +179,8 @@ namespace slicer {
 					}
 					Clause *c = new Clause(new BoolExpr(
 								CmpInst::ICMP_EQ,
-								new Expr(all_loads[i]),
-								new Expr(all_stores[j]->getOperand(0))));
+								new Expr(all_loads[i].first),
+								new Expr(all_stores[j].first)));
 					if (!disj)
 						disj = c;
 					else {
