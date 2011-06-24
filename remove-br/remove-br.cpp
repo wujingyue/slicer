@@ -17,6 +17,8 @@ static RegisterPass<RemoveBranch> X(
 		false,
 		false);
 
+char RemoveBranch::ID = 0;
+
 void RemoveBranch::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<Iterate>();
 	AU.addRequired<CaptureConstraints>();

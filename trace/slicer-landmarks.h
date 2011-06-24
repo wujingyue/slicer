@@ -1,3 +1,9 @@
+/**
+ * Author: Jingyue
+ *
+ * TODO: make it configurable. e.g. Read from a config file. 
+ */
+
 #ifndef __SLICER_LANDMARKS_H
 #define __SLICER_LANDMARKS_H
 

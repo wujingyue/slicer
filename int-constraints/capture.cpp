@@ -26,195 +26,190 @@ using namespace std;
 #include "must-alias.h"
 #include "exec-once.h"
 #include "../max-slicing/clone-map-manager.h"
+using namespace slicer;
 
-namespace {
-	
-	static RegisterPass<slicer::CaptureConstraints> X(
-			"capture-constraints",
-			"Capture all integer constraints",
-			false,
-			true); // is analysis
+static RegisterPass<CaptureConstraints> X(
+		"capture-constraints",
+		"Capture all integer constraints",
+		false,
+		true); // is analysis
+
+char CaptureConstraints::ID = 0;
+
+CaptureConstraints::CaptureConstraints(): ModulePass(&ID) {
+#if 0
+	n_symbols = 0;
+#endif
+	AA = NULL;
 }
 
-namespace slicer {
-
-	CaptureConstraints::CaptureConstraints(): ModulePass(&ID) {
-#if 0
-		n_symbols = 0;
-#endif
-		AA = NULL;
+CaptureConstraints::~CaptureConstraints() {
+	forall(vector<Clause *>, it, constraints) {
+		delete *it;
+		*it = NULL;
 	}
+}
 
-	CaptureConstraints::~CaptureConstraints() {
-		forall(vector<Clause *>, it, constraints) {
-			delete *it;
-			*it = NULL;
-		}
-	}
-
-	void CaptureConstraints::print(raw_ostream &O, const Module *M) const {
+void CaptureConstraints::print(raw_ostream &O, const Module *M) const {
 #if 0
-		O << "Start-BB bounds:\n";
-		DenseMap<BasicBlock *, ValueBoundsInBB>::const_iterator it;
-		for (it = start_bb_bounds.begin();
-				it != start_bb_bounds.end(); ++it) {
-			BasicBlock *bb = it->first;
-			O << "BB " << bb->getParent()->getNameStr() << "."
-				<< bb->getNameStr() << "\n";
-			print_bounds_in_bb(O, it->second);
-		}
+	O << "Start-BB bounds:\n";
+	DenseMap<BasicBlock *, ValueBoundsInBB>::const_iterator it;
+	for (it = start_bb_bounds.begin();
+			it != start_bb_bounds.end(); ++it) {
+		BasicBlock *bb = it->first;
+		O << "BB " << bb->getParent()->getNameStr() << "."
+			<< bb->getNameStr() << "\n";
+		print_bounds_in_bb(O, it->second);
+	}
 #endif
 #if 0
-		O << "\nOverwriting:\n";
-		map<int, vector<DenseSet<const ConstValueSet *> > >::const_iterator i, E;
-		for (i = overwriting.begin(), E = overwriting.end(); i != E; ++i) {
-			for (size_t trunk_id = 0; trunk_id < i->second.size(); ++trunk_id) {
-				O << "Thread " << i->first << " Trunk " << trunk_id << ":\n";
-				forallconst(DenseSet<const ConstValueSet *>, j, i->second[trunk_id])
-					print_alias_set(O, *(*j));
-			}
-		}
-#endif
-		O << "\nConstants:\n";
-		forallconst(ValueSet, it, constants) {
-			print_value(O, *it);
-		}
-		O << "\nConstraints:\n";
-		forallconst(vector<Clause *>, it, constraints) {
-			print_clause(O, *it, getAnalysis<ObjectID>());
-			O << "\n";
+	O << "\nOverwriting:\n";
+	map<int, vector<DenseSet<const ConstValueSet *> > >::const_iterator i, E;
+	for (i = overwriting.begin(), E = overwriting.end(); i != E; ++i) {
+		for (size_t trunk_id = 0; trunk_id < i->second.size(); ++trunk_id) {
+			O << "Thread " << i->first << " Trunk " << trunk_id << ":\n";
+			forallconst(DenseSet<const ConstValueSet *>, j, i->second[trunk_id])
+				print_alias_set(O, *(*j));
 		}
 	}
-
-	void CaptureConstraints::print_value(raw_ostream &O, const Value *v) {
-		if (isa<GlobalVariable>(v))
-			O << "[global] ";
-		else if (const Argument *arg = dyn_cast<Argument>(v))
-			O << "[arg] (" << arg->getParent()->getNameStr() << ") ";
-		else if (const Instruction *ins = dyn_cast<Instruction>(v))
-			O << "[inst] (" << ins->getParent()->getParent()->getNameStr() << "." 
-				<< ins->getParent()->getNameStr() << ") ";
-		else if (isa<Constant>(v))
-			O << "[const] ";
-		else
-			assert(false && "Not supported");
-		v->print(O);
+#endif
+	O << "\nConstants:\n";
+	forallconst(ValueSet, it, constants) {
+		print_value(O, *it);
+	}
+	O << "\nConstraints:\n";
+	forallconst(vector<Clause *>, it, constraints) {
+		print_clause(O, *it, getAnalysis<ObjectID>());
 		O << "\n";
 	}
+}
 
-	const Clause *CaptureConstraints::get_constraint(unsigned i) const {
-		return constraints[i];
+void CaptureConstraints::print_value(raw_ostream &O, const Value *v) {
+	if (isa<GlobalVariable>(v))
+		O << "[global] ";
+	else if (const Argument *arg = dyn_cast<Argument>(v))
+		O << "[arg] (" << arg->getParent()->getNameStr() << ") ";
+	else if (const Instruction *ins = dyn_cast<Instruction>(v))
+		O << "[inst] (" << ins->getParent()->getParent()->getNameStr() << "." 
+			<< ins->getParent()->getNameStr() << ") ";
+	else if (isa<Constant>(v))
+		O << "[const] ";
+	else
+		assert(false && "Not supported");
+	v->print(O);
+	O << "\n";
+}
+
+const Clause *CaptureConstraints::get_constraint(unsigned i) const {
+	return constraints[i];
+}
+
+bool CaptureConstraints::is_int_operation(unsigned opcode) {
+	switch (opcode) {
+		case Instruction::Add:
+		case Instruction::Sub:
+		case Instruction::Mul:
+		case Instruction::UDiv:
+		case Instruction::SDiv:
+		case Instruction::URem:
+		case Instruction::SRem:
+		case Instruction::Shl:
+		case Instruction::LShr:
+		case Instruction::AShr:
+		case Instruction::And:
+		case Instruction::Or:
+		case Instruction::Xor:
+		case Instruction::ICmp:
+		case Instruction::ZExt:
+		case Instruction::SExt:
+			return true;
+		default:
+			return false;
 	}
+}
 
-	bool CaptureConstraints::is_int_operation(unsigned opcode) {
-		switch (opcode) {
-			case Instruction::Add:
-			case Instruction::Sub:
-			case Instruction::Mul:
-			case Instruction::UDiv:
-			case Instruction::SDiv:
-			case Instruction::URem:
-			case Instruction::SRem:
-			case Instruction::Shl:
-			case Instruction::LShr:
-			case Instruction::AShr:
-			case Instruction::And:
-			case Instruction::Or:
-			case Instruction::Xor:
-			case Instruction::ICmp:
-			case Instruction::ZExt:
-			case Instruction::SExt:
-				return true;
-			default:
-				return false;
+void CaptureConstraints::stat(Module &M) {
+	unsigned n_ints = 0;
+	forallfunc(M, fi) {
+		for (Function::arg_iterator ai = fi->arg_begin();
+				ai != fi->arg_end(); ++ai) {
+			if (isa<IntegerType>(ai->getType()))
+				++n_ints;
 		}
-	}
-
-	void CaptureConstraints::stat(Module &M) {
-		unsigned n_ints = 0;
-		forallfunc(M, fi) {
-			for (Function::arg_iterator ai = fi->arg_begin();
-					ai != fi->arg_end(); ++ai) {
-				if (isa<IntegerType>(ai->getType()))
+		forall(Function, bi, *fi) {
+			forall(BasicBlock, ii, *bi) {
+				if (isa<IntegerType>(ii->getType()))
 					++n_ints;
 			}
-			forall(Function, bi, *fi) {
-				forall(BasicBlock, ii, *bi) {
-					if (isa<IntegerType>(ii->getType()))
-						++n_ints;
-				}
-			}
 		}
-		errs() << "# of integers = " << n_ints << "\n";
 	}
+	errs() << "# of integers = " << n_ints << "\n";
+}
 
-	void CaptureConstraints::setup(Module &M) {
-		// int is always 32-bit long. 
-		int_type = IntegerType::get(getGlobalContext(), 32);
-		if (!AA)
-			AA = &getAnalysis<BddAliasAnalysis>();
-	}
+void CaptureConstraints::setup(Module &M) {
+	// int is always 32-bit long. 
+	int_type = IntegerType::get(getGlobalContext(), 32);
+	if (!AA)
+		AA = &getAnalysis<BddAliasAnalysis>();
+}
 
-	bool CaptureConstraints::runOnModule(Module &M) {
-		setup(M);
-		stat(M);
+bool CaptureConstraints::runOnModule(Module &M) {
+	setup(M);
+	stat(M);
 #if 0
-		// Collect constraints on top-level variables.
-		// TODO: Handle function parameters. 
-		forallfunc(M, fi) {
-			if (!fi->isDeclaration())
-				capture_in_func(fi);
-		}
+	// Collect constraints on top-level variables.
+	// TODO: Handle function parameters. 
+	forallfunc(M, fi) {
+		if (!fi->isDeclaration())
+			capture_in_func(fi);
+	}
 #endif
-		constraints.clear();
-		identify_constants(M);
-		capture_constraints_on_consts(M);
-		// Collect constraints on address-taken variables. 
-		capture_addr_taken(M);
-		// Collect constraints from unreachable blocks. 
-		capture_unreachable(M);
-		simplify_constraints();
-		return false;
-	}
+	constraints.clear();
+	identify_constants(M);
+	capture_constraints_on_consts(M);
+	// Collect constraints on address-taken variables. 
+	capture_addr_taken(M);
+	// Collect constraints from unreachable blocks. 
+	capture_unreachable(M);
+	simplify_constraints();
+	return false;
+}
 
-	void CaptureConstraints::simplify_constraints() {
-		// Sort constraints on the alphabetical order
-		sort(
-				constraints.begin(), constraints.end(),
-				CompareClause(getAnalysis<ObjectID>()));
-	}
+void CaptureConstraints::simplify_constraints() {
+	// Sort constraints on the alphabetical order
+	sort(
+			constraints.begin(), constraints.end(),
+			CompareClause(getAnalysis<ObjectID>()));
+}
 
-	void CaptureConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
-		// TODO: do we need to use addRequiredTransitive for all passes? 
-		// because CaptureConstraints.runOnModule is called in the iterator. 
-		AU.setPreservesAll();
-		AU.addRequiredTransitive<ObjectID>();
-		AU.addRequired<DominatorTree>();
-		AU.addRequired<IntraReach>();
-		AU.addRequired<BddAliasAnalysis>();
-		AU.addRequired<CallGraphFP>();
-		AU.addRequired<ExecOnce>();
-		// AU.addRequired<ICFGManager>();
-		ModulePass::getAnalysisUsage(AU);
-	}
+void CaptureConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
+	// TODO: do we need to use addRequiredTransitive for all passes? 
+	// because CaptureConstraints.runOnModule is called in the iterator. 
+	AU.setPreservesAll();
+	AU.addRequiredTransitive<ObjectID>();
+	AU.addRequired<DominatorTree>();
+	AU.addRequired<IntraReach>();
+	AU.addRequired<BddAliasAnalysis>();
+	AU.addRequired<CallGraphFP>();
+	AU.addRequired<ExecOnce>();
+	// AU.addRequired<ICFGManager>();
+	ModulePass::getAnalysisUsage(AU);
+}
 
-	unsigned CaptureConstraints::get_num_constraints() const {
-		return (unsigned)constraints.size();
-	}
+unsigned CaptureConstraints::get_num_constraints() const {
+	return (unsigned)constraints.size();
+}
 
-	long CaptureConstraints::get_fingerprint() const {
-		long res = 0;
-		ObjectID &OI = getAnalysis<ObjectID>();
-		locale loc;
-		const collate<char> &coll = use_facet<collate<char> >(loc);
-		for (size_t i = 0; i < constraints.size(); ++i) {
-			string str;
-			raw_string_ostream oss(str);
-			print_clause(oss, constraints[i], OI);
-			res += coll.hash(oss.str().data(), oss.str().data() + oss.str().length());
-		}
-		return res;
+long CaptureConstraints::get_fingerprint() const {
+	long res = 0;
+	ObjectID &OI = getAnalysis<ObjectID>();
+	locale loc;
+	const collate<char> &coll = use_facet<collate<char> >(loc);
+	for (size_t i = 0; i < constraints.size(); ++i) {
+		string str;
+		raw_string_ostream oss(str);
+		print_clause(oss, constraints[i], OI);
+		res += coll.hash(oss.str().data(), oss.str().data() + oss.str().length());
 	}
-
-	char CaptureConstraints::ID = 0;
+	return res;
 }

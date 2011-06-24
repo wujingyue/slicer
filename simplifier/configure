@@ -8,8 +8,8 @@ if __name__ == "__main__":
         if arg == "-v" or arg == "--verbose":
             verbose = True
     fout = open("config.h", "w")
-    fout.write("#ifndef __SLICER_INT_CONSTRAINTS_CONFIG_H\n")
-    fout.write("#define __SLICER_INT_CONSTRAINTS_CONFIG_H\n")
+    fout.write("#ifndef __SLICER_SIMPLIFIER_CONFIG_H\n")
+    fout.write("#define __SLICER_SIMPLIFIER_CONFIG_H\n")
     fout.write("\n")
 
     if verbose:
