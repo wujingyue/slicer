@@ -7,12 +7,12 @@ using namespace llvm;
 
 namespace slicer {
 
-	struct RemoveBranch: public FunctionPass {
+	struct RemoveBranch: public ModulePass {
 
 		static char ID;
 
-		RemoveBranch(): FunctionPass(&ID) {}
-		virtual bool runOnFunction(Function &F);
+		RemoveBranch(): ModulePass(&ID) {}
+		virtual bool runOnModule(Module &M);
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 
 	private:

@@ -28,20 +28,23 @@ void RemoveBranch::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<Iterate>();
 	AU.addRequired<CaptureConstraints>();
 	AU.addRequired<SolveConstraints>();
-	FunctionPass::getAnalysisUsage(AU);
+	ModulePass::getAnalysisUsage(AU);
 }
 
-bool RemoveBranch::runOnFunction(Function &f) {
+bool RemoveBranch::runOnModule(Module &M) {
 	bool changed = false;
-	BasicBlock *unreachable_bb = NULL;
-	forall(Function, bb, f) {
-		// TODO: We could do the same thing for SwitchInsts too. 
-		if (BranchInst *bi = dyn_cast<BranchInst>(bb->getTerminator()))
-			changed |= try_remove_branch(bi, unreachable_bb);
+	forallfunc(M, f) {
+		BasicBlock *unreachable_bb = NULL;
+		forall(Function, bb, *f) {
+			// TODO: We could do the same thing for SwitchInsts too. 
+			if (BranchInst *bi = dyn_cast<BranchInst>(bb->getTerminator()))
+				changed |= try_remove_branch(bi, unreachable_bb);
+		}
+		// We added the unreachable BB after the loop, because it's a little
+		// dangerous to change the function while iterating through it. 
+		if (unreachable_bb)
+			f->getBasicBlockList().push_back(unreachable_bb);
 	}
-	if (unreachable_bb)
-		f.getBasicBlockList().push_back(unreachable_bb);
-	errs() << "RemoveBranch::runOnFunction returns " << changed << "\n";
 	return changed;
 }
 
