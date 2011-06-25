@@ -26,6 +26,7 @@
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/StandardPasses.h"
 #include "llvm/Support/SystemUtils.h"
+#include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/LinkAllPasses.h"
 #include "llvm/LinkAllVMCore.h"
@@ -33,6 +34,7 @@ using namespace llvm;
 
 #include <memory>
 #include <algorithm>
+#include <sstream>
 using namespace std;
 
 #include "config.h"
@@ -194,7 +196,6 @@ int RunPasses(Module *M, const vector<const PassInfo *> &PIs) {
 
 	// Now that we have all of the passes ready, run them.
 	bool Changed = Passes.run(*M);
-	errs() << "RunPasses: " << Changed << "\n";
 	return (Changed ? 1 : 0);
 }
 
@@ -264,15 +265,26 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	int changed;
+	int Changed;
+	int IterNo = 0;
+	TimerGroup TG("Simplifier");
+	vector<Timer *> Tmrs;
 	do {
-#ifdef VERBOSE
-		errs() << "===== Iteration =====\n";
-#endif
-		changed = DoOneIteration(M);
-		if (changed == -1)
+		++IterNo;
+		ostringstream oss;
+		oss << "Iteration " << IterNo;
+		Timer *TmrIter = new Timer(oss.str(), TG);
+		Tmrs.push_back(TmrIter);
+		TmrIter->startTimer();
+		errs() << "=== Starting Iteration " << IterNo << "... ===\n";
+		Changed = DoOneIteration(M);
+		errs() << "=== Iteration " << IterNo << " finished. ===\n";
+		TmrIter->stopTimer();
+		if (Changed == -1)
 			return 1;
-	} while (changed);
+	} while (Changed);
+	for (size_t i = 0; i < Tmrs.size(); ++i)
+		delete Tmrs[i];
 
 	OutputModule(M);
 

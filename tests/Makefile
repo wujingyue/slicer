@@ -130,6 +130,9 @@ all: $(PROGS>.ll) $(PROGS) test-icfg test-alias
 		-test \
 		< $<
 
+%.simple.bc: %.slice.bc
+	simplifer < $< > $@
+
 %.loc: %.bc
 	opt -disable-output \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
