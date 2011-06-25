@@ -12,6 +12,7 @@ LIBRARYNAME = slicer-trace
 LOADABLE_MODULE = 1
 SOURCES = add-calling-context.cpp landmark-trace.cpp omit-branch.cpp \
 	  trace-manager.cpp instrument.cpp mark-landmarks.cpp
+DIRS = display
 include $(LEVEL)/Makefile.common
 
 CXXFLAGS += -I$(LLVM_ROOT) -I$(SLICER_ROOT)
