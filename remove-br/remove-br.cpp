@@ -108,10 +108,12 @@ bool RemoveBranch::try_remove_branch(
 	
 	const Use *use_cond = &bi->getOperandUse(0);
 	// Remove the false branch if always true. 
-	if (SC.must_equal(use_cond, ConstantInt::getTrue(getGlobalContext())))
+	if (SC.provable(
+				CmpInst::ICMP_EQ, use_cond, ConstantInt::getTrue(getGlobalContext())))
 		return remove_branch(bi, 1, unreachable_bb);
 	// Remove the true branch if always false. 
-	if (SC.must_equal(use_cond, ConstantInt::getFalse(getGlobalContext())))
+	if (SC.provable(
+				CmpInst::ICMP_EQ, use_cond, ConstantInt::getFalse(getGlobalContext())))
 		return remove_branch(bi, 0, unreachable_bb);
 	// Do nothing if we cannot infer anything. 
 	return false;
