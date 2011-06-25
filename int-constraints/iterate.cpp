@@ -73,7 +73,7 @@ void Iterate::test1(Module &M) {
 	const IntegerType *int_type = IntegerType::get(getGlobalContext(), 32);
 	const Value *v1 = OI.getValue(3392);
 	const Value *v2 = ConstantInt::get(int_type, 2);
-	errs() << SC.must_equal(v1, v2) << "\n";
+	errs() << SC.provable(CmpInst::ICMP_EQ, v1, v2) << "\n";
 }
 
 void Iterate::test2(Module &M) {
@@ -82,11 +82,25 @@ void Iterate::test2(Module &M) {
 	ObjectID &OI = getAnalysis<ObjectID>();
 	Value *offset = OI.getValue(2751);
 	Value *soffset = OI.getValue(2717);
-	assert(offset && soffset);
-	const Clause *c = new Clause(new BoolExpr(
-				CmpInst::ICMP_SLE, new Expr(soffset), new Expr(offset)));
+	Value *foffset = OI.getValue(2646);
+	Value *dr = OI.getValue(2750);
+	Use *use_dr = &OI.getInstruction(1935)->getOperandUse(3);
+	assert(use_dr->get() == dr);
+	Value *remain = OI.getValue(2757); // foffset - offset
+	assert(offset && soffset && foffset);
 	errs() << "soffset <= offset: "
-		<< SC.provable(vector<const Clause *>(1, c)) << "\n";
+		<< SC.provable(CmpInst::ICMP_SLE, soffset, offset) << "\n";
+	errs() << "offset < foffset: "
+		<< SC.provable(CmpInst::ICMP_SLT, offset, foffset) << "\n";
+	Clause *c;
+	Expr *end;
+	end = new Expr(Instruction::Add, new Expr(offset), new Expr(use_dr));
+	c = new Clause(new BoolExpr(CmpInst::ICMP_SLE, end, new Expr(foffset)));
+	errs() << "offset + dr <= foffset: " << SC.provable(c) << "\n";
+	delete c;
+	end = new Expr(Instruction::Add, new Expr(offset), new Expr(remain));
+	c = new Clause(new BoolExpr(CmpInst::ICMP_SLE, end, new Expr(foffset)));
+	errs() << "offset + remain <= foffset: " << SC.provable(c) << "\n";
 	delete c;
 }
 

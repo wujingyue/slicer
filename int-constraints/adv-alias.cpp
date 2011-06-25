@@ -49,9 +49,9 @@ namespace slicer {
 			return cache.lookup(p);
 		SolveConstraints &SC = getAnalysis<SolveConstraints>();
 		AliasResult res;
-		if (!SC.may_equal(V1, V2))
+		if (!SC.satisfiable(CmpInst::ICMP_EQ, V1, V2))
 			res = NoAlias;
-		else if (SC.must_equal(V1, V2))
+		else if (SC.provable(CmpInst::ICMP_EQ, V1, V2))
 			res = MustAlias;
 		else
 			res = MayAlias;

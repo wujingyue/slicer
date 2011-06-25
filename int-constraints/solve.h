@@ -33,25 +33,26 @@ namespace slicer {
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 
 		bool satisfiable(const vector<const Clause *> &more_clauses);
-		bool provable(const vector<const Clause *> &more_clauses);
-
+		bool satisfiable(const Clause *c) {
+			return satisfiable(vector<const Clause *>(1, c));
+		}
 		template <typename T1, typename T2>
-		bool may_equal(const T1 *v1, const T2 *v2) {
+		bool satisfiable(CmpInst::Predicate p, const T1 *v1, const T2 *v2) {
 			const Clause *c = new Clause(new BoolExpr(
-						CmpInst::ICMP_EQ,
-						new Expr(v1),
-						new Expr(v2)));
+						p, new Expr(v1), new Expr(v2)));
 			bool ret = satisfiable(vector<const Clause *>(1, c));
 			delete c;
 			return ret;
 		}
 
+		bool provable(const vector<const Clause *> &more_clauses);
+		bool provable(const Clause *c) {
+			return provable(vector<const Clause *>(1, c));
+		}
 		template <typename T1, typename T2>
-		bool must_equal(const T1 *v1, const T2 *v2) {
+		bool provable(CmpInst::Predicate p, const T1 *v1, const T2 *v2) {
 			const Clause *c = new Clause(new BoolExpr(
-						CmpInst::ICMP_EQ,
-						new Expr(v1),
-						new Expr(v2)));
+						p, new Expr(v1), new Expr(v2)));
 			bool ret = provable(vector<const Clause *>(1, c));
 			delete c;
 			return ret;
