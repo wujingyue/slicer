@@ -1,5 +1,9 @@
 /**
  * Author: Jingyue
+ *
+ * If a conditional branch is guaranteed to be true/false, we redirect its
+ * false/true branch to an unreachable BB. This simplification may make
+ * some BBs unreachable, and thus eliminate them later. 
  */
 
 #define DEBUG_TYPE "remove-br"
@@ -102,13 +106,12 @@ bool RemoveBranch::try_remove_branch(
 	if (!CC.is_constant(cond))
 		return false;
 	
-	const IntegerType *int_type = IntegerType::get(getGlobalContext(), 32);
 	const Use *use_cond = &bi->getOperandUse(0);
-	// Remove the false branch. 
-	if (SC.must_equal(use_cond, ConstantInt::get(int_type, 1)))
+	// Remove the false branch if always true. 
+	if (SC.must_equal(use_cond, ConstantInt::getTrue(getGlobalContext())))
 		return remove_branch(bi, 1, unreachable_bb);
-	// Remove the true branch.
-	if (SC.must_equal(use_cond, ConstantInt::get(int_type, 0)))
+	// Remove the true branch if always false. 
+	if (SC.must_equal(use_cond, ConstantInt::getFalse(getGlobalContext())))
 		return remove_branch(bi, 0, unreachable_bb);
 	// Do nothing if we cannot infer anything. 
 	return false;

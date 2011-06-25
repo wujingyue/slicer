@@ -1,3 +1,4 @@
+#include "llvm/LLVMContext.h"
 #include "common/cfg/intra-reach.h"
 using namespace llvm;
 
@@ -32,7 +33,7 @@ Clause *CaptureConstraints::get_avoid_branch(
 	if (const BranchInst *bi = dyn_cast<BranchInst>(ti)) {
 		assert(i == 0 || i == 1);
 		const Value *cond = bi->getCondition();
-		assert(cond);
+		assert(cond && cond->getType()->isIntegerTy(1));
 		if (!is_constant(cond))
 			return NULL;
 		// i == 0 => cond is 1
@@ -41,12 +42,12 @@ Clause *CaptureConstraints::get_avoid_branch(
 			return new Clause(new BoolExpr(
 						CmpInst::ICMP_EQ,
 						new Expr(cond),
-						new Expr(ConstantInt::get(int_type, 0))));
+						new Expr(ConstantInt::getFalse(getGlobalContext()))));
 		} else {
 			return new Clause(new BoolExpr(
 						CmpInst::ICMP_EQ,
 						new Expr(cond),
-						new Expr(ConstantInt::get(int_type, 1))));
+						new Expr(ConstantInt::getTrue(getGlobalContext()))));
 		}
 	} else if (const SwitchInst *si = dyn_cast<SwitchInst>(ti)) {
 		/*
@@ -91,9 +92,6 @@ Clause *CaptureConstraints::get_avoid_branch(
 }
 
 void CaptureConstraints::capture_unreachable_in_func(Function *f) {
-#ifdef VERBOSE
-	errs() << "capture_unreachable: " << f->getNameStr() << "\n";
-#endif
 	/*
 	 * If <bb> post-dominates <f> and one of its branches points to an
 	 * unreachable BB, the branch condition must be false. 

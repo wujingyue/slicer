@@ -47,25 +47,39 @@ namespace slicer {
 			assert_unreachable();
 		}
 
-		Expr(const Use *use): u(use) {
-			type = SingleUse;
-			e1 = e2 = NULL;
-		}
-		
-		Expr(const Value *value): v(value) {
-			type = SingleDef;
-			e1 = e2 = NULL;
+		unsigned get_width() const {
+			if (type == SingleDef || type == SingleUse) {
+				const Value *val = (type == SingleDef ? v : u->get());
+				return (val->getType()->isIntegerTy(1) ? 1 : 32);
+			}
+			if (type == Unary) {
+				if (op == Instruction::Trunc)
+					return 1;
+				else
+					return 32;
+			}
+			if (type == Binary) {
+				assert(e1->get_width() == e2->get_width());
+				return e1->get_width();
+			}
+			assert_unreachable();
 		}
 
-		Expr(unsigned opcode, Expr *expr):
-			type(Unary), op(opcode), e1(expr), e2(NULL), v(NULL)
+		Expr(const Use *use): type(SingleUse), e1(NULL), e2(NULL), u(use) {}
+		
+		Expr(const Value *value): type(SingleDef), e1(NULL), e2(NULL), v(value) {}
+
+		Expr(unsigned opcode, Expr *expr)
+			: type(Unary), op(opcode), e1(expr), e2(NULL), v(NULL)
 		{
-			assert_not_supported();
+			assert(opcode == Instruction::ZExt || opcode == Instruction::SExt ||
+					opcode == Instruction::Trunc);
 		}
 
 		Expr(unsigned opcode, Expr *expr1, Expr *expr2):
 			type(Binary), op(opcode), e1(expr1), e2(expr2), v(NULL)
 		{
+			assert(e1->get_width() == e2->get_width());
 			switch (opcode) {
 				case Instruction::Add:
 				case Instruction::Sub:

@@ -75,6 +75,8 @@ namespace slicer {
 				if (call_sites.size() == 1) {
 					Instruction *call_site = call_sites[0];
 					// Matches the formal argument with the actual argument. 
+					// TODO: The order of operands of CallInst/InvokeInst is changed
+					// in later version. 
 					if (is_pthread_create(call_site)) {
 						// pthread_create(thread, attr, func, arg)
 						assert(arg->getArgNo() == 0);
@@ -95,14 +97,9 @@ namespace slicer {
 
 	void CaptureConstraints::capture_in_user(User *user) {
 		assert(is_constant(user));
-		if (!isa<Instruction>(user) && !isa<ConstantExpr>(user))
+		unsigned opcode = Operator::getOpcode(user);
+		if (opcode == Instruction::UserOp1)
 			return;
-		/* TODO: may want to use llvm::Operator */
-		unsigned opcode;
-		if (Instruction *ins = dyn_cast<Instruction>(user))
-			opcode = ins->getOpcode();
-		else
-			opcode = dyn_cast<ConstantExpr>(user)->getOpcode();
 		switch (opcode) {
 			// Binary instructions
 			case Instruction::Add:
@@ -143,27 +140,32 @@ namespace slicer {
 		}
 	}
 
-	void CaptureConstraints::capture_in_unary(User *user) {
-		assert(user->getNumOperands() == 1);
-		if (!constants.count(user->getOperand(0)))
+	void CaptureConstraints::capture_in_unary(User *u) {
+		assert(u->getNumOperands() == 1);
+		Value *v = u->getOperand(0);
+		if (!constants.count(v))
 			return;
-		add_eq_constraint(user, user->getOperand(0));
+		// u == v, but they may have different bit widths. 
+		unsigned opcode = Operator::getOpcode(u);
+		assert(opcode != Instruction::UserOp1);
+		Expr *eu = new Expr(u), *ev = new Expr(v);
+		// TODO: e->get_width() may not equal the real bit width, because we
+		// don't distinguish 32-bit and 64-bit integers currently.
+		if (eu->get_width() > ev->get_width()) {
+			assert(opcode == Instruction::SExt || opcode == Instruction::ZExt);
+			ev = new Expr(opcode, ev);
+		} else if (eu->get_width() < ev->get_width()) {
+			assert(opcode == Instruction::Trunc);
+			ev = new Expr(opcode, ev);
+		}
+		assert(eu->get_width() == ev->get_width());
+		constraints.push_back(new Clause(new BoolExpr(CmpInst::ICMP_EQ, eu, ev)));
 	}
 
 	void CaptureConstraints::capture_in_icmp(ICmpInst *icmp) {
-		// icmp == 0 || icmp == 1
-		// TODO: After we create STP variables with different bit size, 
-		// this condition can be removed. 
-		Clause *eq_0 = new Clause(new BoolExpr(
-					CmpInst::ICMP_EQ,
-					new Expr(icmp),
-					new Expr(ConstantInt::get(int_type, 0))));
-		Clause *eq_1 = new Clause(new BoolExpr(
-					CmpInst::ICMP_EQ,
-					new Expr(icmp),
-					new Expr(ConstantInt::get(int_type, 1))));
-		constraints.push_back(new Clause(Instruction::Or, eq_0, eq_1));
 		// icmp == 1 <==> branch holds
+		// NOTE: <icmp> will be translated to one STP bit. Therefore, 
+		// it's either 0 or 1. 
 		// i.e. (icmp == 0) ^ (branch holds) == 1
 		const Value *op0 = icmp->getOperand(0);
 		const Value *op1 = icmp->getOperand(1);
@@ -171,8 +173,13 @@ namespace slicer {
 			return;
 		Clause *branch = new Clause(new BoolExpr(
 					icmp->getPredicate(), new Expr(op0), new Expr(op1)));
-		// We should never reuse a clause. Always create a new one. 
-		constraints.push_back(new Clause(Instruction::Xor, eq_0->clone(), branch));
+		ConstantInt *f = ConstantInt::getFalse(getGlobalContext());
+		assert(icmp->getType() == f->getType());
+		constraints.push_back(new Clause(
+					Instruction::Xor,
+					new Clause(new BoolExpr(
+							CmpInst::ICMP_EQ, new Expr(icmp), new Expr(f))),
+					branch));
 	}
 
 	void CaptureConstraints::capture_in_phi(PHINode *phi) {

@@ -49,8 +49,8 @@ bool Iterate::runOnModule(Module &M) {
 		timers.push_back(timer);
 		timer->startTimer();
 		fingerprint = CC.get_fingerprint();
-		errs() << "Iterating... # of constraints = "
-			<< CC.get_num_constraints() << "\n";
+		errs() << "=== Running iteration " << iter_no << "... ===\n";
+		errs() << "# of constraints = " << CC.get_num_constraints() << "\n";
 		errs() << "AAA cache size = " << AAA.get_cache_size() << "\n";
 		AAA.runOnModule(M); // Essentially clear the cache. 
 		CC.runOnModule(M);
@@ -146,6 +146,7 @@ void Iterate::test4(Module &M) {
 void Iterate::test5(Module &M) {
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 	CC.print(outs(), &M);
+	outs().flush();
 }
 
 void Iterate::run_tests(Module &M) {

@@ -274,7 +274,7 @@ namespace slicer {
 
 	bool CaptureConstraints::path_may_write(
 			const Instruction *i1, const Instruction *i2, const Value *q) {
-#if 1
+#if 0
 		errs() << "path_may_write:\n";
 		errs() << "\t" << *i1 << "\n" << "\t" << *i2 << "\n";
 #endif

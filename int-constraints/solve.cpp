@@ -73,8 +73,10 @@ namespace slicer {
 	}
 
 	VCExpr SolveConstraints::translate_to_vc(const BoolExpr *be) {
-		VCExpr vce1 = translate_to_vc(be->e1);
-		VCExpr vce2 = translate_to_vc(be->e2);
+		const Expr *e1 = be->e1, *e2 = be->e2;
+		assert(e1->get_width() == e2->get_width());
+		VCExpr vce1 = translate_to_vc(e1);
+		VCExpr vce2 = translate_to_vc(e2);
 		switch (be->p) {
 			case CmpInst::ICMP_EQ:
 				return vc_eqExpr(vc, vce1, vce2);
@@ -101,8 +103,26 @@ namespace slicer {
 			return translate_to_vc(e->v);
 		if (e->type == Expr::SingleUse)
 			return translate_to_vc(e->u);
-		if (e->type == Expr::Unary)
+		if (e->type == Expr::Unary) {
+			VCExpr child = translate_to_vc(e->e1);
+			if (e->op == Instruction::SExt) {
+				assert(e->e1->get_width() == 1);
+				return vc_bvSignExtend(vc, child, 32);
+			}
+			if (e->op == Instruction::ZExt) {
+				assert(e->e1->get_width() == 1);
+				// STP does not have bvUnsignExtend
+				return vc_bvConcatExpr(
+						vc,
+						vc_bvConstExprFromInt(vc, 31, 0),
+						child);
+			}
+			if (e->op == Instruction::Trunc) {
+				assert(e->e1->get_width() == 32);
+				return vc_bvExtract(vc, child, 0, 0);
+			}
 			assert_not_supported();
+		}
 		if (e->type == Expr::Binary) {
 			VCExpr left = translate_to_vc(e->e1);
 			VCExpr right = translate_to_vc(e->e2);
@@ -142,15 +162,25 @@ namespace slicer {
 	}
 
 	VCExpr SolveConstraints::translate_to_vc(const Value *v) {
-		if (const ConstantInt *ci = dyn_cast<ConstantInt>(v))
-			return vc_bv32ConstExprFromInt(vc, ci->getSExtValue());
-		VCType int_type = vc_bv32Type(vc);
+		if (const ConstantInt *ci = dyn_cast<ConstantInt>(v)) {
+			if (ci->getType()->getBitWidth() == 1)
+				return (ci->isOne() ?
+						vc_boolToBVExpr(vc, vc_trueExpr(vc)) :
+						vc_boolToBVExpr(vc, vc_falseExpr(vc)));
+			else
+				return vc_bv32ConstExprFromInt(vc, ci->getSExtValue());
+		}
 		ObjectID &OI = getAnalysis<ObjectID>();
 		unsigned value_id = OI.getValueID(v);
 		assert(value_id != ObjectID::INVALID_ID);
 		ostringstream oss;
 		oss << "x" << value_id;
-		return vc_varExpr(vc, oss.str().c_str(), int_type);
+		VCType vct;
+		if (v->getType()->isIntegerTy(1))
+			vct = vc_bvType(vc, 1);
+		else
+			vct = vc_bv32Type(vc);
+		return vc_varExpr(vc, oss.str().c_str(), vct);
 	}
 
 	VCExpr SolveConstraints::translate_to_vc(const Use *u) {
@@ -325,6 +355,7 @@ namespace slicer {
 				 * Therefore, we extend the operands to 64-bit integers, and check
 				 * whether the product is really out of range. 
 				 */
+#if 0
 				// left >= 0, right >= 0, left * right <= oo
 				{
 					vc_assertFormula(vc, vc_sbvGeExpr(vc, left, vc_zero(vc)));
@@ -335,7 +366,6 @@ namespace slicer {
 					vc_assertFormula(
 							vc, vc_sbvLeExpr(vc, long_product, vc_int_max_64(vc)));
 				}
-#if 0
 				// left > 0 => right <= oo / left
 				vc_assertFormula(
 						vc,
