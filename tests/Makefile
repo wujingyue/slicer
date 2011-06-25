@@ -106,7 +106,7 @@ all: $(PROGS>.ll) $(PROGS) test-icfg test-alias
 		-fulltrace $(<:.bc=.ft) \
 		< $< > $@
 
-%.trace.bc: %.bc1 ../trace/tracing/tracing.bc
+%.trace.bc: %.bc1 ../trace/tracing.bc
 	llvm-ld $^ -b $@
 
 %.eo: %.bc

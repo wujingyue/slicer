@@ -3,7 +3,7 @@
 #include <errno.h>
 using namespace std;
 
-#include "../trace.h"
+#include "trace.h"
 using namespace slicer;
 
 #include "pthread.h"

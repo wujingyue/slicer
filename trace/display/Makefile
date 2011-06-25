@@ -1,9 +1,3 @@
-all: display
-
-display: display.cpp
-	g++ $< -o $@ -g -O2 -MMD
-
-clean:
-	rm -f display *.d
-
--include *.d
+LEVEL = $(shell $(LLVM_ROOT)/scripts/level-to-llvm-root)/llvm-obj
+TOOLNAME = trace-display
+include $(LEVEL)/Makefile.common
