@@ -1,5 +1,12 @@
+/**
+ * Author: Jingyue
+ */
+
+#define DEBUG_TYPE "int-constraints"
+
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_os_ostream.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/Passes.h"
 #include "llvm/Analysis/Dominators.h"
@@ -33,6 +40,9 @@ static RegisterPass<CaptureConstraints> X(
 		"Capture all integer constraints",
 		false,
 		true); // is analysis
+
+STATISTIC(num_integers, "Number of integers");
+STATISTIC(num_pointers, "Number of pointers");
 
 char CaptureConstraints::ID = 0;
 
@@ -129,21 +139,26 @@ bool CaptureConstraints::is_int_operation(unsigned opcode) {
 }
 
 void CaptureConstraints::stat(Module &M) {
-	unsigned n_ints = 0;
 	forallfunc(M, fi) {
 		for (Function::arg_iterator ai = fi->arg_begin();
 				ai != fi->arg_end(); ++ai) {
 			if (isa<IntegerType>(ai->getType()))
-				++n_ints;
+				++num_integers;
+			if (isa<PointerType>(ai->getType()))
+				++num_pointers;
 		}
 		forall(Function, bi, *fi) {
 			forall(BasicBlock, ii, *bi) {
 				if (isa<IntegerType>(ii->getType()))
-					++n_ints;
+					++num_integers;
+				if (isa<PointerType>(ii->getType()))
+					++num_pointers;
 			}
 		}
 	}
-	errs() << "# of integers = " << n_ints << "\n";
+	for (Module::global_iterator gi = M.global_begin();
+			gi != M.global_end(); ++gi)
+		++num_pointers;
 }
 
 void CaptureConstraints::setup(Module &M) {
@@ -154,24 +169,27 @@ void CaptureConstraints::setup(Module &M) {
 }
 
 bool CaptureConstraints::runOnModule(Module &M) {
+
 	setup(M);
 	stat(M);
-#if 0
-	// Collect constraints on top-level variables.
-	// TODO: Handle function parameters. 
-	forallfunc(M, fi) {
-		if (!fi->isDeclaration())
-			capture_in_func(fi);
-	}
-#endif
+
 	constraints.clear();
+	// Identify all integer and pointer constants.
+	// Note that we define constants in a different way. 
 	identify_constants(M);
+	// Look at arithmetic operations on these constants. 
 	capture_constraints_on_consts(M);
-	// Collect constraints on address-taken variables. 
+	// Look at loads and stores. 
 	capture_addr_taken(M);
 	// Collect constraints from unreachable blocks. 
 	capture_unreachable(M);
+	// Function summaries.
+	// TODO: We'd better have a generic module for all function summaries
+	// instead of writing it for each project. 
+	capture_func_summaries(M);
+
 	simplify_constraints();
+
 	return false;
 }
 

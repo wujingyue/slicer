@@ -78,41 +78,16 @@ void Iterate::test1(Module &M) {
 
 void Iterate::test2(Module &M) {
 	errs() << "===== test2 =====\n";
-	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	ObjectID &OI = getAnalysis<ObjectID>();
-	const IntegerType *int_type = IntegerType::get(getGlobalContext(), 32);
-	const Value *zero = ConstantInt::get(int_type, 0);
-	const Value *one = ConstantInt::get(int_type, 1);
-	forallinst(M, ii) {
-		if (BranchInst *bi = dyn_cast<BranchInst>(ii)) {
-			if (bi->isUnconditional())
-				continue;
-			const Value *cond = bi->getCondition();
-			if (!CC.is_constant(cond))
-				continue;
-			errs() << OI.getInstructionID(bi) << ":" << *bi;
-			Clause *c;
-			bool ret;
-			const Use *use_cond = &bi->getOperandUse(0);
-			c = new Clause(new BoolExpr(
-						CmpInst::ICMP_EQ, new Expr(use_cond), new Expr(one)));
-			ret = SC.provable(vector<const Clause *>(1, c));
-			delete c;
-			if (ret) {
-				errs() << " === True\n";
-				continue;
-			}
-			c = new Clause(new BoolExpr(
-						CmpInst::ICMP_EQ, new Expr(use_cond), new Expr(zero)));
-			ret = SC.provable(vector<const Clause *>(1, c));
-			if (ret) {
-				errs() << " === False\n";
-				continue;
-			}
-			errs() << " === Unknown\n";
-		}
-	}
+	Value *offset = OI.getValue(2751);
+	Value *soffset = OI.getValue(2717);
+	assert(offset && soffset);
+	const Clause *c = new Clause(new BoolExpr(
+				CmpInst::ICMP_SLE, new Expr(soffset), new Expr(offset)));
+	errs() << "soffset <= offset: "
+		<< SC.provable(vector<const Clause *>(1, c)) << "\n";
+	delete c;
 }
 
 void Iterate::test3(Module &M) {
@@ -151,8 +126,8 @@ void Iterate::test5(Module &M) {
 
 void Iterate::run_tests(Module &M) {
 	// test1(M);
-	// test2(M);
-	test3(M);
+	test2(M);
+	// test3(M);
 	// test4(M);
 	// test5(M);
 }

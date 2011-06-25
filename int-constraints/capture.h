@@ -168,8 +168,11 @@ namespace slicer {
 		/* Constraints from unreachable blocks. */
 		void capture_unreachable(Module &M);
 		void capture_unreachable_in_func(Function *f);
-		/* Utility functions */
-		/* Returns the size of a type in bits */
+		/* Function summaries. */
+		void capture_func_summaries(Module &M);
+		void capture_libcall(const CallSite &cs);
+		/* Utility functions. */
+		/* Returns the size of a type in bits. */
 		static unsigned get_type_size(const Type *type);
 
 #if 0

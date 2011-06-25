@@ -38,7 +38,7 @@ namespace slicer {
 		}
 		// Instructions and their constant operands. 
 		forallinst(M, ii) {
-			if (EO.executed_once(ii) &&
+			if (EO.executed_once(ii) && !EO.not_executed(ii) &&
 					(isa<IntegerType>(ii->getType()) || isa<PointerType>(ii->getType())))
 				constants.insert(ii);
 			// Constant expressions. 
@@ -49,7 +49,7 @@ namespace slicer {
 		}
 		// Function parameters. 
 		forallfunc(M, fi) {
-			if (!EO.executed_once(fi))
+			if (!EO.executed_once(fi) || EO.not_executed(fi))
 				continue;
 			for (Function::arg_iterator ai = fi->arg_begin();
 					ai != fi->arg_end(); ++ai) {
