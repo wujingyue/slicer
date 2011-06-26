@@ -1,5 +1,5 @@
 PROGS = test-thread test-path test-overwrite test-ctxt test-recursive \
-	   test-branch test-loop
+	test-branch test-loop
 BCS = $(PROGS:=.bc)
 
 CFLAGS = -g -Wall
@@ -49,3 +49,5 @@ all: $(BCS)
 
 clean:
 	rm -f *.id *.mid *.vid *.ll *.loc *.s $(BCS) $(PROGS)
+
+.PHONY: clean
