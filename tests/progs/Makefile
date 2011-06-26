@@ -1,0 +1,51 @@
+PROGS = test-thread test-path test-overwrite test-ctxt test-recursive \
+	   test-branch test-loop
+BCS = $(PROGS:=.bc)
+
+CFLAGS = -g -Wall
+CXXFLAGS = -g -Wall
+
+# Generating executables is optional.
+all: $(BCS)
+
+%.bc: %.c
+	llvm-gcc -o $@ $< -c -emit-llvm $(CFLAGS)
+
+%.bc: %.cpp
+	llvm-g++ -o $@ $< -c -emit-llvm $(CXXFLAGS)
+
+%.s: %.bc
+	llc $< -o $@
+# pthread may not always be necessary, but does no harm
+# Also, most of our test programs are multi-threaded
+%: %.s
+	$(CXX) $< -o $@ -pthread
+# Cancel the implicit rules from *.c to *
+%: %.c
+# Cancel the implicit rules from *.cpp to *
+%: %.cpp
+
+# Utilities
+# Instruction ID
+%.id: %.bc
+	$(LLVM_ROOT)/scripts/print-id insts $< > $@
+# MBB ID
+%.mid: %.bc
+	$(LLVM_ROOT)/scripts/print-id mbbs $< > $@
+# Value ID
+%.vid: %.bc
+	$(LLVM_ROOT)/scripts/print-id values $< > $@
+# LLVM disassembly
+%.ll: %.bc
+	llvm-dis $<
+# Instruction ID <==> File: Line
+%.loc: %.bc
+	opt -disable-output \
+		-load $(LLVM_ROOT)/install/lib/libidm.so \
+		-load $(LLVM_ROOT)/install/lib/libsrc-locator.so \
+		-src-locator \
+		-input $(ARG) \
+		< $<
+
+clean:
+	rm -f *.id *.mid *.vid *.ll *.loc *.s $(BCS) $(PROGS)

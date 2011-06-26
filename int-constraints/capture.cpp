@@ -36,7 +36,7 @@ using namespace std;
 using namespace slicer;
 
 static RegisterPass<CaptureConstraints> X(
-		"capture-constraints",
+		"capture",
 		"Capture all integer constraints",
 		false,
 		true); // is analysis

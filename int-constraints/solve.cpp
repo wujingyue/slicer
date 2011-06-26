@@ -14,7 +14,7 @@ using namespace std;
 namespace {
 
 	static RegisterPass<slicer::SolveConstraints> X(
-			"solve-constraints",
+			"solve",
 			"Solve captured constraints using STP",
 			false,
 			true); // is analysis

@@ -115,7 +115,7 @@ all: $(PROGS>.ll) $(PROGS) test-icfg test-alias
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
 		-load $(LLVM_ROOT)/install/lib/libcfg.so \
-		-load $(LLVM_ROOT)/install/lib/libint-constraints.so \
+		-load $(LLVM_ROOT)/install/lib/libint.so \
 		-exec-once \
 		< $<
 
@@ -125,7 +125,7 @@ all: $(PROGS>.ll) $(PROGS) test-icfg test-alias
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
 		-load $(LLVM_ROOT)/install/lib/libcfg.so \
-		-load $(LLVM_ROOT)/install/lib/libint-constraints.so \
+		-load $(LLVM_ROOT)/install/lib/libint.so \
 		-iterate \
 		-test \
 		< $<
@@ -147,7 +147,7 @@ all: $(PROGS>.ll) $(PROGS) test-icfg test-alias
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
 		-load $(LLVM_ROOT)/install/lib/libcfg.so \
-		-load $(LLVM_ROOT)/install/lib/libint-constraints.so \
+		-load $(LLVM_ROOT)/install/lib/libint.so \
 		-count-ctxts \
 		< $<
 
