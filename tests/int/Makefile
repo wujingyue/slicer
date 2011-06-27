@@ -5,3 +5,8 @@ SOURCES = int-test.cpp
 include $(LEVEL)/Makefile.common
 
 CXXFLAGS += -I$(LLVM_ROOT) -I$(SLICER_ROOT) -I$(SLICER_ROOT)/stp/install/include
+
+run::
+	./run-tests
+
+.PHONY: run

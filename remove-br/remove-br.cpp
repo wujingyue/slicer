@@ -89,6 +89,20 @@ bool RemoveBranch::remove_branch(
 		CallInst::Create(trap, "", unreachable_bb);
 		new UnreachableInst(getGlobalContext(), unreachable_bb);
 	}
+	
+	// If a PHINode in the old successor has an incoming value from the
+	// current BB, remove that incoming value. 
+	BasicBlock *old_succ = bi->getSuccessor(i);
+	for (BasicBlock::iterator ii = old_succ->begin();
+			old_succ->getFirstNonPHI() != ii; ++ii) {
+		PHINode *phi = dyn_cast<PHINode>(ii);
+		assert(phi && "All instructions before getFirstNonPHI should be PHINodes.");
+		int idx = phi->getBasicBlockIndex(bi->getParent());
+		if (idx >= 0)
+			phi->removeIncomingValue(idx);
+	}
+	// Make the unreachable BB the new successor. 
+	// An unreachable BB doesn't have any PHINodes. 
 	bi->setSuccessor(i, unreachable_bb);
 	return true;
 }

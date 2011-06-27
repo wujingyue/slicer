@@ -49,6 +49,9 @@ namespace slicer {
 			return cache.lookup(p);
 		SolveConstraints &SC = getAnalysis<SolveConstraints>();
 		AliasResult res;
+		// TODO: <provable> takes much more time than satisfiable. Sometimes, we
+		// only care about may-aliasing, so we could have a separate interface
+		// doing must-aliasing. 
 		if (!SC.satisfiable(CmpInst::ICMP_EQ, V1, V2))
 			res = NoAlias;
 		else if (SC.provable(CmpInst::ICMP_EQ, V1, V2))

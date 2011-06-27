@@ -35,6 +35,7 @@ using namespace llvm;
 #include <memory>
 #include <algorithm>
 #include <sstream>
+#include <string>
 using namespace std;
 
 #include "config.h"
@@ -42,11 +43,18 @@ using namespace std;
 using namespace slicer;
 
 static SimplifierListener listener;
+static raw_ostream *Out = NULL;
 
-#if 0
-static cl::list<const PassInfo*, bool, PassNameParser> PassList(
-		cl::desc("Optimizations available:"));
-#endif
+static cl::opt<string> OutputFilename(
+		"o",
+		cl::desc("Override output filename"),
+		cl::value_desc("filename"),
+		cl::init("-"));
+
+void AddPass(PassManager &PM, Pass *P) {
+	PM.add(P);
+	PM.add(createVerifierPass());
+}
 
 /// AddOptimizationPasses - This routine adds optimization passes
 /// based on selected optimization level, OptLevel. This routine
@@ -75,13 +83,30 @@ void AddOptimizationPasses(PassManager &MPM, FunctionPassManager &FPM,
 			InliningPass);
 }
 
-void Setup(int argc, char *argv[]) {
+int Setup(int argc, char *argv[]) {
 	// NOTE: I'm not able to find its definition. 
 	sys::PrintStackTraceOnErrorSignal();
 	// Enable debug stream buffering.
 	EnableDebugBuffering = true;
 	cl::ParseCommandLineOptions(
 			argc, argv, "Iteratively simplifies a max-sliced program\n");
+	Out = &outs();  // Default to printing to stdout...
+	if (OutputFilename != "-") {
+		// Make sure that the Output file gets unlinked from the disk if we get a
+		// SIGINT
+		sys::RemoveFileOnSignal(sys::Path(OutputFilename));
+
+		string ErrorInfo;
+		Out = new raw_fd_ostream(OutputFilename.c_str(), ErrorInfo,
+				raw_fd_ostream::F_Binary);
+		if (!ErrorInfo.empty()) {
+			errs() << ErrorInfo << '\n';
+			delete Out;
+			Out = NULL;
+			return -1;
+		}
+	}
+	return 0;
 }
 
 Module *LoadModuleFromStdin() {
@@ -191,7 +216,7 @@ int RunPasses(Module *M, const vector<const PassInfo *> &PIs) {
 			errs() << "Cannot create Pass " << PI->getPassName() << "\n";
 			return -1;
 		}
-		Passes.add(PI->getNormalCtor()());
+		AddPass(Passes, PI->getNormalCtor()());
 	}
 
 	// Now that we have all of the passes ready, run them.
@@ -223,23 +248,35 @@ int DoOneIteration(Module *M) {
 	return RunPasses(M, vector<const PassInfo *>(1, PI));
 }
 
-void OutputModule(Module *M) {
+int OutputModule(Module *M) {
 
 	PassManager Passes;
 
 	// Add an appropriate TargetData instance for this module...
 	TargetData *TD = 0;
-	const std::string &ModuleDataLayout = M->getDataLayout();
+	const string &ModuleDataLayout = M->getDataLayout();
 	if (!ModuleDataLayout.empty())
 		TD = new TargetData(ModuleDataLayout);
 	if (TD)
 		Passes.add(TD);
 	
 	// Write bitcode or assembly out to disk or outs() as the last step...
-	Passes.add(createBitcodeWriterPass(outs()));
+	if (!Out) {
+		errs() << "The output stream is not created.\n";
+		return -1;
+	}
+	AddPass(Passes, createBitcodeWriterPass(*Out));
 	
 	// Now that we have all of the passes ready, run them.
 	Passes.run(*M);
+
+	// Delete the raw_fd_ostream. 
+	if (Out != &outs()) {
+		delete Out;
+		Out = NULL;
+	}
+
+	return 0;
 }
 
 int main(int argc, char *argv[]) {
@@ -254,7 +291,8 @@ int main(int argc, char *argv[]) {
 	llvm::PrettyStackTraceProgram X(argc, argv);
 	// Call llvm_shutdown() on exit.
 	llvm_shutdown_obj Y;
-	Setup(argc, argv);
+	if (Setup(argc, argv) == -1)
+		return 1;
 
 	Module *M = LoadModuleFromStdin();
 	if (!M)
@@ -286,7 +324,8 @@ int main(int argc, char *argv[]) {
 	for (size_t i = 0; i < Tmrs.size(); ++i)
 		delete Tmrs[i];
 
-	OutputModule(M);
+	if (OutputModule(M) == -1)
+		return 1;
 
 	return 0;
 }

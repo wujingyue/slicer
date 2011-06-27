@@ -8,14 +8,14 @@ TRACED_PROGS = $(PROGS:=.trace)
 all: $(TRACED_PROGS)
 
 %.bc1: %.bc
-	opt \
+	opt -o $@ \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
 		-load $(LLVM_ROOT)/install/lib/libcfg.so \
 		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
 		-instrument \
-		< $< > $@
+		< $<
 # llvm-ld doesn't generate executables if -link-as-library is specified. 
 %.trace.bc: %.bc1 ../../trace/tracing.bc
 	llvm-ld $^ -b $@ -link-as-library

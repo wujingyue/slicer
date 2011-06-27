@@ -13,7 +13,7 @@ using namespace llvm;
 
 #include "int-constraints/iterate.h"
 #include "int-constraints/solve.h"
-#include "../test-banner.h"
+#include "../include/test-banner.h"
 using namespace slicer;
 
 #include <map>
@@ -31,13 +31,9 @@ namespace slicer {
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 
 	private:
-		typedef void (*TESTCASE)(IntTest &, Module &);
-
 		/* These test functions give assertion failures on incorrect results. */
 		void test_aget_nocrit_slice(Module &M);
 		void test_aget_nocrit_simple(Module &M);
-
-		map<string, vector<TESTCASE> > all_testcases;
 	};
 }
 
@@ -68,7 +64,13 @@ bool IntTest::runOnModule(Module &M) {
 		errs() << "[Warning] You didn't specify the program name. "
 			"No testcases will be executed.\n";
 	}
+	/*
+	 * Run all test cases. 
+	 * Each test case will check whether it should be run according
+	 * to the program name. 
+	 */
 	test_aget_nocrit_slice(M);
+	test_aget_nocrit_simple(M);
 	return false;
 }
 
