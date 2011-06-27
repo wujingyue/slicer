@@ -11,12 +11,19 @@ namespace slicer {
 
 	struct TestBanner {
 
+		static void print_banner(const string &content) {
+			errs() << "+" << string(content.length() + 2, '-') << "+\n";
+			errs() << "| " << content << " |\n";
+			errs() << "+" << string(content.length() + 2, '-') << "+\n";
+		}
+
 		TestBanner(const string &name) {
 			this->name = name;
-			errs() << "===== Running Test " << name << " =====\n";
+			print_banner("Running Test " + name);
 		}
+
 		~TestBanner() {
-			errs() << "===== Finished Test " << name << " =====\n";
+			print_banner("Finished Test " + name);
 		}
 
 	private:

@@ -45,6 +45,11 @@ using namespace slicer;
 static SimplifierListener listener;
 static raw_ostream *Out = NULL;
 
+/**
+ * Use this option instead of printing to stdout. 
+ * The program will remove the output file on failure. 
+ * This saves lots of troubles for Makefiles. 
+ */
 static cl::opt<string> OutputFilename(
 		"o",
 		cl::desc("Override output filename"),
