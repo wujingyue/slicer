@@ -140,7 +140,7 @@ int LoadPlugins() {
 	Loader = LibDir + "/libbc2bdd.so";
 	Loader = LibDir + "/libcallgraph-fp.so";
 	Loader = LibDir + "/libcfg.so";
-	Loader = LibDir + "/libint-constraints.so";
+	Loader = LibDir + "/libint.so";
 	Loader = LibDir + "/libremove-br.so";
 	errs() << "# of plugins = " << Loader.getNumPlugins() << "\n";
 	return 0;
@@ -314,9 +314,9 @@ int main(int argc, char *argv[]) {
 	vector<Timer *> Tmrs;
 	do {
 		++IterNo;
-		ostringstream oss;
-		oss << "Iteration " << IterNo;
-		Timer *TmrIter = new Timer(oss.str(), TG);
+		ostringstream OSS;
+		OSS << "Iteration " << IterNo;
+		Timer *TmrIter = new Timer(OSS.str(), TG);
 		Tmrs.push_back(TmrIter);
 		TmrIter->startTimer();
 		errs() << "=== Starting Iteration " << IterNo << "... ===\n";

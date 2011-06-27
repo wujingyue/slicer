@@ -32,6 +32,7 @@ namespace slicer {
 		bool recalculate(Module &M);
 		virtual void print(raw_ostream &O, const Module *M) const;
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
+		virtual void releaseMemory();
 
 		bool satisfiable(const vector<const Clause *> &more_clauses);
 		bool satisfiable(const Clause *c) {

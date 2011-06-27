@@ -25,10 +25,16 @@ SolveConstraints::SolveConstraints(): ModulePass(&ID) {
 }
 
 SolveConstraints::~SolveConstraints() {
+	errs() << "SolveConstraints::~SolveConstraints\n";
 	vc_Destroy(vc);
 }
 
+void SolveConstraints::releaseMemory() {
+	errs() << "SolveConstraints::releaseMemory\n";
+}
+
 bool SolveConstraints::runOnModule(Module &M) {
+	errs() << "SolveConstraints::runOnModule\n";
 	return recalculate(M);
 }
 
