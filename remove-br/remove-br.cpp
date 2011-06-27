@@ -13,9 +13,9 @@
 using namespace llvm;
 
 #include "remove-br.h"
-#include "../int-constraints/iterate.h"
-#include "../int-constraints/capture.h"
-#include "../int-constraints/solve.h"
+#include "../int/iterate.h"
+#include "../int/capture.h"
+#include "../int/solve.h"
 using namespace slicer;
 
 static RegisterPass<RemoveBranch> X(
