@@ -1,7 +1,6 @@
 LEVEL = $(shell $(LLVM_ROOT)/scripts/level-to-llvm-root)/llvm-obj
 LIBRARYNAME = passes-test
 LOADABLE_MODULE = 1
-SOURCES = passes-test.cpp
 include $(LEVEL)/Makefile.common
 
 CXXFLAGS += -I$(LLVM_ROOT)

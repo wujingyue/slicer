@@ -29,6 +29,7 @@ namespace slicer {
 		SolveConstraints();
 		~SolveConstraints();
 		virtual bool runOnModule(Module &M);
+		bool recalculate(Module &M);
 		virtual void print(raw_ostream &O, const Module *M) const;
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 

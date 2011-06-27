@@ -52,9 +52,9 @@ bool Iterate::runOnModule(Module &M) {
 		errs() << "=== Running iteration " << iter_no << "... ===\n";
 		errs() << "# of constraints = " << CC.get_num_constraints() << "\n";
 		errs() << "AAA cache size = " << AAA.get_cache_size() << "\n";
-		AAA.runOnModule(M); // Essentially clear the cache. 
-		CC.runOnModule(M);
-		SC.runOnModule(M);
+		AAA.recalculate(M); // Essentially clear the cache. 
+		CC.recalculate(M);
+		SC.recalculate(M);
 		timer->stopTimer();
 	} while (CC.get_fingerprint() != fingerprint);
 	for (size_t i = 0; i < timers.size(); ++i)

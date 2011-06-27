@@ -8,7 +8,7 @@
  * Identify the variables only? 
  * Saves the solving time during debugging. 
  */
-#define IDENTIFY_ONLY
+// #define IDENTIFY_ONLY
 
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/DominatorInternals.h"

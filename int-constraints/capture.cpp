@@ -47,9 +47,6 @@ STATISTIC(num_pointers, "Number of pointers");
 char CaptureConstraints::ID = 0;
 
 CaptureConstraints::CaptureConstraints(): ModulePass(&ID) {
-#if 0
-	n_symbols = 0;
-#endif
 	AA = NULL;
 }
 
@@ -61,28 +58,6 @@ CaptureConstraints::~CaptureConstraints() {
 }
 
 void CaptureConstraints::print(raw_ostream &O, const Module *M) const {
-#if 0
-	O << "Start-BB bounds:\n";
-	DenseMap<BasicBlock *, ValueBoundsInBB>::const_iterator it;
-	for (it = start_bb_bounds.begin();
-			it != start_bb_bounds.end(); ++it) {
-		BasicBlock *bb = it->first;
-		O << "BB " << bb->getParent()->getNameStr() << "."
-			<< bb->getNameStr() << "\n";
-		print_bounds_in_bb(O, it->second);
-	}
-#endif
-#if 0
-	O << "\nOverwriting:\n";
-	map<int, vector<DenseSet<const ConstValueSet *> > >::const_iterator i, E;
-	for (i = overwriting.begin(), E = overwriting.end(); i != E; ++i) {
-		for (size_t trunk_id = 0; trunk_id < i->second.size(); ++trunk_id) {
-			O << "Thread " << i->first << " Trunk " << trunk_id << ":\n";
-			forallconst(DenseSet<const ConstValueSet *>, j, i->second[trunk_id])
-				print_alias_set(O, *(*j));
-		}
-	}
-#endif
 	O << "\nConstants:\n";
 	forallconst(ValueSet, it, constants) {
 		print_value(O, *it);
@@ -164,14 +139,17 @@ void CaptureConstraints::stat(Module &M) {
 void CaptureConstraints::setup(Module &M) {
 	// int is always 32-bit long. 
 	int_type = IntegerType::get(getGlobalContext(), 32);
-	if (!AA)
-		AA = &getAnalysis<BddAliasAnalysis>();
+	assert(AA == NULL);
+	AA = &getAnalysis<BddAliasAnalysis>();
 }
 
 bool CaptureConstraints::runOnModule(Module &M) {
-
 	setup(M);
 	stat(M);
+	return recalculate(M);
+}
+
+bool CaptureConstraints::recalculate(Module &M) {
 
 	constraints.clear();
 	// Identify all integer and pointer constants.
@@ -187,7 +165,6 @@ bool CaptureConstraints::runOnModule(Module &M) {
 	// TODO: We'd better have a generic module for all function summaries
 	// instead of writing it for each project. 
 	capture_func_summaries(M);
-
 	simplify_constraints();
 
 	return false;
@@ -201,15 +178,13 @@ void CaptureConstraints::simplify_constraints() {
 }
 
 void CaptureConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
-	// TODO: do we need to use addRequiredTransitive for all passes? 
-	// because CaptureConstraints.runOnModule is called in the iterator. 
 	AU.setPreservesAll();
 	AU.addRequiredTransitive<ObjectID>();
-	AU.addRequired<DominatorTree>();
-	AU.addRequired<IntraReach>();
-	AU.addRequired<BddAliasAnalysis>();
-	AU.addRequired<CallGraphFP>();
-	AU.addRequired<ExecOnce>();
+	AU.addRequiredTransitive<DominatorTree>();
+	AU.addRequiredTransitive<IntraReach>();
+	AU.addRequired<BddAliasAnalysis>(); // Only used in <setup>. 
+	AU.addRequiredTransitive<CallGraphFP>();
+	AU.addRequiredTransitive<ExecOnce>();
 	// AU.addRequired<ICFGManager>();
 	ModulePass::getAnalysisUsage(AU);
 }

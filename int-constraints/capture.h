@@ -39,6 +39,7 @@ namespace slicer {
 		CaptureConstraints();
 		virtual ~CaptureConstraints();
 		virtual bool runOnModule(Module &M);
+		bool recalculate(Module &M);
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual void print(raw_ostream &O, const Module *M) const;
 
