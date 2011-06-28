@@ -1,0 +1,11 @@
+The <int> library requires the STP Library.
+
+Instruction:
+
+1. Check out the latest version of the STP library:
+svn co https://stp-fast-prover.svn.sourceforge.net/svnroot/stp-fast-prover/trunk/stp stp-svn
+
+2. Build STP
+$ cd stp-svn
+$ ./clean-install.sh --with-g++='g++ -fPIC' --with-gcc='gcc -fPIC' --with-prefix=$PWD/../install
+Note: We compile it with -fPIC because we are going to link it with .so files. 

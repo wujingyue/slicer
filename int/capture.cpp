@@ -18,6 +18,7 @@
 #include "common/cfg/reach.h"
 #include "common/cfg/intra-reach.h"
 #include "common/cfg/icfg.h"
+#include "common/cfg/exec-once.h"
 using namespace llvm;
 
 #include "bc2bdd/BddAliasAnalysis.h"
@@ -31,7 +32,6 @@ using namespace std;
 #include "config.h"
 #include "capture.h"
 #include "must-alias.h"
-#include "exec-once.h"
 #include "../max-slicing/clone-map-manager.h"
 using namespace slicer;
 

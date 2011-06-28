@@ -10,10 +10,10 @@
 #include "common/callgraph-fp/callgraph-fp.h"
 #include "common/cfg/icfg.h"
 #include "common/cfg/intra-reach.h"
+#include "common/cfg/exec-once.h"
 using namespace llvm;
 
 #include "capture.h"
-#include "exec-once.h"
 #include "must-alias.h"
 #include "adv-alias.h"
 using namespace slicer;

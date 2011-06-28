@@ -1,3 +1,7 @@
+/**
+ * Author: Jingyue
+ */
+
 #ifndef __SLICER_ICFG_MANAGER_H
 #define __SLICER_ICFG_MANAGER_H
 
