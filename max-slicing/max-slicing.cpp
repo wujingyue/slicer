@@ -38,12 +38,6 @@ static cl::opt<string> MappingFile(
 		cl::desc("Output file containing the clone mapping"),
 		cl::init(""));
 
-static cl::opt<string> CFGFile(
-		"output-cfg",
-		cl::NotHidden,
-		cl::desc("Ooutput file containing the CFG of the cloned program"),
-		cl::init(""));
-
 void MaxSlicing::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<ObjectID>();
 	AU.addRequired<MicroBasicBlockBuilder>();
@@ -193,8 +187,6 @@ void MaxSlicing::print_aux(Module &M) const {
 	assert(!modified && "ObjectID shouldn't modify the module.");
 	// Print the ID mapping. 
 	print_mapping(M);
-	// Print the CFG of the cloned program. 
-	print_cfg(M);
 }
 
 void MaxSlicing::build_clone_id_map() {
@@ -247,40 +239,6 @@ void MaxSlicing::print_cloned_inst(Instruction *ins) {
 	ObjectID &IDM = getAnalysis<ObjectID>();
 	cerr << "trunk = " << cloned_to_trunk.lookup(ins) << "; "
 		<< "ID = " << IDM.getInstructionID(ii) << endl;
-}
-
-void MaxSlicing::print_cfg(Module &M) const {
-#if 0
-	if (CFGFile == "")
-		return;
-	ObjectID &OI = getAnalysis<ObjectID>();
-	MicroBasicBlockBuilder &MBBB = getAnalysis<MicroBasicBlockBuilder>();
-	ofstream fout(CFGFile.c_str());
-	forallbb(M, bi) {
-		for (mbb_iterator mi = MBBB.begin(bi); mi != MBBB.end(bi); ++mi) {
-			forall(MicroBasicBlock, ii, *mi) {
-				if (mi->getParent()->getTerminator() != ii) {
-					InstList nbrs = cfg.lookup(ii);
-					assert(nbrs.size() == 0 || nbrs.size() == 1);
-					for (size_t j = 0; j < nbrs.size(); ++j)
-						assert(MBBB.parent(ii) == MBBB.parent(nbrs[j]));
-				}
-			}
-			Instruction *last = mi->getLast();
-			if (cfg.count(last)) {
-				unsigned id_x = OI.getMicroBasicBlockID(mi);
-				InstList nbrs = cfg.lookup(last);
-				fout << id_x << ":";
-				for (size_t j = 0; j < nbrs.size(); ++j) {
-					MicroBasicBlock *y = MBBB.parent(nbrs[j]);
-					unsigned id_y = OI.getMicroBasicBlockID(y);
-					fout << " " << id_y;
-				}
-				fout << endl;
-			}
-		}
-	}
-#endif
 }
 
 void MaxSlicing::print_mapping(Module &M) const {

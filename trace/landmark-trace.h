@@ -51,7 +51,6 @@ namespace slicer {
 		 */
 		void extend_until_enforce(int thr_id, size_t &s, size_t &e) const;
 
-	private:
 		map<int, vector<unsigned> > thread_trunks;
 	};
 

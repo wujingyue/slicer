@@ -203,12 +203,6 @@ namespace slicer {
 		 * Print the ID mapping. 
 		 */
 		void print_mapping(Module &M) const;
-		/**
-		 * Print the CFG of the cloned program.
-		 * Note that the cloned program may not contain every instructions. 
-		 * Note that the CFG doesn't contain the unreachable BBs. 
-		 */
-		void print_cfg(Module &M) const;
 		/*
 		 * DFS the CFG. 
 		 *
@@ -284,4 +278,3 @@ namespace slicer {
 }
 
 #endif
-

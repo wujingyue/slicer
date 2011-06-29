@@ -1,5 +1,5 @@
-#ifndef __SLICER_TRUNK_MANAGER_H
-#define __SLICER_TRUNK_MANAGER_H
+#ifndef __SLICER_CLONE_INFO_MANAGER_H
+#define __SLICER_CLONE_INFO_MANAGER_H
 
 #include "llvm/Pass.h"
 #include "llvm/Instruction.h"
@@ -13,11 +13,17 @@ using namespace std;
 
 namespace slicer {
 
-	struct TrunkManager: public ModulePass {
+	struct CloneInfo {
+		int thr_id;
+		size_t trunk_id;
+		unsigned orig_ins_id;
+	};
+
+	struct CloneInfoManager: public ModulePass {
 
 		static char ID;
 
-		TrunkManager(): ModulePass(&ID) {}
+		CloneInfoManager(): ModulePass(&ID) {}
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual bool runOnModule(Module &M);
 		
@@ -28,6 +34,12 @@ namespace slicer {
 		void get_containing_trunks(
 				const Instruction *ins,
 				vector<pair<int, size_t> > &containing_trunks) const;
+		bool has_clone_info(const Instruction *ins) const;
+		/*
+		 * Assertion failure if the instruction does not have any clone info. 
+		 * Call <has_clone_info> beforehand. 
+		 */
+		CloneInfo get_clone_info(const Instruction *ins) const;
 
 	private:
 		void search_containing_trunks(
