@@ -250,6 +250,7 @@ void MaxSlicing::print_cloned_inst(Instruction *ins) {
 }
 
 void MaxSlicing::print_cfg(Module &M) const {
+#if 0
 	if (CFGFile == "")
 		return;
 	ObjectID &OI = getAnalysis<ObjectID>();
@@ -279,6 +280,7 @@ void MaxSlicing::print_cfg(Module &M) const {
 			}
 		}
 	}
+#endif
 }
 
 void MaxSlicing::print_mapping(Module &M) const {

@@ -1,7 +1,5 @@
 /**
  * Author: Jingyue
- *
- * Test only. Not a part of int-constraints. 
  */
 
 /**
