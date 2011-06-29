@@ -1,5 +1,8 @@
 /**
  * Author: Jingyue
+ *
+ * DEPRECATED: common/icfg/partial-icfg-builder constructs the partial
+ * ICFG without any auxiliary files. 
  */
 
 #ifndef __SLICER_ICFG_MANAGER_H

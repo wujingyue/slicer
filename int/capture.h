@@ -100,6 +100,7 @@ namespace slicer {
 		 * v1 = v2
 		 */
 		void capture_overwritten_in_func(Function *fi);
+		void capture_overwriting_to(LoadInst *i2);
 		BasicBlock *get_idom(BasicBlock *bb);
 		Instruction *get_idom(Instruction *ins);
 		// Check if any instruction between <i1> and <i2> may write to <q>. 

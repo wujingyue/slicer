@@ -148,33 +148,36 @@ void CaptureConstraints::capture_addr_taken(Module &M) {
 	tmr_overwritten.stopTimer();
 }
 
+void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
+	Value *q = i2->getPointerOperand();
+	// Find the latest dominator <i1> that stores to or loads from
+	// a pointer that must alias with <q>. 
+	Instruction *i1 = get_idom(i2);
+	while (i1) {
+		Value *p = get_pointer_operand(i1);
+		if (p) {
+			AliasAnalysis::AliasResult res = AA->alias(p, 0, q, 0);
+			if (res == AliasAnalysis::MustAlias)
+				break;
+		}
+		i1 = get_idom(i1);
+	}
+	// Is there any store along the path from <i1> to <i2>
+	// that may overwrite to <q>?
+	if (i1 && !path_may_write(i1, i2, q)) {
+		Clause *c = new Clause(new BoolExpr(
+					CmpInst::ICMP_EQ,
+					new Expr(i2),
+					new Expr(get_value_operand(i1))));
+		constraints.push_back(c);
+	}
+}
+
 void CaptureConstraints::capture_overwritten_in_func(Function *fi) {
 	forall(Function, bi, *fi) {
 		forall(BasicBlock, ii, *bi) {
-			if (LoadInst *i2 = dyn_cast<LoadInst>(ii)) {
-				Value *q = i2->getPointerOperand();
-				// Find the latest dominator <i1> that stores to or loads from
-				// a pointer that must alias with <q>. 
-				Instruction *i1 = get_idom(i2);
-				while (i1) {
-					Value *p = get_pointer_operand(i1);
-					if (p) {
-						AliasAnalysis::AliasResult res = AA->alias(p, 0, q, 0);
-						if (res == AliasAnalysis::MustAlias)
-							break;
-					}
-					i1 = get_idom(i1);
-				}
-				// Is there any store along the path from <i1> to <i2>
-				// that may overwrite to <q>?
-				if (i1 && !path_may_write(i1, i2, q)) {
-					Clause *c = new Clause(new BoolExpr(
-								CmpInst::ICMP_EQ,
-								new Expr(i2),
-								new Expr(get_value_operand(i1))));
-					constraints.push_back(c);
-				}
-			}
+			if (LoadInst *i2 = dyn_cast<LoadInst>(ii))
+				capture_overwriting_to(i2);
 		}
 	}
 }
