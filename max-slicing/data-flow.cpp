@@ -5,7 +5,6 @@
 #include "llvm/Module.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Support/CommandLine.h"
-#include "idm/id.h"
 #include "common/callgraph-fp/callgraph-fp.h"
 #include "common/cfg/may-exec.h"
 using namespace llvm;
@@ -34,8 +33,8 @@ void MaxSlicing::fix_def_use_bb(
 		Module &M) {
 	cerr << "Fixing BBs in def-use graph...\n";
 	DenseMap<Function *, BasicBlock *> unreach_bbs;
-	for (Module::iterator fi = M.begin(); fi != M.end(); ++fi) {
-		for (Function::iterator bi = fi->begin(); bi != fi->end(); ++bi) {
+	forallfunc(M, fi) {
+		forall(Function, bi, *fi) {
 			assert(bi->begin() != bi->end());
 			// Skip original BBs. 
 			if (!clone_map_r.count(bi->begin()))
@@ -74,6 +73,8 @@ void MaxSlicing::fix_def_use_bb(
 			// Fix the terminator. 
 			TerminatorInst *ti = bi->getTerminator();
 			if (ti == NULL) {
+				errs() << "[Warning] No terminator: " << fi->getNameStr() << "."
+					<< bi->getNameStr() << "\n";
 				/*
 				 * Some BBs don't have a Terminator because they end with functions
 				 * such as pthread_exit() or exit(), or the CFG is not complete due
@@ -108,13 +109,9 @@ void MaxSlicing::fix_def_use_bb(
 									getGlobalContext(),
 									"unreachable",
 									fi);
-							Constant *func_abort = M.getOrInsertFunction(
-									"abort",
-									FunctionType::get(
-										Type::getVoidTy(getGlobalContext()),
-										false));
-							assert(func_abort && "Cannot find function abort()");
-							CallInst::Create(func_abort, "", unreachable_bb);
+							// Insert an llvm.trap in the unreachable BB. 
+							Function *trap = Intrinsic::getDeclaration(&M, Intrinsic::trap);
+							CallInst::Create(trap, "", unreachable_bb);
 							new UnreachableInst(getGlobalContext(), unreachable_bb);
 							unreach_bbs[fi] = unreachable_bb;
 						}

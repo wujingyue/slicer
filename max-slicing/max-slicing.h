@@ -16,7 +16,6 @@
 
 #include "llvm/Pass.h"
 #include "llvm/ADT/DenseSet.h"
-#include "idm/id.h"
 #include "common/include/typedefs.h"
 using namespace llvm;
 
@@ -105,14 +104,12 @@ namespace slicer {
 				size_t trunk_id,
 				vector<Instruction *> &call_stack);
 		/*
-		 * Link the original instruction and the cloned instruction
+		 * Create the cloned instruction, and
+		 * link the original instruction and the cloned instruction
 		 * in clone mappings.
 		 */
-		void link_orig_cloned(
-				Instruction *orig,
-				Instruction *cloned,
-				int thr_id,
-				size_t trunk_id);
+		void create_and_link_cloned_inst(
+				int thr_id, size_t trunk_id, Instruction *orig);
 		/*
 		 * DFS algorithm used in reachability analysis. 
 		 * This one exploits the call stack and is different from
@@ -170,10 +167,10 @@ namespace slicer {
 		EdgeType get_edge_type(Instruction *x, Instruction *y);
 		/*
 		 * More than x->clone(). 
-		 * We set the name for the new instruction,
-		 * and resolve function-local metadata.
+		 * We set the name for the new instruction, resolve function-local
+		 * metadata, and set the clone_info metadata for the new instruction. 
 		 */
-		Instruction *clone_inst(const Instruction *x);
+		Instruction *clone_inst(int thr_id, size_t trunk_id, const Instruction *x);
 		/*
 		 * This function is called after dfs.
 		 *
@@ -195,20 +192,6 @@ namespace slicer {
 		void print_levels_in_thread(
 				int thr_id,
 				const DenseMap<Instruction *, int> &level);
-		/**
-		 * Print auxiliary stuff for further analysis
-		 */
-		void print_aux(Module &M) const;
-		/**
-		 * Print the ID mapping. 
-		 */
-		void print_mapping(Module &M) const;
-		/**
-		 * Print the CFG of the cloned program.
-		 * Note that the cloned program may not contain every instructions. 
-		 * Note that the CFG doesn't contain the unreachable BBs. 
-		 */
-		void print_cfg(Module &M) const;
 		/*
 		 * DFS the CFG. 
 		 *
@@ -255,8 +238,6 @@ namespace slicer {
 				Instruction *old_start,
 				Instruction *new_start);
 		void stat(Module &M);
-		// Similar to <clone_map> but its keys are IDs rather than instructions.
-		void build_clone_id_map();
 
 		// Maps from a cloned instruction to the original instruction. 
 		InstMapping clone_map_r;
@@ -267,21 +248,9 @@ namespace slicer {
 		// the cloned program. However, there can be at most one of them in each
 		// trunk. Therefore, each trunk has a clone map.
 		map<int, vector<InstMapping> > clone_map;
-		// From an old instruction ID to a cloned instruction. 
-		map<int, vector<DenseMap<unsigned, Instruction *> > > clone_id_map;
-		/*
-		 * max-slicing prints the clone mapping in the end
-		 * in the format of <old ID> => <new ID>.
-		 * Here the old ID means the ID in the original module,
-		 * rather than the ID of an original instruction
-		 * in the sliced program. 
-		 * Therefore, we need to save the old id mapping. 
-		 */
-		DenseMap<Instruction *, unsigned> old_id_map;
 		// CFG and reversed CFG
 		CFG cfg, cfg_r;
 	};
 }
 
 #endif
-

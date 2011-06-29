@@ -1,9 +1,10 @@
-ORIG_PROGS=test-thread test-path test-overwrite test-ctxt test-recursive
+ORIG_PROGS=test-thread test-path test-overwrite test-ctxt test-recursive \
+	   test-branch
 SLICED_PROGS=$(ORIG_PROGS>.slice)
 PROGS=$(ORIG_PROGS) $(SLICED_PROGS)
 
-CFLAGS=-g -O2 -Wall
-CXXFLAGS=-g -O2 -Wall
+CFLAGS=-g -Wall
+CXXFLAGS=-g -Wall
 
 all: $(PROGS>.ll) $(PROGS) test-icfg test-alias
 
@@ -105,7 +106,7 @@ all: $(PROGS>.ll) $(PROGS) test-icfg test-alias
 		-fulltrace $(<:.bc=.ft) \
 		< $< > $@
 
-%.trace.bc: %.bc1 ../trace/tracing/tracing.bc
+%.trace.bc: %.bc1 ../trace/tracing.bc
 	llvm-ld $^ -b $@
 
 %.eo: %.bc
@@ -114,7 +115,7 @@ all: $(PROGS>.ll) $(PROGS) test-icfg test-alias
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
 		-load $(LLVM_ROOT)/install/lib/libcfg.so \
-		-load $(LLVM_ROOT)/install/lib/libint-constraints.so \
+		-load $(LLVM_ROOT)/install/lib/libint.so \
 		-exec-once \
 		< $<
 
@@ -124,10 +125,13 @@ all: $(PROGS>.ll) $(PROGS) test-icfg test-alias
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
 		-load $(LLVM_ROOT)/install/lib/libcfg.so \
-		-load $(LLVM_ROOT)/install/lib/libint-constraints.so \
+		-load $(LLVM_ROOT)/install/lib/libint.so \
 		-iterate \
 		-test \
 		< $<
+
+%.simple.bc: %.slice.bc
+	simplifer < $< > $@
 
 %.loc: %.bc
 	opt -disable-output \
@@ -143,7 +147,7 @@ all: $(PROGS>.ll) $(PROGS) test-icfg test-alias
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
 		-load $(LLVM_ROOT)/install/lib/libcfg.so \
-		-load $(LLVM_ROOT)/install/lib/libint-constraints.so \
+		-load $(LLVM_ROOT)/install/lib/libint.so \
 		-count-ctxts \
 		< $<
 

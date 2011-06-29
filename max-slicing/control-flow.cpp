@@ -6,9 +6,9 @@
 #include "llvm/LLVMContext.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
-#include "idm/id.h"
 #include "common/callgraph-fp/callgraph-fp.h"
 #include "common/cfg/may-exec.h"
+#include "common/id-manager/IDManager.h"
 using namespace llvm;
 
 #include <iostream>
@@ -67,7 +67,7 @@ void MaxSlicing::build_cfg(
 
 void MaxSlicing::dump_thr_cfg(const CFG &cfg, int thr_id) {
 	cerr << "Printing CFG of Thread " << thr_id << "...\n";
-	ObjectID &IDM = getAnalysis<ObjectID>();
+	IDManager &IDM = getAnalysis<IDManager>();
 	for (size_t i = 0; i < clone_map[thr_id].size(); ++i) {
 		forall(InstMapping, it, clone_map[thr_id][i]) {
 			Instruction *orig = it->first;
@@ -166,11 +166,17 @@ void MaxSlicing::assign_container(
 	if (old_x == old_bb->begin()) {
 		Function *func;
 		if (old_bb == old_func->begin()) {
+			// TODO: Very fragile. Need a robust way to copy the function
+			// prototype. 
 			func = Function::Create(
 					old_func->getFunctionType(),
 					old_func->getLinkage(),
 					old_func->getNameStr() + SLICER_SUFFIX,
 					&M);
+			func->setAttributes(old_func->getAttributes());
+			func->setCallingConv(old_func->getCallingConv());
+			if (old_func->hasGC())
+				func->setGC(old_func->getGC());
 			Function::arg_iterator ai = func->arg_begin();
 			Function::arg_iterator old_ai = old_func->arg_begin();
 			for (; ai != func->arg_end() && old_ai != old_func->arg_end();
@@ -223,9 +229,12 @@ MaxSlicing::EdgeType MaxSlicing::get_edge_type(
 		return EDGE_INTER_BB;
 }
 
-Instruction *MaxSlicing::clone_inst(const Instruction *x) {
+Instruction *MaxSlicing::clone_inst(
+		int thr_id, size_t trunk_id, const Instruction *x) {
 	Instruction *y = x->clone();
 	y->setName(x->getName());
+	// Remove ins_id metadata. 
+	y->setMetadata("ins_id", NULL);
 	// Some operands need to be cloned as well, e.g. function-local
 	// metadata. Here we reuse the MapValue function which is used
 	// in RemapInstruction. But we pass an empty value mapping so that
@@ -238,6 +247,16 @@ Instruction *MaxSlicing::clone_inst(const Instruction *x) {
 		if (new_op)
 			y->setOperand(i, new_op);
 	}
+	// Add the clone_info metadata. 
+	unsigned orig_ins_id = getAnalysis<IDManager>().getInstructionID(x);
+	assert(orig_ins_id != IDManager::INVALID_ID);
+	vector<Value *> ops;
+	const IntegerType *int_type = IntegerType::get(x->getContext(), 32);
+	ops.push_back(ConstantInt::get(int_type, thr_id));
+	ops.push_back(ConstantInt::get(int_type, trunk_id));
+	ops.push_back(ConstantInt::get(int_type, orig_ins_id));
+	y->setMetadata(
+			"clone_info", MDNode::get(x->getContext(), &ops[0], ops.size()));
 	return y;
 }
 
@@ -256,7 +275,7 @@ void MaxSlicing::build_cfg_of_thread(
 	 */
 	if (thr_trace.size() == 1) {
 		Instruction *the_ins = thr_trace[0];
-		link_orig_cloned(the_ins, clone_inst(the_ins), thr_id, 0);
+		create_and_link_cloned_inst(thr_id, 0, the_ins);
 	} else {
 		// Iterate through each trunk except the last one. 
 		// The last instruction is automatically added when processing the
@@ -298,10 +317,10 @@ void MaxSlicing::build_cfg_of_trunk(
 	dfs(start, cut, visited_nodes, visited_edges, call_stack);
 #ifdef VERBOSE
 	if (!visited_nodes.count(end)) {
-		ObjectID &OI = getAnalysis<ObjectID>();
+		IDManager &IDM = getAnalysis<IDManager>();
 		errs() << "Cannot reach:\n";
-		errs() << OI.getInstructionID(start) << ":" << *start << "\n";
-		errs() << OI.getInstructionID(end) << ":" << *end << "\n";
+		errs() << IDM.getInstructionID(start) << ":" << *start << "\n";
+		errs() << IDM.getInstructionID(end) << ":" << *end << "\n";
 	}
 #endif
 	assert(visited_nodes.count(end) &&
@@ -316,10 +335,10 @@ void MaxSlicing::build_cfg_of_trunk(
 		// except for the first trunk. 
 		// <end> should be cloned into the next trunk. 
 		if (orig != end && (orig != start || trunk_id == 0))
-			link_orig_cloned(orig, clone_inst(orig), thr_id, trunk_id);
+			create_and_link_cloned_inst(thr_id, trunk_id, orig);
 	}
 	// <end> belongs to the next trunk. 
-	link_orig_cloned(end, clone_inst(end), thr_id, trunk_id + 1);
+	create_and_link_cloned_inst(thr_id, trunk_id + 1, end);
 #ifdef VERBOSE
 	print_inst_set(visited_nodes);
 	print_edge_set(visited_edges);
@@ -342,11 +361,11 @@ void MaxSlicing::build_cfg_of_trunk(
 	}
 }
 
-void MaxSlicing::link_orig_cloned(
-		Instruction *orig,
-		Instruction *cloned,
-		int thr_id,
-		size_t trunk_id) {
+void MaxSlicing::create_and_link_cloned_inst(
+		int thr_id, size_t trunk_id, Instruction *orig) {
+	// Create
+	Instruction *cloned = clone_inst(thr_id, trunk_id, orig);
+	// Link
 	while (trunk_id >= clone_map[thr_id].size())
 		clone_map[thr_id].push_back(InstMapping());
 	clone_map[thr_id][trunk_id][orig] = cloned;

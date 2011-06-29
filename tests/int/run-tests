@@ -1,0 +1,30 @@
+#!/usr/bin/env python
+
+import os, sys
+
+def init():
+    llvm_root_dir = os.getenv("LLVM_ROOT")
+    if llvm_root_dir == "":
+        exit(1)
+    lib_dir = llvm_root_dir + "/install/lib"
+    progs_dir = "../progs"
+    # Leave blank the program name and the bc file name. 
+    global cmd_tmpl
+    cmd_tmpl = "opt -disable-output " \
+            "-load " + lib_dir + "/libidm.so " \
+            "-load " + lib_dir + "/libbc2bdd.so " \
+            "-load " + lib_dir + "/libcallgraph-fp.so " \
+            "-load " + lib_dir + "/libcfg.so " \
+            "-load " + lib_dir + "/libint.so " \
+            "-load " + lib_dir + "/libint-test.so " \
+            "-int-test -prog %s < " + progs_dir + "/%s"
+
+def run_test(prog_name):
+    global cmd_tmpl
+    cmd = cmd_tmpl %(prog_name, prog_name + ".bc")
+    print >> sys.stderr, cmd
+    os.system(cmd)
+
+if __name__ == "__main__":
+    init()
+    run_test("aget-nocrit.simple")

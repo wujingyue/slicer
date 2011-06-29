@@ -1,3 +1,10 @@
+/**
+ * Author: Jingyue
+ *
+ * TODO: Make the TraceManager an AnalysisGroup, so that we can plugin
+ * customized TraceManager's. 
+ */
+
 #ifndef __SLICER_TRACE_MANAGER_H
 #define __SLICER_TRACE_MANAGER_H
 
@@ -65,4 +72,3 @@ namespace slicer {
 }
 
 #endif
-
