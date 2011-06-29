@@ -116,6 +116,9 @@ void MaxSlicing::read_trace_and_cut(
 }
 
 bool MaxSlicing::runOnModule(Module &M) {
+	// Make sure the original program has required ID information. 
+	assert(getAnalysis<IDManager>().size() > 0 &&
+			"The program does not have ID information.");
 	// Read the trace and the cut. 
 	Trace trace;
 	vector<ThreadCreationRecord> thr_cr_records;
@@ -130,7 +133,7 @@ bool MaxSlicing::runOnModule(Module &M) {
 	build_cfg(M, trace, cut);
 	// Fix the def-use graph. 
 	fix_def_use(M, trace);
-	// Stat before the clone mappings become invalid.
+	// Statistic. 
 	stat(M);
 	// Link thread functions. 
 	link_thr_funcs(M, trace, thr_cr_records);

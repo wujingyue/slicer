@@ -26,6 +26,12 @@ all: $(BCS)
 %: %.cpp
 
 # Utilities
+# Instruction ID using IDManager
+%.iid: %.bc
+	opt -analyze \
+		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
+		-manage-id \
+		< $< > $@
 # Instruction ID
 %.id: %.bc
 	$(LLVM_ROOT)/scripts/print-id insts $< > $@
@@ -48,6 +54,6 @@ all: $(BCS)
 		< $<
 
 clean:
-	rm -f *.id *.mid *.vid *.ll *.loc *.s $(BCS) $(PROGS)
+	rm -f *.iid *.id *.mid *.vid *.ll *.loc *.s $(BCS) $(PROGS)
 
 .PHONY: clean

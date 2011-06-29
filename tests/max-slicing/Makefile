@@ -7,9 +7,11 @@ SLICED_BCS = $(SLICED_PROGS:=.bc)
 # We don't SLICED_PROGS by default. 
 all: $(SLICED_BCS)
 
-$(PROGS_DIR)/%.slice.bc: $(PROGS_DIR)/%.bc %.ft
+# max-slicing requires ID information. 
+$(PROGS_DIR)/%.slice.bc: $(PROGS_DIR)/%-id.bc %.ft
 	opt -o $@ \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
+		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
 		-load $(LLVM_ROOT)/install/lib/libcfg.so \
@@ -17,8 +19,6 @@ $(PROGS_DIR)/%.slice.bc: $(PROGS_DIR)/%.bc %.ft
 		-load $(LLVM_ROOT)/install/lib/libmax-slicing.so \
 		-max-slicing \
 		-fulltrace $(word 2, $^) \
-		-output-clone-map $(@:.bc=.map) \
-		-output-cfg $(@:.bc=.cfg) \
 		< $<
 
 %.s: %.bc
@@ -29,7 +29,6 @@ $(PROGS_DIR)/%.slice.bc: $(PROGS_DIR)/%.bc %.ft
 	$(CXX) $< -o $@ -pthread
 
 clean:
-	rm -f $(SLICED_PROGS) $(SLICED_BCS) $(SLICED_PROGS:.slice=.map) \
-		$(SLICED_PROGS:.slice=.cfg)
+	rm -f $(SLICED_PROGS) $(SLICED_BCS)
 
 .PHONY: clean

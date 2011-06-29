@@ -233,6 +233,8 @@ Instruction *MaxSlicing::clone_inst(
 		int thr_id, size_t trunk_id, const Instruction *x) {
 	Instruction *y = x->clone();
 	y->setName(x->getName());
+	// Remove ins_id metadata. 
+	y->setMetadata("ins_id", NULL);
 	// Some operands need to be cloned as well, e.g. function-local
 	// metadata. Here we reuse the MapValue function which is used
 	// in RemapInstruction. But we pass an empty value mapping so that
