@@ -1,15 +1,15 @@
 #ifndef __SLICER_RACY_PAIRS_H
-#define __SLICER_RACY_PARIS_H
+#define __SLICER_RACY_PAIRS_H
 
 #include "llvm/Module.h"
 
 #include "common/include/typedefs.h"
-#include "llvm-instrument/trace/add-calling-context.h"
+#include "trace/add-calling-context.h"
 
 #include <map>
 #include <vector>
 
-using namespace tern;
+//using namespace tern;
 using namespace llvm;
 using namespace std;
 

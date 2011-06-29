@@ -4,9 +4,10 @@
 #include "common/include/util.h"
 using namespace llvm;
 
-#include "llvm-instrument/trace/landmark-trace.h"
-#include "llvm-instrument/trace/trace-manager.h"
-using namespace tern;
+#include "trace/landmark-trace.h"
+#include "trace/trace.h"
+#include "trace/trace-manager.h"
+
 
 #include <fstream>
 #include <sstream>
