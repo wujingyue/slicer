@@ -8,7 +8,7 @@
 #include "llvm/Module.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Support/CommandLine.h"
-#include "idm/id.h"
+#include "common/id-manager/IDManager.h"
 #include "common/callgraph-fp/callgraph-fp.h"
 #include "common/cfg/may-exec.h"
 using namespace llvm;
@@ -31,15 +31,8 @@ static RegisterPass<MaxSlicing> X(
 		false,
 		false); // max-slicing is a pure transform pass. 
 
-/* Instructions that are not cloned will be contained in Thread -1 */
-static cl::opt<string> MappingFile(
-		"output-clone-map",
-		cl::NotHidden,
-		cl::desc("Output file containing the clone mapping"),
-		cl::init(""));
-
 void MaxSlicing::getAnalysisUsage(AnalysisUsage &AU) const {
-	AU.addRequired<ObjectID>();
+	AU.addRequired<IDManager>();
 	AU.addRequired<MicroBasicBlockBuilder>();
 	AU.addRequired<CallGraphFP>();
 	AU.addRequired<MayExec>();
@@ -50,7 +43,7 @@ void MaxSlicing::getAnalysisUsage(AnalysisUsage &AU) const {
 }
 
 void MaxSlicing::print_inst_set(const InstSet &s) {
-	ObjectID &IDM = getAnalysis<ObjectID>();
+	IDManager &IDM = getAnalysis<IDManager>();
 	vector<unsigned> inst_ids;
 	for (InstSet::const_iterator it = s.begin();
 			it != s.end(); ++it)
@@ -62,7 +55,7 @@ void MaxSlicing::print_inst_set(const InstSet &s) {
 }
 
 void MaxSlicing::print_edge_set(const EdgeSet &s) {
-	ObjectID &IDM = getAnalysis<ObjectID>();
+	IDManager &IDM = getAnalysis<IDManager>();
 	vector<pair<unsigned, unsigned> > edge_ids;
 	forallconst(EdgeSet, it, s) {
 		edge_ids.push_back(make_pair(
@@ -81,7 +74,7 @@ void MaxSlicing::print_levels_in_thread(
 	vector<pair<pair<size_t, unsigned>, int> > leveled;
 	for (size_t i = 0; i < clone_map[thr_id].size(); ++i) {
 		forall(InstMapping, it, clone_map[thr_id][i]) {
-			ObjectID &IDM = getAnalysis<ObjectID>();
+			IDManager &IDM = getAnalysis<IDManager>();
 			if (level.count(it->second)) {
 				leveled.push_back(make_pair(
 							make_pair(i, IDM.getInstructionID(it->first)),
@@ -123,13 +116,6 @@ void MaxSlicing::read_trace_and_cut(
 }
 
 bool MaxSlicing::runOnModule(Module &M) {
-	// Save the old id mapping before everything. 
-	ObjectID &IDM = getAnalysis<ObjectID>();
-	unsigned n_insts = IDM.getNumInstructions();
-	for (unsigned i = 0; i < n_insts; ++i) {
-		assert(IDM.getInstruction(i));
-		old_id_map[IDM.getInstruction(i)] = i;
-	}
 	// Read the trace and the cut. 
 	Trace trace;
 	vector<ThreadCreationRecord> thr_cr_records;
@@ -148,9 +134,6 @@ bool MaxSlicing::runOnModule(Module &M) {
 	stat(M);
 	// Link thread functions. 
 	link_thr_funcs(M, trace, thr_cr_records);
-	// <redirect_program_entry> invalidates <clone_map>.
-	// Therefore, we build <clone_id_map> before that. 
-	build_clone_id_map();
 	// Redirect the program entry to main.SLICER. 
 	assert(trace.count(0) && trace[0].size() > 0);
 	Instruction *old_start = trace[0][0];
@@ -164,53 +147,12 @@ bool MaxSlicing::runOnModule(Module &M) {
 	clone_map_r.clear();
 	cloned_to_tid.clear();
 	cloned_to_trunk.clear();
-	old_id_map.clear();
 	redirect_program_entry(old_start, new_start);
 #ifdef VERBOSE
 	cerr << "Dumping module...\n";
 	M.dump();
 #endif
-	// Print auxiliary stuff. 
-	print_aux(M);
 	return true;
-}
-
-void MaxSlicing::print_aux(Module &M) const {
-	// Rerun ObjectID and MicroBasicBlockBuilder to get consistent info. 
-	bool modified;
-	MicroBasicBlockBuilder &MBBB = getAnalysis<MicroBasicBlockBuilder>();
-	modified = MBBB.runOnModule(M);
-	assert(!modified && "MicroBasicBlockBuilder shouldn't modify the module.");
-	// ObjectID requires MicroBasicBlockBuilder, thus we rerun MBBB first. 
-	ObjectID &OI = getAnalysis<ObjectID>();
-	modified = OI.runOnModule(M);
-	assert(!modified && "ObjectID shouldn't modify the module.");
-	// Print the ID mapping. 
-	print_mapping(M);
-}
-
-void MaxSlicing::build_clone_id_map() {
-	for (map<int, vector<InstMapping> >::iterator it = clone_map.begin();
-			it != clone_map.end(); ++it) {
-		int thr_id = it->first;
-		for (size_t tr_id = 0; tr_id < it->second.size(); ++tr_id) {
-			DenseMap<unsigned, Instruction *> trunk_id_map;
-			forall(InstMapping, j, it->second[tr_id]) {
-				Instruction *orig = j->first;
-				Instruction *cloned = j->second;
-				assert(old_id_map.count(orig));
-				trunk_id_map[old_id_map.lookup(orig)] = cloned;
-			}
-			clone_id_map[thr_id].push_back(trunk_id_map);
-		}
-		assert(clone_id_map[thr_id].size() == clone_map[thr_id].size());
-	}
-	// So that clone_id_map[-1][0] is valid. 
-	clone_id_map[-1].push_back(DenseMap<unsigned, Instruction *>());
-	for (DenseMap<Instruction *, unsigned>::iterator it = old_id_map.begin();
-			it != old_id_map.end(); ++it) {
-		clone_id_map[-1][0][it->second] = it->first;
-	}
 }
 
 void MaxSlicing::stat(Module &M) {
@@ -236,33 +178,9 @@ void MaxSlicing::print_cloned_inst(Instruction *ins) {
 	cerr << ii->getParent()->getParent()->getNameStr() << "."
 		<< ii->getParent()->getNameStr() << endl;
 	ii->dump();
-	ObjectID &IDM = getAnalysis<ObjectID>();
+	IDManager &IDM = getAnalysis<IDManager>();
 	cerr << "trunk = " << cloned_to_trunk.lookup(ins) << "; "
 		<< "ID = " << IDM.getInstructionID(ii) << endl;
-}
-
-void MaxSlicing::print_mapping(Module &M) const {
-	if (MappingFile == "")
-		return;
-	ofstream fout(MappingFile.c_str());
-	map<int, vector<DenseMap<unsigned, Instruction *> > >::const_iterator it;
-	for (it = clone_id_map.begin(); it != clone_id_map.end(); ++it) {
-		int thr_id = it->first;
-		for (size_t tr_id = 0; tr_id < it->second.size(); ++tr_id) {
-			DenseMap<unsigned, Instruction *>::const_iterator j;
-			for (j = it->second[tr_id].begin();
-					j != it->second[tr_id].end(); ++j) {
-				unsigned old_id = j->first;
-				Instruction *cloned = j->second;
-				unsigned new_id = getAnalysis<ObjectID>().getInstructionID(cloned);
-				assert(new_id != ObjectID::INVALID_ID);
-				fout << thr_id << " "
-					<< tr_id << " "
-					<< old_id << " "
-					<< new_id << "\n";
-			}
-		}
-	}
 }
 
 char MaxSlicing::ID = 0;
