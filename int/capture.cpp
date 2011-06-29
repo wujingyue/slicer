@@ -32,7 +32,6 @@ using namespace std;
 #include "config.h"
 #include "capture.h"
 #include "must-alias.h"
-#include "../max-slicing/clone-map-manager.h"
 using namespace slicer;
 
 static RegisterPass<CaptureConstraints> X(
