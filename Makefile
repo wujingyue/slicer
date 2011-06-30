@@ -1,15 +1,15 @@
-.PHONY:alias-pairs int-constraints max-slicing trace
+.PHONY:alias-pairs int max-slicing trace
 
 install: all
 
-all: alias-pairs int-constraints max-slicing  trace
+all: alias-pairs int max-slicing  trace
 
 
 alias-pairs:
 	cd alias-pairs && make install
 
-int-constraints: stp/install/bin/stp
-	cd int-constraints && ./configure && make install
+int: stp/install/bin/stp
+	cd int && ./configure && make install
 
 max-slicing:
 	cd max-slicing && ./configure && make install
@@ -27,9 +27,11 @@ stp:
 	svn co https://stp-fast-prover.svn.sourceforge.net/svnroot/stp-fast-prover/trunk/stp stp
 
 clean:
-	rm -rf stp
 	cd alias-pairs && make clean
-	cd int-constraints && make clean
+	cd int && make clean
 	cd max-slicing && make clean
 	cd racy-pairs && make clean
 	cd trace && make clean
+
+dist-clean: clean
+	rm -rf stp
