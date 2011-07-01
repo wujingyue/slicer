@@ -6,7 +6,7 @@ include $(LEVEL)/Makefile.common
 
 CXXFLAGS += -I$(LLVM_ROOT)
 
-PROG_NAMES = aget aget-nocrit test-thread
+PROG_NAMES = aget aget-nocrit test-thread test-overwrite
 PROGS_DIR = ../progs
 
 run:: $(addsuffix .slice.icfg, $(PROG_NAMES))
@@ -20,6 +20,15 @@ run:: $(addsuffix .slice.icfg, $(PROG_NAMES))
 		-load $(LLVM_ROOT)/install/lib/libicfg-test.so \
 		-icfg-test \
 		< $< > $@
+
+%: $(PROGS_DIR)/%.bc
+	opt -disable-output \
+		-load $(LLVM_ROOT)/install/lib/libidm.so \
+		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
+		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/libcfg.so \
+		-load $(LLVM_ROOT)/install/lib/libicfg-test.so \
+		-icfg-test -prog $@ < $<
 
 clean::
 	rm -f *.icfg

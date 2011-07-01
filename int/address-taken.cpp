@@ -240,6 +240,7 @@ bool CaptureConstraints::path_may_write(
 	errs() << "path_may_write:\n";
 	errs() << "\t" << *i1 << "\n" << "\t" << *i2 << "\n";
 #endif
+#if 1
 	IntraReach &IR = getAnalysis<IntraReach>(
 			*const_cast<Function *>(i1->getParent()->getParent()));
 	ConstBBSet visited;
@@ -264,6 +265,7 @@ bool CaptureConstraints::path_may_write(
 				return true;
 		}
 	}
+#endif
 	return false;
 }
 
