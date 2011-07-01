@@ -13,6 +13,7 @@
 #include "common/cfg/intra-reach.h"
 #include "common/cfg/exec-once.h"
 #include "common/cfg/partial-icfg-builder.h"
+#include "common/cfg/reach.h"
 using namespace llvm;
 
 #include "capture.h"
@@ -240,7 +241,7 @@ bool CaptureConstraints::path_may_write(
 	errs() << "path_may_write:\n";
 	errs() << "\t" << *i1 << "\n" << "\t" << *i2 << "\n";
 #endif
-#if 1
+#if 0
 	IntraReach &IR = getAnalysis<IntraReach>(
 			*const_cast<Function *>(i1->getParent()->getParent()));
 	ConstBBSet visited;
@@ -266,7 +267,39 @@ bool CaptureConstraints::path_may_write(
 		}
 	}
 #endif
-	return false;
+	MicroBasicBlockBuilder &MBBB = getAnalysis<MicroBasicBlockBuilder>();
+	MicroBasicBlock *m1 = MBBB.parent(i1), *m2 = MBBB.parent(i2);
+
+	ICFG &PIB = getAnalysis<PartialICFGBuilder>();
+	ICFGNode *n1 = PIB[m1], *n2 = PIB[m2];
+	assert(n1 && n2);
+	
+	Reach<ICFGNode> IR;
+	DenseSet<const ICFGNode *> visited, sink;
+	sink.insert(n1);
+	IR.floodfill_r(n2, sink, visited);
+	assert(visited.count(n1) && "<i1> should dominate <i2>");
+	// Functions visited in <may_write>s. 
+	// In order to handle recursive functions. 
+	// FIXME: Trace into functions that don't appear in the ICFG. 
+	forall(DenseSet<const ICFGNode *>, it, visited) {
+		const MicroBasicBlock *mbb = (*it)->getMBB();
+		BasicBlock::const_iterator s = mbb->begin(), e = mbb->end();
+		if (m1 == mbb) {
+			s = i1;
+			++s;
+		}
+		if (m2 == mbb)
+			e = i2;
+		for (BasicBlock::const_iterator i = s; i != e; ++i) {
+			if (const StoreInst *si = dyn_cast<StoreInst>(i)) {
+				if (AA->alias(si->getPointerOperand(), 0, q, 0) !=
+						AliasAnalysis::NoAlias)
+					return true;
+			}
+		}
+	}
+ 	return false;
 }
 
 BasicBlock *CaptureConstraints::get_idom(BasicBlock *bb) {
