@@ -20,6 +20,12 @@ void CloneInfoManager::getAnalysisUsage(AnalysisUsage &AU) const {
 
 bool CloneInfoManager::runOnModule(Module &M) {
 	/* TODO: Mapping from old instructions to cloned instructions. */
+	forallinst(M, ins) {
+		if (!has_clone_info(ins))
+			continue;
+		rmap[get_clone_info(ins)] = ins;
+	}
+	assert(rmap.size() > 0 && "The program does not contain any clone_info.");
 	return false;
 }
 
@@ -76,4 +82,13 @@ void CloneInfoManager::search_containing_trunks(
 	InstList call_sites = CG.get_call_sites(f);
 	forall(InstList, it, call_sites)
 		search_containing_trunks(*it, visited, containing_trunks);
+}
+
+Instruction *CloneInfoManager::get_instruction(
+		int thr_id, size_t trunk_id, unsigned orig_ins_id) const {
+	CloneInfo ci;
+	ci.thr_id = thr_id;
+	ci.trunk_id = trunk_id;
+	ci.orig_ins_id = orig_ins_id;
+	return rmap.lookup(ci);
 }

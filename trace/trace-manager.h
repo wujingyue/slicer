@@ -27,8 +27,6 @@ namespace slicer {
 		TR_LANDMARK_NO_ENFORCE = 2 // not used for now
 	};
 
-	const static int INVALID_TID = -1;
-
 	// Computed by TraceManager
 	struct TraceRecordInfo {
 		Instruction *ins;
@@ -43,6 +41,7 @@ namespace slicer {
 		static char ID;
 
 		const static unsigned INVALID_IDX = (unsigned)(-1);
+		const static int INVALID_TID = -1;
 
 		TraceManager(): ModulePass(&ID) {}
 

@@ -38,11 +38,16 @@ bool TraceManager::runOnModule(Module &M) {
 	records.clear();
 
 	string full_trace_file = FullTraceFile;
+	assert(full_trace_file != "" && "Didn't specify the full trace.");
 	ifstream fin(full_trace_file.c_str(), ios::binary);
+#if 0
 	if (!fin) {
 		errs() << "[Warning] Didn't specify the full trace.\n";
 		return false;
 	}
+#else
+	assert(false && "Cannot open the full trace.");
+#endif
 
 	TraceRecord record;
 	while (read_record(fin, record))

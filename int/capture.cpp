@@ -32,6 +32,7 @@ using namespace std;
 #include "config.h"
 #include "capture.h"
 #include "must-alias.h"
+#include "../trace/trace-manager.h"
 #include "../trace/landmark-trace.h"
 #include "../max-slicing/clone-info-manager.h"
 using namespace slicer;
@@ -55,6 +56,7 @@ void CaptureConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<BddAliasAnalysis>(); // Only used in <setup>. 
 	AU.addRequiredTransitive<CallGraphFP>();
 	AU.addRequiredTransitive<ExecOnce>();
+	AU.addRequiredTransitive<TraceManager>();
 	AU.addRequiredTransitive<LandmarkTrace>();
 	AU.addRequiredTransitive<CloneInfoManager>();
 	AU.addRequiredTransitive<PartialICFGBuilder>();

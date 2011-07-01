@@ -38,7 +38,7 @@ namespace slicer {
 		/* These test functions give assertion failures on incorrect results. */
 		void test_aget_nocrit_slice(const Module &M);
 		void test_aget_nocrit_simple(const Module &M);
-		void test_test_overwrite(const Module &M);
+		void test_test_overwrite_slice(const Module &M);
 	};
 }
 
@@ -77,7 +77,7 @@ bool IntTest::runOnModule(Module &M) {
 	 */
 	test_aget_nocrit_slice(M);
 	test_aget_nocrit_simple(M);
-	test_test_overwrite(M);
+	test_test_overwrite_slice(M);
 	return false;
 }
 
@@ -88,15 +88,17 @@ void IntTest::test_aget_nocrit_slice(const Module &M) {
 	TestBanner X("aget-nocrit.slice");
 }
 
-void IntTest::test_test_overwrite(const Module &M) {
+void IntTest::test_test_overwrite_slice(const Module &M) {
 	
-	if (Program != "test-overwrite")
+	if (Program != "test-overwrite.slice")
 		return;
-	TestBanner X("test-overwrite");
+	TestBanner X("test-overwrite.slice");
 
 	const Value *v1 = NULL, *v2 = NULL;
 	forallconst(Module, f, M) {
 		forallconst(Function, bb, *f) {
+			if (f->getName() == "main.OLDMAIN")
+				continue;
 			forallconst(BasicBlock, ins, *bb) {
 				if (const LoadInst *li = dyn_cast<LoadInst>(ins)) {
 					if (li->isVolatile()) {
@@ -114,6 +116,7 @@ void IntTest::test_test_overwrite(const Module &M) {
 	assert(v1 && v2 && "There should be exactly 2 volatile loads.");
 	
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
+	errs() << *v1 << "\n" << *v2 << "\n";
 	assert(SC.provable(CmpInst::ICMP_EQ, v1, v2));
 }
 

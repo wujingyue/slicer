@@ -11,7 +11,6 @@ namespace slicer {
 		unsigned long raw_tid;
 		unsigned long raw_child_tid;
 	};
-
 }
 
 #endif

@@ -6,7 +6,7 @@ include $(LEVEL)/Makefile.common
 
 CXXFLAGS += -I$(LLVM_ROOT) -I$(SLICER_ROOT) -I$(SLICER_ROOT)/stp/install/include
 
-PROG_NAMES = aget-nocrit.simple test-overwrite
+PROG_NAMES = aget-nocrit.simple test-overwrite.slice
 PROGS_DIR = ../progs
 
 run:: $(PROG_NAMES)
@@ -22,6 +22,9 @@ run:: $(PROG_NAMES)
 		-load $(LLVM_ROOT)/install/lib/libmax-slicing.so \
 		-load $(LLVM_ROOT)/install/lib/libint.so \
 		-load $(LLVM_ROOT)/install/lib/libint-test.so \
-		-int-test -prog $@ < $<
+		-int-test \
+		-prog $@ \
+		-fulltrace ../max-slicing/$@.ft \
+		< $<
 
 .PHONY: run

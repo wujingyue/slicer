@@ -178,17 +178,15 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 	if (!is_constant(i2))
 		return;
 	
-	/*
-	MicroBasicBlockBuilder &MBBB = getAnalysis<MicroBasicBlockBuilder>();
-	MicroBasicBlock *m2 = MBBB.parent(i2); assert(m2);
-
-	ICFG &PIB = getAnalysis<PartialICFGBuilder>();
-	PIB[
-	*/
 	CloneInfoManager &CIM = getAnalysis<CloneInfoManager>();
-	if (!CIM.has_clone_info(i2))
+	vector<pair<int, size_t> > cur_trunks;
+	CIM.get_containing_trunks(i2, cur_trunks);
+	if (cur_trunks.size() != 1)
 		return;
-	CloneInfo ci = CIM.get_clone_info(i2);
+	int cur_thr_id = cur_trunks[0].first;
+	size_t cur_trunk_id = cur_trunks[0].second;
+
+	errs() << cur_thr_id << ' ' << cur_trunk_id << ":" << *i2 << "\n";
 
 	TraceManager &TM = getAnalysis<TraceManager>();
 	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
@@ -196,10 +194,10 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 	vector<Instruction *> latest_doms(thr_ids.size(), NULL);
 	for (size_t k = 0; k < thr_ids.size(); ++k) {
 		int i = thr_ids[k];
-		if (i == ci.thr_id)
+		if (i == cur_thr_id)
 			latest_doms[k] = i2;
 		else {
-			size_t j = LT.get_latest_trunk(ci.thr_id, ci.trunk_id, i);
+			size_t j = LT.get_latest_trunk(cur_thr_id, cur_trunk_id, i);
 			if (j != (size_t)-1)
 				latest_doms[k] = TM.get_record_info(LT.get_landmark(i, j)).ins;
 		}
@@ -251,17 +249,36 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 			latest_overwriters[k1] = NULL;
 	}
 
+	unsigned n_overwriters = 0;
+	int the_thr_idx = -1; // Used later. 
 	for (size_t k = 0; k < thr_ids.size(); ++k) {
+		if (latest_overwriters[k]) {
+			n_overwriters++;
+			the_thr_idx = k;
+		}
 	}
-	Instruction *i1 = find_latest_overwriter(i2, q);
-	// Is there any store along the path from <i1> to <i2>
-	// that may overwrite to <q>?
-	if (i1 && !path_may_write(i1, i2, q)) {
-		Clause *c = new Clause(new BoolExpr(
-					CmpInst::ICMP_EQ,
-					new Expr(i2),
-					new Expr(get_value_operand(i1))));
-		constraints.push_back(c);
+
+	if (n_overwriters == 0) {
+		if (GlobalVariable *gv = dyn_cast<GlobalVariable>(q)) {
+			if (gv->hasInitializer()) {
+				if (ConstantInt *ci = dyn_cast<ConstantInt>(gv->getInitializer())) {
+					Clause *c = new Clause(new BoolExpr(
+								CmpInst::ICMP_EQ,
+								new Expr(i2),
+								new Expr(ci)));
+					constraints.push_back(c);
+				}
+			}
+		}
+	} else if (n_overwriters == 1) {
+		if (!path_may_write(
+					latest_overwriters[the_thr_idx], latest_doms[the_thr_idx], q)) {
+			Clause *c = new Clause(new BoolExpr(
+						CmpInst::ICMP_EQ,
+						new Expr(i2),
+						new Expr(get_value_operand(latest_overwriters[the_thr_idx]))));
+			constraints.push_back(c);
+		}
 	}
 }
 

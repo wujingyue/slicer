@@ -27,7 +27,7 @@ all: $(TRACED_PROGS)
 %: %.s
 	$(CXX) $< -o $@ -pthread
 
-%.display: %.ft
+%.display: ../max-slicing/%.ft
 	trace-display $<
 
 clean:

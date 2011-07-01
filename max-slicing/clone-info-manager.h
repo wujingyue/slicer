@@ -5,6 +5,9 @@
 #include "llvm/Instruction.h"
 #include "llvm/ADT/DenseSet.h"
 #include "common/include/typedefs.h"
+#include "common/include/util.h"
+#include "common/id-manager/IDManager.h"
+#include "../trace/trace-manager.h"
 using namespace llvm;
 
 #include <vector>
@@ -18,6 +21,40 @@ namespace slicer {
 		size_t trunk_id;
 		unsigned orig_ins_id;
 	};
+}
+using namespace slicer;
+
+namespace llvm {
+
+	template <> struct DenseMapInfo<CloneInfo> {
+
+		static CloneInfo getEmptyKey() {
+			CloneInfo ci;
+			ci.thr_id = 0;
+			ci.trunk_id = 0;
+			ci.orig_ins_id = IDManager::INVALID_ID;
+			return ci;
+		}
+
+		static CloneInfo getTombstoneKey() {
+			CloneInfo ci = getEmptyKey();
+			ci.thr_id = TraceManager::INVALID_TID;
+			return ci;
+		}
+
+		static unsigned getHashValue(const CloneInfo &x) {
+			return DenseMapInfo<pair<int, pair<size_t, unsigned> > >::getHashValue(
+					make_pair(x.thr_id, make_pair(x.trunk_id, x.orig_ins_id)));
+		}
+
+		static bool isEqual(const CloneInfo &x, const CloneInfo &y) {
+			return x.thr_id == y.thr_id && x.trunk_id == y.trunk_id &&
+				x.orig_ins_id == y.orig_ins_id;
+		}
+	};
+}
+
+namespace slicer {
 
 	struct CloneInfoManager: public ModulePass {
 
@@ -40,12 +77,19 @@ namespace slicer {
 		 * Call <has_clone_info> beforehand. 
 		 */
 		CloneInfo get_clone_info(const Instruction *ins) const;
+		/*
+		 * Returns NULL if cannot find such clone_info. 
+		 */
+		Instruction *get_instruction(
+				int thr_id, size_t trunk_id, unsigned orig_ins_id) const;
 
 	private:
 		void search_containing_trunks(
 				const Instruction *ins,
 				ConstInstSet &visited,
 				vector<pair<int, size_t> > &containing_trunks) const;
+
+		DenseMap<CloneInfo, Instruction *> rmap;
 	};
 }
 
