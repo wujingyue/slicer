@@ -7,7 +7,10 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/Dominators.h"
+#include "llvm/Analysis/DominatorInternals.h"
 #include "common/include/typedefs.h"
+#include "common/cfg/icfg.h"
 using namespace llvm;
 
 #include <vector>
@@ -101,8 +104,11 @@ namespace slicer {
 		 */
 		void capture_overwritten_in_func(Function *fi);
 		void capture_overwriting_to(LoadInst *i2);
+		Instruction *find_latest_overwriter(Instruction *i2, Value *q);
 		BasicBlock *get_idom(BasicBlock *bb);
 		Instruction *get_idom(Instruction *ins);
+		MicroBasicBlock *get_idom_ip(MicroBasicBlock *mbb);
+		Instruction *get_idom_ip(Instruction *ins);
 		// Check if any instruction between <i1> and <i2> may write to <q>. 
 		// <i1> must dominate <i2>, and they are in the same function. 
 		bool path_may_write(
@@ -186,6 +192,7 @@ namespace slicer {
 		ValueSet constants;
 		const Type *int_type;
 		AliasAnalysis *AA;
+		DominatorTreeBase<ICFGNode> IDT;
 	};
 }
 

@@ -15,8 +15,8 @@
 #include "idm/id.h"
 using namespace llvm;
 
-#include "int-constraints/iterate.h"
-#include "int-constraints/solve.h"
+#include "int/iterate.h"
+#include "int/solve.h"
 #include "../include/test-banner.h"
 using namespace slicer;
 
@@ -38,6 +38,7 @@ namespace slicer {
 		/* These test functions give assertion failures on incorrect results. */
 		void test_aget_nocrit_slice(const Module &M);
 		void test_aget_nocrit_simple(const Module &M);
+		void test_test_overwrite(const Module &M);
 	};
 }
 
@@ -83,7 +84,36 @@ void IntTest::test_aget_nocrit_slice(const Module &M) {
 	
 	if (Program != "aget-nocrit.slice")
 		return;
-	TestBanner("aget-nocrit.slice");
+	TestBanner X("aget-nocrit.slice");
+}
+
+void IntTest::test_test_overwrite(const Module &M) {
+	
+	if (Program != "test-overwrite")
+		return;
+	TestBanner X("test-overwrite");
+
+	const Value *v1 = NULL, *v2 = NULL;
+	forallconst(Module, f, M) {
+		forallconst(Function, bb, *f) {
+			forallconst(BasicBlock, ins, *bb) {
+				if (const LoadInst *li = dyn_cast<LoadInst>(ins)) {
+					if (li->isVolatile()) {
+						if (v1 == NULL)
+							v1 = li;
+						else if (v2 == NULL)
+							v2 = li;
+						else
+							assert(false && "There should be exactly 2 volatile loads.");
+					}
+				}
+			}
+		}
+	}
+	assert(v1 && v2 && "There should be exactly 2 volatile loads.");
+	
+	SolveConstraints &SC = getAnalysis<SolveConstraints>();
+	assert(SC.provable(CmpInst::ICMP_EQ, v1, v2));
 }
 
 void IntTest::test_aget_nocrit_simple(const Module &M) {

@@ -3,14 +3,16 @@ using namespace std;
 
 volatile int a;
 
-void foo(int v) {
-	cout << v << endl;
+void foo() {
+	printf("%d\n", a);
 }
 
-int main() {
-	a = 1;
-	foo(a);
-	a = 2;
-	foo(a);
+int main(int argc, char *argv[]) {
+	if (argc == 0)
+		a = 1;
+	else
+		a = 2;
+	printf("%d\n", a);
+	foo();
 	return 0;
 }

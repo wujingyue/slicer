@@ -19,6 +19,7 @@
 #include "common/cfg/intra-reach.h"
 #include "common/cfg/icfg.h"
 #include "common/cfg/exec-once.h"
+#include "common/cfg/partial-icfg-builder.h"
 using namespace llvm;
 
 #include "bc2bdd/BddAliasAnalysis.h"
@@ -32,6 +33,8 @@ using namespace std;
 #include "config.h"
 #include "capture.h"
 #include "must-alias.h"
+#include "../trace/landmark-trace.h"
+#include "../max-slicing/clone-info-manager.h"
 using namespace slicer;
 
 static RegisterPass<CaptureConstraints> X(
@@ -45,7 +48,22 @@ STATISTIC(num_pointers, "Number of pointers");
 
 char CaptureConstraints::ID = 0;
 
-CaptureConstraints::CaptureConstraints(): ModulePass(&ID) {
+void CaptureConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
+	AU.setPreservesAll();
+	AU.addRequiredTransitive<ObjectID>();
+	AU.addRequiredTransitive<DominatorTree>();
+	AU.addRequiredTransitive<IntraReach>();
+	AU.addRequired<BddAliasAnalysis>(); // Only used in <setup>. 
+	AU.addRequiredTransitive<CallGraphFP>();
+	AU.addRequiredTransitive<ExecOnce>();
+	AU.addRequiredTransitive<LandmarkTrace>();
+	AU.addRequiredTransitive<CloneInfoManager>();
+	AU.addRequiredTransitive<PartialICFGBuilder>();
+	AU.addRequiredTransitive<MicroBasicBlockBuilder>();
+	ModulePass::getAnalysisUsage(AU);
+}
+
+CaptureConstraints::CaptureConstraints(): ModulePass(&ID), IDT(false) {
 	AA = NULL;
 }
 
@@ -137,7 +155,7 @@ void CaptureConstraints::stat(Module &M) {
 
 void CaptureConstraints::setup(Module &M) {
 	// int is always 32-bit long. 
-	int_type = IntegerType::get(getGlobalContext(), 32);
+	int_type = IntegerType::get(M.getContext(), 32);
 	assert(AA == NULL);
 	AA = &getAnalysis<BddAliasAnalysis>();
 }
@@ -157,6 +175,8 @@ bool CaptureConstraints::recalculate(Module &M) {
 	// Look at arithmetic operations on these constants. 
 	capture_constraints_on_consts(M);
 	// Look at loads and stores. 
+	ICFG &PIB = getAnalysis<PartialICFGBuilder>();
+	IDT.recalculate(PIB);
 	capture_addr_taken(M);
 	// Collect constraints from unreachable blocks. 
 	capture_unreachable(M);
@@ -174,18 +194,6 @@ void CaptureConstraints::simplify_constraints() {
 	sort(
 			constraints.begin(), constraints.end(),
 			CompareClause(getAnalysis<ObjectID>()));
-}
-
-void CaptureConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
-	AU.setPreservesAll();
-	AU.addRequiredTransitive<ObjectID>();
-	AU.addRequiredTransitive<DominatorTree>();
-	AU.addRequiredTransitive<IntraReach>();
-	AU.addRequired<BddAliasAnalysis>(); // Only used in <setup>. 
-	AU.addRequiredTransitive<CallGraphFP>();
-	AU.addRequiredTransitive<ExecOnce>();
-	// AU.addRequired<ICFGManager>();
-	ModulePass::getAnalysisUsage(AU);
 }
 
 unsigned CaptureConstraints::get_num_constraints() const {

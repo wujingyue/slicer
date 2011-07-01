@@ -28,3 +28,4 @@ def run_test(prog_name):
 if __name__ == "__main__":
     init()
     run_test("aget-nocrit.simple")
+    run_test("test-overwrite")

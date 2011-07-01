@@ -7,10 +7,10 @@
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/DominatorInternals.h"
 #include "common/include/util.h"
+#include "common/cfg/partial-icfg-builder.h"
 #include "idm/id.h"
 using namespace llvm;
 
-#include "../max-slicing/icfg-manager.h"
 
 namespace slicer {
 
@@ -31,14 +31,15 @@ namespace slicer {
 		AU.setPreservesAll();
 		AU.addRequired<ObjectID>();
 		AU.addRequired<MicroBasicBlockBuilder>();
-		AU.addRequired<ICFGManager>();
+		AU.addRequired<PartialICFGBuilder>();
 		ModulePass::getAnalysisUsage(AU);
 	}
 
 	bool TestICFG::runOnModule(Module &M) {
-		ICFGManager &IM = getAnalysis<ICFGManager>();
+		ICFG &IM = getAnalysis<PartialICFGBuilder>();
 		DominatorTreeBase<ICFGNode> DT(false);
 		DT.recalculate((ICFG &)IM);
+		assert(DT.getRootNode());
 		MicroBasicBlockBuilder &MBBB = getAnalysis<MicroBasicBlockBuilder>();
 		ObjectID &OI = getAnalysis<ObjectID>();
 		forallbb(M, bi) {
@@ -47,6 +48,10 @@ namespace slicer {
 				if (!node)
 					continue;
 				DomTreeNodeBase<ICFGNode> *dt_node = DT.getNode(node);
+				if (!dt_node) {
+					errs() << "[Warning] No DT node for MBB:" << mi->front() << "\n";
+					continue;
+				}
 				if (DomTreeNodeBase<ICFGNode> *dt_idom = dt_node->getIDom()) {
 					MicroBasicBlock *idom = dt_idom->getBlock()->getMBB();
 					errs() << "idom: " << OI.getMicroBasicBlockID(idom) << " "

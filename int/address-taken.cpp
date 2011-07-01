@@ -4,6 +4,7 @@
  * Collect integer constraints on address-taken variables. 
  */
 #include "llvm/Analysis/Dominators.h"
+#include "llvm/Analysis/DominatorInternals.h"
 #include "llvm/Support/Timer.h"
 #include "config.h"
 #include "idm/mbb.h"
@@ -11,11 +12,13 @@
 #include "common/cfg/icfg.h"
 #include "common/cfg/intra-reach.h"
 #include "common/cfg/exec-once.h"
+#include "common/cfg/partial-icfg-builder.h"
 using namespace llvm;
 
 #include "capture.h"
 #include "must-alias.h"
 #include "adv-alias.h"
+#include "../trace/landmark-trace.h"
 using namespace slicer;
 
 Value *CaptureConstraints::get_pointer_operand(Instruction *i) const {
@@ -140,19 +143,21 @@ void CaptureConstraints::capture_addr_taken(Module &M) {
 	forallfunc(M, fi) {
 		if (fi->isDeclaration())
 			continue;
-		ExecOnce &EO = getAnalysis<ExecOnce>();
-		if (EO.not_executed(fi))
-			continue;
 		capture_overwritten_in_func(fi);
 	}
 	tmr_overwritten.stopTimer();
 }
 
-void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
-	Value *q = i2->getPointerOperand();
+Instruction *CaptureConstraints::find_latest_overwriter(
+		Instruction *i2, Value *q) {
+	PartialICFGBuilder &PIB = getAnalysis<PartialICFGBuilder>();
+	MicroBasicBlockBuilder &MBBB = getAnalysis<MicroBasicBlockBuilder>();
+	MicroBasicBlock *m2 = MBBB.parent(i2);
+	if (!PIB[m2])
+		return NULL;
 	// Find the latest dominator <i1> that stores to or loads from
 	// a pointer that must alias with <q>. 
-	Instruction *i1 = get_idom(i2);
+	Instruction *i1 = get_idom_ip(i2);
 	while (i1) {
 		Value *p = get_pointer_operand(i1);
 		if (p) {
@@ -160,8 +165,16 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 			if (res == AliasAnalysis::MustAlias)
 				break;
 		}
-		i1 = get_idom(i1);
+		i1 = get_idom_ip(i1);
 	}
+	return i1;
+}
+
+void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
+	if (!is_constant(i2))
+		return;
+	Value *q = i2->getPointerOperand();
+	Instruction *i1 = find_latest_overwriter(i2, q);
 	// Is there any store along the path from <i1> to <i2>
 	// that may overwrite to <q>?
 	if (i1 && !path_may_write(i1, i2, q)) {
@@ -174,6 +187,9 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 }
 
 void CaptureConstraints::capture_overwritten_in_func(Function *fi) {
+	ExecOnce &EO = getAnalysis<ExecOnce>();
+	if (EO.not_executed(fi))
+		return;
 	forall(Function, bi, *fi) {
 		forall(BasicBlock, ii, *bi) {
 			if (LoadInst *i2 = dyn_cast<LoadInst>(ii))
@@ -220,7 +236,7 @@ bool CaptureConstraints::may_write(
 
 bool CaptureConstraints::path_may_write(
 		const Instruction *i1, const Instruction *i2, const Value *q) {
-#if 0
+#if 1
 	errs() << "path_may_write:\n";
 	errs() << "\t" << *i1 << "\n" << "\t" << *i2 << "\n";
 #endif
@@ -258,14 +274,39 @@ BasicBlock *CaptureConstraints::get_idom(BasicBlock *bb) {
 	return (idom ? idom->getBlock() : NULL);
 }
 
+MicroBasicBlock *CaptureConstraints::get_idom_ip(MicroBasicBlock *mbb) {
+#if 1
+	errs() << "get_idom_ip:\n";
+	errs() << mbb->front() << "\n";
+	errs() << mbb->back() << "\n";
+#endif
+	ICFG &PIB = getAnalysis<PartialICFGBuilder>();
+	ICFGNode *node = PIB[mbb];
+	assert(node);
+	DomTreeNodeBase<ICFGNode> *dt_node = IDT.getNode(node);
+	assert(dt_node);
+	DomTreeNodeBase<ICFGNode> *dt_idom = dt_node->getIDom();
+	if (dt_idom)
+		assert(dt_idom->getBlock());
+	return (dt_idom ? dt_idom->getBlock()->getMBB() : NULL);
+}
+
 Instruction *CaptureConstraints::get_idom(Instruction *ins) {
 	BasicBlock *bb = ins->getParent();
 	if (ins == bb->begin()) {
 		BasicBlock *idom_bb = get_idom(bb);
-		if (!idom_bb)
-			return NULL;
-		else
-			return idom_bb->getTerminator();
+		return (!idom_bb ? NULL : idom_bb->getTerminator());
+	} else {
+		return --(BasicBlock::iterator)ins;
+	}
+}
+
+Instruction *CaptureConstraints::get_idom_ip(Instruction *ins) {
+	MicroBasicBlockBuilder &MBBB = getAnalysis<MicroBasicBlockBuilder>();
+	MicroBasicBlock *mbb = MBBB.parent(ins);
+	if (ins == mbb->begin()) {
+		MicroBasicBlock *idom_mbb = get_idom_ip(mbb);
+		return (idom_mbb ? &idom_mbb->back() : NULL);
 	} else {
 		return --(BasicBlock::iterator)ins;
 	}
