@@ -19,6 +19,7 @@ void CloneInfoManager::getAnalysisUsage(AnalysisUsage &AU) const {
 }
 
 bool CloneInfoManager::runOnModule(Module &M) {
+	/* TODO: Mapping from old instructions to cloned instructions. */
 	return false;
 }
 

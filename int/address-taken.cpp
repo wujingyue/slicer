@@ -14,6 +14,8 @@
 #include "common/cfg/exec-once.h"
 #include "common/cfg/partial-icfg-builder.h"
 #include "common/cfg/reach.h"
+#include "../max-slicing/clone-info-manager.h"
+#include "../trace/trace-manager.h"
 using namespace llvm;
 
 #include "capture.h"
@@ -199,7 +201,7 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 		else {
 			size_t j = LT.get_latest_trunk(ci.thr_id, ci.trunk_id, i);
 			if (j != (size_t)-1)
-				latest_doms[k] = TM.get_record_info(get_landmark(i, j)).ins;
+				latest_doms[k] = TM.get_record_info(LT.get_landmark(i, j)).ins;
 		}
 	}
 
