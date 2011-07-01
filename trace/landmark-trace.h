@@ -27,14 +27,15 @@ namespace slicer {
 		vector<int> get_thr_ids() const;
 
 		/* Some computation involved */
+		/* Returns whether trunk (i1, j1) happens before trunk (i2, j2). */
+		bool happens_before(int i1, size_t j1, int i2, size_t j2) const;
 		/**
 		 * Returns all trunks that are concurrent with the given trunk. 
 		 */
 		void get_concurrent_trunks(
 				const pair<int, size_t> &the_trunk,
 				vector<pair<int, size_t> > &concurrent_trunks) const;
-
-	private:
+		size_t get_latest_trunk(int tid, size_t trunk_id, int tid2) const;
 		/**
 		 * Used in <get_concurrent_trunk>. 
 		 * Recall that there are two types of landmarks:
@@ -51,6 +52,7 @@ namespace slicer {
 		 */
 		void extend_until_enforce(int thr_id, size_t &s, size_t &e) const;
 
+	private:
 		map<int, vector<unsigned> > thread_trunks;
 	};
 

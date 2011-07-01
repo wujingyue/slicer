@@ -172,9 +172,85 @@ Instruction *CaptureConstraints::find_latest_overwriter(
 }
 
 void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
+	
 	if (!is_constant(i2))
 		return;
+	
+	/*
+	MicroBasicBlockBuilder &MBBB = getAnalysis<MicroBasicBlockBuilder>();
+	MicroBasicBlock *m2 = MBBB.parent(i2); assert(m2);
+
+	ICFG &PIB = getAnalysis<PartialICFGBuilder>();
+	PIB[
+	*/
+	CloneInfoManager &CIM = getAnalysis<CloneInfoManager>();
+	if (!CIM.has_clone_info(i2))
+		return;
+	CloneInfo ci = CIM.get_clone_info(i2);
+
+	TraceManager &TM = getAnalysis<TraceManager>();
+	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
+	vector<int> thr_ids = LT.get_thr_ids();
+	vector<Instruction *> latest_doms(thr_ids.size(), NULL);
+	for (size_t k = 0; k < thr_ids.size(); ++k) {
+		int i = thr_ids[k];
+		if (i == ci.thr_id)
+			latest_doms[k] = i2;
+		else {
+			size_t j = LT.get_latest_trunk(ci.thr_id, ci.trunk_id, i);
+			if (j != (size_t)-1)
+				latest_doms[k] = TM.get_record_info(get_landmark(i, j)).ins;
+		}
+	}
+
 	Value *q = i2->getPointerOperand();
+	vector<Instruction *> latest_overwriters(thr_ids.size(), NULL);
+	for (size_t k = 0; k < thr_ids.size(); ++k)
+		latest_overwriters[k] = find_latest_overwriter(latest_doms[k], q);
+
+	vector<pair<size_t, size_t> > overwriter_trunks;
+	overwriter_trunks.resize(thr_ids.size());
+	for (size_t k = 0; k < thr_ids.size(); ++k) {
+		Instruction *i1 = latest_overwriters[k];
+		if (!i1) {
+			overwriter_trunks[k] = make_pair((size_t)-1, 0);
+			continue;
+		}
+		vector<pair<int, size_t> > containing_trunks;
+		CIM.get_containing_trunks(i1, containing_trunks);
+		size_t s = (size_t)-1, e = 0;
+		for (size_t t = 0; t < containing_trunks.size(); ++t) {
+			if (containing_trunks[t].first == thr_ids[k]) {
+				s = min(s, containing_trunks[t].second);
+				e = max(e, containing_trunks[t].second);
+			}
+		}
+		LT.extend_until_enforce(thr_ids[k], s, e);
+		overwriter_trunks[k] = make_pair(s, e);
+	}
+
+	for (size_t k1 = 0; k1 < thr_ids.size(); ++k1) {
+		if (!latest_overwriters[k1])
+			continue;
+		bool before = false;
+		for (size_t k2 = k1 + 1; k2 < thr_ids.size(); ++k2) {
+			if (!latest_overwriters[k2])
+				continue;
+			// If latest_overwriters[k1] must happen before latest_overwriters[k2], 
+			// remove latest_overwriters[k1]. 
+			if (LT.happens_before(
+						thr_ids[k1], overwriter_trunks[k1].second,
+						thr_ids[k2], overwriter_trunks[k2].first)) {
+				before = true;
+				break;
+			}
+		}
+		if (before)
+			latest_overwriters[k1] = NULL;
+	}
+
+	for (size_t k = 0; k < thr_ids.size(); ++k) {
+	}
 	Instruction *i1 = find_latest_overwriter(i2, q);
 	// Is there any store along the path from <i1> to <i2>
 	// that may overwrite to <q>?
@@ -237,35 +313,9 @@ bool CaptureConstraints::may_write(
 
 bool CaptureConstraints::path_may_write(
 		const Instruction *i1, const Instruction *i2, const Value *q) {
-#if 1
+#if 0
 	errs() << "path_may_write:\n";
 	errs() << "\t" << *i1 << "\n" << "\t" << *i2 << "\n";
-#endif
-#if 0
-	IntraReach &IR = getAnalysis<IntraReach>(
-			*const_cast<Function *>(i1->getParent()->getParent()));
-	ConstBBSet visited;
-	ConstBBSet sink;
-	sink.insert(i1->getParent());
-	IR.floodfill_r(i2->getParent(), sink, visited);
-	assert(visited.count(i1->getParent()) && "<i1> should dominate <i2>");
-	// Functions visited in <may_write>s. 
-	// In order to handle recursive functions. 
-	ConstFuncSet visited_funcs;
-	forall(ConstBBSet, it, visited) {
-		const BasicBlock *bb = *it;
-		BasicBlock::const_iterator s = bb->begin(), e = bb->end();
-		if (i1->getParent() == bb) {
-			s = i1;
-			++s;
-		}
-		if (i2->getParent() == bb)
-			e = i2;
-		for (BasicBlock::const_iterator i = s; i != e; ++i) {
-			if (may_write(i, q, visited_funcs))
-				return true;
-		}
-	}
 #endif
 	MicroBasicBlockBuilder &MBBB = getAnalysis<MicroBasicBlockBuilder>();
 	MicroBasicBlock *m1 = MBBB.parent(i1), *m2 = MBBB.parent(i2);
@@ -310,7 +360,7 @@ BasicBlock *CaptureConstraints::get_idom(BasicBlock *bb) {
 }
 
 MicroBasicBlock *CaptureConstraints::get_idom_ip(MicroBasicBlock *mbb) {
-#if 1
+#if 0
 	errs() << "get_idom_ip:\n";
 	errs() << mbb->front() << "\n";
 	errs() << mbb->back() << "\n";

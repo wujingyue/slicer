@@ -77,6 +77,7 @@ bool IntTest::runOnModule(Module &M) {
 	 */
 	test_aget_nocrit_slice(M);
 	test_aget_nocrit_simple(M);
+	test_test_overwrite(M);
 	return false;
 }
 

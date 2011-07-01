@@ -104,3 +104,17 @@ void LandmarkTrace::get_concurrent_trunks(
 			concurrent_trunks.push_back(make_pair(thr_id, trunk_id));
 	}
 }
+
+size_t LandmarkTrace::get_latest_trunk(
+		int tid, size_t trunk_id, int tid_2) const {
+	unsigned idx = get_landmark(tid, trunk_id);
+	const vector<unsigned> &thr_trunks = get_thr_trunks(tid_2);
+	return (lower_bound(
+			thr_trunks.begin(), thr_trunks.end(), idx) - thr_trunks.begin()) - 1;
+}
+
+bool LandmarkTrace::happens_before(int i1, size_t j1, int i2, size_t j2) const {
+	if (j1 + 1 < get_n_trunks(i1))
+		++j1;
+	return get_landmark(i1, j1) <= get_landmark(i2, j2);
+}
