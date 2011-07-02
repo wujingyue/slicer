@@ -68,11 +68,20 @@ void CaptureConstraints::capture_constraints_on_consts(Module &M) {
 	forall(ValueSet, it, constants) {
 		if (Argument *arg = dyn_cast<Argument>(*it)) {
 			CallGraphFP &CG = getAnalysis<CallGraphFP>();
+			ExecOnce &EO = getAnalysis<ExecOnce>();
 			InstList call_sites = CG.get_call_sites(arg->getParent());
+			unsigned n_reachable_call_sites = 0;
+			Instruction *call_site = NULL;
+			for (size_t j = 0; j < call_sites.size(); ++j) {
+				if (!EO.not_executed(call_sites[j])) {
+					n_reachable_call_sites++;
+					call_site = call_sites[j];
+				}
+			}
 			// A function may have no callers after slicing. 
-			assert(call_sites.size() <= 1 && "Otherwise it shouldn't be a constant");
-			if (call_sites.size() == 1) {
-				Instruction *call_site = call_sites[0];
+			assert(n_reachable_call_sites <= 1 &&
+					"Otherwise it shouldn't be a constant");
+			if (n_reachable_call_sites == 1) {
 				// Matches the formal argument with the actual argument. 
 				// TODO: The order of operands of CallInst/InvokeInst is changed
 				// in later version. 

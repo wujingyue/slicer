@@ -197,7 +197,7 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 		if (i == cur_thr_id)
 			latest_doms[k] = i2;
 		else {
-			size_t j = LT.get_latest_trunk(cur_thr_id, cur_trunk_id, i);
+			size_t j = LT.get_latest_happens_before(cur_thr_id, cur_trunk_id, i);
 			if (j != (size_t)-1) {
 				// TraceManager is still looking at the trace for the original program.
 				// But, we should use the cloned instruction. 
@@ -210,8 +210,10 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 
 	Value *q = i2->getPointerOperand();
 	vector<Instruction *> latest_overwriters(thr_ids.size(), NULL);
-	for (size_t k = 0; k < thr_ids.size(); ++k)
-		latest_overwriters[k] = find_latest_overwriter(latest_doms[k], q);
+	for (size_t k = 0; k < thr_ids.size(); ++k) {
+		if (latest_doms[k])
+			latest_overwriters[k] = find_latest_overwriter(latest_doms[k], q);
+	}
 
 	vector<pair<size_t, size_t> > overwriter_trunks;
 	overwriter_trunks.resize(thr_ids.size());
@@ -384,7 +386,7 @@ BasicBlock *CaptureConstraints::get_idom(BasicBlock *bb) {
 }
 
 MicroBasicBlock *CaptureConstraints::get_idom_ip(MicroBasicBlock *mbb) {
-#if 0
+#if 1
 	errs() << "get_idom_ip:\n";
 	errs() << mbb->front() << "\n";
 	errs() << mbb->back() << "\n";
@@ -411,8 +413,11 @@ Instruction *CaptureConstraints::get_idom(Instruction *ins) {
 }
 
 Instruction *CaptureConstraints::get_idom_ip(Instruction *ins) {
+	assert(ins);
+	errs() << "get_idom_ip:" << *ins << "\n";
 	MicroBasicBlockBuilder &MBBB = getAnalysis<MicroBasicBlockBuilder>();
 	MicroBasicBlock *mbb = MBBB.parent(ins);
+	assert(mbb);
 	if (ins == mbb->begin()) {
 		MicroBasicBlock *idom_mbb = get_idom_ip(mbb);
 		return (idom_mbb ? &idom_mbb->back() : NULL);

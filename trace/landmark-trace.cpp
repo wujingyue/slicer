@@ -82,7 +82,7 @@ void LandmarkTrace::extend_until_enforce(
 			break;
 		--s;
 	}
-	// If e == LT.get_n_trunks(thr_id), then e is already the last trunk. 
+	// If e + 1 == LT.get_n_trunks(thr_id), then e is already the last trunk. 
 	while (e + 1 < LT.get_n_trunks(thr_id)) {
 		size_t e1 = e + 1;
 		unsigned idx = LT.get_landmark(thr_id, e1);
@@ -125,15 +125,37 @@ void LandmarkTrace::get_concurrent_trunks(
 	}
 }
 
-size_t LandmarkTrace::get_latest_trunk(
+size_t LandmarkTrace::get_latest_happens_before(
 		int tid, size_t trunk_id, int tid_2) const {
-	unsigned idx = get_landmark(tid, trunk_id);
+	/* Find the latest enforincg landmark before Trunk <trunk_id>. */
+	size_t s = trunk_id, e = trunk_id;
+	extend_until_enforce(tid, s, e);
+	/*
+	 * Landmark (tid_2, trunk_id_2) happens right before Landmark (tid, s)
+	 * in real time. 
+	 */
+	unsigned idx = get_landmark(tid, s);
 	const vector<unsigned> &thr_trunks = get_thr_trunks(tid_2);
-	return (lower_bound(
+	size_t trunk_id_2 = (lower_bound(
 			thr_trunks.begin(), thr_trunks.end(), idx) - thr_trunks.begin()) - 1;
+	if (trunk_id_2 == (size_t)-1)
+		return (size_t)-1;
+	/*
+	 * However, that doesn't mean Landmark (tid_2, trunk_id_2) will always happen
+	 * before Landmark (tid, s) because it might not be an enforcing landmark. 
+	 * Therefore, we search backwards until we reach a enforcing landmark
+	 * (tid_2, s_2).
+	 */
+	size_t s_2 = trunk_id_2, e_2 = trunk_id_2;
+	extend_until_enforce(tid_2, s_2, e_2);
+	return s_2 - 1;
 }
 
 bool LandmarkTrace::happens_before(int i1, size_t j1, int i2, size_t j2) const {
+	size_t tmp = j1;
+	extend_until_enforce(i1, tmp, j1);
+	tmp = j2;
+	extend_until_enforce(i2, j2, tmp);
 	if (j1 + 1 < get_n_trunks(i1))
 		++j1;
 	return get_landmark(i1, j1) <= get_landmark(i2, j2);
