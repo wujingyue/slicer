@@ -1,5 +1,5 @@
 #include "llvm/Support/CommandLine.h"
-#include "idm/id.h"
+#include "common/id-manager/IDManager.h"
 using namespace llvm;
 
 #include <fstream>
@@ -18,7 +18,6 @@ static RegisterPass<TraceManager> X(
 
 static cl::opt<string> FullTraceFile(
 		"fulltrace",
-		cl::ValueRequired,
 		cl::desc("The full trace"));
 
 char TraceManager::ID = 0;
@@ -76,14 +75,20 @@ void TraceManager::compute_record_infos(Module &M) {
 	// But for safety reason, we put it here. 
 	raw_tid_to_tid[records[0].raw_tid] = 0;
 	for (size_t i = 0, E = records.size(); i < E; ++i) {
-		ObjectID &OI = getAnalysis<ObjectID>();
+		IDManager &IDM = getAnalysis<IDManager>();
 		TraceRecordInfo info;
-		info.ins = OI.getInstruction(records[i].ins_id);
-		assert(info.ins && "Cannot find the instruction");
-		if (is_app_landmark(info.ins))
-			info.type = TR_LANDMARK_ENFORCE;
-		else
+		info.ins = IDM.getInstruction(records[i].ins_id);
+		if (!info.ins) {
+			errs() << "[Warning] Cannot find the instruction with ID " <<
+				records[i].ins_id << "\n";
+			// We can only conservatively treat it as a default landmark. 
 			info.type = TR_DEFAULT;
+		} else {
+			if (is_app_landmark(info.ins))
+				info.type = TR_LANDMARK_ENFORCE;
+			else
+				info.type = TR_DEFAULT;
+		}
 		info.tid = get_normalized_tid(records[i].raw_tid);
 		info.child_tid = get_normalized_tid(records[i].raw_child_tid);
 		record_infos.push_back(info);
@@ -101,7 +106,7 @@ int TraceManager::get_normalized_tid(unsigned long raw_tid) {
 
 void TraceManager::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
-	AU.addRequired<ObjectID>();
+	AU.addRequired<IDManager>();
 	ModulePass::getAnalysisUsage(AU);
 }
 
