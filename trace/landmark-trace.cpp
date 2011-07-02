@@ -74,18 +74,17 @@ unsigned LandmarkTrace::get_landmark(int thr_id, size_t trunk_id) const {
 
 void LandmarkTrace::extend_until_enforce(
 		int thr_id, size_t &s, size_t &e) const {
-	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
 	TraceManager &TM = getAnalysis<TraceManager>();
 	while (s > 0) {
-		unsigned idx = LT.get_landmark(thr_id, s);
+		unsigned idx = get_landmark(thr_id, s);
 		if (TM.get_record_info(idx).type == TR_LANDMARK_ENFORCE)
 			break;
 		--s;
 	}
-	// If e + 1 == LT.get_n_trunks(thr_id), then e is already the last trunk. 
-	while (e + 1 < LT.get_n_trunks(thr_id)) {
+	// If e + 1 == get_n_trunks(thr_id), then e is already the last trunk. 
+	while (e + 1 < get_n_trunks(thr_id)) {
 		size_t e1 = e + 1;
-		unsigned idx = LT.get_landmark(thr_id, e1);
+		unsigned idx = get_landmark(thr_id, e1);
 		if (TM.get_record_info(idx).type == TR_LANDMARK_ENFORCE)
 			break;
 		e = e1;
