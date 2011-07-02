@@ -198,8 +198,13 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 			latest_doms[k] = i2;
 		else {
 			size_t j = LT.get_latest_trunk(cur_thr_id, cur_trunk_id, i);
-			if (j != (size_t)-1)
-				latest_doms[k] = TM.get_record_info(LT.get_landmark(i, j)).ins;
+			if (j != (size_t)-1) {
+				// TraceManager is still looking at the trace for the original program.
+				// But, we should use the cloned instruction. 
+				unsigned orig_ins_id = TM.get_record(LT.get_landmark(i, j)).ins_id;
+				latest_doms[k] = CIM.get_instruction(i, j, orig_ins_id);
+				assert(latest_doms[k] && "Cannot find the cloned landmark");
+			}
 		}
 	}
 

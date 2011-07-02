@@ -3,6 +3,10 @@
  *
  * TODO: Make the TraceManager an AnalysisGroup, so that we can plugin
  * customized TraceManager's. 
+ *
+ * Note that TraceManager may be used to read the old trace for a sliced
+ * program. Therefore, not all instructions and instruction IDs can still
+ * be found in the module. 
  */
 
 #ifndef __SLICER_TRACE_MANAGER_H

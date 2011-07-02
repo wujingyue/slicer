@@ -45,7 +45,7 @@ bool TraceManager::runOnModule(Module &M) {
 		return false;
 	}
 #else
-	assert(false && "Cannot open the full trace.");
+	assert(fin && "Cannot open the full trace.");
 #endif
 
 	TraceRecord record;
@@ -60,10 +60,6 @@ bool TraceManager::runOnModule(Module &M) {
 }
 
 void TraceManager::validate_trace(Module &M) {
-	for (size_t i = 0, E = records.size(); i < E; ++i) {
-		TraceRecordInfo info = record_infos[i];
-		assert(!isa<PHINode>(info.ins));
-	}
 }
 
 void TraceManager::compute_record_infos(Module &M) {
@@ -84,10 +80,9 @@ void TraceManager::compute_record_infos(Module &M) {
 			// We can only conservatively treat it as a default landmark. 
 			info.type = TR_DEFAULT;
 		} else {
-			if (is_app_landmark(info.ins))
-				info.type = TR_LANDMARK_ENFORCE;
-			else
-				info.type = TR_DEFAULT;
+			info.type = (is_app_landmark(info.ins) ?
+					TR_LANDMARK_ENFORCE :
+					TR_DEFAULT);
 		}
 		info.tid = get_normalized_tid(records[i].raw_tid);
 		info.child_tid = get_normalized_tid(records[i].raw_child_tid);

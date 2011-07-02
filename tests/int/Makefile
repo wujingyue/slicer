@@ -11,6 +11,8 @@ PROGS_DIR = ../progs
 
 run:: $(PROG_NAMES)
 
+full_trace_name = $(subst .simple,,$(subst .slice,,$(1))).ft
+
 %: $(PROGS_DIR)/%.bc
 	opt -disable-output \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
@@ -24,7 +26,7 @@ run:: $(PROG_NAMES)
 		-load $(LLVM_ROOT)/install/lib/libint-test.so \
 		-int-test \
 		-prog $@ \
-		-fulltrace ../max-slicing/$@.ft \
+		-fulltrace ../max-slicing/$(call full_trace_name,$@) \
 		< $<
 
 .PHONY: run
