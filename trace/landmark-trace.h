@@ -1,7 +1,8 @@
-#ifndef __TERN_LANDMARK_TRACE_H
-#define __TERN_LANDMARK_TRACE_H
+#ifndef __SLICER_LANDMARK_TRACE_H
+#define __SLICER_LANDMARK_TRACE_H
 
 #include "llvm/Pass.h"
+#include "common/include/util.h"
 using namespace llvm;
 
 #include <vector>
@@ -22,7 +23,11 @@ namespace slicer {
 		const vector<unsigned> &get_thr_trunks(int thr_id) const;
 		// Returns the index in the full trace. 
 		// Need TraceManager to get more information. 
-		unsigned get_landmark(int thr_id, size_t trunk_id) const;
+		unsigned get_landmark_timestamp(int thr_id, size_t trunk_id) const;
+		bool is_enforcing_landmark(int thr_id, size_t trunk_id) const {
+			assert_not_implemented();
+			return false;
+		}
 		size_t get_n_trunks(int thr_id) const;
 		vector<int> get_thr_ids() const;
 

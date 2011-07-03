@@ -178,6 +178,8 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 	if (!is_constant(i2))
 		return;
 	
+	TraceManager &TM = getAnalysis<TraceManager>();
+	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
 	CloneInfoManager &CIM = getAnalysis<CloneInfoManager>();
 	vector<pair<int, size_t> > cur_trunks;
 	CIM.get_containing_trunks(i2, cur_trunks);
@@ -185,11 +187,16 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 		return;
 	int cur_thr_id = cur_trunks[0].first;
 	size_t cur_trunk_id = cur_trunks[0].second;
+	if (cur_trunk_id >= LT.get_n_trunks(cur_thr_id)) {
+		errs() << "cur_thr_id = " << cur_thr_id << "\n";
+		errs() << "cur_trunk_id = " << cur_trunk_id << "\n";
+		errs() << "size = " << LT.get_n_trunks(cur_thr_id) << "\n";
+	}
+	assert(cur_trunk_id < LT.get_n_trunks(cur_thr_id));
 
-	errs() << cur_thr_id << ' ' << cur_trunk_id << ":" << *i2 << "\n";
+	errs() << "capture_overwriting_to: " << cur_thr_id << ' ' <<
+		cur_trunk_id << ":" << *i2 << "\n";
 
-	TraceManager &TM = getAnalysis<TraceManager>();
-	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
 	vector<int> thr_ids = LT.get_thr_ids();
 	vector<Instruction *> latest_doms(thr_ids.size(), NULL);
 	for (size_t k = 0; k < thr_ids.size(); ++k) {
@@ -200,7 +207,8 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 			size_t j = LT.get_latest_happens_before(cur_thr_id, cur_trunk_id, i);
 			if (j != (size_t)-1) {
 				// TraceManager is still looking at the trace for the original program.
-				// But, we should use the cloned instruction. 
+				// But, we should use the cloned instruction.
+				errs() << "get_landmark: " << i << ' ' << j << "\n";
 				unsigned orig_ins_id = TM.get_record(LT.get_landmark(i, j)).ins_id;
 				latest_doms[k] = CIM.get_instruction(i, j, orig_ins_id);
 				assert(latest_doms[k] && "Cannot find the cloned landmark");
@@ -386,7 +394,7 @@ BasicBlock *CaptureConstraints::get_idom(BasicBlock *bb) {
 }
 
 MicroBasicBlock *CaptureConstraints::get_idom_ip(MicroBasicBlock *mbb) {
-#if 1
+#if 0
 	errs() << "get_idom_ip:\n";
 	errs() << mbb->front() << "\n";
 	errs() << mbb->back() << "\n";
@@ -414,7 +422,9 @@ Instruction *CaptureConstraints::get_idom(Instruction *ins) {
 
 Instruction *CaptureConstraints::get_idom_ip(Instruction *ins) {
 	assert(ins);
+#if 0
 	errs() << "get_idom_ip:" << *ins << "\n";
+#endif
 	MicroBasicBlockBuilder &MBBB = getAnalysis<MicroBasicBlockBuilder>();
 	MicroBasicBlock *mbb = MBBB.parent(ins);
 	assert(mbb);

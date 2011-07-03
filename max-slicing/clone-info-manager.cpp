@@ -19,7 +19,6 @@ void CloneInfoManager::getAnalysisUsage(AnalysisUsage &AU) const {
 }
 
 bool CloneInfoManager::runOnModule(Module &M) {
-	/* TODO: Mapping from old instructions to cloned instructions. */
 	forallinst(M, ins) {
 		if (!has_clone_info(ins))
 			continue;
@@ -67,7 +66,7 @@ void CloneInfoManager::search_containing_trunks(
 		return;
 	visited.insert(ins);
 	/*
-	 * If <ins> is in the cloned part (i.e. it has metadata "clone_info),
+	 * If <ins> is in the cloned part (i.e. it has metadata "clone_info"),
 	 * we take the thread ID and the trunk ID right away. 
 	 * Otherwise, we trace back to the caller(s) of the containing function. 
 	 */

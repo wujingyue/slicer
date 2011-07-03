@@ -25,16 +25,9 @@ using namespace std;
 
 namespace slicer {
 	
-	enum TraceRecordType {
-		TR_DEFAULT = 0,
-		TR_LANDMARK_ENFORCE = 1,
-		TR_LANDMARK_NO_ENFORCE = 2 // not used for now
-	};
-
 	// Computed by TraceManager
 	struct TraceRecordInfo {
 		Instruction *ins;
-		TraceRecordType type;
 		// Normalized thread ID. Starts from 0. The main thread ID is always 0
 		int tid;
 		int child_tid; // Normalized child thread ID

@@ -18,6 +18,7 @@ using namespace std;
 
 #include "max-slicing.h"
 #include "config.h"
+#include "../trace/landmark-trace.h"
 using namespace slicer;
 
 void MaxSlicing::add_cfg_edge(

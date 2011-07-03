@@ -135,4 +135,3 @@ namespace slicer {
 
 	char MarkLandmarks::ID = 0;
 }
-

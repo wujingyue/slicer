@@ -66,26 +66,27 @@ size_t LandmarkTrace::get_n_trunks(int thr_id) const {
 	return get_thr_trunks(thr_id).size();
 }
 
-unsigned LandmarkTrace::get_landmark(int thr_id, size_t trunk_id) const {
+unsigned LandmarkTrace::get_landmark_timestamp(int thr_id, size_t trunk_id) const {
 	const vector<unsigned> &indices = get_thr_trunks(thr_id);
+	if (trunk_id >= indices.size())
+		errs() << "get_landmark_timestamp(" << thr_id << ", " << trunk_id << ")\n";
 	assert(trunk_id < indices.size());
 	return indices[trunk_id];
 }
 
 void LandmarkTrace::extend_until_enforce(
 		int thr_id, size_t &s, size_t &e) const {
-	TraceManager &TM = getAnalysis<TraceManager>();
+	assert(s <= e);
+	assert(e < get_n_trunks(thr_id));
 	while (s > 0) {
-		unsigned idx = get_landmark(thr_id, s);
-		if (TM.get_record_info(idx).type == TR_LANDMARK_ENFORCE)
+		if (is_enforcing_landmark(thr_id, s))
 			break;
 		--s;
 	}
 	// If e + 1 == get_n_trunks(thr_id), then e is already the last trunk. 
 	while (e + 1 < get_n_trunks(thr_id)) {
 		size_t e1 = e + 1;
-		unsigned idx = get_landmark(thr_id, e1);
-		if (TM.get_record_info(idx).type == TR_LANDMARK_ENFORCE)
+		if (is_enforcing_landmark(thr_id, e1))
 			break;
 		e = e1;
 	}
@@ -96,8 +97,8 @@ void LandmarkTrace::get_concurrent_trunks(
 		vector<pair<int, size_t> > &concurrent_trunks) const {
 	size_t s = the_trunk.second, e = the_trunk.second;
 	extend_until_enforce(the_trunk.first, s, e);
-	unsigned s_idx = get_landmark(the_trunk.first, s);
-	unsigned e_idx = get_landmark(the_trunk.first,
+	unsigned s_idx = get_landmark_timestamp(the_trunk.first, s);
+	unsigned e_idx = get_landmark_timestamp(the_trunk.first,
 			(e + 1 == get_n_trunks(the_trunk.first) ? e : e + 1));
 	vector<int> thr_ids = get_thr_ids();
 	for (size_t i = 0; i < thr_ids.size(); ++i) {
@@ -126,19 +127,25 @@ void LandmarkTrace::get_concurrent_trunks(
 
 size_t LandmarkTrace::get_latest_happens_before(
 		int tid, size_t trunk_id, int tid_2) const {
+
+	assert(trunk_id < get_n_trunks(tid));
+	
 	/* Find the latest enforincg landmark before Trunk <trunk_id>. */
 	size_t s = trunk_id, e = trunk_id;
 	extend_until_enforce(tid, s, e);
+	
 	/*
 	 * Landmark (tid_2, trunk_id_2) happens right before Landmark (tid, s)
 	 * in real time. 
 	 */
-	unsigned idx = get_landmark(tid, s);
+	unsigned idx = get_landmark_timestamp(tid, s);
 	const vector<unsigned> &thr_trunks = get_thr_trunks(tid_2);
 	size_t trunk_id_2 = (lower_bound(
 			thr_trunks.begin(), thr_trunks.end(), idx) - thr_trunks.begin()) - 1;
 	if (trunk_id_2 == (size_t)-1)
 		return (size_t)-1;
+	assert(thr_trunks[trunk_id_2] < idx);
+	
 	/*
 	 * However, that doesn't mean Landmark (tid_2, trunk_id_2) will always happen
 	 * before Landmark (tid, s) because it might not be an enforcing landmark. 
@@ -157,5 +164,5 @@ bool LandmarkTrace::happens_before(int i1, size_t j1, int i2, size_t j2) const {
 	extend_until_enforce(i2, j2, tmp);
 	if (j1 + 1 < get_n_trunks(i1))
 		++j1;
-	return get_landmark(i1, j1) <= get_landmark(i2, j2);
+	return get_landmark_timestamp(i1, j1) <= get_landmark_timestamp(i2, j2);
 }

@@ -74,16 +74,7 @@ void TraceManager::compute_record_infos(Module &M) {
 		IDManager &IDM = getAnalysis<IDManager>();
 		TraceRecordInfo info;
 		info.ins = IDM.getInstruction(records[i].ins_id);
-		if (!info.ins) {
-			errs() << "[Warning] Cannot find the instruction with ID " <<
-				records[i].ins_id << "\n";
-			// We can only conservatively treat it as a default landmark. 
-			info.type = TR_DEFAULT;
-		} else {
-			info.type = (is_app_landmark(info.ins) ?
-					TR_LANDMARK_ENFORCE :
-					TR_DEFAULT);
-		}
+		assert(info.ins);
 		info.tid = get_normalized_tid(records[i].raw_tid);
 		info.child_tid = get_normalized_tid(records[i].raw_child_tid);
 		record_infos.push_back(info);

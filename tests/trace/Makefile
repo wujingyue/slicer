@@ -1,11 +1,11 @@
-PROG_NAMES = test-thread test-path test-overwrite test-ctxt test-recursive \
-	test-branch test-loop \
-	aget aget-nocrit 
+PROG_NAMES = test-thread test-overwrite aget aget-nocrit 
 PROGS_DIR = ../progs
 PROGS = $(addprefix $(PROGS_DIR)/, $(PROG_NAMES))
 TRACED_PROGS = $(PROGS:=.trace)
 
 all: $(TRACED_PROGS)
+
+landmark-trace: $(addsuffix .lt, $(PROG_NAMES))
 
 %.bc1: %.bc
 	opt -o $@ \
@@ -27,8 +27,24 @@ all: $(TRACED_PROGS)
 %: %.s
 	$(CXX) $< -o $@ -pthread
 
-%.display: ../max-slicing/%.ft
-	trace-display $<
+%.lt: %.ft
+	opt -disable-output \
+		-load $(LLVM_ROOT)/install/lib/libidm.so \
+		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
+		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
+		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/libcfg.so \
+		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
+		-build-landmark-trace \
+		-fulltrace $< \
+		-landmark-trace $@ \
+		< $(PROGS_DIR)/$(<:.ft=-id.bc)
+
+%.display-full: %.ft
+	trace-display full < $<
+
+%.display-landmark: %.lt
+	trace-display landmark < $<
 
 clean:
 	rm -f $(PROGS:=.bc1) $(PROGS:=.trace.bc) $(PROGS:=.trace.s) \
