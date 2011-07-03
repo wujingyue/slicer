@@ -1,25 +1,31 @@
+#include "llvm/Support/CommandLine.h"
+using namespace llvm;
+
 #include "landmark-trace.h"
-#include "trace-manager.h"
-#include "mark-landmarks.h"
 using namespace slicer;
 
+#include <fstream>
+using namespace std;
+
 static RegisterPass<LandmarkTrace> X(
-		"landmark-trace",
-		"Generates the landmark trace",
+		"manage-landmark-trace",
+		"Reads from the landmark trace file, and manages it",
 		false,
 		true); // is analysis
+static cl::opt<string> LandmarkTraceFile(
+		"landmark-trace",
+		cl::desc("The input landmark trace file"),
+		cl::init(""));
 
 char LandmarkTrace::ID = 0;
 
 void LandmarkTrace::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
-	AU.addRequired<TraceManager>();
-	AU.addRequired<MarkLandmarks>();
 	ModulePass::getAnalysisUsage(AU);
 }
 
 vector<int> LandmarkTrace::get_thr_ids() const {
-	map<int, vector<unsigned> >::const_iterator it;
+	map<int, vector<LandmarkTraceRecord> >::const_iterator it;
 	vector<int> res;
 	for (it = thread_trunks.begin(); it != thread_trunks.end(); ++it)
 		res.push_back(it->first);
@@ -28,50 +34,35 @@ vector<int> LandmarkTrace::get_thr_ids() const {
 
 bool LandmarkTrace::runOnModule(Module &M) {
 
-	TraceManager &TM = getAnalysis<TraceManager>();
-	MarkLandmarks &ML = getAnalysis<MarkLandmarks>();
-
-	for (unsigned i = 0, E = TM.get_num_records(); i < E; ++i) {
-		const TraceRecordInfo &record_info = TM.get_record_info(i);
-		if (ML.is_landmark(record_info.ins))
-			thread_trunks[record_info.tid].push_back(i);
-	}
+	assert(LandmarkTraceFile != "" && "Didn't specify the input landmark trace");
+	ifstream fin(LandmarkTraceFile.c_str(), ios::in | ios::binary);
+	assert(fin && "Cannot open the input landmark trace file");
+	LandmarkTraceRecord record;
+	while (fin.read((char *)&record, sizeof record))
+		thread_trunks[record.tid].push_back(record);
 
 	return false;
 }
 
-const vector<unsigned> &LandmarkTrace::get_thr_trunks(int thr_id) const {
-	assert(thread_trunks.count(thr_id) &&
-			"No records for the specified thread ID");
-	return thread_trunks.find(thr_id)->second;
-}
-
 void LandmarkTrace::print(raw_ostream &O, const Module *M) const {
-	vector<unsigned> all_indices;
-	map<int, vector<unsigned> >::const_iterator it;
-	for (it = thread_trunks.begin(); it != thread_trunks.end(); ++it) {
-		all_indices.insert(
-				all_indices.end(),
-				it->second.begin(),
-				it->second.end());
-	}
-	sort(all_indices.begin(), all_indices.end());
-	for (size_t i = 0; i < all_indices.size(); ++i) {
-		assert(i == 0 || all_indices[i - 1] < all_indices[i]);
-		O << all_indices[i] << "\n";
-	}
 }
 
 size_t LandmarkTrace::get_n_trunks(int thr_id) const {
 	return get_thr_trunks(thr_id).size();
 }
 
-unsigned LandmarkTrace::get_landmark_timestamp(int thr_id, size_t trunk_id) const {
-	const vector<unsigned> &indices = get_thr_trunks(thr_id);
-	if (trunk_id >= indices.size())
+unsigned LandmarkTrace::get_landmark_timestamp(
+		int thr_id, size_t trunk_id)	const {
+	return get_landmark(thr_id, trunk_id).idx;
+}
+
+const LandmarkTraceRecord &LandmarkTrace::get_landmark(
+		int thr_id, size_t trunk_id) const {
+	const vector<LandmarkTraceRecord> &thr_trunks = get_thr_trunks(thr_id);
+	if (trunk_id >= thr_trunks.size())
 		errs() << "get_landmark_timestamp(" << thr_id << ", " << trunk_id << ")\n";
-	assert(trunk_id < indices.size());
-	return indices[trunk_id];
+	assert(trunk_id < thr_trunks.size());
+	return thr_trunks[trunk_id];
 }
 
 void LandmarkTrace::extend_until_enforce(
@@ -105,20 +96,17 @@ void LandmarkTrace::get_concurrent_trunks(
 		int thr_id = thr_ids[i];
 		if (thr_id == the_trunk.first)
 			continue;
-		const vector<unsigned> &thr_trunks = get_thr_trunks(thr_id);
-		vector<unsigned>::const_iterator it;
-		it = lower_bound(thr_trunks.begin(), thr_trunks.end(), s_idx);
-		if (it != thr_trunks.begin())
-			--it;
-		size_t s1 = it - thr_trunks.begin();
-		it = lower_bound(thr_trunks.begin(), thr_trunks.end(), e_idx);
-		if (it == thr_trunks.begin()) {
+		size_t s1 = search_thr_trunk(thr_id, s_idx);
+		if (s1 > 0)
+			--s1;
+		size_t e1 = search_thr_trunk(thr_id, e_idx);
+		if (e1 == 0) {
 			// The first landmark in Thread <thr_id> happens completely after
 			// Trunk <e> in Thread <the_trunk.first>. 
 			// Therefore, there are no concurrent trunks in Thread <thr_id>. 
 			continue;
 		}
-		size_t e1 = (it - thr_trunks.begin()) - 1;
+		--e1;
 		extend_until_enforce(thr_id, s1, e1);
 		for (size_t trunk_id = s1; trunk_id <= e1; ++trunk_id)
 			concurrent_trunks.push_back(make_pair(thr_id, trunk_id));
@@ -139,12 +127,10 @@ size_t LandmarkTrace::get_latest_happens_before(
 	 * in real time. 
 	 */
 	unsigned idx = get_landmark_timestamp(tid, s);
-	const vector<unsigned> &thr_trunks = get_thr_trunks(tid_2);
-	size_t trunk_id_2 = (lower_bound(
-			thr_trunks.begin(), thr_trunks.end(), idx) - thr_trunks.begin()) - 1;
+	size_t trunk_id_2 = search_thr_trunk(tid_2, idx) - 1;
 	if (trunk_id_2 == (size_t)-1)
 		return (size_t)-1;
-	assert(thr_trunks[trunk_id_2] < idx);
+	assert(get_landmark_timestamp(tid_2, trunk_id_2) < idx);
 	
 	/*
 	 * However, that doesn't mean Landmark (tid_2, trunk_id_2) will always happen
@@ -165,4 +151,26 @@ bool LandmarkTrace::happens_before(int i1, size_t j1, int i2, size_t j2) const {
 	if (j1 + 1 < get_n_trunks(i1))
 		++j1;
 	return get_landmark_timestamp(i1, j1) <= get_landmark_timestamp(i2, j2);
+}
+
+const vector<LandmarkTraceRecord> &LandmarkTrace::get_thr_trunks(
+		int thr_id) const {
+	assert(thread_trunks.count(thr_id));
+	return thread_trunks.find(thr_id)->second;
+}
+
+// Find the first index >= <idx>. 
+// <, <, <, >=, >=
+size_t LandmarkTrace::search_thr_trunk(int thr_id, unsigned idx) const {
+	const vector<LandmarkTraceRecord> &thr_trunks = get_thr_trunks(thr_id);
+	size_t low = 0, high = thr_trunks.size();
+	while (low < high) {
+		size_t mid = (low + high) / 2;
+		if (thr_trunks[mid].idx >= idx)
+			high = mid;
+		else
+			low = mid + 1;
+	}
+	assert(low == high);
+	return low;
 }

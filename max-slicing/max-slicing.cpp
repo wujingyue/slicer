@@ -20,9 +20,8 @@ using namespace std;
 
 #include "config.h"
 #include "max-slicing.h"
-#include "trace/trace-manager.h"
-#include "trace/mark-landmarks.h"
 #include "trace/landmark-trace.h"
+#include "trace/mark-landmarks.h"
 using namespace slicer;
 
 static RegisterPass<MaxSlicing> X(
@@ -36,7 +35,6 @@ void MaxSlicing::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<MicroBasicBlockBuilder>();
 	AU.addRequired<CallGraphFP>();
 	AU.addRequired<MayExec>();
-	AU.addRequired<TraceManager>();
 	AU.addRequired<MarkLandmarks>();
 	AU.addRequired<LandmarkTrace>();
 	ModulePass::getAnalysisUsage(AU);
@@ -96,20 +94,21 @@ void MaxSlicing::read_trace_and_cut(
 
 	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
 	MarkLandmarks &ML = getAnalysis<MarkLandmarks>();
-	TraceManager &TM = getAnalysis<TraceManager>();
+	IDManager &IDM = getAnalysis<IDManager>();
 	// cut
 	cut = ML.get_landmarks();
 	// trace and thr_cr_records
 	const vector<int> &thr_ids = LT.get_thr_ids();
 	for (size_t i = 0; i < thr_ids.size(); ++i) {
 		int thr_id = thr_ids[i];
-		const vector<unsigned> &thr_indices = LT.get_thr_trunks(thr_id);
-		for (size_t j = 0; j < thr_indices.size(); ++j) {
-			const TraceRecordInfo &info = TM.get_record_info(thr_indices[j]);
-			trace[thr_id].push_back(info.ins);
-			if (info.child_tid != -1 && info.child_tid != thr_id) {
+		for (unsigned j = 0; j < LT.get_n_trunks(thr_id); ++j) {
+			const LandmarkTraceRecord &record = LT.get_landmark(i, j);
+			Instruction *ins = IDM.getInstruction(record.ins_id);
+			assert(ins);
+			trace[thr_id].push_back(ins);
+			if (record.child_tid != -1 && record.child_tid != thr_id) {
 				thr_cr_records.push_back(
-						ThreadCreationRecord(thr_id, j, info.child_tid));
+						ThreadCreationRecord(thr_id, j, record.child_tid));
 			}
 		}
 	}

@@ -1,3 +1,9 @@
+/**
+ * Author: Jingyue
+ *
+ * TODO: Renmae to LandmarkTraceManager. 
+ */
+
 #ifndef __SLICER_LANDMARK_TRACE_H
 #define __SLICER_LANDMARK_TRACE_H
 
@@ -8,6 +14,9 @@ using namespace llvm;
 #include <vector>
 #include <map>
 using namespace std;
+
+#include "landmark-trace-record.h"
+using namespace slicer;
 
 namespace slicer {
 
@@ -20,16 +29,16 @@ namespace slicer {
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual void print(raw_ostream &O, const Module *M) const;
 
-		const vector<unsigned> &get_thr_trunks(int thr_id) const;
 		// Returns the index in the full trace. 
-		// Need TraceManager to get more information. 
 		unsigned get_landmark_timestamp(int thr_id, size_t trunk_id) const;
+		const LandmarkTraceRecord &get_landmark(int thr_id, size_t trunk_id) const;
 		bool is_enforcing_landmark(int thr_id, size_t trunk_id) const {
 			assert_not_implemented();
 			return false;
 		}
 		size_t get_n_trunks(int thr_id) const;
 		vector<int> get_thr_ids() const;
+		const vector<LandmarkTraceRecord> &get_thr_trunks(int thr_id) const;
 
 		/* Some computation involved */
 		/* 
@@ -64,9 +73,10 @@ namespace slicer {
 		 * After it returns, <s> and <e> will indicate the extended region. 
 		 */
 		void extend_until_enforce(int thr_id, size_t &s, size_t &e) const;
+		size_t search_thr_trunk(int thr_id, unsigned idx) const;
 
 	private:
-		map<int, vector<unsigned> > thread_trunks;
+		map<int, vector<LandmarkTraceRecord> > thread_trunks;
 	};
 
 }

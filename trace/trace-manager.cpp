@@ -38,7 +38,7 @@ bool TraceManager::runOnModule(Module &M) {
 
 	string full_trace_file = FullTraceFile;
 	assert(full_trace_file != "" && "Didn't specify the full trace.");
-	ifstream fin(full_trace_file.c_str(), ios::binary);
+	ifstream fin(full_trace_file.c_str(), ios::in | ios::binary);
 #if 0
 	if (!fin) {
 		errs() << "[Warning] Didn't specify the full trace.\n";
