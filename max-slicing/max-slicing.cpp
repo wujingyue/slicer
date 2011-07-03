@@ -97,7 +97,7 @@ void MaxSlicing::read_trace_and_cut(
 	MarkLandmarks &ML = getAnalysis<MarkLandmarks>();
 	IDManager &IDM = getAnalysis<IDManager>();
 	// cut
-	cut = ML.get_enforcing_landmarks();
+	cut = ML.get_landmarks();
 	// trace and thr_cr_records
 	const vector<int> &thr_ids = LT.get_thr_ids();
 	for (size_t i = 0; i < thr_ids.size(); ++i) {
@@ -129,7 +129,7 @@ bool MaxSlicing::runOnModule(Module &M) {
 	
 	// Which functions may execute a landmark? 
 	MayExec &ME = getAnalysis<MayExec>();
-	ME.setup_landmarks(cut);
+	ME.setup_landmarks(getAnalysis<MarkLandmarks>().get_enforcing_landmarks());
 	ME.run();
 	
 	// Build the control flow graph. 
@@ -188,6 +188,14 @@ void MaxSlicing::volatile_landmarks(Module &M, const Trace &trace) {
 				// so that the optimizer will not remove them. 
 				ci->setDoesNotAccessMemory(false);
 				ci->setOnlyReadsMemory(false);
+				// Marking the CallInst as volatile is not enough. 
+				// We have to mark the function itself as volatile. 
+				// Otherwise, LLVM would smartly tag those CallInst's back. 
+				Function *callee = ci->getCalledFunction();
+				if (callee) {
+					callee->setDoesNotAccessMemory(false);
+					callee->setOnlyReadsMemory(false);
+				}
 			}
 		}
 	}
