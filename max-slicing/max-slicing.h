@@ -237,7 +237,10 @@ namespace slicer {
 		void redirect_program_entry(
 				Instruction *old_start,
 				Instruction *new_start);
+
+		/* Misc */
 		void stat(Module &M);
+		void volatile_landmarks(Module &M, const Trace &trace);
 
 		// Maps from a cloned instruction to the original instruction. 
 		InstMapping clone_map_r;

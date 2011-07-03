@@ -22,6 +22,7 @@ using namespace std;
 #include "max-slicing.h"
 #include "trace/landmark-trace.h"
 #include "trace/mark-landmarks.h"
+#include "trace/slicer-landmarks.h"
 using namespace slicer;
 
 static RegisterPass<MaxSlicing> X(
@@ -96,7 +97,7 @@ void MaxSlicing::read_trace_and_cut(
 	MarkLandmarks &ML = getAnalysis<MarkLandmarks>();
 	IDManager &IDM = getAnalysis<IDManager>();
 	// cut
-	cut = ML.get_landmarks();
+	cut = ML.get_enforcing_landmarks();
 	// trace and thr_cr_records
 	const vector<int> &thr_ids = LT.get_thr_ids();
 	for (size_t i = 0; i < thr_ids.size(); ++i) {
@@ -115,46 +116,81 @@ void MaxSlicing::read_trace_and_cut(
 }
 
 bool MaxSlicing::runOnModule(Module &M) {
+	
 	// Make sure the original program has required ID information. 
 	assert(getAnalysis<IDManager>().size() > 0 &&
 			"The program does not have ID information.");
+	
 	// Read the trace and the cut. 
 	Trace trace;
 	vector<ThreadCreationRecord> thr_cr_records;
 	InstSet cut;
 	read_trace_and_cut(trace, thr_cr_records, cut);
+	
 	// Which functions may execute a landmark? 
 	MayExec &ME = getAnalysis<MayExec>();
 	ME.setup_landmarks(cut);
 	ME.run();
+	
 	// Build the control flow graph. 
 	// Output to <cfg>. 
 	build_cfg(M, trace, cut);
+	
 	// Fix the def-use graph. 
 	fix_def_use(M, trace);
+	
 	// Statistic. 
 	stat(M);
+	
 	// Link thread functions. 
 	link_thr_funcs(M, trace, thr_cr_records);
+	
 	// Redirect the program entry to main.SLICER. 
 	assert(trace.count(0) && trace[0].size() > 0);
 	Instruction *old_start = trace[0][0];
 	assert(clone_map.count(0) && clone_map[0].size() > 0);
 	Instruction *new_start = clone_map[0][0].lookup(old_start);
 	assert(new_start && "Cannot find the program entry in the cloned CFG");
-	// Remove all instructions in main, and add a call to main.SLICER instead. 
-	// Note that this will invalidate some entries in <clone_map> and
-	// <clone_map_r>. 
-	clone_map.clear();
-	clone_map_r.clear();
-	cloned_to_tid.clear();
-	cloned_to_trunk.clear();
 	redirect_program_entry(old_start, new_start);
+
+	// Finally, we mark all enforcing landmarks in the cloned program
+	// as volatile, because we don't want any further compiler optimization
+	// to remove them. 
+	volatile_landmarks(M, trace);
+
 #ifdef VERBOSE
 	cerr << "Dumping module...\n";
 	M.dump();
 #endif
+	
 	return true;
+}
+
+void MaxSlicing::volatile_landmarks(Module &M, const Trace &trace) {
+	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
+	vector<int> thr_ids = LT.get_thr_ids();
+	for (size_t k = 0; k < thr_ids.size(); ++k) {
+		int i = thr_ids[k];
+		size_t n_trunks = LT.get_n_trunks(i);
+		for (size_t j = 0; j < n_trunks; ++j) {
+			if (LT.is_enforcing_landmark(i, j)) {
+				assert(trace.count(i));
+				assert(j < trace.find(i)->second.size());
+				Instruction *old_inst = trace.find(i)->second[j];
+				assert(is_app_landmark(old_inst));
+				assert(clone_map.count(i));
+				assert(j < clone_map.find(i)->second.size());
+				Instruction *new_inst = clone_map.find(i)->second[j].lookup(old_inst);
+				assert(is_app_landmark(new_inst));
+				CallInst *ci = dyn_cast<CallInst>(new_inst);
+				assert(ci);
+				// We claim that these enforcing landmarks may write to memory,
+				// so that the optimizer will not remove them. 
+				ci->setDoesNotAccessMemory(false);
+				ci->setOnlyReadsMemory(false);
+			}
+		}
+	}
 }
 
 void MaxSlicing::stat(Module &M) {
