@@ -241,7 +241,6 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 				e = max(e, containing_trunks[t].second);
 			}
 		}
-		LT.extend_until_enforce(thr_ids[k], s, e);
 		overwriter_trunks[k] = make_pair(s, e);
 	}
 

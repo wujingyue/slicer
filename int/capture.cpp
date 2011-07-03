@@ -165,24 +165,53 @@ bool CaptureConstraints::runOnModule(Module &M) {
 	return recalculate(M);
 }
 
+void CaptureConstraints::check_clone_info(Module &M) {
+	CloneInfoManager &CIM = getAnalysis<CloneInfoManager>();
+	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
+	vector<int> thr_ids = LT.get_thr_ids();
+	for (size_t k = 0; k < thr_ids.size(); ++k) {
+		int i = thr_ids[k];
+		size_t n_trunks = LT.get_n_trunks(i);
+		for (size_t j = 0; j < n_trunks; ++j) {
+			if (LT.is_enforcing_landmark(i, j)) {
+				unsigned orig_ins_id = LT.get_landmark(i, j).ins_id;
+				if (CIM.get_instruction(i, j, orig_ins_id) == NULL) {
+					errs() << "(" << i << ", " << j << ", " <<
+						orig_ins_id << ") not found\n";
+					assert(false && "Some enforcing landmarks cannot be found.");
+				}
+			}
+		}
+	}
+}
+
 bool CaptureConstraints::recalculate(Module &M) {
 
+	// Check clone_info metadata. 
+	check_clone_info(M);
+
 	constraints.clear();
+	
 	// Identify all integer and pointer constants.
 	// Note that we define constants in a different way. 
 	identify_constants(M);
+	
 	// Look at arithmetic operations on these constants. 
 	capture_constraints_on_consts(M);
+	
 	// Look at loads and stores. 
 	ICFG &PIB = getAnalysis<PartialICFGBuilder>();
 	IDT.recalculate(PIB);
 	capture_addr_taken(M);
+	
 	// Collect constraints from unreachable blocks. 
 	capture_unreachable(M);
+
 	// Function summaries.
 	// TODO: We'd better have a generic module for all function summaries
 	// instead of writing it for each project. 
 	capture_func_summaries(M);
+
 	simplify_constraints();
 
 	return false;

@@ -133,6 +133,7 @@ namespace slicer {
 		void simplify_constraints();
 		void stat(Module &M);
 		void setup(Module &M);
+		void check_clone_info(Module &M);
 
 #if 0
 		static void print_alias_set(raw_ostream &O, const ConstValueSet &as);

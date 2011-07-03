@@ -55,8 +55,11 @@ namespace slicer {
 		 * Trunk <trunk_id> in Thread <tid>. 
 		 */
 		size_t get_latest_happens_before(int tid, size_t trunk_id, int tid2) const;
+		/* Find the first landmark in Thread <thr_id> whose landmark > <idx> */
+		size_t search_thr_landmark(int thr_id, unsigned idx) const;
+
+	private:
 		/**
-		 * Used in <get_concurrent_trunk>. 
 		 * Recall that there are two types of landmarks:
 		 * enforcing landmarks and derived landmarks. 
 		 * The order of the derived landmarks are not enforced. 
@@ -64,16 +67,13 @@ namespace slicer {
 		 * not always happen before Trunk j if Trunk i does not end with an
 		 * enforcing landmark or Trunk j does not start with an enforcing landmark.
 		 * This function tries to extend the trunk region [s, e] forward and
-		 * backward until the region is bounded by enforcing landmarks. 
+		 * backward until the region is bounded by enforcing landmarks or the
+		 * starts/ends of a thread function. 
 		 * 
 		 * When calling this function, <s> and <e> indicate the original region. 
 		 * After it returns, <s> and <e> will indicate the extended region. 
 		 */
 		void extend_until_enforce(int thr_id, size_t &s, size_t &e) const;
-		/* Find the first landmark in Thread <thr_id> whose landmark > <idx> */
-		size_t search_thr_trunk(int thr_id, unsigned idx) const;
-
-	private:
 		map<int, vector<LandmarkTraceRecord> > thread_trunks;
 	};
 

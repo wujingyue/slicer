@@ -61,11 +61,13 @@ void AddPass(PassManager &PM, Pass *P) {
 	PM.add(createVerifierPass());
 }
 
-/// AddOptimizationPasses - This routine adds optimization passes
-/// based on selected optimization level, OptLevel. This routine
-/// duplicates llvm-gcc behaviour.
-///
-/// OptLevel - Optimization Level
+/**
+ * AddOptimizationPasses - This routine adds optimization passes
+ * based on selected optimization level, OptLevel. This routine
+ * duplicates llvm-gcc behaviour.
+ *
+ * OptLevel - Optimization Level
+ */
 void AddOptimizationPasses(PassManager &MPM, FunctionPassManager &FPM,
 		unsigned OptLevel) {
 	createStandardFunctionPasses(&FPM, OptLevel);
@@ -79,11 +81,15 @@ void AddOptimizationPasses(PassManager &MPM, FunctionPassManager &FPM,
 	} else {
 		InliningPass = createAlwaysInlinerPass();
 	}
+	/*
+	 * We need to preserve all the cloned landmarks, therefore we disable
+	 * simplifying lib calls. 
+	 */
 	createStandardModulePasses(&MPM, OptLevel,
 			/*OptimizeSize=*/ false,
 			/*UnitAtATime=*/ true,
 			/*UnrollLoops=*/ OptLevel > 1,
-			/*SimplifyLibCalls=*/ true,
+			/*SimplifyLibCalls=*/ false,
 			/*HaveExceptions=*/ true,
 			InliningPass);
 }
