@@ -37,13 +37,13 @@ landmark-trace: $(addsuffix .lt, $(PROG_NAMES))
 		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
 		-build-landmark-trace \
 		-fulltrace $< \
-		-landmark-trace $@ \
+		-output-landmark-trace $@ \
 		< $(PROGS_DIR)/$(<:.ft=-id.bc)
 
-%.display-full: %.ft
+%.display-ft: %.ft
 	trace-display full < $<
 
-%.display-landmark: %.lt
+%.display-lt: %.lt
 	trace-display landmark < $<
 
 clean:

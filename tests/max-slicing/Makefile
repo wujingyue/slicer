@@ -8,7 +8,7 @@ SLICED_BCS = $(SLICED_PROGS:=.bc)
 all: $(SLICED_BCS)
 
 # max-slicing requires ID information. 
-$(PROGS_DIR)/%.slice.bc: $(PROGS_DIR)/%-id.bc %.ft
+$(PROGS_DIR)/%.slice.bc: $(PROGS_DIR)/%-id.bc ../trace/%.lt
 	opt -o $@ \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
@@ -18,7 +18,7 @@ $(PROGS_DIR)/%.slice.bc: $(PROGS_DIR)/%-id.bc %.ft
 		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
 		-load $(LLVM_ROOT)/install/lib/libmax-slicing.so \
 		-max-slicing \
-		-fulltrace $(word 2, $^) \
+		-input-landmark-trace $(word 2, $^) \
 		< $<
 
 %.s: %.bc

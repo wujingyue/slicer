@@ -85,8 +85,10 @@ void TraceManager::compute_record_infos(Module &M) {
 int TraceManager::get_normalized_tid(unsigned long raw_tid) {
 	if (raw_tid == INVALID_RAW_TID)
 		return INVALID_TID;
-	if (!raw_tid_to_tid.count(raw_tid))
-		raw_tid_to_tid[raw_tid] = (int)raw_tid_to_tid.size();
+	if (!raw_tid_to_tid.count(raw_tid)) {
+		int new_thr_id = raw_tid_to_tid.size();
+		raw_tid_to_tid[raw_tid] = new_thr_id;
+	}
 	return raw_tid_to_tid[raw_tid];
 }
 

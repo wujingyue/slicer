@@ -18,7 +18,7 @@ static RegisterPass<LandmarkTraceBuilder> X(
 		true); // is analysis
 
 static cl::opt<string> LandmarkTraceFile(
-		"landmark-trace",
+		"output-landmark-trace",
 		cl::desc("The output landmark trace"),
 		cl::init(""));
 

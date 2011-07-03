@@ -13,7 +13,7 @@ static RegisterPass<LandmarkTrace> X(
 		false,
 		true); // is analysis
 static cl::opt<string> LandmarkTraceFile(
-		"landmark-trace",
+		"input-landmark-trace",
 		cl::desc("The input landmark trace file"),
 		cl::init(""));
 
@@ -38,8 +38,10 @@ bool LandmarkTrace::runOnModule(Module &M) {
 	ifstream fin(LandmarkTraceFile.c_str(), ios::in | ios::binary);
 	assert(fin && "Cannot open the input landmark trace file");
 	LandmarkTraceRecord record;
-	while (fin.read((char *)&record, sizeof record))
+	while (fin.read((char *)&record, sizeof record)) {
+		errs() << "tid = " << record.tid << "\n";
 		thread_trunks[record.tid].push_back(record);
+	}
 
 	return false;
 }
@@ -155,6 +157,8 @@ bool LandmarkTrace::happens_before(int i1, size_t j1, int i2, size_t j2) const {
 
 const vector<LandmarkTraceRecord> &LandmarkTrace::get_thr_trunks(
 		int thr_id) const {
+	if (!thread_trunks.count(thr_id))
+		errs() << "thr_id = " << thr_id << "\n";
 	assert(thread_trunks.count(thr_id));
 	return thread_trunks.find(thr_id)->second;
 }
