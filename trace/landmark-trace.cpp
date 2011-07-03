@@ -142,7 +142,7 @@ size_t LandmarkTrace::get_latest_happens_before(
 	 */
 	size_t s_2 = trunk_id_2, e_2 = trunk_id_2;
 	extend_until_enforce(tid_2, s_2, e_2);
-	return s_2 - 1;
+	return s_2;
 }
 
 bool LandmarkTrace::happens_before(int i1, size_t j1, int i2, size_t j2) const {

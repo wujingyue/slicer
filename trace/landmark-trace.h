@@ -51,7 +51,7 @@ namespace slicer {
 				const pair<int, size_t> &the_trunk,
 				vector<pair<int, size_t> > &concurrent_trunks) const;
 		/* 
-		 * Returns the latest trunk in Thread <tid2> that must happen before
+		 * Returns the latest landmark in Thread <tid2> that must happen before
 		 * Trunk <trunk_id> in Thread <tid>. 
 		 */
 		size_t get_latest_happens_before(int tid, size_t trunk_id, int tid2) const;
@@ -70,6 +70,7 @@ namespace slicer {
 		 * After it returns, <s> and <e> will indicate the extended region. 
 		 */
 		void extend_until_enforce(int thr_id, size_t &s, size_t &e) const;
+		/* Find the first landmark in Thread <thr_id> whose landmark > <idx> */
 		size_t search_thr_trunk(int thr_id, unsigned idx) const;
 
 	private:
