@@ -10,6 +10,7 @@ landmark-trace: $(addsuffix .lt, $(PROG_NAMES))
 %.bc1: %.bc
 	opt -o $@ \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
+		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
 		-load $(LLVM_ROOT)/install/lib/libcfg.so \

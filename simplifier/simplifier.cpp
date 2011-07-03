@@ -88,13 +88,47 @@ void AddOptimizationPasses(PassManager &MPM, FunctionPassManager &FPM,
 			InliningPass);
 }
 
+/*
+ * Loads the RegisterPass's at the same time.
+ * The events of loading RegisterPass's will be captured by SimpliferListener. 
+ * Returns 0 on success, and 1 on failure. 
+ */
+int LoadPlugins() {
+	const char *LLVMRoot = getenv("LLVM_ROOT");
+	if (!LLVMRoot) {
+		errs() << "Environment variable LLVM_ROOT is not set\n";
+		return -1;
+	}
+	string LibDir = string(LLVMRoot) + "/install/lib";
+	PluginLoader Loader;
+	Loader = LibDir + "/libidm.so";
+	Loader = LibDir + "/libid-manager.so";
+	Loader = LibDir + "/libbc2bdd.so";
+	Loader = LibDir + "/libcallgraph-fp.so";
+	Loader = LibDir + "/libcfg.so";
+	Loader = LibDir + "/libslicer-trace.so";
+	Loader = LibDir + "/libmax-slicing.so";
+	Loader = LibDir + "/libint.so";
+	Loader = LibDir + "/libremove-br.so";
+	errs() << "# of plugins = " << Loader.getNumPlugins() << "\n";
+	return 0;
+}
+
 int Setup(int argc, char *argv[]) {
 	// NOTE: I'm not able to find its definition. 
 	sys::PrintStackTraceOnErrorSignal();
 	// Enable debug stream buffering.
 	EnableDebugBuffering = true;
+	
+	// Load plugins. 
+	if (LoadPlugins() == -1)
+		return -1;
+
+	// Parse command line options after loading plugins. Otherwise, we wouldn't
+	// be able to parse the options defined in the plugins. 
 	cl::ParseCommandLineOptions(
 			argc, argv, "Iteratively simplifies a max-sliced program\n");
+
 	Out = &outs();  // Default to printing to stdout...
 	if (OutputFilename != "-") {
 		// Make sure that the Output file gets unlinked from the disk if we get a
@@ -121,29 +155,6 @@ Module *LoadModuleFromStdin() {
 	if (!M)
 		Err.Print("simplifier", errs());
 	return M;
-}
-
-/*
- * Loads the RegisterPass's at the same time.
- * The events of loading RegisterPass's will be captured by SimpliferListener. 
- * Returns 0 on success, and 1 on failure. 
- */
-int LoadPlugins() {
-	const char *LLVMRoot = getenv("LLVM_ROOT");
-	if (!LLVMRoot) {
-		errs() << "Environment variable LLVM_ROOT is not set\n";
-		return -1;
-	}
-	string LibDir = string(LLVMRoot) + "/install/lib";
-	PluginLoader Loader;
-	Loader = LibDir + "/libidm.so";
-	Loader = LibDir + "/libbc2bdd.so";
-	Loader = LibDir + "/libcallgraph-fp.so";
-	Loader = LibDir + "/libcfg.so";
-	Loader = LibDir + "/libint.so";
-	Loader = LibDir + "/libremove-br.so";
-	errs() << "# of plugins = " << Loader.getNumPlugins() << "\n";
-	return 0;
 }
 
 /*
@@ -302,11 +313,6 @@ int main(int argc, char *argv[]) {
 	Module *M = LoadModuleFromStdin();
 	if (!M)
 		return 1;
-
-	if (LoadPlugins() == -1) {
-		delete M;
-		return 1;
-	}
 
 	int Changed;
 	int IterNo = 0;

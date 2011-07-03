@@ -32,10 +32,7 @@ namespace slicer {
 		// Returns the index in the full trace. 
 		unsigned get_landmark_timestamp(int thr_id, size_t trunk_id) const;
 		const LandmarkTraceRecord &get_landmark(int thr_id, size_t trunk_id) const;
-		bool is_enforcing_landmark(int thr_id, size_t trunk_id) const {
-			assert_not_implemented();
-			return false;
-		}
+		bool is_enforcing_landmark(int thr_id, size_t trunk_id) const;
 		size_t get_n_trunks(int thr_id) const;
 		vector<int> get_thr_ids() const;
 		const vector<LandmarkTraceRecord> &get_thr_trunks(int thr_id) const;

@@ -11,7 +11,7 @@ PROGS_DIR = ../progs
 
 run:: $(PROG_NAMES)
 
-full_trace_name = $(subst .simple,,$(subst .slice,,$(1))).ft
+landmark_trace_name = $(subst .simple,,$(subst .slice,,$(1))).lt
 
 %: $(PROGS_DIR)/%.bc
 	opt -disable-output \
@@ -26,7 +26,7 @@ full_trace_name = $(subst .simple,,$(subst .slice,,$(1))).ft
 		-load $(LLVM_ROOT)/install/lib/libint-test.so \
 		-int-test \
 		-prog $@ \
-		-fulltrace ../max-slicing/$(call full_trace_name,$@) \
+		-input-landmark-trace ../trace/$(call landmark_trace_name,$@) \
 		< $<
 
 .PHONY: run

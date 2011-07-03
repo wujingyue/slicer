@@ -15,7 +15,6 @@
 #include "common/cfg/partial-icfg-builder.h"
 #include "common/cfg/reach.h"
 #include "../max-slicing/clone-info-manager.h"
-#include "../trace/trace-manager.h"
 using namespace llvm;
 
 #include "capture.h"
@@ -178,7 +177,6 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 	if (!is_constant(i2))
 		return;
 	
-	TraceManager &TM = getAnalysis<TraceManager>();
 	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
 	CloneInfoManager &CIM = getAnalysis<CloneInfoManager>();
 	vector<pair<int, size_t> > cur_trunks;
@@ -209,7 +207,7 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 				// TraceManager is still looking at the trace for the original program.
 				// But, we should use the cloned instruction.
 				errs() << "get_landmark: " << i << ' ' << j << "\n";
-				unsigned orig_ins_id = TM.get_record(LT.get_landmark(i, j)).ins_id;
+				unsigned orig_ins_id = LT.get_landmark(i, j).ins_id;
 				latest_doms[k] = CIM.get_instruction(i, j, orig_ins_id);
 				assert(latest_doms[k] && "Cannot find the cloned landmark");
 			}

@@ -178,3 +178,7 @@ size_t LandmarkTrace::search_thr_trunk(int thr_id, unsigned idx) const {
 	assert(low == high);
 	return low;
 }
+
+bool LandmarkTrace::is_enforcing_landmark(int thr_id, size_t trunk_id) const {
+	return get_landmark(thr_id, trunk_id).enforcing;
+}
