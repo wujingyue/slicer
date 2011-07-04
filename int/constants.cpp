@@ -1,4 +1,5 @@
 #include "llvm/LLVMContext.h"
+#include "llvm/Target/TargetData.h"
 #include "idm/id.h"
 #include "common/callgraph-fp/callgraph-fp.h"
 #include "common/cfg/exec-once.h"
@@ -237,40 +238,6 @@ void CaptureConstraints::capture_in_binary(User *user, unsigned opcode) {
 	constraints.push_back(new Clause(be));
 }
 
-/**
- * TODO: Use TargetData. Refer to ConstantFolding.cpp.
- */
-unsigned CaptureConstraints::get_type_size(const Type *type) {
-	assert(type->isSized() && "The type is not sized");
-	if (type->isPrimitiveType()) {
-		unsigned ret = type->getPrimitiveSizeInBits();
-		assert(ret > 0);
-		return ret;
-	}
-	if (const IntegerType *it = dyn_cast<IntegerType>(type))
-		return it->getBitWidth();
-	// TODO: sure?
-	if (isa<PointerType>(type))
-		return __WORDSIZE;
-	if (const ArrayType *at = dyn_cast<ArrayType>(type))
-		return at->getNumElements() * get_type_size(at->getElementType());
-	if (const VectorType *vt = dyn_cast<VectorType>(type))
-		return vt->getNumElements() * get_type_size(vt->getElementType());
-	if (const StructType *st = dyn_cast<StructType>(type)) {
-		unsigned ret = 0;
-		for (unsigned i = 0; i < st->getNumElements(); ++i)
-			ret += get_type_size(st->getElementType(i));
-		return ret;
-	}
-	if (const UnionType *ut = dyn_cast<UnionType>(type)) {
-		unsigned ret = 0;
-		for (unsigned i = 0; i < ut->getNumElements(); ++i)
-			ret = max(ret, get_type_size(ut->getElementType(i)));
-		return ret;
-	}
-	assert(false && "The type is not sized");
-}
-
 void CaptureConstraints::capture_in_gep(User *user) {
 	for (unsigned i = 0; i < user->getNumOperands(); ++i) {
 		if (!constants.count(user->getOperand(i)))
@@ -281,12 +248,13 @@ void CaptureConstraints::capture_in_gep(User *user) {
 	// <cur> and <type> need be consistent. 
 	// <type> is the type of the item that <cur> points to. 
 	const Type *type = base->getType();
+	TargetData &TD = getAnalysis<TargetData>();
 	for (unsigned i = 1; i < user->getNumOperands(); ++i) {
 		if (const SequentialType *sqt = dyn_cast<SequentialType>(type)) {
 			const Type *et = sqt->getElementType();
 			Expr *delta = new Expr(
 					Instruction::Mul,
-					new Expr(ConstantInt::get(int_type, get_type_size(et))),
+					new Expr(ConstantInt::get(int_type, TD.getTypeSizeInBits(et))),
 					new Expr(user->getOperand(i)));
 			cur = new Expr(Instruction::Add, cur, delta);
 			type = et;
@@ -297,7 +265,7 @@ void CaptureConstraints::capture_in_gep(User *user) {
 			assert(m < st->getNumElements());
 			unsigned offset = 0;
 			for (unsigned j = 0; j < m; ++j)
-				offset += get_type_size(st->getElementType(j));
+				offset += TD.getTypeSizeInBits(st->getElementType(j));
 			Expr *delta = new Expr(ConstantInt::get(int_type, offset));
 			cur = new Expr(Instruction::Add, cur, delta);
 			type = st->getElementType(m);

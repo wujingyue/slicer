@@ -11,6 +11,7 @@
 #include "llvm/Analysis/Passes.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/LLVMContext.h"
+#include "llvm/Target/TargetData.h"
 #include "idm/id.h"
 #include "common/include/util.h"
 #include "common/include/typedefs.h"
@@ -49,6 +50,7 @@ char CaptureConstraints::ID = 0;
 
 void CaptureConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
+	AU.addRequiredTransitive<TargetData>();
 	AU.addRequiredTransitive<ObjectID>();
 	AU.addRequiredTransitive<DominatorTree>();
 	AU.addRequiredTransitive<IntraReach>();
