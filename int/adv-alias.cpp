@@ -33,6 +33,7 @@ void AdvancedAlias::print(raw_ostream &O, const Module *M) const {
 
 void AdvancedAlias::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
+	AU.addRequiredTransitive<AliasAnalysis>();
 	AU.addRequiredTransitive<BddAliasAnalysis>();
 	AU.addRequiredTransitive<SolveConstraints>();
 	ModulePass::getAnalysisUsage(AU);
@@ -41,14 +42,21 @@ void AdvancedAlias::getAnalysisUsage(AnalysisUsage &AU) const {
 AliasAnalysis::AliasResult AdvancedAlias::alias(
 		const Value *V1, unsigned V1Size,
 		const Value *V2, unsigned V2Size) {
+#if 0
 	BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
 	if (BAA.alias(V1, V1Size, V2, V2Size) == NoAlias)
 		return NoAlias;
+#else
+	AliasAnalysis &BAA = getAnalysis<AliasAnalysis>();
+	if (BAA.alias(V1, V1Size, V2, V2Size) == NoAlias)
+		return NoAlias;
+#endif
 	if (V1 > V2)
 		swap(V1, V2);
 	ConstValuePair p(V1, V2);
 	if (cache.count(p))
 		return cache.lookup(p);
+	errs() << "cache miss\n";
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	AliasResult res;
 	// TODO: <provable> takes much more time than satisfiable. Sometimes, we

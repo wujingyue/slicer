@@ -24,6 +24,7 @@ landmark_trace_name = $(subst .simple,,$(subst .slice,,$(1))).lt
 		-load $(LLVM_ROOT)/install/lib/libmax-slicing.so \
 		-load $(LLVM_ROOT)/install/lib/libint.so \
 		-load $(LLVM_ROOT)/install/lib/libint-test.so \
+		-scev-aa \
 		-int-test \
 		-prog $@ \
 		-input-landmark-trace ../trace/$(call landmark_trace_name,$@) \

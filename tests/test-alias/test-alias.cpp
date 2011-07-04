@@ -29,6 +29,7 @@ namespace slicer {
 	void TestAlias::getAnalysisUsage(AnalysisUsage &AU) const {
 		AU.setPreservesAll();
 		AU.addRequired<ObjectID>();
+		AU.addRequired<AliasAnalysis>();
 		AU.addRequired<BddAliasAnalysis>();
 		ModulePass::getAnalysisUsage(AU);
 	}
@@ -37,8 +38,9 @@ namespace slicer {
 		errs() << "===== test =====\n";
 		ObjectID &OI = getAnalysis<ObjectID>();
 		BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
-		const Value *v1 = OI.getValue(1586);
-		const Value *v2 = OI.getValue(882);
+		// AliasAnalysis &BAA = getAnalysis<AliasAnalysis>();
+		const Value *v1 = OI.getValue(644);
+		const Value *v2 = OI.getValue(1325);
 		assert(v1 && v2);
 		errs() << *v1 << "\n" << *v2 << "\n";
 		errs() << BAA.alias(v1, 0, v2, 0) << "\n";

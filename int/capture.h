@@ -94,15 +94,14 @@ namespace slicer {
 		// Address taken variables. 
 		void capture_addr_taken(Module &M);
 		/*
-		 * i1: store v1, p || v1 = load p
-		 * i2: v2 = load q
-		 * i1 dominates i2
-		 * p and q must alias
-		 * No other store instructions that may overwrite p/q along the way 
+		 * store v1, p (including global variable initializers)
+		 * v2 = load q
+		 * p and q may alias
 		 * =>
-		 * v1 = v2
+		 * v2 may = v1
 		 */
-		void capture_overwritten_in_func(Function *fi);
+		void capture_may_assign(Module &M);
+		void capture_must_assign(Module &M);
 		void capture_overwriting_to(LoadInst *i2);
 		Instruction *find_latest_overwriter(Instruction *i2, Value *q);
 		BasicBlock *get_idom(BasicBlock *bb);

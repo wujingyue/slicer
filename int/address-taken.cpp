@@ -59,13 +59,18 @@ const Value *CaptureConstraints::get_value_operand(
 
 void CaptureConstraints::capture_addr_taken(Module &M) {
 
-	/*
-	 * store v1, p (including global variable initializers)
-	 * v2 = load q
-	 * p and q may alias
-	 * =>
-	 * v2 may = v1
-	 */
+	Timer tmr_pairwise("may-assign");
+	tmr_pairwise.startTimer();
+	capture_may_assign(M);
+	tmr_pairwise.stopTimer();
+	
+	Timer tmr_overwritten("must-assign");
+	tmr_overwritten.startTimer();
+	capture_must_assign(M);
+	tmr_overwritten.stopTimer();
+}
+
+void CaptureConstraints::capture_may_assign(Module &M) {
 	// <value, pointer>
 	vector<pair<const Value *, const Value *> > all_stores, all_loads;
 	// Scan through all loads and stores. 
@@ -104,8 +109,6 @@ void CaptureConstraints::capture_addr_taken(Module &M) {
 	errs() << "# of loads = " << all_loads.size() << "\n";
 	errs() << "# of stores = " << all_stores.size() << "\n";
 
-	Timer tmr_pairwise("Pairwise");
-	tmr_pairwise.startTimer();
 	for (size_t i = 0; i < all_loads.size(); ++i) {
 		if (!is_constant(all_loads[i].first))
 			continue;
@@ -137,17 +140,23 @@ void CaptureConstraints::capture_addr_taken(Module &M) {
 		if (disj)
 			constraints.push_back(disj);
 	}
-	tmr_pairwise.stopTimer();
+}
 
-	// TODO: we currently perform this analysis intra-procedurally
-	Timer tmr_overwritten("Overwritten");
-	tmr_overwritten.startTimer();
+void CaptureConstraints::capture_must_assign(Module &M) {
+
 	forallfunc(M, fi) {
 		if (fi->isDeclaration())
 			continue;
-		capture_overwritten_in_func(fi);
+		ExecOnce &EO = getAnalysis<ExecOnce>();
+		if (EO.not_executed(fi))
+			continue;
+		forall(Function, bi, *fi) {
+			forall(BasicBlock, ii, *bi) {
+				if (LoadInst *i2 = dyn_cast<LoadInst>(ii))
+					capture_overwriting_to(i2);
+			}
+		}
 	}
-	tmr_overwritten.stopTimer();
 }
 
 Instruction *CaptureConstraints::find_latest_overwriter(
@@ -309,18 +318,6 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 			errs() << "\n";
 #endif
 			constraints.push_back(c);
-		}
-	}
-}
-
-void CaptureConstraints::capture_overwritten_in_func(Function *fi) {
-	ExecOnce &EO = getAnalysis<ExecOnce>();
-	if (EO.not_executed(fi))
-		return;
-	forall(Function, bi, *fi) {
-		forall(BasicBlock, ii, *bi) {
-			if (LoadInst *i2 = dyn_cast<LoadInst>(ii))
-				capture_overwriting_to(i2);
 		}
 	}
 }
