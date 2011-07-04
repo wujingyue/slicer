@@ -40,6 +40,7 @@ namespace slicer {
 		void test_aget_nocrit_slice(const Module &M);
 		void test_aget_nocrit_simple(const Module &M);
 		void test_test_overwrite_slice(const Module &M);
+		void test_fft_nocrit_slice(const Module &M);
 	};
 }
 
@@ -82,7 +83,56 @@ bool IntTest::runOnModule(Module &M) {
 	test_aget_nocrit_slice(M);
 	test_aget_nocrit_simple(M);
 	test_test_overwrite_slice(M);
+	test_fft_nocrit_slice(M);
 	return false;
+}
+
+static bool starts_with(const string &a, const string &b) {
+	return a.length() >= b.length() && a.compare(0, b.length(), b) == 0;
+}
+
+void IntTest::test_fft_nocrit_slice(const Module &M) {
+	
+	if (Program != "FFT-nocrit.slice")
+		return;
+	TestBanner X("FFT-nocrit.slice");
+
+	forallconst(Module, f, M) {
+		if (starts_with(f->getName(), "SlaveStart.SLICER")) {
+			
+			string str_id = f->getName().substr(strlen("SlaveStart.SLICER"));
+			int id = (str_id == "" ? 0 : atoi(str_id.c_str()) - 1);
+			assert(id >= 0);
+			const Instruction *start = NULL;
+			for (BasicBlock::const_iterator ins = f->getEntryBlock().begin();
+					ins != f->getEntryBlock().end(); ++ins) {
+				if (const CallInst *ci = dyn_cast<CallInst>(ins)) {
+					const Function *callee = ci->getCalledFunction();
+					if (callee && callee->getName() == "pthread_mutex_lock") {
+						start = ci;
+						break;
+					}
+				}
+			}
+			assert(start && "Cannot find a pthread_mutex_lock in the entry block");
+			
+			const Value *local_id = NULL;
+			for (BasicBlock::const_iterator ins = start;
+					ins != f->getEntryBlock().end(); ++ins) {
+				if (ins->getOpcode() == Instruction::Add) {
+					local_id = ins->getOperand(0);
+					break;
+				}
+			}
+			assert(local_id && "Cannot find the Add instruction");
+
+			SolveConstraints &SC = getAnalysis<SolveConstraints>();
+			const IntegerType *int_type = IntegerType::get(M.getContext(), 32);
+			// local_id = id
+			errs() << "local_id = " << *local_id << "\n";
+			SC.provable(CmpInst::ICMP_EQ, local_id, ConstantInt::get(int_type, id));
+		}
+	}
 }
 
 void IntTest::test_aget_nocrit_slice(const Module &M) {

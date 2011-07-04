@@ -75,7 +75,7 @@ Clause *CaptureConstraints::get_avoid_branch(
 				else
 					disj = new Clause(Instruction::Or, disj, c);
 			}
-			assert(!disj);
+			assert(disj);
 			return disj;
 		} else {
 			// The condition does not equal the particular case. 
