@@ -130,7 +130,8 @@ void IntTest::test_fft_nocrit_slice(const Module &M) {
 			const IntegerType *int_type = IntegerType::get(M.getContext(), 32);
 			// local_id = id
 			errs() << "local_id = " << *local_id << "\n";
-			SC.provable(CmpInst::ICMP_EQ, local_id, ConstantInt::get(int_type, id));
+			assert(SC.provable(
+						CmpInst::ICMP_EQ, local_id, ConstantInt::get(int_type, id)));
 		}
 	}
 }

@@ -37,13 +37,11 @@ namespace slicer {
 		errs() << "===== test =====\n";
 		ObjectID &OI = getAnalysis<ObjectID>();
 		BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
-		LoadInst *li = dyn_cast<LoadInst>(OI.getInstruction(2548));
-		StoreInst *si = dyn_cast<StoreInst>(OI.getInstruction(1007));
-		assert(li && si);
-		errs() << *li << "\n" << *si << "\n";
-		errs() << BAA.alias(
-				li->getPointerOperand(), 0,
-				si->getPointerOperand(), 0) << "\n";
+		const Value *v1 = OI.getValue(1586);
+		const Value *v2 = OI.getValue(882);
+		assert(v1 && v2);
+		errs() << *v1 << "\n" << *v2 << "\n";
+		errs() << BAA.alias(v1, 0, v2, 0) << "\n";
 		return false;
 	}
 

@@ -15,10 +15,12 @@ include $(LEVEL)/Makefile.common
 
 CXXFLAGS += -I$(LLVM_ROOT)
 
-test:: ../aget-nocrit.slice.bc
+test::
 	opt -disable-output \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libtest-alias.so \
 		-test-alias \
-		< ../aget-nocrit.slice.bc
+		< ../progs/FFT.bc
+
+.PHONY: test
