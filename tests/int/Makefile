@@ -6,7 +6,7 @@ include $(LEVEL)/Makefile.common
 
 CXXFLAGS += -I$(LLVM_ROOT) -I$(SLICER_ROOT) -I$(SLICER_ROOT)/stp/install/include
 
-PROG_NAMES = aget-nocrit.simple test-overwrite.slice
+PROG_NAMES = aget-nocrit.simple test-overwrite.slice FFT-nocrit.slice
 PROGS_DIR = ../progs
 
 run:: $(PROG_NAMES)

@@ -1,13 +1,13 @@
-PROG_NAMES = test-thread test-overwrite aget aget-nocrit 
+PROG_NAMES = test-thread test-overwrite aget-nocrit FFT-nocrit
 PROGS_DIR = ../progs
-PROGS = $(addprefix $(PROGS_DIR)/, $(PROG_NAMES))
-TRACED_PROGS = $(PROGS:=.trace)
+TRACED_PROGS = $(PROG_NAMES:=.trace)
+LANDMARK_TRACES = $(PROG_NAMES:=.lt)
 
 all: $(TRACED_PROGS)
 
-landmark-trace: $(addsuffix .lt, $(PROG_NAMES))
+landmark-trace: $(LANDMARK_TRACES)
 
-%.bc1: %.bc
+%.bc1: $(PROGS_DIR)/%.bc
 	opt -o $@ \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
@@ -48,7 +48,6 @@ landmark-trace: $(addsuffix .lt, $(PROG_NAMES))
 	trace-display landmark < $<
 
 clean:
-	rm -f $(PROGS:=.bc1) $(PROGS:=.trace.bc) $(PROGS:=.trace.s) \
-		$(TRACED_PROGS)
+	rm -f *.trace *.trace.bc *.trace.s *.bc1 *.lt
 
 .PHONY: clean *.display

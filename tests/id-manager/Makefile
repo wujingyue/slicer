@@ -1,6 +1,4 @@
-PROG_NAMES = test-thread test-path test-overwrite test-ctxt test-recursive \
-	test-branch test-loop \
-	aget aget-nocrit 
+PROG_NAMES = test-thread test-overwrite aget-nocrit FFT-nocrit
 PROGS_DIR = ../progs
 PROGS = $(addprefix $(PROGS_DIR)/, $(PROG_NAMES))
 BCS = $(addsuffix .bc, $(PROGS))

@@ -66,7 +66,8 @@ Clause *CaptureConstraints::get_avoid_branch(
 		if (ti->getSuccessor(i) == si->getDefaultDest()) {
 			// The condition is equal to one of the case values. 
 			Clause *disj = NULL;
-			for (unsigned j = 0; j < si->getNumCases(); ++j) {
+			// Case 0 is the default branch. It doesn't have a case value. 
+			for (unsigned j = 1; j < si->getNumCases(); ++j) {
 				Clause *c = new Clause(new BoolExpr(
 							CmpInst::ICMP_EQ, new Expr(cond), new Expr(si->getCaseValue(j))));
 				if (!disj)
