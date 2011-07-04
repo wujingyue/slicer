@@ -13,8 +13,8 @@ all: $(SIMPLE_BCS)
 # Otherwise, work on the original program. 
 # We use -o whenever possible, because <simplifier> will remove the output
 # file on failure. 
-%.simple.bc: %.slice.bc
-	simplifier -o $@ < $<
+$(PROGS_DIR)/%.simple.bc: $(PROGS_DIR)/%.slice.bc ../trace/%.lt
+	simplifier -o $@ -input-landmark-trace $(word 2, $^) < $<
 
 %.slice.bc: %.bc
 	cp $< $@

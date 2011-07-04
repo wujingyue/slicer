@@ -70,6 +70,7 @@ void AddPass(PassManager &PM, Pass *P) {
  */
 void AddOptimizationPasses(PassManager &MPM, FunctionPassManager &FPM,
 		unsigned OptLevel) {
+
 	createStandardFunctionPasses(&FPM, OptLevel);
 
 	llvm::Pass *InliningPass = 0;
@@ -187,14 +188,20 @@ int RunOptimizationPasses(Module *M) {
 	if (TD)
 		Passes.add(TD);
 
+#if 0
 	FunctionPassManager *FPasses = NULL;
 	FPasses = new FunctionPassManager(M);
 	if (TD)
 		FPasses->add(new TargetData(*TD));
 
 	AddOptimizationPasses(Passes, *FPasses, 3);
+#endif
+	Passes.add(createAggressiveDCEPass());
+	Passes.add(createCFGSimplificationPass());
+	Passes.add(createGlobalDCEPass());
 
 	bool changed = false;
+#if 0
 	/*
 	 * Run intra-procedural opts first.
 	 * We could also use just one pass manager, but then we would have
@@ -204,6 +211,7 @@ int RunOptimizationPasses(Module *M) {
 	FPasses->doInitialization();
 	for (Module::iterator I = M->begin(), E = M->end(); I != E; ++I)
 		changed |= FPasses->run(*I);
+#endif
 
 	// Now that we have all of the passes ready, run them.
 	changed |= Passes.run(*M);

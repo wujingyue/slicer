@@ -16,6 +16,7 @@
 using namespace llvm;
 
 #include "int/iterate.h"
+#include "int/capture.h"
 #include "int/solve.h"
 #include "../include/test-banner.h"
 using namespace slicer;
@@ -47,7 +48,7 @@ static RegisterPass<IntTest> X(
 		"Test the integer constraint solver",
 		false,
 		false);
-
+// If Program == "", we dump all the integer constraints. 
 static cl::opt<string> Program(
 		"prog",
 		cl::desc("The program being tested (e.g. aget). "
@@ -61,14 +62,17 @@ void IntTest::getAnalysisUsage(AnalysisUsage &AU) const {
 #ifndef IDENTIFY_ONLY
 	AU.addRequired<Iterate>();
 	AU.addRequired<SolveConstraints>();
+	AU.addRequired<CaptureConstraints>();
+	AU.addRequired<ObjectID>();
 #endif
 	ModulePass::getAnalysisUsage(AU);
 }
 
 bool IntTest::runOnModule(Module &M) {
 	if (Program == "") {
-		errs() << "[Warning] You didn't specify the program name. "
-			"No testcases will be executed.\n";
+		CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
+		CC.print(errs(), &M);
+		return false;
 	}
 	/*
 	 * Run all test cases. 
@@ -131,14 +135,19 @@ void IntTest::test_aget_nocrit_simple(const Module &M) {
 	 * is not. Need a way to identify instructions and values more
 	 * deterministically regardless of the ID mapping. 
 	 */
-	const Function *http_get_slicer = NULL;
+	const Function *http_get_slicer = NULL, *http_get_slicer2 = NULL;
 	forallconst(Module, fi, M) {
-		if (fi->getNameStr() == "http_get.SLICER") {
+		if (fi->getName() == "http_get.SLICER") {
+			assert(!http_get_slicer);
 			http_get_slicer = fi;
-			break;
+		}
+		if (fi->getName() == "http_get.SLICER2") {
+			assert(!http_get_slicer2);
+			http_get_slicer2 = fi;
 		}
 	}
 	assert(http_get_slicer && "Cannot find function http_get.SLICER");
+	assert(http_get_slicer2 && "Cannot find function http_get.SLICER2");
 
 	unsigned n_pwrites = 0;
 	const Value *offset = NULL, *soffset = NULL, *foffset = NULL, *remain = NULL;
@@ -205,6 +214,36 @@ void IntTest::test_aget_nocrit_simple(const Module &M) {
 	errs() << "dr:" << *(dr->get()) << "\n";
 	errs() << "remain:" << *remain << "\n";
 
+	const Value *soffset2 = NULL;
+	n_pwrites = 0;
+	forallconst(Function, bi, *http_get_slicer2) {
+		forallconst(BasicBlock, ii, *bi) {
+			if (const CallInst *ci = dyn_cast<CallInst>(ii)) {
+				const Function *callee = ci->getCalledFunction();
+				if (callee && callee->getNameStr() == "pwrite") {
+					
+					const Use *off_use = &ci->getOperandUse(4);
+					const Value *off = off_use->get();
+
+					const LoadInst *li = dyn_cast<LoadInst>(off);
+					assert(li);
+					const GetElementPtrInst *gep = dyn_cast<GetElementPtrInst>(
+							li->getPointerOperand());
+					assert(gep);
+					assert(2 < gep->getNumOperands());
+					const ConstantInt *idx = dyn_cast<ConstantInt>(gep->getOperand(2));
+					if (idx->getZExtValue() == 2)
+						soffset2 = off;
+					++n_pwrites;
+				}
+			} // if CallInst
+		}
+	}
+	assert(n_pwrites == 4 && "There should be exactly 4 pwrites "
+			"in function http_get.SLICER2");
+	assert(soffset2);
+	errs() << "soffset2:" << *soffset2 << "\n";
+
 #ifndef IDENTIFY_ONLY
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	// soffset <= offset
@@ -224,5 +263,7 @@ void IntTest::test_aget_nocrit_simple(const Module &M) {
 	assert(SC.provable(c));
 	delete end;
 	delete c;
+	// foffset <= soffset2
+	assert(SC.provable(CmpInst::ICMP_SLE, foffset, soffset2));
 #endif
 }

@@ -192,8 +192,10 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 	}
 	assert(cur_trunk_id < LT.get_n_trunks(cur_thr_id));
 
+#if 0
 	errs() << "capture_overwriting_to: " << cur_thr_id << ' ' <<
 		cur_trunk_id << ":" << *i2 << "\n";
+#endif
 
 	vector<int> thr_ids = LT.get_thr_ids();
 	vector<Instruction *> latest_doms(thr_ids.size(), NULL);
@@ -274,6 +276,9 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 	}
 
 	if (n_overwriters == 0) {
+		// TODO: Check whether the value may be overwritten by any trunk from
+		// the program start to the current trunk. 
+#if 0
 		if (GlobalVariable *gv = dyn_cast<GlobalVariable>(q)) {
 			if (gv->hasInitializer()) {
 				if (ConstantInt *ci = dyn_cast<ConstantInt>(gv->getInitializer())) {
@@ -281,17 +286,28 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 								CmpInst::ICMP_EQ,
 								new Expr(i2),
 								new Expr(ci)));
+					errs() << "From overwriting: ";
+					print_clause(errs(), c, getAnalysis<ObjectID>());
+					errs() << "\n";
 					constraints.push_back(c);
 				}
 			}
 		}
+#endif
 	} else if (n_overwriters == 1) {
+		// TODO: path_may_write only checks the current thread. Need check
+		// other threads as well. 
 		if (!path_may_write(
 					latest_overwriters[the_thr_idx], latest_doms[the_thr_idx], q)) {
 			Clause *c = new Clause(new BoolExpr(
 						CmpInst::ICMP_EQ,
 						new Expr(i2),
 						new Expr(get_value_operand(latest_overwriters[the_thr_idx]))));
+#if 0
+			errs() << "From overwriting: ";
+			print_clause(errs(), c, getAnalysis<ObjectID>());
+			errs() << "\n";
+#endif
 			constraints.push_back(c);
 		}
 	}

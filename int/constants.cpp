@@ -237,6 +237,9 @@ void CaptureConstraints::capture_in_binary(User *user, unsigned opcode) {
 	constraints.push_back(new Clause(be));
 }
 
+/**
+ * TODO: Use TargetData. Refer to ConstantFolding.cpp.
+ */
 unsigned CaptureConstraints::get_type_size(const Type *type) {
 	assert(type->isSized() && "The type is not sized");
 	if (type->isPrimitiveType()) {
