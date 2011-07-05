@@ -97,6 +97,7 @@ void IntTest::test_fft_nocrit_slice(const Module &M) {
 		return;
 	TestBanner X("FFT-nocrit.slice");
 
+	// MyNum's are distinct. 
 	vector<const Value *> local_ids;
 	forallconst(Module, f, M) {
 
@@ -136,6 +137,38 @@ void IntTest::test_fft_nocrit_slice(const Module &M) {
 	for (size_t i = 0; i < local_ids.size(); ++i) {
 		for (size_t j = i + 1; j < local_ids.size(); ++j) {
 			assert(SC.provable(CmpInst::ICMP_NE, local_ids[i], local_ids[j]));
+		}
+	}
+
+	// The ranges passed to function FFT1D are disjoint. 
+	vector<ConstValuePair> ranges;
+	forallconst(Module, f, M) {
+		if (starts_with(f->getName(), "FFT1D.SLICER")) {
+			const Value *first = NULL, *last = NULL;
+			for (Function::const_arg_iterator ai = f->arg_begin();
+					ai != f->arg_end(); ++ai) {
+				if (ai->getName() == "MyFirst")
+					first = ai;
+				if (ai->getName() == "MyLast")
+					last = ai;
+			}
+			assert(first && last && "Cannot find arguments called MyFirst and MyLast");
+			ranges.push_back(make_pair(first, last));
+		}
+	}
+	for (size_t i = 0; i < ranges.size(); ++i) {
+		for (size_t j = i + 1; j < ranges.size(); ++j) {
+			Clause *c1 = new Clause(new BoolExpr(
+						CmpInst::ICMP_SLE,
+						new Expr(ranges[i].second),
+						new Expr(ranges[j].first)));
+			Clause *c2 = new Clause(new BoolExpr(
+						CmpInst::ICMP_SLE,
+						new Expr(ranges[j].second),
+						new Expr(ranges[i].first)));
+			Clause *disjoint = new Clause(Instruction::Or, c1, c2);
+			assert(SC.provable(disjoint));
+			delete disjoint;
 		}
 	}
 }
