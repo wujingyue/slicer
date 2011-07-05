@@ -21,6 +21,6 @@ test::
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libtest-alias.so \
 		-test-alias \
-		< ../a.bc
+		< ../progs/FFT-nocrit.slice.bc
 
 .PHONY: test

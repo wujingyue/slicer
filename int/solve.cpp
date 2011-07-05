@@ -60,13 +60,13 @@ bool SolveConstraints::recalculate(Module &M) {
 
 void SolveConstraints::translate_captured() {
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
-#if 0
+#if 1
 	for (unsigned i = 0; i < CC.get_num_constraints(); ++i) {
 		const Clause *c = CC.get_constraint(i);
 		VCExpr vc_expr = translate_to_vc(c);
 		vc_assertFormula(vc, vc_expr);
 	}
-#endif
+#else
 	root.clear();
 	for (unsigned i = 0; i < CC.get_num_constraints(); ++i) {
 		const Clause *c = CC.get_constraint(i);
@@ -93,6 +93,7 @@ void SolveConstraints::translate_captured() {
 		vc_assertFormula(vc, translate_to_vc(c2));
 		delete c2;
 	}
+#endif
 }
 
 void SolveConstraints::replace_with_root(Clause *c) {

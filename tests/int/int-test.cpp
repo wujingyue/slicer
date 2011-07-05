@@ -97,7 +97,9 @@ void IntTest::test_fft_nocrit_slice(const Module &M) {
 		return;
 	TestBanner X("FFT-nocrit.slice");
 
+	vector<const Value *> local_ids;
 	forallconst(Module, f, M) {
+
 		if (starts_with(f->getName(), "SlaveStart.SLICER")) {
 			
 			string str_id = f->getName().substr(strlen("SlaveStart.SLICER"));
@@ -125,13 +127,15 @@ void IntTest::test_fft_nocrit_slice(const Module &M) {
 				}
 			}
 			assert(local_id && "Cannot find the Add instruction");
+			errs() << "local_id in " << f->getName() << ": " << *local_id << "\n";
+			local_ids.push_back(local_id);
+		}
+	}
 
-			SolveConstraints &SC = getAnalysis<SolveConstraints>();
-			const IntegerType *int_type = IntegerType::get(M.getContext(), 32);
-			// local_id = id
-			errs() << "local_id = " << *local_id << "\n";
-			assert(SC.provable(
-						CmpInst::ICMP_EQ, local_id, ConstantInt::get(int_type, id)));
+	SolveConstraints &SC = getAnalysis<SolveConstraints>();
+	for (size_t i = 0; i < local_ids.size(); ++i) {
+		for (size_t j = i + 1; j < local_ids.size(); ++j) {
+			assert(SC.provable(CmpInst::ICMP_NE, local_ids[i], local_ids[j]));
 		}
 	}
 }
