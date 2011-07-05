@@ -47,13 +47,8 @@ bool SolveConstraints::recalculate(Module &M) {
 	// vc_setFlags(vc, 'p');
 	vc_registerErrorHandler(vc_error_handler);
 
-	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
-	// CC.print(errs(), &M);
-	for (unsigned i = 0; i < CC.get_num_constraints(); ++i) {
-		const Clause *c = CC.get_constraint(i);
-		VCExpr vc_expr = translate_to_vc(c);
-		vc_assertFormula(vc, vc_expr);
-	}
+	// Translate captured constraints to the VC form. 
+	translate_captured();
 	// The captured constraints should be consistent. 
 	vc_push(vc);
 	assert(vc_query(vc, vc_falseExpr(vc)) == 0 &&
@@ -61,6 +56,93 @@ bool SolveConstraints::recalculate(Module &M) {
 	vc_pop(vc);
 
 	return false;
+}
+
+void SolveConstraints::translate_captured() {
+	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
+#if 0
+	for (unsigned i = 0; i < CC.get_num_constraints(); ++i) {
+		const Clause *c = CC.get_constraint(i);
+		VCExpr vc_expr = translate_to_vc(c);
+		vc_assertFormula(vc, vc_expr);
+	}
+#endif
+	root.clear();
+	for (unsigned i = 0; i < CC.get_num_constraints(); ++i) {
+		const Clause *c = CC.get_constraint(i);
+		const Value *v1 = NULL, *v2 = NULL;
+		if (is_simple_eq(c, v1, v2)) {
+			assert(v1 && v2);
+			const Value *r1 = get_root(v1), *r2 = get_root(v2);
+			root[r1] = r2;
+		}
+	}
+	forallconst(ConstValueMapping, it, root) {
+		const Value *v1 = it->first;
+		const Value *v2 = it->second;
+		if (v1 != v2) {
+			const Clause *c = new Clause(new BoolExpr(
+						CmpInst::ICMP_EQ, new Expr(v1), new Expr(v2)));
+			vc_assertFormula(vc, translate_to_vc(c));
+			delete c;
+		}
+	}
+	for (unsigned i = 0; i < CC.get_num_constraints(); ++i) {
+		Clause *c2 = CC.get_constraint(i)->clone();
+		replace_with_root(c2);
+		vc_assertFormula(vc, translate_to_vc(c2));
+		delete c2;
+	}
+}
+
+void SolveConstraints::replace_with_root(Clause *c) {
+	if (c->be)
+		replace_with_root(c->be);
+	else {
+		replace_with_root(c->c1);
+		replace_with_root(c->c2);
+	}
+}
+
+void SolveConstraints::replace_with_root(BoolExpr *be) {
+	replace_with_root(be->e1);
+	replace_with_root(be->e2);
+}
+
+void SolveConstraints::replace_with_root(Expr *e) {
+	if (e->type == Expr::SingleDef)
+		e->v = get_root(e->v);
+	else if (e->type == Expr::Unary)
+		replace_with_root(e->e1);
+	else if (e->type == Expr::Binary) {
+		replace_with_root(e->e1);
+		replace_with_root(e->e2);
+	}
+}
+
+const Value *SolveConstraints::get_root(const Value *x) {
+	assert(x);
+	if (!root.count(x))
+		return x;
+	const Value *y = root.lookup(x);
+	if (y != x) {
+		const Value *ry = get_root(y);
+		root[x] = ry;
+	}
+	return root.lookup(x);
+}
+
+bool SolveConstraints::is_simple_eq(
+		const Clause *c, const Value *&v1, const Value *&v2) {
+	if (c->be == NULL)
+		return false;
+	if (c->be->p != CmpInst::ICMP_EQ)
+		return false;
+	if (c->be->e1->type != Expr::SingleDef || c->be->e2->type != Expr::SingleDef)
+		return false;
+	v1 = c->be->e1->v;
+	v2 = c->be->e2->v;
+	return true;
 }
 
 void SolveConstraints::vc_error_handler(const char *err_msg) {

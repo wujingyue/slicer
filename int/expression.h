@@ -35,7 +35,7 @@ namespace slicer {
 			const Use *u;
 		};
 
-		Expr *clone() {
+		Expr *clone() const {
 			if (type == SingleDef)
 				return new Expr(v);
 			if (type == SingleUse)
@@ -117,7 +117,7 @@ namespace slicer {
 		CmpInst::Predicate p;
 		Expr *e1, *e2;
 
-		BoolExpr *clone() {
+		BoolExpr *clone() const {
 			return new BoolExpr(p, e1->clone(), e2->clone());
 		}
 
@@ -154,7 +154,7 @@ namespace slicer {
 		BoolExpr *be;
 		Clause *c1, *c2;
 
-		Clause *clone() {
+		Clause *clone() const {
 			if (be)
 				return new Clause(be);
 			else

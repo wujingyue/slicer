@@ -62,12 +62,21 @@ namespace slicer {
 
 	private:
 		// Intermediate VC expressions will be inserted to member <vc>. 
+		void translate_captured();
 		VCExpr translate_to_vc(const Clause *c);
 		VCExpr translate_to_vc(const BoolExpr *be);
 		VCExpr translate_to_vc(const Expr *e);
 		VCExpr translate_to_vc(const Value *v);
 		VCExpr translate_to_vc(const Use *u);
 		void avoid_overflow(unsigned op, VCExpr left, VCExpr right);
+		// Checks whether <c> is in the form of (v1 == v2).
+		// If so, outputs <v1> and <v2> as well. 
+		static bool is_simple_eq(
+				const Clause *c, const Value *&v1, const Value *&v2);
+		const Value *get_root(const Value *x);
+		void replace_with_root(Clause *c);
+		void replace_with_root(BoolExpr *be);
+		void replace_with_root(Expr *e);
 
 		static void vc_error_handler(const char *err_msg);
 		static VCExpr vc_zero(VC vc) {
@@ -108,6 +117,7 @@ namespace slicer {
 		void realize(const Instruction *i);
 		BasicBlock *get_idom(BasicBlock *bb);
 
+		ConstValueMapping root;
 		VC vc;
 	};
 }
