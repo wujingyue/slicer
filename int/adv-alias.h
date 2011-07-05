@@ -15,11 +15,12 @@ namespace slicer {
 
 		static char ID;
 
-		AdvancedAlias(): ModulePass(&ID) {}
+		AdvancedAlias(): ModulePass(&ID), tot_time(0), n_queries(0) {}
 		virtual bool runOnModule(Module &M);
 		bool recalculate(Module &M);
 		virtual void print(raw_ostream &O, const Module *M) const;
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
+		virtual void releaseMemory();
 		/** 
 		 * This method is used when a pass implements
 		 * an analysis interface through multiple inheritance.  If needed, it
@@ -44,7 +45,11 @@ namespace slicer {
 				const Value *V2, unsigned V2Size);
 
 	private:
+		void print_average_query_time();
+
 		DenseMap<ConstValuePair, AliasResult> cache;
+		clock_t tot_time;
+		unsigned n_queries;
 	};
 }
 

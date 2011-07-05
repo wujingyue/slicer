@@ -56,6 +56,7 @@ bool AATest::runOnModule(Module &M) {
 	for (size_t i = 0; i < store_to.size(); ++i) {
 		for (size_t j = 0; j < load_from.size(); ++j) {
 			AliasAnalysis &AA = getAnalysis<AliasAnalysis>();
+			// errs() << *store_to[i] << "\n" << *load_from[j] << "\n";
 			if (AA.alias(store_to[i], 0, load_from[j], 0) != AliasAnalysis::NoAlias) {
 				alias.push_back(make_pair(store_to[i], load_from[j]));
 				n_alias++;

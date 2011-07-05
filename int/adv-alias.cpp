@@ -9,6 +9,10 @@ using namespace llvm;
 #include "adv-alias.h"
 using namespace slicer;
 
+#include <sstream>
+#include <iomanip>
+using namespace std;
+
 static RegisterPass<AdvancedAlias> X(
 		"adv-alias",
 		"Iterative alias analysis",
@@ -21,9 +25,27 @@ bool AdvancedAlias::runOnModule(Module &M) {
 	return recalculate(M);
 }
 
+void AdvancedAlias::releaseMemory() {
+	print_average_query_time();
+}
+
+void AdvancedAlias::print_average_query_time() {
+	if (n_queries == 0)
+		return;
+	errs() << "Total time = " << tot_time << "\n";
+	errs() << "# of queries = " << n_queries << "\n";
+	ostringstream oss;
+	oss << fixed << setprecision(5) <<
+		(double)tot_time / CLOCKS_PER_SEC / n_queries;
+	errs() << "Average time on each query = " << oss.str() << "\n";
+}
+
 bool AdvancedAlias::recalculate(Module &M) {
 	// Clear the cache. 
 	cache.clear();
+	print_average_query_time();
+	tot_time = 0;
+	n_queries = 0;
 	return false;
 }
 
@@ -42,7 +64,8 @@ void AdvancedAlias::getAnalysisUsage(AnalysisUsage &AU) const {
 AliasAnalysis::AliasResult AdvancedAlias::alias(
 		const Value *V1, unsigned V1Size,
 		const Value *V2, unsigned V2Size) {
-#if 0
+
+#if 1
 	BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
 	if (BAA.alias(V1, V1Size, V2, V2Size) == NoAlias)
 		return NoAlias;
@@ -51,17 +74,19 @@ AliasAnalysis::AliasResult AdvancedAlias::alias(
 	if (BAA.alias(V1, V1Size, V2, V2Size) == NoAlias)
 		return NoAlias;
 #endif
+
 	if (V1 > V2)
 		swap(V1, V2);
 	ConstValuePair p(V1, V2);
 	if (cache.count(p))
 		return cache.lookup(p);
-	errs() << "cache miss\n";
+
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	AliasResult res;
 	// TODO: <provable> takes much more time than satisfiable. Sometimes, we
 	// only care about may-aliasing, so we could have a separate interface
 	// doing must-aliasing. 
+	clock_t start = clock();
 	if (!SC.satisfiable(CmpInst::ICMP_EQ, V1, V2))
 		res = NoAlias;
 	else if (SC.provable(CmpInst::ICMP_EQ, V1, V2))
@@ -69,5 +94,9 @@ AliasAnalysis::AliasResult AdvancedAlias::alias(
 	else
 		res = MayAlias;
 	cache[p] = res;
+
+	tot_time += clock() - start;
+	n_queries += (res == NoAlias ? 1 : 2);
+
 	return res;
 }
