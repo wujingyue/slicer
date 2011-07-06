@@ -88,10 +88,14 @@ void SolveConstraints::translate_captured() {
 		}
 	}
 	for (unsigned i = 0; i < CC.get_num_constraints(); ++i) {
-		Clause *c2 = CC.get_constraint(i)->clone();
-		replace_with_root(c2);
-		vc_assertFormula(vc, translate_to_vc(c2));
-		delete c2;
+		const Clause *c = CC.get_constraint(i);
+		const Value *v1 = NULL, *v2 = NULL;
+		if (!is_simple_eq(c, v1, v2)) {
+			Clause *c2 = CC.get_constraint(i)->clone();
+			replace_with_root(c2);
+			vc_assertFormula(vc, translate_to_vc(c2));
+			delete c2;
+		}
 	}
 #endif
 }
