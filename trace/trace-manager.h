@@ -22,6 +22,7 @@ using namespace llvm;
 using namespace std;
 
 #include "trace.h"
+using namespace slicer;
 
 namespace slicer {
 	

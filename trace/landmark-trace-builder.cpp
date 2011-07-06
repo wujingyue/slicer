@@ -5,7 +5,6 @@ using namespace llvm;
 #include "landmark-trace-builder.h"
 #include "trace-manager.h"
 #include "mark-landmarks.h"
-#include "slicer-landmarks.h"
 using namespace slicer;
 
 #include <fstream>
@@ -46,7 +45,7 @@ bool LandmarkTraceBuilder::runOnModule(Module &M) {
 			LandmarkTraceRecord lt_record;
 			lt_record.idx = i;
 			lt_record.ins_id = record.ins_id;
-			lt_record.enforcing = is_app_landmark(record_info.ins);
+			lt_record.enforcing = ML.is_enforcing_landmark(record_info.ins);
 			lt_record.tid = record_info.tid;
 			lt_record.child_tid = record_info.child_tid;
 			fout.write((char *)&lt_record, sizeof lt_record);

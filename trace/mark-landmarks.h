@@ -20,7 +20,11 @@ namespace slicer {
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual void print(raw_ostream &O, const Module *M) const;
 		/* Enforcing landmarks or derived landmarks. */
-		bool is_landmark(Instruction *ins) const;
+		bool is_landmark(Instruction *ins) const { return landmarks.count(ins); }
+		/* Only enforcing landmarks */
+		bool is_enforcing_landmark(Instruction *ins) const {
+			return enforcing_landmarks.count(ins);
+		}
 		const InstSet &get_landmarks() const;
 		const InstSet &get_enforcing_landmarks() const;
 

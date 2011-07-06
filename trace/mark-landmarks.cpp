@@ -6,25 +6,66 @@ using namespace llvm;
 
 #include <fstream>
 #include <sstream>
+#include <set>
 using namespace std;
 
 #include "mark-landmarks.h"
 #include "omit-branch.h"
-#include "slicer-landmarks.h"
 using namespace slicer;
+
+/*
+ * Default enforcing landmark function names. 
+ */
+static const char *DEFAULT_ENFORCING_LANDMARK_FUNCS[] = {
+	"pthread_mutex_init",
+	"pthread_mutex_lock",
+	"pthread_mutex_unlock",
+	"pthread_mutex_trylock",
+	"pthread_mutex_destroy",
+	"pthread_create",
+	"pthread_join",
+	"pthread_exit",
+	"pthread_cond_init",
+	"pthread_cond_wait",
+	"pthread_cond_timedwait",
+	"pthread_cond_broadcast",
+	"pthread_cond_signal",
+	"pthread_cond_destroy",
+	"pthread_barrier_init",
+	"pthread_barrier_wait",
+	"pthread_barrier_destroy",
+	"pthread_self",
+	"pthread_rwlock_init",
+	"pthread_rwlock_destroy",
+	"pthread_rwlock_wrlock",
+	"pthread_rwlock_rdlock",
+	"pthread_rwlock_trywrlock",
+	"pthread_rwlock_tryrdlock",
+	"pthread_rwlock_unlock",
+	"sleep",
+	"usleep",
+	"nanosleep",
+	"accept",
+	"select",
+	"sigwait",
+	"sem_post",
+	"sem_wait",
+	"sem_trywait",
+	"sem_timedwait",
+	"epoll_wait",
+	"exit"
+};
 
 static RegisterPass<MarkLandmarks> X(
 		"mark-landmarks",
 		"Mark landmarks",
 		false,
 		true); // is analysis
-#if 0
-static cl::opt<string> CutFile(
-		"cut",
-		cl::desc("If the cut file is specified, MarkLandmark gets the "
-			"landmarks from the file instead of computing them"),
+static cl::opt<string> EnforcingLandmarksFile(
+		"input-landmarks",
+		cl::desc("If this option is specified, MarkLandmarks uses the "
+			"landmarks from the file as enforcing landmarks."),
 		cl::init(""));
-#endif
 
 char MarkLandmarks::ID = 0;
 
@@ -37,29 +78,28 @@ bool MarkLandmarks::runOnModule(Module &M) {
 	return false;
 }
 
-#if 0
-void MarkLandmarks::read_landmarks(const string &cut_file) {
-	ifstream fin(cut_file.c_str());
-	assert(fin && "Cannot open the specified cut file");
-
-	ObjectID &IDM = getAnalysis<ObjectID>();
-	string line;
-	while (getline(fin, line)) {
-		istringstream iss(line);
-		unsigned ins_id;
-		iss >> ins_id;
-		Instruction *ins = IDM.getInstruction(ins_id);
-		assert(ins && "Cannot find the specified instruction ID");
-		landmarks.insert(ins);
-	}
-}
-#endif
-
 void MarkLandmarks::mark_enforcing_landmarks(Module &M) {
+
+	set<string> enforcing_landmark_funcs;
+	if (EnforcingLandmarksFile == "") {
+		size_t len = sizeof(DEFAULT_ENFORCING_LANDMARK_FUNCS) / sizeof(char *);
+		for (size_t i = 0; i < len; ++i)
+			enforcing_landmark_funcs.insert(DEFAULT_ENFORCING_LANDMARK_FUNCS[i]);
+	} else {
+		ifstream fin(EnforcingLandmarksFile.c_str());
+		string func;
+		while (fin >> func)
+			enforcing_landmark_funcs.insert(func);
+	}
+
 	forallinst(M, ii) {
-		if (is_app_landmark(ii)) {
-			landmarks.insert(ii);
-			enforcing_landmarks.insert(ii);
+		CallSite cs = CallSite::get(ii);
+		if (cs.getInstruction()) {
+			Function *callee = cs.getCalledFunction();
+			if (callee && enforcing_landmark_funcs.count(callee->getName())) {
+				landmarks.insert(ii);
+				enforcing_landmarks.insert(ii);
+			}
 		}
 	}
 }
@@ -112,10 +152,6 @@ void MarkLandmarks::print(raw_ostream &O, const Module *M) const {
 	sort(all_inst_ids.begin(), all_inst_ids.end());
 	for (size_t i = 0; i < all_inst_ids.size(); ++i)
 		O << all_inst_ids[i] << "\n";
-}
-
-bool MarkLandmarks::is_landmark(Instruction *ins) const {
-	return landmarks.count(ins);
 }
 
 const InstSet &MarkLandmarks::get_landmarks() const {

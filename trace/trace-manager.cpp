@@ -1,4 +1,5 @@
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/raw_ostream.h"
 #include "common/id-manager/IDManager.h"
 using namespace llvm;
 
@@ -7,7 +8,6 @@ using namespace llvm;
 using namespace std;
 
 #include "trace-manager.h"
-#include "slicer-landmarks.h"
 using namespace slicer;
 
 static RegisterPass<TraceManager> X(
