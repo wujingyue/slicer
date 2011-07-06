@@ -34,13 +34,16 @@ all: $(BCS)
 		< $< > $@
 # Instruction ID
 %.id: %.bc
-	$(LLVM_ROOT)/scripts/print-id insts $< > $@
-# MBB ID
-%.mid: %.bc
-	$(LLVM_ROOT)/scripts/print-id mbbs $< > $@
+	opt -analyze \
+		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
+		-assign-id -print-insts \
+		< $< > $@
 # Value ID
 %.vid: %.bc
-	$(LLVM_ROOT)/scripts/print-id values $< > $@
+	opt -analyze \
+		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
+		-assign-id -print-values \
+		< $< > $@
 # LLVM disassembly
 %.ll: %.bc
 	llvm-dis $<

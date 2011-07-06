@@ -1,4 +1,4 @@
-PROG_NAMES = test-thread test-overwrite aget-nocrit FFT-nocrit
+PROG_NAMES = test-thread test-overwrite aget-nocrit FFT-nocrit mencoder-nocrit
 PROGS_DIR = ../progs
 PROGS = $(addprefix $(PROGS_DIR)/, $(PROG_NAMES))
 BCS = $(addsuffix .bc, $(PROGS))

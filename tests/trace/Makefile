@@ -1,4 +1,4 @@
-PROG_NAMES = test-thread test-overwrite aget-nocrit FFT-nocrit
+PROG_NAMES = test-thread test-overwrite aget-nocrit FFT-nocrit mencoder-nocrit
 PROGS_DIR = ../progs
 TRACED_PROGS = $(PROG_NAMES:=.trace)
 LANDMARK_TRACES = $(PROG_NAMES:=.lt)
@@ -18,8 +18,10 @@ landmark-trace: $(LANDMARK_TRACES)
 		-instrument \
 		< $<
 # llvm-ld doesn't generate executables if -link-as-library is specified. 
+# We don't really need a highly-optimized recorder, so we disable the opts
+# to save the compiling time. 
 %.trace.bc: %.bc1 ../../trace/tracing.bc
-	llvm-ld $^ -b $@ -link-as-library
+	llvm-ld $^ -b $@ -link-as-library -disable-opt
 
 %.s: %.bc
 	llc $< -o $@
