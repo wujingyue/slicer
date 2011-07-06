@@ -22,7 +22,6 @@ using namespace std;
 #include "max-slicing.h"
 #include "trace/landmark-trace.h"
 #include "trace/mark-landmarks.h"
-#include "trace/slicer-landmarks.h"
 using namespace slicer;
 
 static RegisterPass<MaxSlicing> X(
@@ -177,11 +176,9 @@ void MaxSlicing::volatile_landmarks(Module &M, const Trace &trace) {
 				assert(trace.count(i));
 				assert(j < trace.find(i)->second.size());
 				Instruction *old_inst = trace.find(i)->second[j];
-				assert(is_app_landmark(old_inst));
 				assert(clone_map.count(i));
 				assert(j < clone_map.find(i)->second.size());
 				Instruction *new_inst = clone_map.find(i)->second[j].lookup(old_inst);
-				assert(is_app_landmark(new_inst));
 				CallInst *ci = dyn_cast<CallInst>(new_inst);
 				assert(ci);
 				// We claim that these enforcing landmarks may write to memory,
