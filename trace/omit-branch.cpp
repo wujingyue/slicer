@@ -15,21 +15,23 @@ using namespace llvm;
 using namespace std;
 
 #include "omit-branch.h"
-#include "mark-landmarks.h"
+#include "enforcing-landmarks.h"
 using namespace slicer;
 
 void OmitBranch::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
 	AU.addRequiredTransitive<CallGraphFP>();
 	AU.addRequiredTransitive<MayExec>();
-	AU.addRequired<MarkLandmarks>();
+	AU.addRequired<EnforcingLandmarks>();
 	AU.addRequiredTransitive<PostDominatorTree>();
 	ModulePass::getAnalysisUsage(AU);
 }
 
 bool OmitBranch::runOnModule(Module &M) {
+	errs() << "OmitBranch::runOnModule\n";
 	MayExec &ME = getAnalysis<MayExec>();
-	ME.setup_landmarks(getAnalysis<MarkLandmarks>().get_enforcing_landmarks());
+	EnforcingLandmarks &EL = getAnalysis<EnforcingLandmarks>();
+	ME.setup_landmarks(EL.get_enforcing_landmarks());
 	ME.run();
 	return false;
 }
@@ -86,6 +88,7 @@ BasicBlock *find_nearest_common_post_dominator(
 }
 
 bool OmitBranch::omit(BranchInst *branch) {
+	errs() << "OmitBranch::omit" << *branch << "\n";
 
 	BasicBlock *bb = branch->getParent();
 	assert(branch->getNumSuccessors() > 0 && "The branch has no successor.");

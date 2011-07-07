@@ -1,4 +1,4 @@
-PROG_NAMES = aget FFT mencoder
+PROG_NAMES = aget FFT RADIX
 PROGS_DIR = ../progs
 
 PROGS = $(addprefix $(PROGS_DIR)/, $(PROG_NAMES))

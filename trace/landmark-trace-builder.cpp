@@ -5,6 +5,7 @@ using namespace llvm;
 #include "landmark-trace-builder.h"
 #include "trace-manager.h"
 #include "mark-landmarks.h"
+#include "enforcing-landmarks.h"
 using namespace slicer;
 
 #include <fstream>
@@ -26,14 +27,18 @@ char LandmarkTraceBuilder::ID = 0;
 void LandmarkTraceBuilder::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
 	AU.addRequired<TraceManager>();
+	AU.addRequired<EnforcingLandmarks>();
 	AU.addRequired<MarkLandmarks>();
 	ModulePass::getAnalysisUsage(AU);
 }
 
 bool LandmarkTraceBuilder::runOnModule(Module &M) {
 
+	errs() << "LandmarkTraceBuilder::runOnModule\n";
+
 	TraceManager &TM = getAnalysis<TraceManager>();
 	MarkLandmarks &ML = getAnalysis<MarkLandmarks>();
+	EnforcingLandmarks &EL = getAnalysis<EnforcingLandmarks>();
 
 	assert(LandmarkTraceFile != "" && "Didn't specify the output file");
 	ofstream fout(LandmarkTraceFile.c_str(), ios::out | ios::binary);
@@ -45,7 +50,7 @@ bool LandmarkTraceBuilder::runOnModule(Module &M) {
 			LandmarkTraceRecord lt_record;
 			lt_record.idx = i;
 			lt_record.ins_id = record.ins_id;
-			lt_record.enforcing = ML.is_enforcing_landmark(record_info.ins);
+			lt_record.enforcing = EL.is_enforcing_landmark(record_info.ins);
 			lt_record.tid = record_info.tid;
 			lt_record.child_tid = record_info.child_tid;
 			fout.write((char *)&lt_record, sizeof lt_record);
