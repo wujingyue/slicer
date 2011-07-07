@@ -68,6 +68,9 @@ void CaptureConstraints::capture_constraints_on_consts(Module &M) {
 	 */
 	forall(ValueSet, it, constants) {
 		if (Argument *arg = dyn_cast<Argument>(*it)) {
+			// Needn't handle function declarations.
+			if (arg->getParent()->isDeclaration())
+				continue;
 			CallGraphFP &CG = getAnalysis<CallGraphFP>();
 			ExecOnce &EO = getAnalysis<ExecOnce>();
 			InstList call_sites = CG.get_call_sites(arg->getParent());

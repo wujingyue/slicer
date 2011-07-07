@@ -41,6 +41,9 @@ namespace slicer {
 		void test_aget_nocrit_simple(const Module &M);
 		void test_test_overwrite_slice(const Module &M);
 		void test_fft_nocrit_slice(const Module &M);
+		void test_fft_nocrit_simple(const Module &M);
+		void test_fft_nocrit_common(const Module &M);
+		void test_radix_nocrit_slice(const Module &M);
 	};
 }
 
@@ -84,6 +87,8 @@ bool IntTest::runOnModule(Module &M) {
 	test_aget_nocrit_simple(M);
 	test_test_overwrite_slice(M);
 	test_fft_nocrit_slice(M);
+	test_fft_nocrit_simple(M);
+	test_radix_nocrit_slice(M);
 	return false;
 }
 
@@ -91,11 +96,76 @@ static bool starts_with(const string &a, const string &b) {
 	return a.length() >= b.length() && a.compare(0, b.length(), b) == 0;
 }
 
+void IntTest::test_radix_nocrit_slice(const Module &M) {
+	
+	if (Program != "RADIX-nocrit.slice")
+		return;
+	TestBanner X("RADIX-nocrit.slice");
+
+	// MyNum's are distinct. 
+	vector<const Value *> local_ids;
+	forallconst(Module, f, M) {
+
+		if (starts_with(f->getName(), "slave_sort.SLICER")) {
+			
+			string str_id = f->getName().substr(strlen("slave_sort.SLICER"));
+			int id = (str_id == "" ? 0 : atoi(str_id.c_str()) - 1);
+			assert(id >= 0);
+			const Instruction *start = NULL;
+			for (BasicBlock::const_iterator ins = f->getEntryBlock().begin();
+					ins != f->getEntryBlock().end(); ++ins) {
+				if (const CallInst *ci = dyn_cast<CallInst>(ins)) {
+					const Function *callee = ci->getCalledFunction();
+					if (callee && callee->getName() == "pthread_mutex_lock") {
+						start = ci;
+						break;
+					}
+				}
+			}
+			assert(start && "Cannot find a pthread_mutex_lock in the entry block");
+			
+			const Value *local_id = NULL;
+			for (BasicBlock::const_iterator ins = start;
+					ins != f->getEntryBlock().end(); ++ins) {
+				if (ins->getOpcode() == Instruction::Add) {
+					local_id = ins->getOperand(0);
+					break;
+				}
+			}
+			assert(local_id && "Cannot find the Add instruction");
+			errs() << "local_id in " << f->getName() << ": " << *local_id << "\n";
+			local_ids.push_back(local_id);
+		}
+	}
+
+	SolveConstraints &SC = getAnalysis<SolveConstraints>();
+	for (size_t i = 0; i < local_ids.size(); ++i) {
+		for (size_t j = i + 1; j < local_ids.size(); ++j) {
+			assert(SC.provable(CmpInst::ICMP_NE, local_ids[i], local_ids[j]));
+		}
+	}
+
+}
+
 void IntTest::test_fft_nocrit_slice(const Module &M) {
 	
 	if (Program != "FFT-nocrit.slice")
 		return;
 	TestBanner X("FFT-nocrit.slice");
+
+	test_fft_nocrit_common(M);
+}
+
+void IntTest::test_fft_nocrit_simple(const Module &M) {
+	
+	if (Program != "FFT-nocrit.simple")
+		return;
+	TestBanner X("FFT-nocrit.simple");
+
+	test_fft_nocrit_common(M);
+}
+
+void IntTest::test_fft_nocrit_common(const Module &M) {
 
 	// MyNum's are distinct. 
 	vector<const Value *> local_ids;

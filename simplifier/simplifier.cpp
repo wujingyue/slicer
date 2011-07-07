@@ -188,20 +188,21 @@ int RunOptimizationPasses(Module *M) {
 	if (TD)
 		Passes.add(TD);
 
-#if 0
+#if 1
 	FunctionPassManager *FPasses = NULL;
 	FPasses = new FunctionPassManager(M);
 	if (TD)
 		FPasses->add(new TargetData(*TD));
 
 	AddOptimizationPasses(Passes, *FPasses, 3);
-#endif
+#else
 	Passes.add(createAggressiveDCEPass());
 	Passes.add(createCFGSimplificationPass());
 	Passes.add(createGlobalDCEPass());
+#endif
 
 	bool changed = false;
-#if 0
+#if 1
 	/*
 	 * Run intra-procedural opts first.
 	 * We could also use just one pass manager, but then we would have
