@@ -21,6 +21,7 @@ using namespace std;
 #include "config.h"
 #include "max-slicing.h"
 #include "trace/landmark-trace.h"
+#include "trace/enforcing-landmarks.h"
 #include "trace/mark-landmarks.h"
 using namespace slicer;
 
@@ -36,6 +37,7 @@ void MaxSlicing::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<CallGraphFP>();
 	AU.addRequired<MayExec>();
 	AU.addRequired<MarkLandmarks>();
+	AU.addRequired<EnforcingLandmarks>();
 	AU.addRequired<LandmarkTrace>();
 	ModulePass::getAnalysisUsage(AU);
 }
@@ -128,7 +130,8 @@ bool MaxSlicing::runOnModule(Module &M) {
 	
 	// Which functions may execute a landmark? 
 	MayExec &ME = getAnalysis<MayExec>();
-	ME.setup_landmarks(getAnalysis<MarkLandmarks>().get_enforcing_landmarks());
+	EnforcingLandmarks &EL = getAnalysis<EnforcingLandmarks>();
+	ME.setup_landmarks(EL.get_enforcing_landmarks());
 	ME.run();
 	
 	// Build the control flow graph. 
