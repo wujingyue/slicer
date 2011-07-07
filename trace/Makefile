@@ -3,7 +3,7 @@ LIBRARYNAME = slicer-trace
 LOADABLE_MODULE = 1
 SOURCES = add-calling-context.cpp landmark-trace.cpp omit-branch.cpp \
 	  trace-manager.cpp instrument.cpp mark-landmarks.cpp \
-	  landmark-trace-builder.cpp
+	  landmark-trace-builder.cpp enforcing-landmarks.cpp
 DIRS = display
 include $(LEVEL)/Makefile.common
 

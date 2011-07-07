@@ -34,8 +34,6 @@ bool TraceManager::read_record(
 
 bool TraceManager::runOnModule(Module &M) {
 
-	errs() << "TraceManager::runOnModule\n";
-
 	records.clear();
 
 	string full_trace_file = FullTraceFile;
@@ -57,7 +55,6 @@ bool TraceManager::runOnModule(Module &M) {
 	compute_record_infos(M);
 
 	validate_trace(M);
-	errs() << "Finished TraceManager\n";
 
 	return false;
 }

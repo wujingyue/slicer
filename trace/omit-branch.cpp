@@ -28,7 +28,6 @@ void OmitBranch::getAnalysisUsage(AnalysisUsage &AU) const {
 }
 
 bool OmitBranch::runOnModule(Module &M) {
-	errs() << "OmitBranch::runOnModule\n";
 	MayExec &ME = getAnalysis<MayExec>();
 	EnforcingLandmarks &EL = getAnalysis<EnforcingLandmarks>();
 	ME.setup_landmarks(EL.get_enforcing_landmarks());
@@ -88,7 +87,6 @@ BasicBlock *find_nearest_common_post_dominator(
 }
 
 bool OmitBranch::omit(BranchInst *branch) {
-	errs() << "OmitBranch::omit" << *branch << "\n";
 
 	BasicBlock *bb = branch->getParent();
 	assert(branch->getNumSuccessors() > 0 && "The branch has no successor.");

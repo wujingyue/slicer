@@ -1,13 +1,7 @@
 #include "llvm/Support/CFG.h"
-#include "llvm/Support/CommandLine.h"
 #include "idm/id.h"
 #include "common/cfg/identify-thread-funcs.h"
 using namespace llvm;
-
-#include <fstream>
-#include <sstream>
-#include <set>
-using namespace std;
 
 #include "enforcing-landmarks.h"
 #include "mark-landmarks.h"
@@ -70,6 +64,7 @@ void MarkLandmarks::mark_branch_succs(Module &M) {
 void MarkLandmarks::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
 	AU.addRequiredTransitive<ObjectID>();
+	AU.addRequired<EnforcingLandmarks>();
 	AU.addRequired<OmitBranch>();
 	AU.addRequired<IdentifyThreadFuncs>();
 	ModulePass::getAnalysisUsage(AU);

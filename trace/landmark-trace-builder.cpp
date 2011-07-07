@@ -34,8 +34,6 @@ void LandmarkTraceBuilder::getAnalysisUsage(AnalysisUsage &AU) const {
 
 bool LandmarkTraceBuilder::runOnModule(Module &M) {
 
-	errs() << "LandmarkTraceBuilder::runOnModule\n";
-
 	TraceManager &TM = getAnalysis<TraceManager>();
 	MarkLandmarks &ML = getAnalysis<MarkLandmarks>();
 	EnforcingLandmarks &EL = getAnalysis<EnforcingLandmarks>();
