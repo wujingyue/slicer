@@ -36,31 +36,43 @@ void RemoveBranch::getAnalysisUsage(AnalysisUsage &AU) const {
 }
 
 bool RemoveBranch::runOnModule(Module &M) {
+	
+	// TODO: We could do the same thing for SwitchInsts too. 
+	/*
+	 * <should_remove_branch> queries the solver. Therefore, we shouldn't
+	 * modify the module while calling this function. 
+	 */
+	vector<pair<BranchInst *, unsigned> > to_remove;
+	forallbb(M, bb) {
+		if (BranchInst *bi = dyn_cast<BranchInst>(bb->getTerminator()))
+			prepare_remove_branch(bi, to_remove);
+	}
+
+	/* Remove those unreachable branches. */
+	/* <unreachable_bbs> is used as a cache. */
+	DenseMap<Function *, BasicBlock *> unreachable_bbs;
 	bool changed = false;
-	forallfunc(M, f) {
-		BasicBlock *unreachable_bb = NULL;
-		forall(Function, bb, *f) {
-			CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
-			if (CC.is_unreachable(bb)) {
-				unreachable_bb = bb;
-				break;
+	for (size_t i = 0; i < to_remove.size(); ++i) {
+
+		BranchInst *bi = to_remove[i].first;
+		unsigned which = to_remove[i].second;
+		
+		Function *f = bi->getParent()->getParent();
+		// Note that we are using (BasicBlock *&).
+		BasicBlock *&unreachable_bb = unreachable_bbs[f];
+		// If not in the cache, we try to find an existing unreachable BB.
+		if (!unreachable_bb) {
+			forall(Function, bb, *f) {
+				CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
+				if (CC.is_unreachable(bb)) {
+					unreachable_bb = bb;
+					break;
+				}
 			}
 		}
-		forall(Function, bb, *f) {
-			// TODO: We could do the same thing for SwitchInsts too. 
-			if (BranchInst *bi = dyn_cast<BranchInst>(bb->getTerminator()))
-				changed |= try_remove_branch(bi, unreachable_bb);
-		}
-		/*
-		 * We added the unreachable BB after the loop, because it's a little
-		 * dangerous to change the function while iterating through it.
-		 *
-		 * Also, if we reused an unreachable BB in the function rather than
-		 * created a new one, we don't need to worry about parenting the BB. 
-		 */
-		if (unreachable_bb && unreachable_bb->getParent() == NULL)
-			f->getBasicBlockList().push_back(unreachable_bb);
+		changed |= remove_branch(bi, which, unreachable_bb);
 	}
+
 	return changed;
 }
 
@@ -107,28 +119,26 @@ bool RemoveBranch::remove_branch(
 	return true;
 }
 
-bool RemoveBranch::try_remove_branch(
-		BranchInst *bi, BasicBlock *&unreachable_bb) {
+void RemoveBranch::prepare_remove_branch(
+		BranchInst *bi, vector<pair<BranchInst *, unsigned> > &to_remove) {
 
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 
 	if (bi->isUnconditional())
-		return false;
+		return;
 	
 	Value *cond = bi->getCondition();
 	if (!CC.is_constant(cond))
-		return false;
+		return;
 	
 	const Use *use_cond = &bi->getOperandUse(0);
 	// Remove the false branch if always true. 
 	if (SC.provable(
 				CmpInst::ICMP_EQ, use_cond, ConstantInt::getTrue(getGlobalContext())))
-		return remove_branch(bi, 1, unreachable_bb);
+		to_remove.push_back(make_pair(bi, 1));
 	// Remove the true branch if always false. 
 	if (SC.provable(
 				CmpInst::ICMP_EQ, use_cond, ConstantInt::getFalse(getGlobalContext())))
-		return remove_branch(bi, 0, unreachable_bb);
-	// Do nothing if we cannot infer anything. 
-	return false;
+		to_remove.push_back(make_pair(bi, 0));
 }

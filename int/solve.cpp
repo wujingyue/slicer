@@ -356,6 +356,10 @@ void SolveConstraints::realize(const Expr *e) {
 BasicBlock *SolveConstraints::get_idom(BasicBlock *bb) {
 	DominatorTree &DT = getAnalysis<DominatorTree>(*bb->getParent());
 	DomTreeNode *node = DT[bb];
+	if (!node) {
+		errs() << *bb << "\n";
+	}
+	assert(node);
 	DomTreeNode *idom = node->getIDom();
 	return (idom ? idom->getBlock() : NULL);
 }

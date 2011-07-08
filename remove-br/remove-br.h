@@ -5,6 +5,9 @@
 #include "llvm/Instructions.h"
 using namespace llvm;
 
+#include <vector>
+using namespace std;
+
 namespace slicer {
 
 	struct RemoveBranch: public ModulePass {
@@ -17,13 +20,11 @@ namespace slicer {
 
 	private:
 		/*
-		 * We remove a branch by redirecting it to the unreachable BB of
-		 * the containing function. Once the unreachable BB is created, we can
-		 * reuse it later. 
-		 * 
-		 * Returns whether we've changed <bi>. 
+		 * Check whether we are able to remove any branch of this BranchInst.
+		 * Add those removable branches to <to_remove>. 
 		 */
-		bool try_remove_branch(BranchInst *bi, BasicBlock *&unreachable_bb);
+		void prepare_remove_branch(
+				BranchInst *bi, vector<pair<BranchInst *, unsigned> > &to_remove);
 		/*
 		 * This function does nothing if bi->getSuccessor(i) is already an
 		 * unreachable BB. It returns <false> in that case. 
