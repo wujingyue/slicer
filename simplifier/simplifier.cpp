@@ -116,7 +116,7 @@ int LoadPlugins() {
 	Loader = LibDir + "/libslicer-trace.so";
 	Loader = LibDir + "/libmax-slicing.so";
 	Loader = LibDir + "/libint.so";
-	Loader = LibDir + "/libremove-br.so";
+	Loader = LibDir + "/libreducer.so";
 	errs() << "# of plugins = " << Loader.getNumPlugins() << "\n";
 	return 0;
 }
