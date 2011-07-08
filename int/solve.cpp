@@ -64,7 +64,15 @@ void SolveConstraints::translate_captured() {
 		if (is_simple_eq(c, v1, v2)) {
 			assert(v1 && v2);
 			const Value *r1 = get_root(v1), *r2 = get_root(v2);
-			root[r1] = r2;
+			/*
+			 * Make sure constants will always be the roots. 
+			 * Otherwise, we would miss information when replacing
+			 * a variable with roots. 
+			 */
+			if (isa<Constant>(r1))
+				root[r2] = r1;
+			else
+				root[r1] = r2;
 		}
 	}
 #if 0
