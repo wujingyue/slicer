@@ -25,16 +25,13 @@ SolveConstraints::SolveConstraints(): ModulePass(&ID) {
 }
 
 SolveConstraints::~SolveConstraints() {
-	errs() << "SolveConstraints::~SolveConstraints\n";
 	vc_Destroy(vc);
 }
 
 void SolveConstraints::releaseMemory() {
-	errs() << "SolveConstraints::releaseMemory\n";
 }
 
 bool SolveConstraints::runOnModule(Module &M) {
-	errs() << "SolveConstraints::runOnModule\n";
 	return recalculate(M);
 }
 
@@ -60,13 +57,6 @@ bool SolveConstraints::recalculate(Module &M) {
 
 void SolveConstraints::translate_captured() {
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
-#if 1
-	for (unsigned i = 0; i < CC.get_num_constraints(); ++i) {
-		const Clause *c = CC.get_constraint(i);
-		VCExpr vc_expr = translate_to_vc(c);
-		vc_assertFormula(vc, vc_expr);
-	}
-#else
 	root.clear();
 	for (unsigned i = 0; i < CC.get_num_constraints(); ++i) {
 		const Clause *c = CC.get_constraint(i);
@@ -77,6 +67,7 @@ void SolveConstraints::translate_captured() {
 			root[r1] = r2;
 		}
 	}
+#if 0
 	forallconst(ConstValueMapping, it, root) {
 		const Value *v1 = it->first;
 		const Value *v2 = it->second;
@@ -87,6 +78,7 @@ void SolveConstraints::translate_captured() {
 			delete c;
 		}
 	}
+#endif
 	for (unsigned i = 0; i < CC.get_num_constraints(); ++i) {
 		const Clause *c = CC.get_constraint(i);
 		const Value *v1 = NULL, *v2 = NULL;
@@ -97,7 +89,6 @@ void SolveConstraints::translate_captured() {
 			delete c2;
 		}
 	}
-#endif
 }
 
 void SolveConstraints::replace_with_root(Clause *c) {
@@ -302,8 +293,10 @@ bool SolveConstraints::satisfiable(
 	forallconst(vector<const Clause *>, it, more_clauses)
 		realize(*it);
 	for (size_t i = 0; i < more_clauses.size(); ++i) {
-		const Clause *c = more_clauses[i];
+		Clause *c = more_clauses[i]->clone();
+		replace_with_root(c);
 		vc_assertFormula(vc, translate_to_vc(c));
+		delete c;
 	}
 	int ret = vc_query(vc, vc_falseExpr(vc));
 	assert(ret != 2);
@@ -318,8 +311,10 @@ bool SolveConstraints::provable(
 		realize(*it);
 	VCExpr conj = vc_trueExpr(vc);
 	forallconst(vector<const Clause *>, it, more_clauses) {
-		const Clause *c = *it;
+		Clause *c = (*it)->clone();
+		replace_with_root(c);
 		conj = vc_andExpr(vc, conj, translate_to_vc(c));
+		delete c;
 	}
 	int ret = vc_query(vc, conj);
 	vc_pop(vc);
@@ -394,8 +389,10 @@ void SolveConstraints::realize(const Instruction *ins) {
 					print_clause(errs(), c, getAnalysis<ObjectID>());
 					errs() << "\n";
 #endif
-					VCExpr vce = translate_to_vc(c);
-					vc_assertFormula(vc, vce);
+					Clause *c2 = c->clone();
+					replace_with_root(c2);
+					vc_assertFormula(vc, translate_to_vc(c2));
+					delete c2;
 					delete c;
 				}
 			}

@@ -44,6 +44,8 @@ namespace slicer {
 		void test_fft_nocrit_simple(const Module &M);
 		void test_fft_nocrit_common(const Module &M);
 		void test_radix_nocrit_slice(const Module &M);
+		void test_radix_nocrit_simple(const Module &M);
+		void test_radix_nocrit_common(const Module &M);
 	};
 }
 
@@ -89,6 +91,7 @@ bool IntTest::runOnModule(Module &M) {
 	test_fft_nocrit_slice(M);
 	test_fft_nocrit_simple(M);
 	test_radix_nocrit_slice(M);
+	test_radix_nocrit_simple(M);
 	return false;
 }
 
@@ -101,6 +104,20 @@ void IntTest::test_radix_nocrit_slice(const Module &M) {
 	if (Program != "RADIX-nocrit.slice")
 		return;
 	TestBanner X("RADIX-nocrit.slice");
+
+	test_radix_nocrit_common(M);
+}
+
+void IntTest::test_radix_nocrit_simple(const Module &M) {
+	
+	if (Program != "RADIX-nocrit.simple")
+		return;
+	TestBanner X("RADIX-nocrit.simple");
+
+	test_radix_nocrit_common(M);
+}
+
+void IntTest::test_radix_nocrit_common(const Module &M) {
 
 	// MyNum's are distinct. 
 	vector<const Value *> local_ids;
