@@ -76,6 +76,11 @@ namespace slicer {
 		const Value *get_root(const Value *x);
 		void replace_with_root(Clause *c);
 		void replace_with_root(BoolExpr *be);
+		/*
+		 * Note that this function changes llvm::Use to llvm::Value, because
+		 * it may not be valid to use the original value. 
+		 * Therefore, if you want to call realize, call it beforehand. 
+		 */
 		void replace_with_root(Expr *e);
 
 		static void vc_error_handler(const char *err_msg);

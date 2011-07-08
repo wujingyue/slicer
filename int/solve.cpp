@@ -114,13 +114,18 @@ void SolveConstraints::replace_with_root(BoolExpr *be) {
 }
 
 void SolveConstraints::replace_with_root(Expr *e) {
-	if (e->type == Expr::SingleDef)
+	if (e->type == Expr::SingleDef) {
 		e->v = get_root(e->v);
-	else if (e->type == Expr::Unary)
+	} else if (e->type == Expr::SingleUse) {
+		e->type = Expr::SingleDef;
+		e->v = get_root(e->u->get());
+	} else if (e->type == Expr::Unary) {
 		replace_with_root(e->e1);
-	else if (e->type == Expr::Binary) {
+	} else if (e->type == Expr::Binary) {
 		replace_with_root(e->e1);
 		replace_with_root(e->e2);
+	} else {
+		assert_not_supported();
 	}
 }
 
