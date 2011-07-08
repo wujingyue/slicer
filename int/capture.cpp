@@ -77,7 +77,7 @@ CaptureConstraints::~CaptureConstraints() {
 
 void CaptureConstraints::print(raw_ostream &O, const Module *M) const {
 	O << "\nConstants:\n";
-	forallconst(ValueSet, it, constants) {
+	forallconst(ConstValueSet, it, constants) {
 		print_value(O, *it);
 	}
 	O << "\nConstraints:\n";

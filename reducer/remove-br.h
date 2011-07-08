@@ -1,3 +1,7 @@
+/**
+ * Author: Jingyue
+ */
+
 #ifndef __SLICER_REMOVE_BR_H
 #define __SLICER_REMOVE_BR_H
 

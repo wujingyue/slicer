@@ -66,8 +66,8 @@ void CaptureConstraints::capture_constraints_on_consts(Module &M) {
 	 * - Instructions
 	 * - Function parameters
 	 */
-	forall(ValueSet, it, constants) {
-		if (Argument *arg = dyn_cast<Argument>(*it)) {
+	forall(ConstValueSet, it, constants) {
+		if (const Argument *arg = dyn_cast<Argument>(*it)) {
 			// Needn't handle function declarations.
 			if (arg->getParent()->isDeclaration())
 				continue;
@@ -99,7 +99,7 @@ void CaptureConstraints::capture_constraints_on_consts(Module &M) {
 					add_eq_constraint(arg, call_site->getOperand(arg->getArgNo() + 1));
 				}
 			}
-		} else if (User *user = dyn_cast<User>(*it)) {
+		} else if (const User *user = dyn_cast<User>(*it)) {
 			capture_in_user(user);
 		} else {
 			assert(false && "Not supported");
@@ -107,7 +107,7 @@ void CaptureConstraints::capture_constraints_on_consts(Module &M) {
 	}
 }
 
-void CaptureConstraints::capture_in_user(User *user) {
+void CaptureConstraints::capture_in_user(const User *user) {
 	assert(is_constant(user));
 	unsigned opcode = Operator::getOpcode(user);
 	if (opcode == Instruction::UserOp1)
@@ -152,9 +152,9 @@ void CaptureConstraints::capture_in_user(User *user) {
 	}
 }
 
-void CaptureConstraints::capture_in_unary(User *u) {
+void CaptureConstraints::capture_in_unary(const User *u) {
 	assert(u->getNumOperands() == 1);
-	Value *v = u->getOperand(0);
+	const Value *v = u->getOperand(0);
 	if (!constants.count(v))
 		return;
 	// u == v, but they may have different bit widths. 
@@ -174,7 +174,7 @@ void CaptureConstraints::capture_in_unary(User *u) {
 	constraints.push_back(new Clause(new BoolExpr(CmpInst::ICMP_EQ, eu, ev)));
 }
 
-void CaptureConstraints::capture_in_icmp(ICmpInst *icmp) {
+void CaptureConstraints::capture_in_icmp(const ICmpInst *icmp) {
 	// icmp == 1 <==> branch holds
 	// NOTE: <icmp> will be translated to one STP bit. Therefore, 
 	// it's either 0 or 1. 
@@ -194,7 +194,7 @@ void CaptureConstraints::capture_in_icmp(ICmpInst *icmp) {
 				branch));
 }
 
-void CaptureConstraints::capture_in_phi(PHINode *phi) {
+void CaptureConstraints::capture_in_phi(const PHINode *phi) {
 	for (unsigned i = 0; i < phi->getNumIncomingValues(); ++i) {
 		if (!constants.count(phi->getIncomingValue(i)))
 			return;
@@ -214,7 +214,7 @@ void CaptureConstraints::capture_in_phi(PHINode *phi) {
 	constraints.push_back(disj);
 }
 
-void CaptureConstraints::capture_in_binary(User *user, unsigned opcode) {
+void CaptureConstraints::capture_in_binary(const User *user, unsigned opcode) {
 	assert(user->getNumOperands() == 2);
 	if (!constants.count(user->getOperand(0)))
 		return;
@@ -241,12 +241,12 @@ void CaptureConstraints::capture_in_binary(User *user, unsigned opcode) {
 	constraints.push_back(new Clause(be));
 }
 
-void CaptureConstraints::capture_in_gep(User *user) {
+void CaptureConstraints::capture_in_gep(const User *user) {
 	for (unsigned i = 0; i < user->getNumOperands(); ++i) {
 		if (!constants.count(user->getOperand(i)))
 			return;
 	}
-	Value *base = user->getOperand(0);
+	const Value *base = user->getOperand(0);
 	Expr *cur = new Expr(base);
 	// <cur> and <type> need be consistent. 
 	// <type> is the type of the item that <cur> points to. 
@@ -280,7 +280,7 @@ void CaptureConstraints::capture_in_gep(User *user) {
 					CmpInst::ICMP_EQ, new Expr(user), cur)));
 }
 
-void CaptureConstraints::add_eq_constraint(Value *v1, Value *v2) {
+void CaptureConstraints::add_eq_constraint(const Value *v1, const Value *v2) {
 	BoolExpr *be = new BoolExpr(CmpInst::ICMP_EQ, new Expr(v1), new Expr(v2));
 	constraints.push_back(new Clause(be));
 }

@@ -159,20 +159,20 @@ namespace slicer {
 		 * recursively.
 		 */
 		void extract_consts(Constant *c);
-		void add_eq_constraint(Value *v1, Value *v2);
+		void add_eq_constraint(const Value *v1, const Value *v2);
 		void capture_constraints_on_consts(Module &M);
 		// TODO: We care about Instructions and ConstantExprs only. We could use
 		// Operator as the argument. 
-		void capture_in_user(User *user);
+		void capture_in_user(const User *user);
 		/*
 		 * These capture_* functions need to check whether their operands
 		 * are constant.
 		 */
-		void capture_in_icmp(ICmpInst *user);
-		void capture_in_unary(User *user);
-		void capture_in_binary(User *user, unsigned opcode);
-		void capture_in_gep(User *user);
-		void capture_in_phi(PHINode *phi);
+		void capture_in_icmp(const ICmpInst *user);
+		void capture_in_unary(const User *user);
+		void capture_in_binary(const User *user, unsigned opcode);
+		void capture_in_gep(const User *user);
+		void capture_in_phi(const PHINode *phi);
 		/* Constraints from unreachable blocks. */
 		void capture_unreachable(Module &M);
 		void capture_unreachable_in_func(Function *f);
@@ -186,7 +186,7 @@ namespace slicer {
 		vector<ValuePair> addr_taken_eqs;
 #endif
 		vector<Clause *> constraints;
-		ValueSet constants;
+		ConstValueSet constants;
 		const Type *int_type;
 		AliasAnalysis *AA;
 		DominatorTreeBase<ICFGNode> IDT;
