@@ -34,6 +34,8 @@ namespace slicer {
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual void releaseMemory();
 
+		ConstantInt *get_fixed_value(const Value *v);
+
 		bool satisfiable(const vector<const Clause *> &more_clauses);
 		bool satisfiable(const Clause *c) {
 			return satisfiable(vector<const Clause *>(1, c));
@@ -73,15 +75,31 @@ namespace slicer {
 		// If so, outputs <v1> and <v2> as well. 
 		static bool is_simple_eq(
 				const Clause *c, const Value *&v1, const Value *&v2);
+		void identify_eqs();
+		void identify_fixed_values();
 		const Value *get_root(const Value *x);
 		void replace_with_root(Clause *c);
 		void replace_with_root(BoolExpr *be);
-		/*
+		/**
 		 * Note that this function changes llvm::Use to llvm::Value, because
 		 * it may not be valid to use the original value. 
 		 * Therefore, if you want to call realize, call it beforehand. 
 		 */
 		void replace_with_root(Expr *e);
+		/**
+		 * Returns whether the clause only contains ConstantInt's. 
+		 * If so, we can simply discard this clause, because we assume
+		 * the captured constraints are consistent. 
+		 */
+		bool contains_only_constints(const Clause *c) const;
+		bool contains_only_constints(const BoolExpr *c) const;
+		bool contains_only_constints(const Expr *c) const;
+		/**
+		 * Using binary search to fix the value of <v> if possible. 
+		 * Once fixed, update the <root> table to make the fixed value to
+		 * be the root of <v>'s tree. 
+		 */
+		void try_fix_value(const Value *v);
 
 		static void vc_error_handler(const char *err_msg);
 		static VCExpr vc_zero(VC vc) {
@@ -123,6 +141,7 @@ namespace slicer {
 		BasicBlock *get_idom(BasicBlock *bb);
 
 		ConstValueMapping root;
+		DenseMap<const Value *, ConstantInt *> fixed_values;
 		VC vc;
 	};
 }

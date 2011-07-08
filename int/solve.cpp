@@ -1,3 +1,7 @@
+/**
+ * Author: Jingyue
+ */
+
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Analysis/Dominators.h"
 #include "common/include/util.h"
@@ -37,27 +41,102 @@ bool SolveConstraints::runOnModule(Module &M) {
 
 bool SolveConstraints::recalculate(Module &M) {
 
-	// Remove the old validity checker. 
-	if (vc)
+	root.clear();
+
+	identify_eqs();
+	translate_captured();
+
+	identify_fixed_values();
+	translate_captured();
+
+	return false;
+}
+
+void SolveConstraints::identify_fixed_values() {
+
+	// Try to constantize as many variables as possible. 
+	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
+	const ConstValueSet &constants = CC.get_constants();
+	unsigned n_to_be_fixed = 0;
+	forallconst(ConstValueSet, it, constants) {
+		const Value *v = *it;
+		if (get_root(v) == v && !isa<Constant>(v) &&
+				isa<IntegerType>(v->getType())) {
+			++n_to_be_fixed;
+			try_fix_value(v);
+		}
+	}
+	errs() << "# of values to be fixed = " << n_to_be_fixed << "\n";
+}
+
+void SolveConstraints::try_fix_value(const Value *v) {
+	// TODO:
+}
+
+bool SolveConstraints::contains_only_constints(const Clause *c) const {
+	if (c->be)
+		return contains_only_constints(c->be);
+	else
+		return contains_only_constints(c->c1) && contains_only_constints(c->c2);
+}
+
+bool SolveConstraints::contains_only_constints(const BoolExpr *be) const {
+	return contains_only_constints(be->e1) && contains_only_constints(be->e2);
+}
+
+bool SolveConstraints::contains_only_constints(const Expr *e) const {
+	switch (e->type) {
+		case Expr::SingleDef: return isa<ConstantInt>(e->v);
+		case Expr::SingleUse: return isa<ConstantInt>(e->u->get());
+		case Expr::Unary: return contains_only_constints(e->e1);
+		case Expr::Binary:
+			return contains_only_constints(e->e1) && contains_only_constints(e->e2);
+	}
+	assert_not_supported();
+}
+
+void SolveConstraints::translate_captured() {
+	
+	// Remove the old validity checker if any. 
+	if (vc) {
 		vc_Destroy(vc);
+		vc = NULL;
+	}
+	
+	// Create a new validity checker. 
 	vc = vc_createValidityChecker();
-	// vc_setFlags(vc, 'p');
+	vc_setFlags(vc, 'c'); // Construct counter examples
 	vc_registerErrorHandler(vc_error_handler);
 
-	// Translate captured constraints to the VC form. 
-	translate_captured();
+	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
+	for (unsigned i = 0; i < CC.get_num_constraints(); ++i) {
+		Clause *c = CC.get_constraint(i)->clone();
+		replace_with_root(c);
+		const Value *v1 = NULL, *v2 = NULL;
+		if (is_simple_eq(c, v1, v2)) {
+			if (v1 == v2)
+				continue;
+		}
+		if (contains_only_constints(c))
+			continue;
+		vc_assertFormula(vc, translate_to_vc(c));
+		delete c; // c is cloned
+	}
+	
 	// The captured constraints should be consistent. 
 	vc_push(vc);
 	assert(vc_query(vc, vc_falseExpr(vc)) == 0 &&
 			"The captured constraints is not consistent.");
 	vc_pop(vc);
-
-	return false;
 }
 
-void SolveConstraints::translate_captured() {
+ConstantInt *SolveConstraints::get_fixed_value(const Value *v) {
+	return NULL;
+}
+
+void SolveConstraints::identify_eqs() {
+
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
-	root.clear();
 	for (unsigned i = 0; i < CC.get_num_constraints(); ++i) {
 		const Clause *c = CC.get_constraint(i);
 		const Value *v1 = NULL, *v2 = NULL;
@@ -73,28 +152,6 @@ void SolveConstraints::translate_captured() {
 				root[r2] = r1;
 			else
 				root[r1] = r2;
-		}
-	}
-#if 0
-	forallconst(ConstValueMapping, it, root) {
-		const Value *v1 = it->first;
-		const Value *v2 = it->second;
-		if (v1 != v2) {
-			const Clause *c = new Clause(new BoolExpr(
-						CmpInst::ICMP_EQ, new Expr(v1), new Expr(v2)));
-			vc_assertFormula(vc, translate_to_vc(c));
-			delete c;
-		}
-	}
-#endif
-	for (unsigned i = 0; i < CC.get_num_constraints(); ++i) {
-		const Clause *c = CC.get_constraint(i);
-		const Value *v1 = NULL, *v2 = NULL;
-		if (!is_simple_eq(c, v1, v2)) {
-			Clause *c2 = CC.get_constraint(i)->clone();
-			replace_with_root(c2);
-			vc_assertFormula(vc, translate_to_vc(c2));
-			delete c2;
 		}
 	}
 }

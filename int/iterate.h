@@ -1,6 +1,9 @@
 #ifndef __SLICER_ITERATE_H
 #define __SLICER_ITERATE_H
 
+#include "llvm/Pass.h"
+using namespace llvm;
+
 namespace slicer {
 
 	struct Iterate: public ModulePass {

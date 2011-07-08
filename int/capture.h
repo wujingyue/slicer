@@ -53,6 +53,7 @@ namespace slicer {
 		long get_fingerprint() const;
 		/* In <constants>? */
 		bool is_constant(const Value *v) const;
+		const ConstValueSet &get_constants() const { return constants; }
 		/*
 		 * Used by the solver as well, so need make it public.
 		 * Called internally by the module to capture constraints on

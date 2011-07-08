@@ -6,7 +6,8 @@ include $(LEVEL)/Makefile.common
 
 CXXFLAGS += -I$(LLVM_ROOT) -I$(SLICER_ROOT) -I$(SLICER_ROOT)/stp/install/include
 
-PROG_NAMES = aget-nocrit.simple test-overwrite.slice FFT-nocrit.slice
+PROG_NAMES = aget-nocrit.simple test-overwrite.slice FFT-nocrit.slice \
+	     FFT-nocrit.simple RADIX-nocrit.simple
 PROGS_DIR = ../progs
 
 run:: $(PROG_NAMES)
@@ -24,7 +25,6 @@ landmark_trace_name = $(subst .simple,,$(subst .slice,,$(1))).lt
 		-load $(LLVM_ROOT)/install/lib/libmax-slicing.so \
 		-load $(LLVM_ROOT)/install/lib/libint.so \
 		-load $(LLVM_ROOT)/install/lib/libint-test.so \
-		-scev-aa \
 		-int-test \
 		-prog $@ \
 		-input-landmark-trace ../trace/$(call landmark_trace_name,$@) \
