@@ -410,13 +410,7 @@ bool SolveConstraints::satisfiable(
 		realize(*it);
 	for (size_t i = 0; i < more_clauses.size(); ++i) {
 		Clause *c = more_clauses[i]->clone();
-		errs() << "satisfiable 1: ";
-		print_clause(errs(), c, getAnalysis<ObjectID>());
-		errs() << "\n";
 		replace_with_root(c);
-		errs() << "satisfiable 2: ";
-		print_clause(errs(), c, getAnalysis<ObjectID>());
-		errs() << "\n";
 		vc_assertFormula(vc, translate_to_vc(c));
 		delete c;
 	}

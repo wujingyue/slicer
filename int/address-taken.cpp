@@ -313,7 +313,7 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 						CmpInst::ICMP_EQ,
 						new Expr(i2),
 						new Expr(get_value_operand(latest_overwriters[the_thr_idx]))));
-#if 1
+#if 0
 			errs() << "From overwriting: ";
 			print_clause(errs(), c, getAnalysis<ObjectID>());
 			errs() << "\n";

@@ -118,7 +118,7 @@ void IntTest::test_test_loop_slice(const Module &M) {
 						errs() << "load from n:" << *li << "\n";
 						const IntegerType *int_type = IntegerType::get(M.getContext(), 32);
 						assert(SC.provable(
-									CmpInst::ICMP_EQ, p, ConstantInt::get(int_type, 3)));
+									CmpInst::ICMP_EQ, li, ConstantInt::get(int_type, 3)));
 					}
 				}
 			}
