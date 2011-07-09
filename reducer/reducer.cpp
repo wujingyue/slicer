@@ -6,39 +6,92 @@
  * some BBs unreachable, and thus eliminate them later. 
  */
 
-#define DEBUG_TYPE "remove-br"
+#define DEBUG_TYPE "reducer"
 
 #include "llvm/LLVMContext.h"
 #include "llvm/ADT/Statistic.h"
 using namespace llvm;
 
-#include "remove-br.h"
+#include "reducer.h"
 #include "../int/iterate.h"
 #include "../int/capture.h"
 #include "../int/solve.h"
 using namespace slicer;
 
-static RegisterPass<RemoveBranch> X(
-		"remove-br",
-		"Remove unreachable branches according to int-constraints",
+static RegisterPass<Reducer> X(
+		"reducer",
+		"Replace variables with constants whenever possible and "
+		"remove unreachable branches according to int-constraints",
 		false,
 		false);
 
 STATISTIC(BranchesRemoved, "Number of branches removed");
+STATISTIC(VariablesConstantized, "Number of variables constantized");
 
-char RemoveBranch::ID = 0;
+char Reducer::ID = 0;
 
-void RemoveBranch::getAnalysisUsage(AnalysisUsage &AU) const {
+void Reducer::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<Iterate>();
 	AU.addRequired<CaptureConstraints>();
 	AU.addRequired<SolveConstraints>();
 	ModulePass::getAnalysisUsage(AU);
 }
 
-bool RemoveBranch::runOnModule(Module &M) {
+bool Reducer::constantize(Module &M) {
 
-	errs() << "RemoveBranch::runOnModule\n";
-	
+	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
+	SolveConstraints &SC = getAnalysis<SolveConstraints>();
+
+	vector<pair<const Value *, ConstantInt *> > to_replace;
+	const ConstValueSet &constants = CC.get_constants();
+	forallconst(ConstValueSet, it, constants) {
+		// Skip if already a constant. 
+		if (isa<Constant>(*it))
+			continue;
+		assert(isa<Instruction>(*it) || isa<Argument>(*it));
+		if (ConstantInt *ci = SC.get_fixed_value(*it))
+			to_replace.push_back(make_pair(*it, ci));
+	}
+
+	bool changed = false;
+	for (size_t i = 0; i < to_replace.size(); ++i) {
+		const Value *v = to_replace[i].first;
+		vector<Use *> local;
+		// Don't replace uses while iterating. 
+		// Put them to a local list first. 
+		for (Value::use_const_iterator ui = v->use_begin();
+				ui != v->use_begin(); ++ui)
+			local.push_back(&ui.getUse());
+		if (local.size() > 0) {
+			++VariablesConstantized;
+			errs() << "=== replacing with a constant ===\n";
+		}
+		for (size_t j = 0; j < local.size(); ++j) {
+			local[j]->set(to_replace[i].second);
+			changed = true;
+		}
+	}
+
+	return changed;
+}
+
+bool Reducer::runOnModule(Module &M) {
+
+	/*
+	 * NOTE: Constantize the module before removing branches. 
+	 * The former does not change the CFG. 
+	 */
+	bool changed = false;
+	// Replace variables with ConstantInts whenever possible.
+	changed |= constantize(M);
+	// Remove unreachable branches. 
+	changed |= remove_branches(M);
+
+	return changed;
+}
+
+bool Reducer::remove_branches(Module &M) {
+
 	// TODO: We could do the same thing for SwitchInsts too. 
 	/*
 	 * <should_remove_branch> queries the solver. Therefore, we shouldn't
@@ -78,7 +131,7 @@ bool RemoveBranch::runOnModule(Module &M) {
 	return changed;
 }
 
-bool RemoveBranch::remove_branch(
+bool Reducer::remove_branch(
 		TerminatorInst *bi, unsigned i, BasicBlock *&unreachable_bb) {
 
 	assert(i < bi->getNumSuccessors());
@@ -121,7 +174,7 @@ bool RemoveBranch::remove_branch(
 	return true;
 }
 
-void RemoveBranch::prepare_remove_branch(
+void Reducer::prepare_remove_branch(
 		BranchInst *bi, vector<pair<BranchInst *, unsigned> > &to_remove) {
 
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
@@ -137,10 +190,10 @@ void RemoveBranch::prepare_remove_branch(
 	const Use *use_cond = &bi->getOperandUse(0);
 	// Remove the false branch if always true. 
 	if (SC.provable(
-				CmpInst::ICMP_EQ, use_cond, ConstantInt::getTrue(getGlobalContext())))
+				CmpInst::ICMP_EQ, use_cond, ConstantInt::getTrue(bi->getContext())))
 		to_remove.push_back(make_pair(bi, 1));
 	// Remove the true branch if always false. 
 	if (SC.provable(
-				CmpInst::ICMP_EQ, use_cond, ConstantInt::getFalse(getGlobalContext())))
+				CmpInst::ICMP_EQ, use_cond, ConstantInt::getFalse(bi->getContext())))
 		to_remove.push_back(make_pair(bi, 0));
 }
