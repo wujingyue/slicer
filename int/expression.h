@@ -41,7 +41,7 @@ namespace slicer {
 			if (type == SingleUse)
 				return new Expr(u);
 			if (type == Unary)
-				assert_not_supported();
+				return new Expr(op, e1->clone());
 			if (type == Binary)
 				return new Expr(op, e1->clone(), e2->clone());
 			assert_unreachable();
