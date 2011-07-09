@@ -389,9 +389,10 @@ void MaxSlicing::refine_from_end(
 		cfg_t[y].push_back(x);
 	}
 	// DFS from the end.
-	InstMapping parent;
-	parent[end] = end;
-	dfs_cfg(cfg_t, end, cut, parent);
+	InstSet visited_nodes_r;
+	EdgeSet visited_edges_r;
+	visited_nodes_r.insert(end);
+	dfs_cfg(cfg_t, end, cut, visited_nodes_r, visited_edges_r);
 	// Refine the visited_nodes and the visited_edges so that
 	// only nodes that can be visited in both directions are
 	// taken. 
@@ -400,30 +401,30 @@ void MaxSlicing::refine_from_end(
 	visited_nodes.clear();
 	visited_edges.clear();
 	forall(InstSet, it, orig_visited_nodes) {
-		if (parent.count(*it))
+		if (visited_nodes_r.count(*it))
 			visited_nodes.insert(*it);
 	}
 	forall(EdgeSet, it, orig_visited_edges) {
-		if (parent.count(it->first) && parent.count(it->second))
+		if (visited_edges_r.count(make_pair(it->second, it->first)))
 			visited_edges.insert(*it);
 	}
 }
 
 void MaxSlicing::dfs_cfg(
-		const CFG &cfg,
-		Instruction *x,
-		const InstSet &cut,
-		InstMapping &parent) {
+		const CFG &cfg, Instruction *x, const InstSet &cut,
+		InstSet &visited_nodes, EdgeSet &visited_edges) {
+
 	assert(x && "<x> cannot be NULL");
-	assert(parent.count(x) && "<x>'s parent hasn't been set");
+	assert(visited_nodes.count(x) && "<x>'s parent hasn't been set");
 	const InstList &next_insts = cfg.lookup(x);
 	for (size_t j = 0, E = next_insts.size(); j < E; ++j) {
 		Instruction *y = next_insts[j];
-		if (parent.lookup(y) == NULL) {
+		visited_edges.insert(make_pair(x, y));
+		if (!visited_nodes.count(y)) {
 			// Has not visited <y>. 
-			parent[y] = x;
+			visited_nodes.insert(y);
 			if (!cut.count(y))
-				dfs_cfg(cfg, y, cut, parent);
+				dfs_cfg(cfg, y, cut, visited_nodes, visited_edges);
 		}
 	}
 }

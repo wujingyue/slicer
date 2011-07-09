@@ -15,17 +15,15 @@ namespace slicer {
 	 */
 	struct SimplifierListener: public PassRegistrationListener {
 
-		SimplifierListener():
-			Iterator(NULL), BranchRemover(NULL) {}
+		SimplifierListener(): Iterator(NULL), Reducer(NULL) {}
 		virtual void passRegistered(const PassInfo *P);
 		virtual void passEnumerate(const PassInfo *P) { passRegistered(P); }
 
 		const PassInfo *getIterator() const { return Iterator; }
-		const PassInfo *getBranchRemover() const { return BranchRemover; }
-		const PassInfo *getConstantizer() const { return Constantizer; }
+		const PassInfo *getReducer() const { return Reducer; }
 
 	private:
-		const PassInfo *Iterator, *BranchRemover, *Constantizer;
+		const PassInfo *Iterator, *Reducer;
 	};
 }
 

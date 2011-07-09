@@ -266,7 +266,7 @@ int DoOneIteration(Module *M) {
 	
 	/*
 	 * Optimization passes seem to always change the module (maybe a bug
-	 * in LLVM 2.7), so we only look at whether BranchRemover and Constantizer
+	 * in LLVM 2.7), so we only look at whether the Reducer
 	 * has changed the module or not. 
 	 */
 	vector<const PassInfo *> PIs;
@@ -275,22 +275,12 @@ int DoOneIteration(Module *M) {
 	 * so don't worry about the Iterate. 
 	 * TODO: Order matters? 
 	 */
-#if 1
-	if (const PassInfo *PI = Listener.getConstantizer()) {
+	if (const PassInfo *PI = Listener.getReducer()) {
 		PIs.push_back(PI);
 	} else {
-		errs() << "Constantizer hasn't been loaded.\n";
+		errs() << "Reducer hasn't been loaded.\n";
 		return -1;
 	}
-#endif
-#if 1
-	if (const PassInfo *PI = Listener.getBranchRemover()) {
-		PIs.push_back(PI);
-	} else {
-		errs() << "BranchRemover hasn't been loaded.\n";
-		return -1;
-	}
-#endif
 	return RunPasses(M, PIs);
 }
 

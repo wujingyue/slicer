@@ -189,6 +189,8 @@ void CaptureConstraints::check_clone_info(Module &M) {
 
 bool CaptureConstraints::recalculate(Module &M) {
 
+	errs() << "=== CC::recalculate ===\n";
+
 	// Check clone_info metadata. 
 	check_clone_info(M);
 
@@ -216,6 +218,8 @@ bool CaptureConstraints::recalculate(Module &M) {
 
 	simplify_constraints();
 
+	errs() << "=== Finished CC::recalculate ===\n";
+
 	return false;
 }
 
@@ -224,22 +228,6 @@ void CaptureConstraints::simplify_constraints() {
 	sort(
 			constraints.begin(), constraints.end(),
 			CompareClause(getAnalysis<ObjectID>()));
-	// Some stats. 
-	unsigned n_assignments = 0;
-	for (size_t i = 0; i < constraints.size(); ++i) {
-		const Clause *c = constraints[i];
-		if (!c->be)
-			continue;
-		const BoolExpr *be = c->be;
-		if (be->p != CmpInst::ICMP_EQ)
-			continue;
-		const Expr *e1 = be->e1, *e2 = be->e2;
-		if (e1->type != Expr::SingleDef || e2->type != Expr::SingleDef)
-			continue;
-		++n_assignments;
-	}
-	errs() << n_assignments << " out of " << constraints.size() <<
-		" constraints are assignments.\n";
 }
 
 unsigned CaptureConstraints::get_num_constraints() const {

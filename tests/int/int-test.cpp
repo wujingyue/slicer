@@ -12,7 +12,6 @@
 #include "llvm/Analysis/DominatorInternals.h"
 #include "llvm/Support/CommandLine.h"
 #include "common/include/util.h"
-#include "idm/id.h"
 using namespace llvm;
 
 #include "int/iterate.h"
@@ -46,6 +45,7 @@ namespace slicer {
 		void test_radix_nocrit_slice(const Module &M);
 		void test_radix_nocrit_simple(const Module &M);
 		void test_radix_nocrit_common(const Module &M);
+		void test_test_loop_slice(const Module &M);
 	};
 }
 
@@ -69,7 +69,6 @@ void IntTest::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<Iterate>();
 	AU.addRequired<SolveConstraints>();
 	AU.addRequired<CaptureConstraints>();
-	AU.addRequired<ObjectID>();
 #endif
 	ModulePass::getAnalysisUsage(AU);
 }
@@ -92,11 +91,39 @@ bool IntTest::runOnModule(Module &M) {
 	test_fft_nocrit_simple(M);
 	test_radix_nocrit_slice(M);
 	test_radix_nocrit_simple(M);
+	test_test_loop_slice(M);
 	return false;
 }
 
 static bool starts_with(const string &a, const string &b) {
 	return a.length() >= b.length() && a.compare(0, b.length(), b) == 0;
+}
+
+void IntTest::test_test_loop_slice(const Module &M) {
+
+	if (Program != "test-loop.slice")
+		return;
+	TestBanner X("test-loop.slice");
+
+	SolveConstraints &SC = getAnalysis<SolveConstraints>();
+
+	forallconst(Module, f, M) {
+		if (f->getName() != "main")
+			continue;
+		forallconst(Function, bb, *f) {
+			forallconst(BasicBlock, ins, *bb) {
+				if (const LoadInst *li = dyn_cast<LoadInst>(ins)) {
+					const Value *p = li->getPointerOperand();
+					if (p->getName() == "n") {
+						errs() << "load from n:" << *li << "\n";
+						const IntegerType *int_type = IntegerType::get(M.getContext(), 32);
+						assert(SC.provable(
+									CmpInst::ICMP_EQ, p, ConstantInt::get(int_type, 3)));
+					}
+				}
+			}
+		}
+	}
 }
 
 void IntTest::test_radix_nocrit_slice(const Module &M) {

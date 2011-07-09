@@ -205,10 +205,8 @@ namespace slicer {
 		 * Stop DFSing at <cut>. 
 		 */
 		void dfs_cfg(
-				const CFG &cfg,
-				Instruction *x,
-				const InstSet &cut,
-				InstMapping &parent);
+				const CFG &cfg, Instruction *x, const InstSet &cut,
+				InstSet &visited_nodes, EdgeSet &visited_edges);
 		/*
 		 * Traces back through <parent> and finds the latest ancestor with
 		 * the same level. 

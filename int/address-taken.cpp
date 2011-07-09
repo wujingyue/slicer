@@ -240,6 +240,7 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 	for (size_t k = 0; k < thr_ids.size(); ++k) {
 		Instruction *i1 = latest_overwriters[k];
 		if (!i1) {
+			// An invalid trunk range. 
 			overwriter_trunks[k] = make_pair((size_t)-1, 0);
 			continue;
 		}
@@ -312,7 +313,7 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 						CmpInst::ICMP_EQ,
 						new Expr(i2),
 						new Expr(get_value_operand(latest_overwriters[the_thr_idx]))));
-#if 0
+#if 1
 			errs() << "From overwriting: ";
 			print_clause(errs(), c, getAnalysis<ObjectID>());
 			errs() << "\n";

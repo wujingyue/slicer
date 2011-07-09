@@ -79,7 +79,7 @@ namespace slicer {
 		// Checks whether <c> is in the form of (v1 == v2).
 		// If so, outputs <v1> and <v2> as well. 
 		static bool is_simple_eq(
-				const Clause *c, const Value *&v1, const Value *&v2);
+				const Clause *c, const Value **v1, const Value **v2);
 		// Updates <root> to reflect simple eqs. 
 		void identify_eqs();
 		// Updates <root>. Make the identified fixed values the roots. 

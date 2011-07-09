@@ -14,6 +14,7 @@ using namespace std;
 
 #include "capture.h"
 #include "solve.h"
+#include "config.h"
 using namespace slicer;
 
 static RegisterPass<SolveConstraints> X(
@@ -30,7 +31,9 @@ sys::Mutex SolveConstraints::vc_mutex(false); // not recursive
 
 void SolveConstraints::destroy_vc() {
 	assert(vc && "create_vc and destroy_vc are not paired");
+#ifdef VERBOSE
 	errs() << "=== Destroy vc ===\n";
+#endif
 	vc_Destroy(vc);
 	vc = NULL;
 	vc_mutex.release();
@@ -39,6 +42,9 @@ void SolveConstraints::destroy_vc() {
 void SolveConstraints::create_vc() {
 	assert(vc_mutex.tryacquire() && "There can be only one VC instance running");
 	assert(!vc && "create_vc and destroy_vc are not paired");
+#ifdef VERBOSE
+	errs() << "=== Create vc ===\n";
+#endif
 	vc = vc_createValidityChecker();
 	vc_registerErrorHandler(vc_error_handler);
 	assert(vc && "Failed to create a VC");
@@ -60,10 +66,14 @@ bool SolveConstraints::recalculate(Module &M) {
 	root.clear();
 	identify_eqs(); // This step does not require <vc>.
 
+#if 0
+	errs() << "Identifying fixed values\n";
 	destroy_vc();
 	create_vc();
 	translate_captured();
 	identify_fixed_values();
+	errs() << "Finished identifying fixed values\n";
+#endif
 
 	destroy_vc();
 	create_vc();
@@ -78,7 +88,7 @@ void SolveConstraints::identify_eqs() {
 	for (unsigned i = 0; i < CC.get_num_constraints(); ++i) {
 		const Clause *c = CC.get_constraint(i);
 		const Value *v1 = NULL, *v2 = NULL;
-		if (is_simple_eq(c, v1, v2)) {
+		if (is_simple_eq(c, &v1, &v2)) {
 			assert(v1 && v2);
 			const Value *r1 = get_root(v1), *r2 = get_root(v2);
 			/*
@@ -235,15 +245,15 @@ const Value *SolveConstraints::get_root(const Value *x) {
 }
 
 bool SolveConstraints::is_simple_eq(
-		const Clause *c, const Value *&v1, const Value *&v2) {
+		const Clause *c, const Value **v1, const Value **v2) {
 	if (c->be == NULL)
 		return false;
 	if (c->be->p != CmpInst::ICMP_EQ)
 		return false;
 	if (c->be->e1->type != Expr::SingleDef || c->be->e2->type != Expr::SingleDef)
 		return false;
-	v1 = c->be->e1->v;
-	v2 = c->be->e2->v;
+	*v1 = c->be->e1->v;
+	*v2 = c->be->e2->v;
 	return true;
 }
 
@@ -400,7 +410,13 @@ bool SolveConstraints::satisfiable(
 		realize(*it);
 	for (size_t i = 0; i < more_clauses.size(); ++i) {
 		Clause *c = more_clauses[i]->clone();
+		errs() << "satisfiable 1: ";
+		print_clause(errs(), c, getAnalysis<ObjectID>());
+		errs() << "\n";
 		replace_with_root(c);
+		errs() << "satisfiable 2: ";
+		print_clause(errs(), c, getAnalysis<ObjectID>());
+		errs() << "\n";
 		vc_assertFormula(vc, translate_to_vc(c));
 		delete c;
 	}

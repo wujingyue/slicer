@@ -9,10 +9,8 @@ void SimplifierListener::passRegistered(const PassInfo *P) {
 #ifdef VERBOSE
 	errs() << "Pass " << P->getPassArgument() << " registered\n";
 #endif
-	if (strcmp(P->getPassArgument(), "remove-br") == 0)
-		BranchRemover = P;
+	if (strcmp(P->getPassArgument(), "reduce") == 0)
+		Reducer = P;
 	if (strcmp(P->getPassArgument(), "iterate") == 0)
 		Iterator = P;
-	if (strcmp(P->getPassArgument(), "constantize") == 0)
-		Constantizer = P;
 }

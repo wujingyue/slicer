@@ -19,7 +19,7 @@ using namespace llvm;
 using namespace slicer;
 
 static RegisterPass<Reducer> X(
-		"reducer",
+		"reduce",
 		"Replace variables with constants whenever possible and "
 		"remove unreachable branches according to int-constraints",
 		false,
