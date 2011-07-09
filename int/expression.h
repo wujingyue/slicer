@@ -156,7 +156,7 @@ namespace slicer {
 
 		Clause *clone() const {
 			if (be)
-				return new Clause(be);
+				return new Clause(be->clone());
 			else
 				return new Clause(op, c1->clone(), c2->clone());
 		}
