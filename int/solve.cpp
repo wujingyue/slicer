@@ -24,114 +24,52 @@ static RegisterPass<SolveConstraints> X(
 
 char SolveConstraints::ID = 0;
 
-SolveConstraints::SolveConstraints(): ModulePass(&ID) {
+VC SolveConstraints::vc = NULL;
+
+sys::Mutex SolveConstraints::vc_mutex(false); // not recursive
+
+void SolveConstraints::destroy_vc() {
+	assert(vc && "create_vc and destroy_vc are not paired");
+	errs() << "=== Destroy vc ===\n";
+	vc_Destroy(vc);
 	vc = NULL;
+	vc_mutex.release();
 }
 
-SolveConstraints::~SolveConstraints() {
-	vc_Destroy(vc);
+void SolveConstraints::create_vc() {
+	assert(vc_mutex.tryacquire() && "There can be only one VC instance running");
+	assert(!vc && "create_vc and destroy_vc are not paired");
+	vc = vc_createValidityChecker();
+	vc_registerErrorHandler(vc_error_handler);
+	assert(vc && "Failed to create a VC");
 }
 
 void SolveConstraints::releaseMemory() {
+	// Principally paired with the create_vc in runOnModule. 
+	destroy_vc();
 }
 
 bool SolveConstraints::runOnModule(Module &M) {
+	// Principally paired with the destroy_vc in releaseMemory.
+	create_vc();
 	return recalculate(M);
 }
 
 bool SolveConstraints::recalculate(Module &M) {
 
 	root.clear();
+	identify_eqs(); // This step does not require <vc>.
 
-	identify_eqs();
+	destroy_vc();
+	create_vc();
 	translate_captured();
-
 	identify_fixed_values();
+
+	destroy_vc();
+	create_vc();
 	translate_captured();
 
 	return false;
-}
-
-void SolveConstraints::identify_fixed_values() {
-
-	// Try to constantize as many variables as possible. 
-	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
-	const ConstValueSet &constants = CC.get_constants();
-	unsigned n_to_be_fixed = 0;
-	forallconst(ConstValueSet, it, constants) {
-		const Value *v = *it;
-		if (get_root(v) == v && !isa<Constant>(v) &&
-				isa<IntegerType>(v->getType())) {
-			++n_to_be_fixed;
-			try_fix_value(v);
-		}
-	}
-	errs() << "# of values to be fixed = " << n_to_be_fixed << "\n";
-}
-
-void SolveConstraints::try_fix_value(const Value *v) {
-	// TODO:
-}
-
-bool SolveConstraints::contains_only_constints(const Clause *c) const {
-	if (c->be)
-		return contains_only_constints(c->be);
-	else
-		return contains_only_constints(c->c1) && contains_only_constints(c->c2);
-}
-
-bool SolveConstraints::contains_only_constints(const BoolExpr *be) const {
-	return contains_only_constints(be->e1) && contains_only_constints(be->e2);
-}
-
-bool SolveConstraints::contains_only_constints(const Expr *e) const {
-	switch (e->type) {
-		case Expr::SingleDef: return isa<ConstantInt>(e->v);
-		case Expr::SingleUse: return isa<ConstantInt>(e->u->get());
-		case Expr::Unary: return contains_only_constints(e->e1);
-		case Expr::Binary:
-			return contains_only_constints(e->e1) && contains_only_constints(e->e2);
-	}
-	assert_not_supported();
-}
-
-void SolveConstraints::translate_captured() {
-	
-	// Remove the old validity checker if any. 
-	if (vc) {
-		vc_Destroy(vc);
-		vc = NULL;
-	}
-	
-	// Create a new validity checker. 
-	vc = vc_createValidityChecker();
-	vc_setFlags(vc, 'c'); // Construct counter examples
-	vc_registerErrorHandler(vc_error_handler);
-
-	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
-	for (unsigned i = 0; i < CC.get_num_constraints(); ++i) {
-		Clause *c = CC.get_constraint(i)->clone();
-		replace_with_root(c);
-		const Value *v1 = NULL, *v2 = NULL;
-		if (is_simple_eq(c, v1, v2)) {
-			if (v1 == v2)
-				continue;
-		}
-		if (contains_only_constints(c))
-			continue;
-		vc_assertFormula(vc, translate_to_vc(c));
-		delete c; // c is cloned
-	}
-	
-	// The captured constraints should be consistent. 
-	vc_push(vc);
-	assert(vc_query(vc, vc_falseExpr(vc)) == 0 &&
-			"The captured constraints is not consistent.");
-	vc_pop(vc);
-}
-
-ConstantInt *SolveConstraints::get_fixed_value(const Value *v) {
-	return NULL;
 }
 
 void SolveConstraints::identify_eqs() {
@@ -154,6 +92,104 @@ void SolveConstraints::identify_eqs() {
 				root[r1] = r2;
 		}
 	}
+}
+
+void SolveConstraints::identify_fixed_values() {
+
+	// Try to constantize as many variables as possible. 
+	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
+	const ConstValueSet &constants = CC.get_constants();
+	forallconst(ConstValueSet, it, constants)
+		try_fix_value(*it);
+}
+
+/* TODO: Could do the same thing for uses as well, but too many uses. */
+void SolveConstraints::try_fix_value(const Value *v) {
+	
+	// Only try fixing values for the roots of equivalent class. 
+	if (get_root(v) != v)
+		return;
+	// Not fixed if it's a pointer. 
+	if (!isa<IntegerType>(v->getType()))
+		return;
+	// Already fixed if it's a ConstantInt. 
+	if (isa<ConstantInt>(v))
+		return;
+	
+	// Find a satisfiable value of <v>. 
+	vc_push(vc);
+	// Not sure whether flags are part of the checkpoint. 
+	vc_setFlags(vc, 'c');
+	assert(vc_query(vc, vc_falseExpr(vc)) == 0);
+	VCExpr ce = vc_getCounterExample(vc, translate_to_vc(v));
+	unsigned int candidate = getBVUnsigned(ce);
+	int candidate_len = vc_getBVLength(vc, ce);
+	vc_pop(vc);
+
+	// Check if this value is the only satisfiable value. 
+	vc_push(vc);
+	int ret = vc_query(vc, vc_eqExpr(
+				vc,
+				translate_to_vc(v),
+				vc_bvConstExprFromInt(vc, candidate_len, candidate)));
+	vc_pop(vc);
+
+	if (ret)
+		root[v] = ConstantInt::get(v->getType(), candidate);
+}
+
+#if 0
+bool SolveConstraints::contains_only_constints(const Clause *c) const {
+	if (c->be)
+		return contains_only_constints(c->be);
+	else
+		return contains_only_constints(c->c1) && contains_only_constints(c->c2);
+}
+
+bool SolveConstraints::contains_only_constints(const BoolExpr *be) const {
+	return contains_only_constints(be->e1) && contains_only_constints(be->e2);
+}
+
+bool SolveConstraints::contains_only_constints(const Expr *e) const {
+	switch (e->type) {
+		case Expr::SingleDef: return isa<ConstantInt>(e->v);
+		case Expr::SingleUse: return isa<ConstantInt>(e->u->get());
+		case Expr::Unary: return contains_only_constints(e->e1);
+		case Expr::Binary:
+			return contains_only_constints(e->e1) && contains_only_constints(e->e2);
+	}
+	assert_not_supported();
+}
+#endif
+
+void SolveConstraints::translate_captured() {
+
+	assert(vc);
+
+	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
+	for (unsigned i = 0; i < CC.get_num_constraints(); ++i) {
+		Clause *c = CC.get_constraint(i)->clone();
+		replace_with_root(c);
+		VCExpr vce = vc_simplify(vc, translate_to_vc(c));
+		assert(vc_isBool(vce) != 0);
+		// If can be proved by simplification, don't add it to the constraint set. 
+		if (vc_isBool(vce) == -1)
+			vc_assertFormula(vc, vce);
+		delete c; // c is cloned
+	}
+	
+	// The captured constraints should be consistent. 
+	vc_push(vc);
+	assert(vc_query(vc, vc_falseExpr(vc)) == 0 &&
+			"The captured constraints is not consistent.");
+	vc_pop(vc);
+}
+
+ConstantInt *SolveConstraints::get_fixed_value(const Value *v) {
+	if (const ConstantInt *ci = dyn_cast<ConstantInt>(get_root(v)))
+		return ConstantInt::get(ci->getContext(), ci->getValue());
+	else
+		return NULL;
 }
 
 void SolveConstraints::replace_with_root(Clause *c) {

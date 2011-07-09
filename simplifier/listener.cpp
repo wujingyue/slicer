@@ -13,4 +13,6 @@ void SimplifierListener::passRegistered(const PassInfo *P) {
 		BranchRemover = P;
 	if (strcmp(P->getPassArgument(), "iterate") == 0)
 		Iterator = P;
+	if (strcmp(P->getPassArgument(), "constantize") == 0)
+		Constantizer = P;
 }

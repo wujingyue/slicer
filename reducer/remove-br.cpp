@@ -36,6 +36,8 @@ void RemoveBranch::getAnalysisUsage(AnalysisUsage &AU) const {
 }
 
 bool RemoveBranch::runOnModule(Module &M) {
+
+	errs() << "RemoveBranch::runOnModule\n";
 	
 	// TODO: We could do the same thing for SwitchInsts too. 
 	/*

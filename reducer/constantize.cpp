@@ -32,6 +32,8 @@ void Constantize::getAnalysisUsage(AnalysisUsage &AU) const {
 }
 
 bool Constantize::runOnModule(Module &M) {
+
+	errs() << "Constantize::runOnModule\n";
 	
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();

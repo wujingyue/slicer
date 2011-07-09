@@ -30,8 +30,7 @@ void MaxSlicing::redirect_program_entry(
 	new_main->setName(old_main_name);
 }
 
-void MaxSlicing::fix_def_use_bb(
-		Module &M) {
+void MaxSlicing::fix_def_use_bb(Module &M) {
 	cerr << "Fixing BBs in def-use graph...\n";
 	DenseMap<Function *, BasicBlock *> unreach_bbs;
 	forallfunc(M, fi) {
@@ -54,6 +53,8 @@ void MaxSlicing::fix_def_use_bb(
 				for (BasicBlock::iterator ii = bi->begin();
 						ii != (BasicBlock::iterator)bi->getFirstNonPHI(); ++ii) {
 					PHINode *phi = dyn_cast<PHINode>(ii);
+					// We may delete incoming values while traversing, therefore
+					// we have to go backwards. 
 					for (unsigned j = phi->getNumIncomingValues(); j > 0;) {
 						--j;
 						BasicBlock *incoming_bb = phi->getIncomingBlock(j);
@@ -121,9 +122,9 @@ void MaxSlicing::fix_def_use_bb(
 						ti->setSuccessor(j, actual_succ_bbs[outcoming_bb]);
 					}
 				}
-			}
-		}
-	}
+			} // if (ti == NULL)
+		} // for bb
+	} // for func
 #ifdef CHECK
 	forallbb(M, bi) {
 		unsigned n_terminators = 0;

@@ -234,12 +234,13 @@ Instruction *MaxSlicing::clone_inst(
 		int thr_id, size_t trunk_id, const Instruction *x) {
 	Instruction *y = x->clone();
 	y->setName(x->getName());
-	// Remove ins_id metadata. 
+	// Remove ins_id metadata. Not an original instruction any more. 
 	y->setMetadata("ins_id", NULL);
-	// Some operands need to be cloned as well, e.g. function-local
-	// metadata. Here we reuse the MapValue function which is used
-	// in RemapInstruction. But we pass an empty value mapping so that
-	// it won't map any instruction operand for now. 
+	/*
+	 * Function-local metadata is no longer valid after the instruction 
+	 * being cloned to another function. 
+	 * Currently, we map them to NULL, but FIXME. 
+	 */
 	DenseMap<const Value *, Value *> empty_value_map;
 	for (unsigned i = 0; i < y->getNumOperands(); ++i) {
 		Value *op = y->getOperand(i);

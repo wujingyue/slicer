@@ -22,9 +22,10 @@ namespace slicer {
 
 		const PassInfo *getIterator() const { return Iterator; }
 		const PassInfo *getBranchRemover() const { return BranchRemover; }
+		const PassInfo *getConstantizer() const { return Constantizer; }
 
 	private:
-		const PassInfo *Iterator, *BranchRemover;
+		const PassInfo *Iterator, *BranchRemover, *Constantizer;
 	};
 }
 

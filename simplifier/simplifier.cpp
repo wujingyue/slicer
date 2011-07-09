@@ -42,7 +42,7 @@ using namespace std;
 #include "listener.h"
 using namespace slicer;
 
-static SimplifierListener listener;
+static SimplifierListener Listener;
 static raw_ostream *Out = NULL;
 
 /**
@@ -138,8 +138,8 @@ int Setup(int argc, char *argv[]) {
 
 	Out = &outs();  // Default to printing to stdout...
 	if (OutputFilename != "-") {
-		// Make sure that the Output file gets unlinked from the disk if we get a
-		// SIGINT
+		// Make sure that the Output file gets unlinked from the disk
+		// if we get a SIGINT.
 		sys::RemoveFileOnSignal(sys::Path(OutputFilename));
 
 		string ErrorInfo;
@@ -184,7 +184,6 @@ int RunOptimizationPasses(Module *M) {
 	const std::string &ModuleDataLayout = M->getDataLayout();
 	if (!ModuleDataLayout.empty())
 		TD = new TargetData(ModuleDataLayout);
-
 	if (TD)
 		Passes.add(TD);
 
@@ -265,18 +264,34 @@ int DoOneIteration(Module *M) {
 	if (RunOptimizationPasses(M) == -1)
 		return -1;
 	
-	// Run BranchRemover. 
-	// BranchRemover requires Iterator, so don't worry about Iterator. 
-	const PassInfo *PI = listener.getBranchRemover();
-	if (!PI) {
+	/*
+	 * Optimization passes seem to always change the module (maybe a bug
+	 * in LLVM 2.7), so we only look at whether BranchRemover and Constantizer
+	 * has changed the module or not. 
+	 */
+	vector<const PassInfo *> PIs;
+	/*
+	 * Constantizer and BranchRemover require Iterate,
+	 * so don't worry about the Iterate. 
+	 * TODO: Order matters? 
+	 */
+#if 1
+	if (const PassInfo *PI = Listener.getConstantizer()) {
+		PIs.push_back(PI);
+	} else {
+		errs() << "Constantizer hasn't been loaded.\n";
+		return -1;
+	}
+#endif
+#if 1
+	if (const PassInfo *PI = Listener.getBranchRemover()) {
+		PIs.push_back(PI);
+	} else {
 		errs() << "BranchRemover hasn't been loaded.\n";
 		return -1;
 	}
-	
-	// Optimization passes seem to always change the module (maybe a bug
-	// in LLVM 2.7), so we only look at whether BranchRemover has changed
-	// the module or not. 
-	return RunPasses(M, vector<const PassInfo *>(1, PI));
+#endif
+	return RunPasses(M, PIs);
 }
 
 int OutputModule(Module *M) {
@@ -331,6 +346,7 @@ int main(int argc, char *argv[]) {
 
 	int Changed;
 	int IterNo = 0;
+
 	TimerGroup TG("Simplifier");
 	vector<Timer *> Tmrs;
 	do {
@@ -344,14 +360,22 @@ int main(int argc, char *argv[]) {
 		Changed = DoOneIteration(M);
 		errs() << "=== Iteration " << IterNo << " finished. ===\n";
 		TmrIter->stopTimer();
-		if (Changed == -1)
-			return 1;
-	} while (Changed);
+		// Break this loop on failure or when the module
+		// cannot be changed any more.
+	} while (Changed == 1);
 	for (size_t i = 0; i < Tmrs.size(); ++i)
 		delete Tmrs[i];
 
-	if (OutputModule(M) == -1)
+	if (Changed == -1) {
+		delete M;
 		return 1;
+	}
 
+	if (OutputModule(M) == -1) {
+		delete M;
+		return 1;
+	}
+
+	delete M;
 	return 0;
 }

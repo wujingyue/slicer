@@ -1,6 +1,6 @@
 # simplifier only works on sliced programs 
 
-PROG_NAMES = aget-nocrit test-branch FFT-nocrit RADIX-nocrit
+PROG_NAMES = aget-nocrit test-branch FFT-nocrit RADIX-nocrit test-loop
 PROGS_DIR = ../progs
 PROGS = $(addprefix $(PROGS_DIR)/, $(PROG_NAMES))
 SIMPLE_PROGS = $(PROGS:=.simple)

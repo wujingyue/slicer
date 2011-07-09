@@ -7,6 +7,9 @@
 #ifndef __SLICER_SOLVE_H
 #define __SLICER_SOLVE_H
 
+#include "llvm/System/Mutex.h"
+using namespace llvm;
+
 #include "expression.h"
 
 #define Expr VCExpr
@@ -26,14 +29,13 @@ namespace slicer {
 
 		static char ID;
 
-		SolveConstraints();
-		~SolveConstraints();
+		SolveConstraints(): ModulePass(&ID) {}
 		virtual bool runOnModule(Module &M);
-		bool recalculate(Module &M);
 		virtual void print(raw_ostream &O, const Module *M) const;
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual void releaseMemory();
 
+		bool recalculate(Module &M);
 		ConstantInt *get_fixed_value(const Value *v);
 
 		bool satisfiable(const vector<const Clause *> &more_clauses);
@@ -63,7 +65,10 @@ namespace slicer {
 		}
 
 	private:
-		// Intermediate VC expressions will be inserted to member <vc>. 
+		/*
+		 * Translates and simplifies captured constraints, and
+		 * inserts them to <vc>.
+		 */
 		void translate_captured();
 		VCExpr translate_to_vc(const Clause *c);
 		VCExpr translate_to_vc(const BoolExpr *be);
@@ -75,7 +80,9 @@ namespace slicer {
 		// If so, outputs <v1> and <v2> as well. 
 		static bool is_simple_eq(
 				const Clause *c, const Value *&v1, const Value *&v2);
+		// Updates <root> to reflect simple eqs. 
 		void identify_eqs();
+		// Updates <root>. Make the identified fixed values the roots. 
 		void identify_fixed_values();
 		const Value *get_root(const Value *x);
 		void replace_with_root(Clause *c);
@@ -86,6 +93,7 @@ namespace slicer {
 		 * Therefore, if you want to call realize, call it beforehand. 
 		 */
 		void replace_with_root(Expr *e);
+#if 0
 		/**
 		 * Returns whether the clause only contains ConstantInt's. 
 		 * If so, we can simply discard this clause, because we assume
@@ -94,6 +102,7 @@ namespace slicer {
 		bool contains_only_constints(const Clause *c) const;
 		bool contains_only_constints(const BoolExpr *c) const;
 		bool contains_only_constints(const Expr *c) const;
+#endif
 		/**
 		 * Using binary search to fix the value of <v> if possible. 
 		 * Once fixed, update the <root> table to make the fixed value to
@@ -139,10 +148,15 @@ namespace slicer {
 		void realize(const Use *u);
 		void realize(const Instruction *i);
 		BasicBlock *get_idom(BasicBlock *bb);
+		// Protected by <vc_mutex>.
+		static void create_vc();
+		static void destroy_vc();
 
+		/* NOTE: <root> may contain some constants that don't appeared in CC. */
 		ConstValueMapping root;
-		DenseMap<const Value *, ConstantInt *> fixed_values;
-		VC vc;
+		/* There can only be one instance of VC running. */
+		static VC vc;
+		static sys::Mutex vc_mutex;
 	};
 }
 

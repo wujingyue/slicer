@@ -1,3 +1,9 @@
+/**
+ * Author: Jingyue
+ *
+ * TODO: Record important instructions only. 
+ */
+
 #include "llvm/LLVMContext.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "idm/id.h"
