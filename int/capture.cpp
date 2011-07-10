@@ -189,8 +189,6 @@ void CaptureConstraints::check_clone_info(Module &M) {
 
 bool CaptureConstraints::recalculate(Module &M) {
 
-	errs() << "=== CC::recalculate ===\n";
-
 	// Check clone_info metadata. 
 	check_clone_info(M);
 
@@ -218,13 +216,15 @@ bool CaptureConstraints::recalculate(Module &M) {
 
 	simplify_constraints();
 
-	errs() << "=== Finished CC::recalculate ===\n";
-
 	return false;
 }
 
 void CaptureConstraints::simplify_constraints() {
-	// Sort constraints on the alphabetical order
+	/*
+	 * Sort constraints on the alphabetical order
+	 * so that get_fingerprint will return the same value deterministically
+	 * for the same set of constraints. 
+	 */
 	sort(
 			constraints.begin(), constraints.end(),
 			CompareClause(getAnalysis<ObjectID>()));

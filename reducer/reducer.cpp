@@ -9,6 +9,7 @@
 #define DEBUG_TYPE "reducer"
 
 #include "llvm/LLVMContext.h"
+#include "llvm/Support/Timer.h"
 #include "llvm/ADT/Statistic.h"
 using namespace llvm;
 
@@ -82,10 +83,19 @@ bool Reducer::runOnModule(Module &M) {
 	 * The former does not change the CFG. 
 	 */
 	bool changed = false;
+	TimerGroup tg("Reducer");
+	Timer tmr_remove_br("Remove branches", tg);
+	Timer tmr_constantize("Constantize", tg);
+#if 0
 	// Replace variables with ConstantInts whenever possible.
+	tmr_remove_br.startTimer();
 	changed |= constantize(M);
+	tmr_remove_br.stopTimer();
+#endif
 	// Remove unreachable branches. 
+	tmr_constantize.startTimer();
 	changed |= remove_branches(M);
+	tmr_constantize.stopTimer();
 
 	return changed;
 }

@@ -86,6 +86,9 @@ void AddOptimizationPasses(PassManager &MPM, FunctionPassManager &FPM,
 	 * We need to preserve all the cloned landmarks, therefore we disable
 	 * simplifying lib calls. 
 	 */
+	/*
+	 * We set UnitAtATime to be false to prevent opt from changing the types.
+	 */
 	createStandardModulePasses(&MPM, OptLevel,
 			/*OptimizeSize=*/ false,
 			/*UnitAtATime=*/ true,
