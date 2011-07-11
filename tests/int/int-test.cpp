@@ -250,6 +250,7 @@ void IntTest::test_fft_nocrit_common(const Module &M) {
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	for (size_t i = 0; i < local_ids.size(); ++i) {
 		for (size_t j = i + 1; j < local_ids.size(); ++j) {
+			errs() << "Comparing local_ids[" << i << "] and local_ids[" << j << "]\n";
 			assert(SC.provable(CmpInst::ICMP_NE, local_ids[i], local_ids[j]));
 		}
 	}

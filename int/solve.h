@@ -103,12 +103,6 @@ namespace slicer {
 		bool contains_only_constints(const BoolExpr *c) const;
 		bool contains_only_constints(const Expr *c) const;
 #endif
-		/**
-		 * Using binary search to fix the value of <v> if possible. 
-		 * Once fixed, update the <root> table to make the fixed value to
-		 * be the root of <v>'s tree. 
-		 */
-		void try_fix_value(const Value *v);
 
 		static void vc_error_handler(const char *err_msg);
 		static VCExpr vc_zero(VC vc) {

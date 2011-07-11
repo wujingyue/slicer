@@ -9,6 +9,7 @@
 #include "idm/id.h"
 using namespace llvm;
 
+#include <list>
 #include <sstream>
 using namespace std;
 
@@ -31,9 +32,6 @@ sys::Mutex SolveConstraints::vc_mutex(false); // not recursive
 
 void SolveConstraints::destroy_vc() {
 	assert(vc && "create_vc and destroy_vc are not paired");
-#ifdef VERBOSE
-	errs() << "=== Destroy vc ===\n";
-#endif
 	vc_Destroy(vc);
 	vc = NULL;
 	vc_mutex.release();
@@ -42,9 +40,6 @@ void SolveConstraints::destroy_vc() {
 void SolveConstraints::create_vc() {
 	assert(vc_mutex.tryacquire() && "There can be only one VC instance running");
 	assert(!vc && "create_vc and destroy_vc are not paired");
-#ifdef VERBOSE
-	errs() << "=== Create vc ===\n";
-#endif
 	vc = vc_createValidityChecker();
 	vc_registerErrorHandler(vc_error_handler);
 	assert(vc && "Failed to create a VC");
@@ -66,14 +61,15 @@ bool SolveConstraints::recalculate(Module &M) {
 	root.clear();
 	identify_eqs(); // This step does not require <vc>.
 
-#if 0
-	errs() << "Identifying fixed values\n";
+	// TODO: Add a timer here. 
+	errs() << "=== Start identifying fixed values... ===\n";
+	clock_t start = clock();
 	destroy_vc();
 	create_vc();
 	translate_captured();
 	identify_fixed_values();
-	errs() << "Finished identifying fixed values\n";
-#endif
+	errs() << "=== Identifying fixed values takes " <<
+		(int)(0.5 + (double)(clock() - start) / CLOCKS_PER_SEC) << "secs. ===\n";
 
 	destroy_vc();
 	create_vc();
@@ -104,48 +100,92 @@ void SolveConstraints::identify_eqs() {
 	}
 }
 
+/* TODO: Could do the same thing for uses as well, but too many uses. */
 void SolveConstraints::identify_fixed_values() {
 
 	// Try to constantize as many variables as possible. 
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 	const ConstValueSet &constants = CC.get_constants();
-	forallconst(ConstValueSet, it, constants)
-		try_fix_value(*it);
-}
-
-/* TODO: Could do the same thing for uses as well, but too many uses. */
-void SolveConstraints::try_fix_value(const Value *v) {
-	
-	// Only try fixing values for the roots of equivalent class. 
-	if (get_root(v) != v)
-		return;
-	// Not fixed if it's a pointer. 
-	if (!isa<IntegerType>(v->getType()))
-		return;
-	// Already fixed if it's a ConstantInt. 
-	if (isa<ConstantInt>(v))
-		return;
-	
-	// Find a satisfiable value of <v>. 
+	/*
+	 * Algorithm:
+	 * 1. Find a satisfiable assignment, and assume each variable must equal
+	 *    the assigned value. 
+	 * 2. Try negating any one of them.
+	 * 3. If the assignment is still satisfiable, this negated variable is 
+	 *    not really fixed. 
+	 * 4. Check each variable in the new assignment, and remove all variables
+	 *    that have a new value. 
+	 * 5. Return to Step 2. 
+	 */
+	// Find a satisfiable assignment. 
+	list<pair<const Value *, pair<unsigned, int> > > candidates;
 	vc_push(vc);
-	// Not sure whether flags are part of the checkpoint. 
+	// TODO: Not sure whether flags are part of the checkpoint. 
 	vc_setFlags(vc, 'c');
 	assert(vc_query(vc, vc_falseExpr(vc)) == 0);
-	VCExpr ce = vc_getCounterExample(vc, translate_to_vc(v));
-	unsigned int candidate = getBVUnsigned(ce);
-	int candidate_len = vc_getBVLength(vc, ce);
+	forallconst(ConstValueSet, it, constants) {
+		const Value *v = *it;
+		// Only try fixing values for the roots of equivalent class. 
+		if (get_root(v) != v)
+			continue;
+		// Not fixed if it's a pointer. 
+		if (!isa<IntegerType>(v->getType()))
+			continue;
+		// Already fixed if it's a ConstantInt. 
+		if (isa<ConstantInt>(v))
+			continue;
+		VCExpr ce = vc_getCounterExample(vc, translate_to_vc(v));
+		candidates.push_back(make_pair(
+					v, make_pair(getBVUnsigned(ce), vc_getBVLength(vc, ce))));
+	}
 	vc_pop(vc);
-
-	// Check if this value is the only satisfiable value. 
-	vc_push(vc);
-	int ret = vc_query(vc, vc_eqExpr(
-				vc,
-				translate_to_vc(v),
-				vc_bvConstExprFromInt(vc, candidate_len, candidate)));
-	vc_pop(vc);
-
-	if (ret)
-		root[v] = ConstantInt::get(v->getType(), candidate);
+	errs() << "# of candidates = " << candidates.size() << "\n";
+	// Try negating. 
+	list<pair<const Value *, pair<unsigned, int> > >::iterator i, j, to_del;
+	for (i = candidates.begin(); i != candidates.end(); ) {
+		vc_push(vc);
+		vc_setFlags(vc, 'c');
+		vc_assertFormula(vc, vc_notExpr(vc, vc_eqExpr(
+						vc,
+						translate_to_vc(i->first),
+						vc_bvConstExprFromInt(vc, i->second.second, i->second.first))));
+		int ret = vc_query(vc, vc_falseExpr(vc));
+		assert(ret != 2);
+		if (ret == 1) {
+			// Cannot find a satisfiable assignment any more. 
+			// <i>'s value must be fixed. 
+			// Skip to the next candidate. 
+#if 1
+			errs() << "identify_fixed_values: ";
+			Expr *e = new Expr(i->first);
+			print_expr(errs(), e, getAnalysis<ObjectID>());
+			delete e;
+			errs() << " = " << i->second.first << "\n";
+#endif
+			++i;
+		} else {
+			// <i> does not have a fixed value. 
+			j = i; ++j;
+			while (j != candidates.end()) {
+				VCExpr ce = vc_getCounterExample(vc, translate_to_vc(j->first));
+				to_del = candidates.end();
+				if (j->second.first != getBVUnsigned(ce))
+					to_del = j;
+				++j;
+				if (to_del != candidates.end())
+					candidates.erase(to_del);
+			}
+			to_del = i;
+			++i;
+			candidates.erase(to_del);
+		}
+		vc_pop(vc);
+	}
+	// Finally, make identified fixed values to be roots. 
+	for (i = candidates.begin(); i != candidates.end(); ++i) {
+		const Value *v = i->first;
+		root[v] = ConstantInt::get(v->getType(), i->second.first);
+	}
 }
 
 #if 0
