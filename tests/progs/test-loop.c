@@ -2,20 +2,18 @@
 #include <stdlib.h>
 #include <pthread.h>
 
-volatile int n;
+int n = 10;
 
 int main(int argc, char *argv[]) {
 	
 	int i;
 
-	if (argc < 2) {
-		fprintf(stderr, "%s <# of iterations>\n", argv[0]);
-		exit(1);
-	}
+	if (argc >= 2)
+		n = atoi(argv[1]);
 	
-	n = atoi(argv[1]);
+	void *a[n];
 	for (i = 0; i < n; ++i)
-		printf("%d\n", i);
+		a[i] = malloc(n * sizeof(int));
 
 	for (i = 0; i < n; ++i)
 		fprintf(stderr, "self = %lu\n", pthread_self());

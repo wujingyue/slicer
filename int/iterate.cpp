@@ -50,8 +50,6 @@ bool Iterate::runOnModule(Module &M) {
 		timer->startTimer();
 		fingerprint = CC.get_fingerprint();
 		errs() << "=== Running iteration " << iter_no << "... ===\n";
-		errs() << "# of constraints = " << CC.get_num_constraints() << "\n";
-		errs() << "AAA cache size = " << AAA.get_cache_size() << "\n";
 		AAA.recalculate(M); // Essentially clear the cache. 
 		CC.recalculate(M);
 		SC.recalculate(M);

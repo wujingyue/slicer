@@ -215,6 +215,9 @@ bool CaptureConstraints::recalculate(Module &M) {
 	capture_func_summaries(M);
 
 	simplify_constraints();
+#ifdef VERBOSE
+	errs() << "# of constraints = " << get_num_constraints() << "\n";
+#endif
 
 	return false;
 }

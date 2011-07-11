@@ -61,7 +61,7 @@ bool Reducer::constantize(Module &M) {
 		// Don't replace uses while iterating. 
 		// Put them to a local list first. 
 		for (Value::use_const_iterator ui = v->use_begin();
-				ui != v->use_begin(); ++ui)
+				ui != v->use_end(); ++ui)
 			local.push_back(&ui.getUse());
 		if (local.size() > 0) {
 			++VariablesConstantized;
@@ -83,15 +83,16 @@ bool Reducer::runOnModule(Module &M) {
 	 * The former does not change the CFG. 
 	 */
 	bool changed = false;
+	
 	TimerGroup tg("Reducer");
 	Timer tmr_remove_br("Remove branches", tg);
 	Timer tmr_constantize("Constantize", tg);
-#if 0
+
 	// Replace variables with ConstantInts whenever possible.
 	tmr_remove_br.startTimer();
 	changed |= constantize(M);
 	tmr_remove_br.stopTimer();
-#endif
+	
 	// Remove unreachable branches. 
 	tmr_constantize.startTimer();
 	changed |= remove_branches(M);

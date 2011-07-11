@@ -106,7 +106,7 @@ void CaptureConstraints::capture_may_assign(Module &M) {
 				all_stores.push_back(make_pair(ci, gi));
 		}
 	}
-	errs() << "# of loads = " << all_loads.size() << "\n";
+	errs() << "# of loads = " << all_loads.size() << "; ";
 	errs() << "# of stores = " << all_stores.size() << "\n";
 
 	for (size_t i = 0; i < all_loads.size(); ++i) {

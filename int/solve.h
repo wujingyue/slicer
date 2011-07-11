@@ -77,7 +77,7 @@ namespace slicer {
 		VCExpr translate_to_vc(const Use *u);
 		void avoid_overflow(unsigned op, VCExpr left, VCExpr right);
 		// Checks whether <c> is in the form of (v1 == v2).
-		// If so, outputs <v1> and <v2> as well. 
+		// If so, outputs <v1> and <v2> as well if they are not <NULL>. 
 		static bool is_simple_eq(
 				const Clause *c, const Value **v1, const Value **v2);
 		// Updates <root> to reflect simple eqs. 
@@ -93,6 +93,9 @@ namespace slicer {
 		 * Therefore, if you want to call realize, call it beforehand. 
 		 */
 		void replace_with_root(Expr *e);
+		void update_appeared(ConstValueSet &appeared, const Clause *c);
+		void update_appeared(ConstValueSet &appeared, const BoolExpr *be);
+		void update_appeared(ConstValueSet &appeared, const Expr *e);
 #if 0
 		/**
 		 * Returns whether the clause only contains ConstantInt's. 
@@ -100,8 +103,8 @@ namespace slicer {
 		 * the captured constraints are consistent. 
 		 */
 		bool contains_only_constints(const Clause *c) const;
-		bool contains_only_constints(const BoolExpr *c) const;
-		bool contains_only_constints(const Expr *c) const;
+		bool contains_only_constints(const BoolExpr *be) const;
+		bool contains_only_constints(const Expr *e) const;
 #endif
 
 		static void vc_error_handler(const char *err_msg);

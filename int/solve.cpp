@@ -69,7 +69,7 @@ bool SolveConstraints::recalculate(Module &M) {
 	translate_captured();
 	identify_fixed_values();
 	errs() << "=== Identifying fixed values takes " <<
-		(int)(0.5 + (double)(clock() - start) / CLOCKS_PER_SEC) << "secs. ===\n";
+		(int)(0.5 + (double)(clock() - start) / CLOCKS_PER_SEC) << " secs. ===\n";
 
 	destroy_vc();
 	create_vc();
@@ -139,9 +139,44 @@ void SolveConstraints::identify_fixed_values() {
 					v, make_pair(getBVUnsigned(ce), vc_getBVLength(vc, ce))));
 	}
 	vc_pop(vc);
+	/*
+	 * OPT: Many variables, although identified as constants (i.e. never changes
+	 * in an execution), don't appear in any clause. These variables' values
+	 * cannot be restricted. 
+	 * TODO: More opt: Remove variables not connected with any ConstantInt. 
+	 */
+	ConstValueSet appeared;
+	for (unsigned k = 0; k < CC.get_num_constraints(); ++k) {
+		Clause *c = CC.get_constraint(k)->clone();
+		replace_with_root(c);
+		vc_push(vc);
+		VCExpr vce = vc_simplify(vc, translate_to_vc(c));
+		assert(vc_isBool(vce) != 0);
+		// If can be proved by simplification, don't add it to the constraint set. 
+		if (vc_isBool(vce) == -1)
+			update_appeared(appeared, c);
+		// TODO: Remove the simplified expression?
+		delete c; // c is cloned
+		vc_pop(vc);
+	}
+	// Remove variables that don't appear in any clause. 
+	list<pair<const Value *, pair<unsigned, int> > >::iterator i, j, to_del;
+	for (i = candidates.begin(); i != candidates.end(); ) {
+		if (appeared.count(i->first))
+			++i;
+		else {
+			to_del = i;
+			++i;
+			candidates.erase(to_del);
+		}
+	}
+	// The captured constraints should be consistent. 
+	vc_push(vc);
+	assert(vc_query(vc, vc_falseExpr(vc)) == 0 &&
+			"The captured constraints is not consistent.");
+	vc_pop(vc);
 	errs() << "# of candidates = " << candidates.size() << "\n";
 	// Try negating. 
-	list<pair<const Value *, pair<unsigned, int> > >::iterator i, j, to_del;
 	for (i = candidates.begin(); i != candidates.end(); ) {
 		vc_push(vc);
 		vc_setFlags(vc, 'c');
@@ -155,8 +190,8 @@ void SolveConstraints::identify_fixed_values() {
 			// Cannot find a satisfiable assignment any more. 
 			// <i>'s value must be fixed. 
 			// Skip to the next candidate. 
-#if 1
-			errs() << "identify_fixed_values: ";
+#if 0
+			errs() << "identified a fixed value: ";
 			Expr *e = new Expr(i->first);
 			print_expr(errs(), e, getAnalysis<ObjectID>());
 			delete e;
@@ -164,6 +199,13 @@ void SolveConstraints::identify_fixed_values() {
 #endif
 			++i;
 		} else {
+#if 0
+			errs() << "not fixed: " << *(i->first) << "\n";
+			Expr *e = new Expr(i->first);
+			print_expr(errs(), e, getAnalysis<ObjectID>());
+			delete e;
+			errs() << "\n";
+#endif
 			// <i> does not have a fixed value. 
 			j = i; ++j;
 			while (j != candidates.end()) {
@@ -172,8 +214,16 @@ void SolveConstraints::identify_fixed_values() {
 				if (j->second.first != getBVUnsigned(ce))
 					to_del = j;
 				++j;
-				if (to_del != candidates.end())
+				if (to_del != candidates.end()) {
+#if 0
+					errs() << "optimized: ";
+					Expr *ex = new Expr(to_del->first);
+					print_expr(errs(), ex, getAnalysis<ObjectID>());
+					delete ex;
+					errs() << "\n";
+#endif
 					candidates.erase(to_del);
+				}
 			}
 			to_del = i;
 			++i;
@@ -186,6 +236,37 @@ void SolveConstraints::identify_fixed_values() {
 		const Value *v = i->first;
 		root[v] = ConstantInt::get(v->getType(), i->second.first);
 	}
+}
+
+void SolveConstraints::update_appeared(
+		ConstValueSet &appeared, const Clause *c) {
+	if (c->be)
+		update_appeared(appeared, c->be);
+	else {
+		update_appeared(appeared, c->c1);
+		update_appeared(appeared, c->c2);
+	}
+}
+
+void SolveConstraints::update_appeared(
+		ConstValueSet &appeared, const BoolExpr *be) {
+	update_appeared(appeared, be->e1);
+	update_appeared(appeared, be->e2);
+}
+
+void SolveConstraints::update_appeared(
+		ConstValueSet &appeared, const Expr *e) {
+	if (e->type == Expr::SingleDef)
+		appeared.insert(e->v);
+	else if (e->type == Expr::SingleUse)
+		appeared.insert(e->u->get());
+	else if (e->type == Expr::Unary)
+		update_appeared(appeared, e->e1);
+	else if (e->type == Expr::Binary) {
+		update_appeared(appeared, e->e1);
+		update_appeared(appeared, e->e2);
+	} else
+		assert_not_supported();
 }
 
 #if 0
@@ -220,11 +301,17 @@ void SolveConstraints::translate_captured() {
 	for (unsigned i = 0; i < CC.get_num_constraints(); ++i) {
 		Clause *c = CC.get_constraint(i)->clone();
 		replace_with_root(c);
+		vc_push(vc); // FIXME: Necessary to create a new context?
 		VCExpr vce = vc_simplify(vc, translate_to_vc(c));
-		assert(vc_isBool(vce) != 0);
-		// If can be proved by simplification, don't add it to the constraint set. 
-		if (vc_isBool(vce) == -1)
-			vc_assertFormula(vc, vce);
+		int ret = vc_isBool(vce);
+		vc_pop(vc);
+		assert(ret != 0);
+		if (ret == -1) {
+			// If can be proved by simplification, don't add it to the constraint set. 
+			// Need call <translate_to_vc> again because the previous call
+			// creates an expression in a different context. 
+			vc_assertFormula(vc, translate_to_vc(c));
+		}
 		delete c; // c is cloned
 	}
 	
@@ -292,8 +379,10 @@ bool SolveConstraints::is_simple_eq(
 		return false;
 	if (c->be->e1->type != Expr::SingleDef || c->be->e2->type != Expr::SingleDef)
 		return false;
-	*v1 = c->be->e1->v;
-	*v2 = c->be->e2->v;
+	if (v1)
+		*v1 = c->be->e1->v;
+	if (v2)
+		*v2 = c->be->e2->v;
 	return true;
 }
 

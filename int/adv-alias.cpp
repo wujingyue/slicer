@@ -42,6 +42,7 @@ void AdvancedAlias::print_average_query_time() {
 
 bool AdvancedAlias::recalculate(Module &M) {
 	// Clear the cache. 
+	errs() << "AAA cache size = " << get_cache_size() << "\n";
 	cache.clear();
 	print_average_query_time();
 	tot_time = 0;
