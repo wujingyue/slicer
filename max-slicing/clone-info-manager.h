@@ -84,6 +84,18 @@ namespace slicer {
 				int thr_id, size_t trunk_id, unsigned orig_ins_id) const;
 
 	private:
+		/*
+		 * FIXME: Use this function with cautions. It assumes clone_info is
+		 * not optimized out.
+		 *
+		 * e.g. 
+		 * inst1; !clone_info 1
+		 * inst2; opt'ed, no clone_info
+		 * inst3; !clone_info 3
+		 *
+		 * In this case, inst2 is in the same trunk as either inst1 or inst3. 
+		 * But the current implementation will fail on inst2.
+		 */
 		void search_containing_trunks(
 				const Instruction *ins,
 				ConstInstSet &visited,

@@ -110,8 +110,17 @@ void IntTest::test_test_loop_slice(const Module &M) {
 	forallconst(Module, f, M) {
 		if (f->getName() != "main")
 			continue;
+		bool started = false;
 		forallconst(Function, bb, *f) {
 			forallconst(BasicBlock, ins, *bb) {
+				if (const CallInst *ci = dyn_cast<CallInst>(ins)) {
+					const Function *callee = ci->getCalledFunction();
+					if (callee && callee->getName() == "pthread_self")
+						started = true;
+				}
+				if (!started)
+					continue;
+				// Check all "load from n"s after the first "pthread_self". 
 				if (const LoadInst *li = dyn_cast<LoadInst>(ins)) {
 					const Value *p = li->getPointerOperand();
 					if (p->getName() == "n") {
