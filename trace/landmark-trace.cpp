@@ -82,9 +82,9 @@ void LandmarkTrace::extend_until_enforce(
 	}
 }
 
-void LandmarkTrace::get_concurrent_trunks(
+void LandmarkTrace::get_concurrent_regions(
 		const pair<int, size_t> &the_trunk,
-		vector<pair<int, size_t> > &concurrent_trunks) const {
+		vector<pair<int, pair<size_t, size_t> > > &concurrent_regions) const {
 	size_t s = the_trunk.second, e = the_trunk.second;
 	extend_until_enforce(the_trunk.first, s, e);
 	unsigned s_idx = get_landmark_timestamp(the_trunk.first, s);
@@ -93,6 +93,7 @@ void LandmarkTrace::get_concurrent_trunks(
 	vector<int> thr_ids = get_thr_ids();
 	for (size_t i = 0; i < thr_ids.size(); ++i) {
 		int thr_id = thr_ids[i];
+		// Look at other threads only. 
 		if (thr_id == the_trunk.first)
 			continue;
 		size_t s1 = search_thr_landmark(thr_id, s_idx);
@@ -107,7 +108,20 @@ void LandmarkTrace::get_concurrent_trunks(
 		}
 		--e1;
 		extend_until_enforce(thr_id, s1, e1);
-		for (size_t trunk_id = s1; trunk_id <= e1; ++trunk_id)
+		concurrent_regions.push_back(make_pair(thr_id, make_pair(s1, e1)));
+	}
+}
+
+void LandmarkTrace::get_concurrent_trunks(
+		const pair<int, size_t> &the_trunk,
+		vector<pair<int, size_t> > &concurrent_trunks) const {
+	vector<pair<int, pair<size_t, size_t> > > concurrent_regions;
+	get_concurrent_regions(the_trunk, concurrent_regions);
+	for (size_t i = 0; i < concurrent_regions.size(); ++i) {
+		int thr_id = concurrent_regions[i].first;
+		size_t s = concurrent_regions[i].second.first;
+		size_t e = concurrent_regions[i].second.second;
+		for (size_t trunk_id = s; trunk_id <= e; ++trunk_id)
 			concurrent_trunks.push_back(make_pair(thr_id, trunk_id));
 	}
 }

@@ -46,10 +46,18 @@ namespace slicer {
 		bool happens_before(int i1, size_t j1, int i2, size_t j2) const;
 		/**
 		 * Returns all trunks that are concurrent with the given trunk. 
+		 * We guarantee the output list doesn't contain duplicated items. 
 		 */
 		void get_concurrent_trunks(
 				const pair<int, size_t> &the_trunk,
 				vector<pair<int, size_t> > &concurrent_trunks) const;
+		/**
+		 * A region is a contiguous set of trunks. 
+		 * We guarantee the output regions don't overlap with each other. 
+		 */
+		void get_concurrent_regions(
+				const pair<int, size_t> &the_trunk,
+				vector<pair<int, pair<size_t, size_t> > > &concurrent_regions) const;
 		/* 
 		 * Returns the latest landmark in Thread <tid2> that must happen before
 		 * Trunk <trunk_id> in Thread <tid>. 

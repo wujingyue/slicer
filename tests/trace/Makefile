@@ -53,4 +53,4 @@ landmark-trace: $(LANDMARK_TRACES)
 clean:
 	rm -f *.trace *.trace.bc *.trace.s *.bc1 *.lt
 
-.PHONY: clean *.display
+.PHONY: clean landmark-trace *.display

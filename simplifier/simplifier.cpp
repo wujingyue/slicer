@@ -266,18 +266,54 @@ int DoOneIteration(Module *M) {
 
 	if (RunOptimizationPasses(M) == -1)
 		return -1;
-	
 	/*
 	 * Optimization passes seem to always change the module (maybe a bug
 	 * in LLVM 2.7), so we only look at whether the Reducer
 	 * has changed the module or not. 
 	 */
+
+	// Run the LoopSimplifier beforehand. 
+	// Otherwise, the PreReducer wouldn't be effective. 
+	PassManager PM;
+	PM.add(createLoopSimplifyPass());
+	PM.add(createVerifierPass());
+	PM.add(createLCSSAPass());
+	PM.add(createVerifierPass());
+	PM.run(*M);
+
+	// Run the PreReducer to aggresively hoist LoadInst's. 
 	vector<const PassInfo *> PIs;
+	if (const PassInfo *PI = Listener.getPreReducer()) {
+		PIs.push_back(PI);
+	} else {
+		errs() << "PreReducer hasn't been loaded.\n";
+		return -1;
+	}
+	if (RunPasses(M, PIs) == -1)
+		return -1;
+
+	// Aggressively unroll loops even if it contains function calls. 
+	PIs.clear();
+	if (const PassInfo *PI = Listener.getAggressiveLoopUnroll()) {
+		PIs.push_back(PI);
+	} else {
+		errs() << "AggressiveLoopUnroll hasn't been loaded.\n";
+		return -1;
+	}
+	if (RunPasses(M, PIs) == -1)
+		return -1;
+
+	// Run -O3 again to remove unnecessary instructions/BBs inserted
+	// by LoopSimplifier and LCSSA. 
+	if (RunOptimizationPasses(M) == -1)
+		return -1;
+
 	/*
 	 * Constantizer and BranchRemover require Iterate,
 	 * so don't worry about the Iterate. 
 	 * TODO: Order matters? 
 	 */
+	PIs.clear();
 	if (const PassInfo *PI = Listener.getReducer()) {
 		PIs.push_back(PI);
 	} else {
