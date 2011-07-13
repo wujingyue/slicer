@@ -46,6 +46,7 @@ namespace slicer {
 		void test_radix_nocrit_simple(const Module &M);
 		void test_radix_nocrit_common(const Module &M);
 		void test_test_loop_slice(const Module &M);
+		void test_test_loop_simple(const Module &M);
 	};
 }
 
@@ -92,11 +93,34 @@ bool IntTest::runOnModule(Module &M) {
 	test_radix_nocrit_slice(M);
 	test_radix_nocrit_simple(M);
 	test_test_loop_slice(M);
+	test_test_loop_simple(M);
 	return false;
 }
 
 static bool starts_with(const string &a, const string &b) {
 	return a.length() >= b.length() && a.compare(0, b.length(), b) == 0;
+}
+
+void IntTest::test_test_loop_simple(const Module &M) {
+	
+	if (Program != "test-loop.simple")
+		return;
+	TestBanner X("test-loop.simple");
+
+	unsigned n_printfs = 0;
+	forallconst(Module, f, M) {
+		forallconst(Function, bb, *f) {
+			forallconst(BasicBlock, ins, *bb) {
+				if (const CallInst *ci = dyn_cast<CallInst>(ins)) {
+					const Function *callee = ci->getCalledFunction();
+					if (callee && callee->getName() == "printf")
+						++n_printfs;
+				}
+			}
+		}
+	}
+	errs() << "There are " << n_printfs << " printf's.\n";
+	assert(n_printfs == 3);
 }
 
 void IntTest::test_test_loop_slice(const Module &M) {
