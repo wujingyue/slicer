@@ -13,9 +13,7 @@ using namespace std;
 
 static RegisterPass<LandmarkTraceBuilder> X(
 		"build-landmark-trace",
-		"Generates the landmark trace",
-		false,
-		true); // is analysis
+		"Generates the landmark trace");
 
 static cl::opt<string> LandmarkTraceFile(
 		"output-landmark-trace",

@@ -1,5 +1,5 @@
 PROG_NAMES = test-thread test-overwrite aget-nocrit FFT-nocrit RADIX-nocrit \
-	     test-loop
+	     test-loop test-reducer
 PROGS_DIR = ../progs
 TRACED_PROGS = $(PROG_NAMES:=.trace)
 LANDMARK_TRACES = $(PROG_NAMES:=.lt)

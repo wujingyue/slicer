@@ -17,6 +17,7 @@ using namespace llvm;
 #include "int/iterate.h"
 #include "int/capture.h"
 #include "int/solve.h"
+#include "int/adv-alias.h"
 #include "../include/test-banner.h"
 using namespace slicer;
 
@@ -47,6 +48,7 @@ namespace slicer {
 		void test_radix_nocrit_common(const Module &M);
 		void test_test_loop_slice(const Module &M);
 		void test_test_loop_simple(const Module &M);
+		void test_test_reducer_simple(const Module &M);
 	};
 }
 
@@ -70,6 +72,7 @@ void IntTest::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<Iterate>();
 	AU.addRequired<SolveConstraints>();
 	AU.addRequired<CaptureConstraints>();
+	AU.addRequired<AdvancedAlias>();
 #endif
 	ModulePass::getAnalysisUsage(AU);
 }
@@ -94,11 +97,47 @@ bool IntTest::runOnModule(Module &M) {
 	test_radix_nocrit_simple(M);
 	test_test_loop_slice(M);
 	test_test_loop_simple(M);
+	test_test_reducer_simple(M);
 	return false;
 }
 
 static bool starts_with(const string &a, const string &b) {
 	return a.length() >= b.length() && a.compare(0, b.length(), b) == 0;
+}
+
+void IntTest::test_test_reducer_simple(const Module &M) {
+
+	if (Program != "test-reducer.simple")
+		return;
+	TestBanner X("test-reducer.simple");
+
+	forallconst(Module, f, M) {
+		if (f->getName() != "main")
+			continue;
+		forallconst(Function, bb, *f) {
+			forallconst(BasicBlock, ins, *bb) {
+				if (const CallInst *ci = dyn_cast<CallInst>(ins)) {
+					const Function *callee = ci->getCalledFunction();
+					if (callee && callee->getName() == "printf") {
+						BasicBlock::const_iterator gep = ins;
+						for (gep = bb->begin(); gep != ins; ++gep) {
+							if (isa<GetElementPtrInst>(gep))
+								break;
+						}
+						assert(isa<GetElementPtrInst>(gep) &&
+								"Cannot find a GEP before the printf");
+						SolveConstraints &SC = getAnalysis<SolveConstraints>();
+						errs() << "GEP:" << *gep << "\n";
+						const IntegerType *int_type = IntegerType::get(M.getContext(), 32);
+						assert(SC.provable(
+									CmpInst::ICMP_SGT,
+									&gep->getOperandUse(1),
+									ConstantInt::get(int_type, 0)));
+					}
+				}
+			}
+		}
+	}
 }
 
 void IntTest::test_test_loop_simple(const Module &M) {
@@ -175,6 +214,33 @@ void IntTest::test_radix_nocrit_simple(const Module &M) {
 	TestBanner X("RADIX-nocrit.simple");
 
 	test_radix_nocrit_common(M);
+
+	// rank_me_mynum and rank_ff_mynum
+	vector<const Value *> ranks;
+	forallconst(Module, f, M) {
+		forallconst(Function, bb, *f) {
+			forallconst(BasicBlock, ins, *bb) {
+				if (ins->getOpcode() == Instruction::AShr) {
+					BasicBlock::const_iterator next = ins;
+					++next;
+					assert(isa<GetElementPtrInst>(next));
+					const GetElementPtrInst *gep = cast<GetElementPtrInst>(next);
+					ranks.push_back(gep->getOperand(0));
+				}
+			}
+		}
+	}
+	for (size_t i = 0; i < ranks.size(); ++i)
+		errs() << "rank " << i << ":" << *ranks[i] << "\n";
+
+	AdvancedAlias &AA = getAnalysis<AdvancedAlias>();
+	for (size_t i = 0; i < ranks.size(); ++i) {
+		for (size_t j = i + 1; j < ranks.size(); ++j) {
+			errs() << "Comparing ranks[" << i << "] and ranks[" << j << "]... ";
+			assert(AA.alias(ranks[i], 0, ranks[j], 0) == AliasAnalysis::NoAlias);
+			errs() << "Good\n";
+		}
+	}
 }
 
 void IntTest::test_radix_nocrit_common(const Module &M) {
@@ -204,12 +270,12 @@ void IntTest::test_radix_nocrit_common(const Module &M) {
 			const Value *local_id = NULL;
 			for (BasicBlock::const_iterator ins = start;
 					ins != f->getEntryBlock().end(); ++ins) {
-				if (ins->getOpcode() == Instruction::Add) {
+				if (ins->getOpcode() == Instruction::Store) {
 					local_id = ins->getOperand(0);
 					break;
 				}
 			}
-			assert(local_id && "Cannot find the Add instruction");
+			assert(local_id && "Cannot find the Store instruction");
 			errs() << "local_id in " << f->getName() << ": " << *local_id << "\n";
 			local_ids.push_back(local_id);
 		}

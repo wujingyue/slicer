@@ -1,5 +1,5 @@
 PROGS = test-thread test-path test-overwrite test-ctxt test-recursive \
-	test-branch test-loop
+	test-branch test-loop test-reducer
 BCS = $(PROGS:=.bc)
 
 CFLAGS = -g -Wall

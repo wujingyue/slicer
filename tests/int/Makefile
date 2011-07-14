@@ -8,7 +8,7 @@ CXXFLAGS += -I$(LLVM_ROOT) -I$(SLICER_ROOT) -I$(SLICER_ROOT)/stp/install/include
 
 PROG_NAMES = aget-nocrit.simple test-overwrite.slice FFT-nocrit.slice \
 	     FFT-nocrit.simple RADIX-nocrit.simple test-loop.slice \
-	     test-loop.simple
+	     test-loop.simple test-reducer.simple
 PROGS_DIR = ../progs
 
 run:: $(PROG_NAMES)
