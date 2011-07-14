@@ -39,8 +39,8 @@ namespace slicer {
 		ObjectID &OI = getAnalysis<ObjectID>();
 		BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
 		// AliasAnalysis &BAA = getAnalysis<AliasAnalysis>();
-		const Value *v1 = OI.getValue(2670);
-		const Value *v2 = OI.getValue(3296);
+		const Value *v1 = OI.getValue(1665);
+		const Value *v2 = OI.getValue(3599);
 		assert(v1 && v2);
 		errs() << *v1 << "\n" << *v2 << "\n";
 		errs() << BAA.alias(v1, 0, v2, 0) << "\n";
@@ -52,9 +52,5 @@ namespace slicer {
 
 namespace {
 
-	static RegisterPass<slicer::TestAlias> X(
-			"test-alias",
-			"Test aliasing",
-			false,
-			false);
+	static RegisterPass<slicer::TestAlias> X("test-alias", "Test aliasing");
 }

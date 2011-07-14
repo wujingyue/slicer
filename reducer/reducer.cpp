@@ -67,8 +67,15 @@ bool Reducer::constantize(Module &M) {
 			++VariablesConstantized;
 			errs() << "=== replacing with a constant ===\n";
 		}
+		// FIXME: Integer types in the solver may not be consistent with there
+		// real types. Therefore, we create new ConstantInt's with respect to
+		// the correct integer types. 
 		for (size_t j = 0; j < local.size(); ++j) {
-			local[j]->set(to_replace[i].second);
+			const IntegerType *int_type =
+				dyn_cast<IntegerType>(local[j]->get()->getType());
+			// Signed values. 
+			int64_t svalue = to_replace[i].second->getSExtValue();
+			local[j]->set(ConstantInt::get(int_type, svalue, true));
 			changed = true;
 		}
 	}
