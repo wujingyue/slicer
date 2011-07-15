@@ -6,6 +6,7 @@
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/ADT/DenseSet.h"
+#include "llvm/Support/Debug.h"
 #include "common/include/util.h"
 #include "common/callgraph-fp/callgraph-fp.h"
 using namespace llvm;
@@ -76,7 +77,7 @@ bool PreReducer::runOnLoop(Loop *L, LPPassManager &LPM) {
 		// Promote to_promote[i] to <preheader>. 
 		// Copied from LICM.cpp, around Line 607. 
 		Instruction *ins = to_promote[i];
-		errs() << "=== Promoting " << *ins << " ===\n";
+		dbgs() << "=== Promoting " << *ins << " ===\n";
 		ins->removeFromParent();
 		preheader->getInstList().insert(preheader->getTerminator(), ins);
 	}

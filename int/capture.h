@@ -111,6 +111,8 @@ namespace slicer {
 		Instruction *get_idom_ip(Instruction *ins);
 		// Check if any instruction between <i1> and <i2> may write to <q>. 
 		// <i1> must dominate <i2>, and they are in the same function. 
+		// We don't consider <i1> and <i2> in the path, i.e. the path is an
+		// exclusive region (i1, i2). 
 		bool path_may_write(
 				const Instruction *i1, const Instruction *i2, const Value *q);
 		// Check if instruction <i> may write to <q>. 
@@ -133,6 +135,9 @@ namespace slicer {
 		void simplify_constraints();
 		void stat(Module &M);
 		void setup(Module &M);
+		/**
+		 * Make sure clone info is available for all enforcing landmarks. 
+		 */
 		void check_clone_info(Module &M);
 
 #if 0

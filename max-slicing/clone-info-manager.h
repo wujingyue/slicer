@@ -72,16 +72,24 @@ namespace slicer {
 				const Instruction *ins,
 				vector<pair<int, size_t> > &containing_trunks) const;
 		bool has_clone_info(const Instruction *ins) const;
-		/*
+		/**
 		 * Assertion failure if the instruction does not have any clone info. 
 		 * Call <has_clone_info> beforehand. 
 		 */
 		CloneInfo get_clone_info(const Instruction *ins) const;
-		/*
+		/**
 		 * Returns NULL if cannot find such clone_info. 
 		 */
 		Instruction *get_instruction(
 				int thr_id, size_t trunk_id, unsigned orig_ins_id) const;
+		/**
+		 * Returns any instruction in Thread <thr_id>. 
+		 * Returns NULL if not found. 
+		 *
+		 * TODO: The current implementation scans through the entire <rmap>. 
+		 * Pretty slow. Don't use it frequently. 
+		 */
+		Instruction *get_any_instruction(int thr_id) const;
 
 	private:
 		/*

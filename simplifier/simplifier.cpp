@@ -257,6 +257,50 @@ int RunPasses(Module *M, const vector<const PassInfo *> &PIs) {
 	return (Changed ? 1 : 0);
 }
 
+int OutputModule(Module *M, const string &FileName) {
+
+	raw_ostream *Out = &outs();  // Default to printing to stdout...
+	if (FileName != "-") {
+		string ErrorInfo;
+		Out = new raw_fd_ostream(
+				FileName.c_str(), ErrorInfo, raw_fd_ostream::F_Binary);
+		if (!ErrorInfo.empty()) {
+			errs() << ErrorInfo << '\n';
+			delete Out;
+			Out = NULL;
+			return -1;
+		}
+	}
+
+	PassManager Passes;
+
+	// Add an appropriate TargetData instance for this module...
+	TargetData *TD = 0;
+	const string &ModuleDataLayout = M->getDataLayout();
+	if (!ModuleDataLayout.empty())
+		TD = new TargetData(ModuleDataLayout);
+	if (TD)
+		Passes.add(TD);
+	
+	// Write bitcode or assembly out to disk or outs() as the last step...
+	if (!Out) {
+		errs() << "The output stream is not created.\n";
+		return -1;
+	}
+	AddPass(Passes, createBitcodeWriterPass(*Out));
+	
+	// Now that we have all of the passes ready, run them.
+	Passes.run(*M);
+
+	// Delete the raw_fd_ostream. 
+	if (Out != &outs()) {
+		delete Out;
+		Out = NULL;
+	}
+
+	return 0;
+}
+
 /*
  * Returns -1 on failure. 
  * Returns 1 if <M> gets changed. 
@@ -308,6 +352,12 @@ int DoOneIteration(Module *M) {
 	if (RunOptimizationPasses(M) == -1)
 		return -1;
 
+	// As a side effect of PrintAfterEachIteration, print the module before
+	// the integer constraint solving. 
+	if (PrintAfterEachIteration) {
+		if (OutputModule(M, "before-reducer.bc") == -1)
+			return -1;
+	}
 	/*
 	 * Constantizer and BranchRemover require Iterate,
 	 * so don't worry about the Iterate. 
@@ -321,50 +371,6 @@ int DoOneIteration(Module *M) {
 		return -1;
 	}
 	return RunPasses(M, PIs);
-}
-
-int OutputModule(Module *M, const string &FileName) {
-
-	raw_ostream *Out = &outs();  // Default to printing to stdout...
-	if (FileName != "-") {
-		string ErrorInfo;
-		Out = new raw_fd_ostream(
-				FileName.c_str(), ErrorInfo, raw_fd_ostream::F_Binary);
-		if (!ErrorInfo.empty()) {
-			errs() << ErrorInfo << '\n';
-			delete Out;
-			Out = NULL;
-			return -1;
-		}
-	}
-
-	PassManager Passes;
-
-	// Add an appropriate TargetData instance for this module...
-	TargetData *TD = 0;
-	const string &ModuleDataLayout = M->getDataLayout();
-	if (!ModuleDataLayout.empty())
-		TD = new TargetData(ModuleDataLayout);
-	if (TD)
-		Passes.add(TD);
-	
-	// Write bitcode or assembly out to disk or outs() as the last step...
-	if (!Out) {
-		errs() << "The output stream is not created.\n";
-		return -1;
-	}
-	AddPass(Passes, createBitcodeWriterPass(*Out));
-	
-	// Now that we have all of the passes ready, run them.
-	Passes.run(*M);
-
-	// Delete the raw_fd_ostream. 
-	if (Out != &outs()) {
-		delete Out;
-		Out = NULL;
-	}
-
-	return 0;
 }
 
 int main(int argc, char *argv[]) {

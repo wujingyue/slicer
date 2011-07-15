@@ -17,9 +17,6 @@ all: $(SIMPLE_BCS)
 $(PROGS_DIR)/%.simple.bc: $(PROGS_DIR)/%.slice.bc ../trace/%.lt
 	simplifier -o $@ -input-landmark-trace $(word 2, $^) -p < $<
 
-%.slice.bc: %.bc
-	cp $< $@
-
 %.s: %.bc
 	llc $< -o $@
 # pthread may not always be necessary, but does no harm

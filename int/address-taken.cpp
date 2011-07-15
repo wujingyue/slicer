@@ -6,6 +6,7 @@
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/DominatorInternals.h"
 #include "llvm/Support/Timer.h"
+#include "llvm/Support/Debug.h"
 #include "config.h"
 #include "idm/mbb.h"
 #include "common/callgraph-fp/callgraph-fp.h"
@@ -201,10 +202,8 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 	}
 	assert(cur_trunk_id < LT.get_n_trunks(cur_thr_id));
 
-#if 0
-	errs() << "capture_overwriting_to: " << cur_thr_id << ' ' <<
+	dbgs() << "capture_overwriting_to: " << cur_thr_id << ' ' <<
 		cur_trunk_id << ":" << *i2 << "\n";
-#endif
 
 	vector<int> thr_ids = LT.get_thr_ids();
 	vector<Instruction *> latest_doms(thr_ids.size(), NULL);
@@ -255,7 +254,18 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 			}
 		}
 		if (s == (size_t)-1) {
-			errs() << "Cannot find containing trunks:" << *i1 << "\n";
+			errs() << "current thread = " << thr_ids[k] << "\n";
+			errs() << "latest_dom:" << *latest_doms[k] << "\n";
+			errs() << "latest_overwriter:" << *i1 << "\n";
+			if (CIM.has_clone_info(i1)) {
+				CloneInfo ci = CIM.get_clone_info(i1);
+				errs() << ci.thr_id << ' ' << ci.trunk_id << ' ' <<
+					ci.orig_ins_id << "\n";
+			}
+			for (size_t t = 0; t < containing_trunks.size(); ++t) {
+				errs() << containing_trunks[t].first << ' ' <<
+					containing_trunks[t].second << "\n";
+			}
 		}
 		assert(s != (size_t)-1);
 		overwriter_trunks[k] = make_pair(s, e);

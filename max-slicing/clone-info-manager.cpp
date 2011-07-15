@@ -94,3 +94,12 @@ Instruction *CloneInfoManager::get_instruction(
 	ci.orig_ins_id = orig_ins_id;
 	return rmap.lookup(ci);
 }
+
+Instruction *CloneInfoManager::get_any_instruction(int thr_id) const {
+	for (DenseMap<CloneInfo, Instruction *>::const_iterator it = rmap.begin();
+			it != rmap.end(); ++it) {
+		if (it->first.thr_id == thr_id)
+			return it->second;
+	}
+	return NULL;
+}
