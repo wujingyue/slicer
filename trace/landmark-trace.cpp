@@ -67,6 +67,11 @@ const LandmarkTraceRecord &LandmarkTrace::get_landmark(
 void LandmarkTrace::extend_until_enforce(
 		int thr_id, size_t &s, size_t &e) const {
 	assert(s <= e);
+	if (e >= get_n_trunks(thr_id)) {
+		errs() << "thr_id = " << thr_id << "\n";
+		errs() << "# of trunks = " << get_n_trunks(thr_id) << "\n";
+		errs() << "trunk id = " << e << "\n";
+	}
 	assert(e < get_n_trunks(thr_id));
 	while (s > 0) {
 		if (is_enforcing_landmark(thr_id, s))

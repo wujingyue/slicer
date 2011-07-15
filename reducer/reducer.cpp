@@ -71,13 +71,11 @@ bool Reducer::constantize(Module &M) {
 		for (size_t j = 0; j < local.size(); ++j) {
 			const IntegerType *int_type =
 				dyn_cast<IntegerType>(local[j]->get()->getType());
-#if 0
 			// FIXME: This is a quick hack to prevent the constantizer from
 			// replacing branch conditions so as to keep BranchInsts. 
 			// A better way should be annotating constants. 
 			if (int_type->getBitWidth() == 1)
 				continue;
-#endif
 			// Signed values. 
 			int64_t svalue = to_replace[i].second->getSExtValue();
 			local[j]->set(ConstantInt::get(int_type, svalue, true));

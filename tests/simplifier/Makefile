@@ -15,7 +15,7 @@ all: $(SIMPLE_BCS)
 # We use -o whenever possible, because <simplifier> will remove the output
 # file on failure. 
 $(PROGS_DIR)/%.simple.bc: $(PROGS_DIR)/%.slice.bc ../trace/%.lt
-	simplifier -o $@ -input-landmark-trace $(word 2, $^) < $<
+	simplifier -o $@ -input-landmark-trace $(word 2, $^) -p < $<
 
 %.slice.bc: %.bc
 	cp $< $@
@@ -26,6 +26,10 @@ $(PROGS_DIR)/%.simple.bc: $(PROGS_DIR)/%.slice.bc ../trace/%.lt
 # Also, most of our test programs are multi-threaded
 %: %.s
 	$(CXX) $< -o $@ -pthread
+
+# LLVM disassembly
+%.ll: %.bc
+	llvm-dis $<
 
 clean:
 	rm -f $(SIMPLE_BCS) $(SIMPE_PROGS)

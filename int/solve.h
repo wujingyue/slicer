@@ -96,6 +96,9 @@ namespace slicer {
 		void update_appeared(ConstValueSet &appeared, const Clause *c);
 		void update_appeared(ConstValueSet &appeared, const BoolExpr *be);
 		void update_appeared(ConstValueSet &appeared, const Expr *e);
+		bool contains_only_consts(const Clause *c);
+		bool contains_only_consts(const BoolExpr *be);
+		bool contains_only_consts(const Expr *e);
 #if 0
 		/**
 		 * Returns whether the clause only contains ConstantInt's. 

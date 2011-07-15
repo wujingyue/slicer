@@ -55,6 +55,9 @@ CloneInfo CloneInfoManager::get_clone_info(const Instruction *ins) const {
 	ci.thr_id = dyn_cast<ConstantInt>(node->getOperand(0))->getSExtValue();
 	ci.trunk_id = dyn_cast<ConstantInt>(node->getOperand(1))->getZExtValue();
 	ci.orig_ins_id = dyn_cast<ConstantInt>(node->getOperand(2))->getZExtValue();
+	assert(ci.thr_id >= 0);
+	assert(ci.trunk_id != (size_t)-1);
+	assert(ci.orig_ins_id != IDManager::INVALID_ID);
 	return ci;
 }
 

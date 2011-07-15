@@ -69,6 +69,7 @@ char IntTest::ID = 0;
 void IntTest::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
 #ifndef IDENTIFY_ONLY
+	AU.addRequired<ObjectID>();
 	AU.addRequired<Iterate>();
 	AU.addRequired<SolveConstraints>();
 	AU.addRequired<CaptureConstraints>();
@@ -233,10 +234,22 @@ void IntTest::test_radix_nocrit_simple(const Module &M) {
 	for (size_t i = 0; i < ranks.size(); ++i)
 		errs() << "rank " << i << ":" << *ranks[i] << "\n";
 
+	// SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	AdvancedAlias &AA = getAnalysis<AdvancedAlias>();
+	// ObjectID &OI = getAnalysis<ObjectID>();
 	for (size_t i = 0; i < ranks.size(); ++i) {
 		for (size_t j = i + 1; j < ranks.size(); ++j) {
 			errs() << "Comparing ranks[" << i << "] and ranks[" << j << "]... ";
+#if 0
+			const IntegerType *int_type = IntegerType::get(M.getContext(), 32);
+			assert(SC.provable(
+						CmpInst::ICMP_SGE, OI.getValue(74), ConstantInt::get(int_type, 1)));
+			assert(SC.provable(
+						CmpInst::ICMP_SGT, OI.getValue(255), ConstantInt::get(int_type, 0)));
+			assert(SC.provable(
+						CmpInst::ICMP_NE, OI.getValue(256), ConstantInt::get(int_type, 16)));
+			assert(SC.provable(CmpInst::ICMP_NE, ranks[i], ranks[j]));
+#endif
 			assert(AA.alias(ranks[i], 0, ranks[j], 0) == AliasAnalysis::NoAlias);
 			errs() << "Good\n";
 		}

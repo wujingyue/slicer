@@ -32,6 +32,7 @@
 #include "llvm/LinkAllVMCore.h"
 using namespace llvm;
 
+#include <cstdio>
 #include <memory>
 #include <algorithm>
 #include <sstream>
@@ -43,7 +44,6 @@ using namespace std;
 using namespace slicer;
 
 static SimplifierListener Listener;
-static raw_ostream *Out = NULL;
 
 /**
  * Use this option instead of printing to stdout. 
@@ -55,6 +55,9 @@ static cl::opt<string> OutputFilename(
 		cl::desc("Override output filename"),
 		cl::value_desc("filename"),
 		cl::init("-"));
+static cl::opt<bool> PrintAfterEachIteration(
+		"p",
+		cl::desc("Print module after each iteration"));
 
 void AddPass(PassManager &PM, Pass *P) {
 	PM.add(P);
@@ -120,7 +123,7 @@ int LoadPlugins() {
 	Loader = LibDir + "/libmax-slicing.so";
 	Loader = LibDir + "/libint.so";
 	Loader = LibDir + "/libreducer.so";
-	errs() << "# of plugins = " << Loader.getNumPlugins() << "\n";
+	DEBUG(dbgs() << "# of plugins = " << Loader.getNumPlugins() << "\n";);
 	return 0;
 }
 
@@ -139,22 +142,19 @@ int Setup(int argc, char *argv[]) {
 	cl::ParseCommandLineOptions(
 			argc, argv, "Iteratively simplifies a max-sliced program\n");
 
-	Out = &outs();  // Default to printing to stdout...
-	if (OutputFilename != "-") {
-		// Make sure that the Output file gets unlinked from the disk
-		// if we get a SIGINT.
-		sys::RemoveFileOnSignal(sys::Path(OutputFilename));
-
-		string ErrorInfo;
-		Out = new raw_fd_ostream(OutputFilename.c_str(), ErrorInfo,
-				raw_fd_ostream::F_Binary);
-		if (!ErrorInfo.empty()) {
-			errs() << ErrorInfo << '\n';
-			delete Out;
-			Out = NULL;
-			return -1;
-		}
+	// Remove previous intermediate files. 
+	for (int IterNo = 1; ; ++IterNo) {
+		ostringstream OSS;
+		OSS << "iter-" << IterNo << ".bc";
+		if (remove(OSS.str().c_str()) == -1)
+			break;
+		DEBUG(dbgs() << "Removed " << OSS.str() << "\n";);
 	}
+
+	// Make sure that the Output file gets unlinked from the disk
+	// if we get a SIGINT.
+	sys::RemoveFileOnSignal(sys::Path(OutputFilename));
+
 	return 0;
 }
 
@@ -323,7 +323,20 @@ int DoOneIteration(Module *M) {
 	return RunPasses(M, PIs);
 }
 
-int OutputModule(Module *M) {
+int OutputModule(Module *M, const string &FileName) {
+
+	raw_ostream *Out = &outs();  // Default to printing to stdout...
+	if (FileName != "-") {
+		string ErrorInfo;
+		Out = new raw_fd_ostream(
+				FileName.c_str(), ErrorInfo, raw_fd_ostream::F_Binary);
+		if (!ErrorInfo.empty()) {
+			errs() << ErrorInfo << '\n';
+			delete Out;
+			Out = NULL;
+			return -1;
+		}
+	}
 
 	PassManager Passes;
 
@@ -373,34 +386,51 @@ int main(int argc, char *argv[]) {
 	if (!M)
 		return 1;
 
-	int Changed;
-	int IterNo = 0;
 
 	TimerGroup TG("Simplifier");
 	vector<Timer *> Tmrs;
-	do {
-		++IterNo;
+	bool Failed = false;
+	
+	for (int IterNo = 1; ; ++IterNo) {
+		
 		ostringstream OSS;
 		OSS << "Iteration " << IterNo;
 		Timer *TmrIter = new Timer(OSS.str(), TG);
 		Tmrs.push_back(TmrIter);
 		TmrIter->startTimer();
 		errs() << "=== Starting Iteration " << IterNo << "... ===\n";
-		Changed = DoOneIteration(M);
+		int Changed = DoOneIteration(M);
 		errs() << "=== Iteration " << IterNo << " finished. ===\n";
 		TmrIter->stopTimer();
-		// Break this loop on failure or when the module
-		// cannot be changed any more.
-	} while (Changed == 1);
+		
+		if (Changed == -1) {
+			Failed = true;
+			break;
+		}
+
+		if (Changed == 0)
+			break;
+		
+		// Print the module after each iteration. 
+		if (PrintAfterEachIteration) {
+			OSS.str(""); // Reset OSS.
+			OSS << "iter-" << IterNo << ".bc";
+			if (OutputModule(M, OSS.str()) == -1) {
+				Failed = true;
+				break;
+			}
+		}
+	}
+
 	for (size_t i = 0; i < Tmrs.size(); ++i)
 		delete Tmrs[i];
 
-	if (Changed == -1) {
+	if (Failed) {
 		delete M;
 		return 1;
 	}
 
-	if (OutputModule(M) == -1) {
+	if (OutputModule(M, OutputFilename) == -1) {
 		delete M;
 		return 1;
 	}

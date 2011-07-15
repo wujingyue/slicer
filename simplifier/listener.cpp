@@ -1,4 +1,5 @@
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/Debug.h"
 using namespace llvm;
 
 #include "config.h"
@@ -6,9 +7,7 @@ using namespace llvm;
 using namespace slicer;
 
 void SimplifierListener::passRegistered(const PassInfo *P) {
-#ifdef VERBOSE
-	errs() << "Pass " << P->getPassArgument() << " registered\n";
-#endif
+	DEBUG(dbgs() << "Pass " << P->getPassArgument() << " registered\n";);
 	if (strcmp(P->getPassArgument(), "pre-reduce") == 0)
 		PreReducer = P;
 	if (strcmp(P->getPassArgument(), "reduce") == 0)

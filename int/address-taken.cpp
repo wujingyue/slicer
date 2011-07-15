@@ -246,6 +246,7 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 		}
 		vector<pair<int, size_t> > containing_trunks;
 		CIM.get_containing_trunks(i1, containing_trunks);
+		assert(containing_trunks.size() > 0);
 		size_t s = (size_t)-1, e = 0;
 		for (size_t t = 0; t < containing_trunks.size(); ++t) {
 			if (containing_trunks[t].first == thr_ids[k]) {
@@ -253,6 +254,10 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 				e = max(e, containing_trunks[t].second);
 			}
 		}
+		if (s == (size_t)-1) {
+			errs() << "Cannot find containing trunks:" << *i1 << "\n";
+		}
+		assert(s != (size_t)-1);
 		overwriter_trunks[k] = make_pair(s, e);
 	}
 

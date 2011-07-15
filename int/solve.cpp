@@ -540,6 +540,12 @@ bool SolveConstraints::satisfiable(
 	for (size_t i = 0; i < more_clauses.size(); ++i) {
 		Clause *c = more_clauses[i]->clone();
 		replace_with_root(c);
+		// OPT: if in the format of v0 == v0, then must be true. 
+		const Value *v1 = NULL, *v2 = NULL;
+		if (is_simple_eq(c, &v1, &v2) && v1 == v2) {
+			delete c;
+			continue;
+		}
 		vc_assertFormula(vc, translate_to_vc(c));
 		delete c;
 	}
@@ -549,15 +555,54 @@ bool SolveConstraints::satisfiable(
 	return ret == 0;
 }
 
+bool SolveConstraints::contains_only_consts(const Clause *c) {
+	if (c->be)
+		return contains_only_consts(c->be);
+	return contains_only_consts(c->c1) && contains_only_consts(c->c2);
+}
+
+bool SolveConstraints::contains_only_consts(const BoolExpr *be) {
+	return contains_only_consts(be->e1) && contains_only_consts(be->e2);
+}
+
+bool SolveConstraints::contains_only_consts(const Expr *e) {
+	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
+	if (e->type == Expr::SingleDef)
+		return CC.is_constant(e->v);
+	if (e->type == Expr::SingleUse)
+		return CC.is_constant(e->u->get());
+	if (e->type == Expr::Unary)
+		return contains_only_consts(e->e1);
+	if (e->type == Expr::Binary)
+		return contains_only_consts(e->e1) && contains_only_consts(e->e2);
+	assert_not_supported();
+}
+
 bool SolveConstraints::provable(
 		const vector<const Clause *> &more_clauses) {
 	vc_push(vc);
-	forallconst(vector<const Clause *>, it, more_clauses)
+	forallconst(vector<const Clause *>, it, more_clauses) {
+		if (!contains_only_consts(*it)) {
+			vc_pop(vc);
+			return false;
+		}
 		realize(*it);
+	}
 	VCExpr conj = vc_trueExpr(vc);
 	forallconst(vector<const Clause *>, it, more_clauses) {
 		Clause *c = (*it)->clone();
 		replace_with_root(c);
+		const Value *v1 = NULL, *v2 = NULL;
+		// OPT: If is in the format of v0 == v0, then must be true.
+		if (is_simple_eq(c, &v1, &v2) && v1 == v2) {
+			delete c;
+			continue;
+		}
+#if 1
+		errs() << "Proving: ";
+		print_clause(errs(), c, getAnalysis<ObjectID>());
+		errs() << "\n";
+#endif
 		conj = vc_andExpr(vc, conj, translate_to_vc(c));
 		delete c;
 	}
@@ -697,7 +742,6 @@ void SolveConstraints::avoid_overflow(
 			 * Therefore, we extend the operands to 64-bit integers, and check
 			 * whether the product is really out of range. 
 			 */
-#if 0
 			// left >= 0, right >= 0, left * right <= oo
 			{
 				vc_assertFormula(vc, vc_sbvGeExpr(vc, left, vc_zero(vc)));
@@ -708,6 +752,7 @@ void SolveConstraints::avoid_overflow(
 				vc_assertFormula(
 						vc, vc_sbvLeExpr(vc, long_product, vc_int_max_64(vc)));
 			}
+#if 0
 			// left > 0 => right <= oo / left
 			vc_assertFormula(
 					vc,
@@ -739,6 +784,11 @@ void SolveConstraints::avoid_overflow(
 		case Instruction::SRem:
 			// TODO: assume the divisor > 0
 			vc_assertFormula(vc, vc_sbvGtExpr(vc, right, vc_zero(vc)));
+			break;
+		case Instruction::Shl:
+			// (left << right) <= oo ==> left <= (oo >> right)
+			vc_assertFormula(vc, vc_sbvLeExpr(vc, left, vc_bvVar32RightShiftExpr(
+							vc, right, vc_int_max(vc))));
 			break;
 	}
 }
