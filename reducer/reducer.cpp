@@ -11,13 +11,14 @@
 #include "llvm/LLVMContext.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/ADT/Statistic.h"
+#include "common/include/util.h"
 using namespace llvm;
 
 #include "reducer.h"
-#include "../int/iterate.h"
-#include "../int/capture.h"
-#include "../int/solve.h"
-#include "../max-slicing/max-slicing.h"
+#include "int/iterate.h"
+#include "int/capture.h"
+#include "int/solve.h"
+#include "max-slicing/max-slicing.h"
 using namespace slicer;
 
 static RegisterPass<Reducer> X(

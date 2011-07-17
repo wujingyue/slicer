@@ -87,9 +87,6 @@ bool PreReducer::runOnLoop(Loop *L, LPPassManager &LPM) {
 
 bool PreReducer::should_promote(LoadInst *li, Loop *L) {
 
-	CloneInfoManager &CIM = getAnalysis<CloneInfoManager>();
-	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
-
 	Value *p = li->getPointerOperand();
 	// TODO: For performance sake, we work on global variables only. 
 	if (!isa<GlobalVariable>(p))
@@ -99,43 +96,7 @@ bool PreReducer::should_promote(LoadInst *li, Loop *L) {
 	if (may_write(L, p))
 		return false;
 	
-	// Check whether concurrent regions may write to <p>. 
-	vector<pair<int, size_t> > containing_trunks;
-	CIM.get_containing_trunks(li, containing_trunks);
-	DenseSet<pair<int, pair<size_t, size_t> > > concurrent_regions;
-	for (size_t i = 0; i < containing_trunks.size(); ++i) {
-		vector<pair<int, pair<size_t, size_t> > > local_concurrent_regions;
-		LT.get_concurrent_regions(
-				containing_trunks[i], local_concurrent_regions);
-		concurrent_regions.insert(
-				local_concurrent_regions.begin(),
-				local_concurrent_regions.end());
-	}
-	// The start and the end of a region must be an enforcing landmark. 
-	for (DenseSet<pair<int, pair<size_t, size_t> > >::iterator
-			it = concurrent_regions.begin();
-			it != concurrent_regions.end(); ++it) {
-		int thr_id = it->first;
-		size_t s_tr = it->second.first;
-		size_t e_tr = it->second.second;
-		if (e_tr + 1 < LT.get_n_trunks(thr_id))
-			++e_tr;
-		unsigned s_ins_id = LT.get_landmark(thr_id, s_tr).ins_id;
-		unsigned e_ins_id = LT.get_landmark(thr_id, e_tr).ins_id;
-		Instruction *s_ins = CIM.get_instruction(thr_id, s_tr, s_ins_id);
-		Instruction *e_ins = CIM.get_instruction(thr_id, e_tr, e_ins_id);
-		/*
-		 * The start and the end of a region must be enforcing landmarks
-		 * with exception of the start and the end of a thread. 
-		 * In that case, <s_tr> must be the first trunk and
-		 * <e_tr> must be the last trunk. 
-		 */
-		assert((s_ins || s_tr == 0) && "Cannot find the cloned landmark");
-		assert((e_ins || e_tr + 1 == LT.get_n_trunks(thr_id)) &&
-				"Cannot find the cloned landmarks");
-		if (path_may_write(s_ins, e_ins, p))
-			return false;
-	} // for concurrent regions
+	// TODO: Check concurrent regions. 
 	return true;
 }
 

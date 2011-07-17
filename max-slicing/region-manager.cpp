@@ -25,7 +25,7 @@ static RegisterPass<RegionManager> X(
 char RegionManager::ID = 0;
 
 void RegionManager::getAnalysisUsage(AnalysisUsage &AU) const {
-	AU.setPreservesCFG();
+	AU.setPreservesAll();
 	AU.addRequired<CloneInfoManager>();
 	AU.addRequired<LandmarkTrace>();
 	AU.addRequired<MicroBasicBlockBuilder>();

@@ -6,7 +6,9 @@
 
 #include "llvm/LLVMContext.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/Support/CallSite.h"
 #include "idm/id.h"
+#include "common/include/util.h"
 using namespace llvm;
 
 #include "trace.h"
