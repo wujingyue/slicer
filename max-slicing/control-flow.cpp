@@ -540,3 +540,12 @@ void MaxSlicing::move_on(
 		}
 	}
 }
+
+bool MaxSlicing::is_sliced(const Function *f) {
+	// The main function is a little special. 
+	// Function main is the cloned function, and function main.OLDMAIN is
+	// the original function. 
+	if (is_main(f))
+		return true;
+	return f->getNameStr().find(SLICER_SUFFIX) != string::npos;
+}

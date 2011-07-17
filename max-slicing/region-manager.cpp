@@ -5,12 +5,14 @@
 #include "llvm/Support/Debug.h"
 #include "common/cfg/partial-icfg-builder.h"
 #include "common/cfg/reach.h"
+#include "common/callgraph-fp/callgraph-fp.h"
 #include "idm/mbb.h"
 using namespace llvm;
 
 #include "region-manager.h"
 #include "clone-info-manager.h"
-#include "../trace/landmark-trace.h"
+#include "max-slicing.h"
+#include "trace/landmark-trace.h"
 using namespace slicer;
 
 static RegisterPass<RegionManager> X(
@@ -28,6 +30,7 @@ void RegionManager::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<LandmarkTrace>();
 	AU.addRequired<MicroBasicBlockBuilder>();
 	AU.addRequired<PartialICFGBuilder>();
+	AU.addRequiredTransitive<CallGraphFP>();
 	ModulePass::getAnalysisUsage(AU);
 }
 
@@ -66,6 +69,17 @@ bool RegionManager::runOnModule(Module &M) {
 		mark_region(
 				prev_enforcing_landmark, NULL, i, prev_enforcing_trunk_id, (size_t)-1);
 	}
+
+	// Check the completeness of region info. 
+	forallinst(M, ins) {
+		if (!ins_region.count(ins)) {
+			BasicBlock *bb = ins->getParent();
+			Function *f = bb->getParent();
+			if (!(MaxSlicing::is_unreachable(bb) || !MaxSlicing::is_sliced(f)))
+				errs() << *ins << "\n";
+			assert(MaxSlicing::is_unreachable(bb) || !MaxSlicing::is_sliced(f));
+		}
+	}
 	return true;
 }
 
@@ -103,9 +117,9 @@ void RegionManager::mark_region(
 		DenseSet<const ICFGNode *> sink, visited_backwards;
 		sink.insert(fake_root);
 		IR.floodfill_r(node, sink, visited_backwards);
+		visited_backwards.erase(fake_root);
 		visited.insert(visited_backwards.begin(), visited_backwards.end());
 		// We cannot actually reach the fake root. 
-		visited.erase(fake_root);
 		
 		// We need find all nodes connected with <node>. 
 		// TODO: Could be much faster if we had an interface to floodfill
@@ -140,8 +154,9 @@ void RegionManager::mark_region(
 		}
 	}
 
-	dbgs() << "# of visited MBBs = " << visited.size() << "\n";
-	assert(!visited.count(fake_root) && "The fake root should be removed");
+	DEBUG(dbgs() << "# of visited MBBs = " << visited.size() << "\n";);
+	assert(!visited.count(fake_root) &&
+			"The fake root should have been removed.");
 	forall(DenseSet<const ICFGNode *>, it, visited) {
 		assert(*it);
 		const MicroBasicBlock *mbb = (*it)->getMBB();
@@ -153,15 +168,51 @@ void RegionManager::mark_region(
 		if (mbb == MBBB.parent(e_ins))
 			e = e_ins;
 		for (BasicBlock::const_iterator i = s; i != e; ++i) {
+			// Unreachable BBs are added by MaxSlicing. 
+			// They don't belong to any region. 
+			if (MaxSlicing::is_unreachable(i->getParent()))
+				continue;
 			Region r;
 			r.thr_id = thr_id;
 			r.prev_enforcing_landmark = s_tr;
 			r.next_enforcing_landmark = e_tr;
+			assert(!ins_region.count(i));
 			ins_region[i] = r;
 		}
 	}
 }
 
-Region RegionManager::get_region(const Instruction *ins) const {
-	return ins_region.lookup(ins);
+void RegionManager::get_containing_regions(
+		const Instruction *ins, vector<Region> &regions) const {
+	regions.clear();
+	ConstInstSet visited;
+	search_containing_regions(ins, visited, regions);
+	sort(regions.begin(), regions.end());
+	regions.resize(unique(regions.begin(), regions.end()) - regions.begin());
+}
+
+void RegionManager::search_containing_regions(
+		const Instruction *ins,
+		ConstInstSet &visited,
+		vector<Region> &regions) const {
+	if (visited.count(ins))
+		return;
+	visited.insert(ins);
+	/*
+	 * If <ins> is in the sliced part, we take the region info right away. 
+	 * Otherwise, we trace back to the caller(s) of the containing function. 
+	 */
+	if (ins_region.count(ins)) {
+		regions.push_back(ins_region.lookup(ins));
+		return;
+	}
+	// Trace back via the callgraph
+	CallGraphFP &CG = getAnalysis<CallGraphFP>();
+	const Function *f = ins->getParent()->getParent();
+	InstList call_sites = CG.get_call_sites(f);
+	forall(InstList, it, call_sites)
+		search_containing_regions(*it, visited, regions);
+}
+
+void RegionManager::print(raw_ostream &O, const Module *M) const {
 }

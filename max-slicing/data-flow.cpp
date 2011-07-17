@@ -27,7 +27,7 @@ void MaxSlicing::redirect_program_entry(
 	Function *new_main = new_start->getParent()->getParent();
 	Function *old_main = old_start->getParent()->getParent();
 	StringRef old_main_name = old_main->getName();
-	old_main->setName(old_main_name + ".OLDMAIN");
+	old_main->setName(old_main_name + OLDMAIN_SUFFIX);
 	old_main->setLinkage(GlobalValue::InternalLinkage);
 	new_main->setName(old_main_name);
 }

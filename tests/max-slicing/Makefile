@@ -8,7 +8,7 @@ SLICED_BCS = $(SLICED_PROGS:=.bc)
 # We don't SLICED_PROGS by default. 
 all: $(SLICED_BCS)
 
-region: $(addsuffix .region.bc, $(PROG_NAMES))
+region: $(addsuffix .region, $(PROG_NAMES))
 
 # max-slicing requires ID information. 
 $(PROGS_DIR)/%.slice.bc: $(PROGS_DIR)/%-id.bc ../trace/%.lt
@@ -25,8 +25,8 @@ $(PROGS_DIR)/%.slice.bc: $(PROGS_DIR)/%-id.bc ../trace/%.lt
 		< $<
 
 # These BC's are not used by other modules, therefore put them here locally. 
-%.region.bc: $(PROGS_DIR)/%.slice.bc ../trace/%.lt
-	opt -o $@ \
+%.region: $(PROGS_DIR)/%.slice.bc ../trace/%.lt
+	opt -analyze \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
@@ -34,7 +34,7 @@ $(PROGS_DIR)/%.slice.bc: $(PROGS_DIR)/%-id.bc ../trace/%.lt
 		-load $(LLVM_ROOT)/install/lib/libcfg.so \
 		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
 		-load $(LLVM_ROOT)/install/lib/libmax-slicing.so \
-		-build-region \
+		-manage-region \
 		-input-landmark-trace $(word 2, $^) \
 		< $<
 
@@ -51,4 +51,4 @@ $(PROGS_DIR)/%.slice.bc: $(PROGS_DIR)/%-id.bc ../trace/%.lt
 clean:
 	rm -f $(SLICED_PROGS) $(SLICED_BCS)
 
-.PHONY: clean
+.PHONY: clean region *.region

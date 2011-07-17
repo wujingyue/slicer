@@ -27,6 +27,7 @@ using namespace std;
 namespace slicer {
 
 	const static string SLICER_SUFFIX = ".SLICER";
+	const static string OLDMAIN_SUFFIX = ".OLDMAIN";
 
 	struct MaxSlicing: public ModulePass {
 
@@ -60,6 +61,10 @@ namespace slicer {
 		 * Returns whether <bb> is one of the unreachable BBs we added. 
 		 */
 		static bool is_unreachable(const BasicBlock *bb);
+		/**
+		 * Returns whether the function is in the sliced part. 
+		 */
+		static bool is_sliced(const Function *f);
 		/**
 		 * Create an unreachable BB.
 		 * Used by MaxSlicing itself, and Reducer. 
