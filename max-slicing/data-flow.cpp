@@ -110,12 +110,7 @@ void MaxSlicing::fix_def_use_bb(Module &M) {
 							// This statement changes <fi> while we are still scanning
 							// <fi>, but it's fine because the BB list is simply a
 							// linked list.
-							BasicBlock *unreachable_bb = BasicBlock::Create(
-									getGlobalContext(), "unreachable" + SLICER_SUFFIX, fi);
-							// Insert an llvm.trap in the unreachable BB. 
-							Function *trap = Intrinsic::getDeclaration(&M, Intrinsic::trap);
-							CallInst::Create(trap, "", unreachable_bb);
-							new UnreachableInst(getGlobalContext(), unreachable_bb);
+							BasicBlock *unreachable_bb = create_unreachable(fi);
 							unreach_bbs[fi] = unreachable_bb;
 						}
 						ti->setSuccessor(j, unreach_bbs[fi]);
@@ -345,11 +340,23 @@ void MaxSlicing::link_thr_funcs(
 		const Trace &trace,
 		const vector<ThreadCreationRecord> &thr_cr_records) {
 	for (size_t i = 0, E = thr_cr_records.size(); i < E; ++i) {
-		link_thr_func(
-				M,
-				trace,
+		link_thr_func(M, trace,
 				thr_cr_records[i].parent_tid,
 				thr_cr_records[i].trunk_id,
 				thr_cr_records[i].child_tid);
 	}
+}
+
+bool MaxSlicing::is_unreachable(const BasicBlock *bb) {
+	return bb->getNameStr().find(SLICER_SUFFIX) != string::npos;
+}
+
+BasicBlock *MaxSlicing::create_unreachable(Function *f) {
+	BasicBlock *unreachable_bb = BasicBlock::Create(
+			f->getContext(), "unreachable" + SLICER_SUFFIX, f);
+	// Insert an llvm.trap in the unreachable BB. 
+	Function *trap = Intrinsic::getDeclaration(f->getParent(), Intrinsic::trap);
+	CallInst::Create(trap, "", unreachable_bb);
+	new UnreachableInst(getGlobalContext(), unreachable_bb);
+	return unreachable_bb;
 }

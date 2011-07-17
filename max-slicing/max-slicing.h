@@ -60,6 +60,11 @@ namespace slicer {
 		 * Returns whether <bb> is one of the unreachable BBs we added. 
 		 */
 		static bool is_unreachable(const BasicBlock *bb);
+		/**
+		 * Create an unreachable BB.
+		 * Used by MaxSlicing itself, and Reducer. 
+		 */
+		static BasicBlock *create_unreachable(Function *f);
 
 	private:
 		void read_trace_and_cut(

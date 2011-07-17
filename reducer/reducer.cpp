@@ -153,44 +153,34 @@ bool Reducer::remove_branches(Module &M) {
 }
 
 bool Reducer::remove_branch(
-		TerminatorInst *bi, unsigned i, BasicBlock *&unreachable_bb) {
+		TerminatorInst *ti, unsigned i, BasicBlock *&unreachable_bb) {
 
-	assert(i < bi->getNumSuccessors());
-	/*
-	 * There may be multiple unreachable BBs in a function. Therefore, 
-	 * we should call function is_unreachable instead of simply comparing
-	 * the sucessor with <unreachable_bb>.
-	 */
-	if (MaxSlicing::is_unreachable(bi->getSuccessor(i)))
+	assert(i < ti->getNumSuccessors());
+	if (MaxSlicing::is_unreachable(ti->getSuccessor(i)))
 		return false;
 
 	errs() << "=== remove_branch ===\n";
 	++BranchesRemoved;
 	// Create the unreachable BB if necessary. 
 	if (!unreachable_bb) {
-		// We will insert <unreachable_bb> into the function later. 
-		unreachable_bb = BasicBlock::Create(getGlobalContext(), "unreachable");
-		// Insert an llvm.trap in the unreachable BB. 
-		Function *trap = Intrinsic::getDeclaration(
-				bi->getParent()->getParent()->getParent(), Intrinsic::trap);
-		CallInst::Create(trap, "", unreachable_bb);
-		new UnreachableInst(getGlobalContext(), unreachable_bb);
+		unreachable_bb = MaxSlicing::create_unreachable(
+				ti->getParent()->getParent());
 	}
 	
 	// If a PHINode in the old successor has an incoming value from the
 	// current BB, remove that incoming value. 
-	BasicBlock *old_succ = bi->getSuccessor(i);
+	BasicBlock *old_succ = ti->getSuccessor(i);
 	for (BasicBlock::iterator ii = old_succ->begin();
 			old_succ->getFirstNonPHI() != ii; ++ii) {
 		PHINode *phi = dyn_cast<PHINode>(ii);
 		assert(phi && "All instructions before getFirstNonPHI should be PHINodes.");
-		int idx = phi->getBasicBlockIndex(bi->getParent());
+		int idx = phi->getBasicBlockIndex(ti->getParent());
 		if (idx >= 0)
 			phi->removeIncomingValue(idx);
 	}
 	// Make the unreachable BB the new successor. 
 	// An unreachable BB doesn't have any PHINodes. 
-	bi->setSuccessor(i, unreachable_bb);
+	ti->setSuccessor(i, unreachable_bb);
 	return true;
 }
 
