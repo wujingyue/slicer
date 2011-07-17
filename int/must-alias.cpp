@@ -12,6 +12,7 @@
  */
 
 #include "common/cfg/exec-once.h"
+#include "common/include/util.h"
 using namespace llvm;
 
 #include "bc2bdd/BddAliasAnalysis.h"

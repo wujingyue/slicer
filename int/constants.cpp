@@ -3,6 +3,7 @@
 #include "idm/id.h"
 #include "common/callgraph-fp/callgraph-fp.h"
 #include "common/cfg/exec-once.h"
+#include "common/include/util.h"
 using namespace llvm;
 
 #include "capture.h"

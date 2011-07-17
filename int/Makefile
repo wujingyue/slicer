@@ -10,9 +10,7 @@
 LEVEL = ../../llvm/llvm-obj
 LIBRARYNAME = int
 LOADABLE_MODULE = 1
-
-include $(LEVEL)/Makefile.common
-
-CXXFLAGS += -I$(LLVM_ROOT) -I$(SLICER_ROOT)/stp/install/include
+CXXFLAGS += -I$(LLVM_ROOT) -I$(SLICER_ROOT) -I$(SLICER_ROOT)/stp/install/include
 LDFLAGS += -L$(SLICER_ROOT)/stp/install/lib
 LIBS += -lstp
+include $(LEVEL)/Makefile.common

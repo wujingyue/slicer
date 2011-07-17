@@ -23,14 +23,8 @@ namespace slicer {
 		size_t prev_enforcing_landmark;
 		size_t next_enforcing_landmark;
 	};
-	bool operator<(const Region &a, const Region &b) {
-		return a.thr_id < b.thr_id || (a.thr_id == b.thr_id &&
-				b.next_enforcing_landmark < b.next_enforcing_landmark);
-	}
-	bool operator==(const Region &a, const Region &b) {
-		return a.thr_id == b.thr_id &&
-			a.prev_enforcing_landmark == b.prev_enforcing_landmark;
-	}
+	bool operator<(const Region &a, const Region &b);
+	bool operator==(const Region &a, const Region &b);
 
 	struct RegionManager: public ModulePass {
 

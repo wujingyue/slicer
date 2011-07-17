@@ -2,6 +2,9 @@
  * Author: Jingyue
  */
 
+#include "common/include/util.h"
+using namespace llvm;
+
 #include "capture.h"
 using namespace slicer;
 

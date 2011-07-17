@@ -1,10 +1,11 @@
 #include "llvm/LLVMContext.h"
 #include "common/cfg/intra-reach.h"
+#include "common/include/util.h"
 using namespace llvm;
 
 #include "config.h"
 #include "capture.h"
-#include "../max-slicing/max-slicing.h"
+#include "max-slicing/max-slicing.h"
 using namespace slicer;
 
 void CaptureConstraints::capture_unreachable(Module &M) {

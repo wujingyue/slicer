@@ -35,35 +35,9 @@ namespace slicer {
 			const Use *u;
 		};
 
-		Expr *clone() const {
-			if (type == SingleDef)
-				return new Expr(v);
-			if (type == SingleUse)
-				return new Expr(u);
-			if (type == Unary)
-				return new Expr(op, e1->clone());
-			if (type == Binary)
-				return new Expr(op, e1->clone(), e2->clone());
-			assert_unreachable();
-		}
+		Expr *clone() const;
 
-		unsigned get_width() const {
-			if (type == SingleDef || type == SingleUse) {
-				const Value *val = (type == SingleDef ? v : u->get());
-				return (val->getType()->isIntegerTy(1) ? 1 : 32);
-			}
-			if (type == Unary) {
-				if (op == Instruction::Trunc)
-					return 1;
-				else
-					return 32;
-			}
-			if (type == Binary) {
-				assert(e1->get_width() == e2->get_width());
-				return e1->get_width();
-			}
-			assert_unreachable();
-		}
+		unsigned get_width() const;
 
 		Expr(const Use *use): type(SingleUse), e1(NULL), e2(NULL), u(use) {}
 		
@@ -76,28 +50,7 @@ namespace slicer {
 					opcode == Instruction::Trunc);
 		}
 
-		Expr(unsigned opcode, Expr *expr1, Expr *expr2):
-			type(Binary), op(opcode), e1(expr1), e2(expr2), v(NULL)
-		{
-			assert(e1->get_width() == e2->get_width());
-			switch (opcode) {
-				case Instruction::Add:
-				case Instruction::Sub:
-				case Instruction::Mul:
-				case Instruction::UDiv:
-				case Instruction::SDiv:
-				case Instruction::URem:
-				case Instruction::SRem:
-				case Instruction::Shl:
-				case Instruction::LShr:
-				case Instruction::AShr:
-				case Instruction::And:
-				case Instruction::Or:
-				case Instruction::Xor:
-					break;
-				default: assert_not_supported();
-			}
-		}
+		Expr(unsigned opcode, Expr *expr1, Expr *expr2);
 
 		~Expr() {
 			if (e1) {
@@ -196,14 +149,7 @@ namespace slicer {
 	struct CompareClause {
 
 		CompareClause(ObjectID &IDM): OI(IDM) {}
-		
-		bool operator()(const Clause *a, const Clause *b) {
-			string str_a, str_b;
-			raw_string_ostream oss_a(str_a), oss_b(str_b);
-			print_clause(oss_a, a, OI);
-			print_clause(oss_b, b, OI);
-			return oss_a.str() < oss_b.str();
-		}
+		bool operator()(const Clause *a, const Clause *b);
 
 	private:
 		ObjectID &OI;

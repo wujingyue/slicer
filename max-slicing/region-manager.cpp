@@ -34,11 +34,21 @@ void RegionManager::getAnalysisUsage(AnalysisUsage &AU) const {
 	ModulePass::getAnalysisUsage(AU);
 }
 
+bool operator<(const Region &a, const Region &b) {
+	return a.thr_id < b.thr_id || (a.thr_id == b.thr_id &&
+			b.next_enforcing_landmark < b.next_enforcing_landmark);
+}
+
+bool operator==(const Region &a, const Region &b) {
+	return a.thr_id == b.thr_id &&
+		a.prev_enforcing_landmark == b.prev_enforcing_landmark;
+}
+
 bool RegionManager::runOnModule(Module &M) {
 
 	CloneInfoManager &CIM = getAnalysis<CloneInfoManager>();
 	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
-	
+
 	vector<int> thr_ids = LT.get_thr_ids();
 	for (size_t k = 0; k < thr_ids.size(); ++k) {
 

@@ -64,13 +64,6 @@ namespace slicer {
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual bool runOnModule(Module &M);
 		
-		/**
-		 * Given an instruction, outputs a list of trunks in which
-		 * this instruction may be executed in the sliced program. 
-		 */
-		void get_containing_trunks(
-				const Instruction *ins,
-				vector<pair<int, size_t> > &containing_trunks) const;
 		bool has_clone_info(const Instruction *ins) const;
 		/**
 		 * Assertion failure if the instruction does not have any clone info. 
@@ -92,23 +85,6 @@ namespace slicer {
 		Instruction *get_any_instruction(int thr_id) const;
 
 	private:
-		/*
-		 * FIXME: Use this function with cautions. It assumes clone_info is
-		 * not optimized out.
-		 *
-		 * e.g. 
-		 * inst1; !clone_info 1
-		 * inst2; opt'ed, no clone_info
-		 * inst3; !clone_info 3
-		 *
-		 * In this case, inst2 is in the same trunk as either inst1 or inst3. 
-		 * But the current implementation will fail on inst2.
-		 */
-		void search_containing_trunks(
-				const Instruction *ins,
-				ConstInstSet &visited,
-				vector<pair<int, size_t> > &containing_trunks) const;
-
 		DenseMap<CloneInfo, Instruction *> rmap;
 	};
 }

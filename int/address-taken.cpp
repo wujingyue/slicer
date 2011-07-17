@@ -15,7 +15,8 @@
 #include "common/cfg/exec-once.h"
 #include "common/cfg/partial-icfg-builder.h"
 #include "common/cfg/reach.h"
-#include "../max-slicing/clone-info-manager.h"
+#include "max-slicing/clone-info-manager.h"
+#include "max-slicing/region-manager.h"
 using namespace llvm;
 
 #include "capture.h"
@@ -189,43 +190,41 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 	
 	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
 	CloneInfoManager &CIM = getAnalysis<CloneInfoManager>();
-	vector<pair<int, size_t> > cur_trunks;
-	CIM.get_containing_trunks(i2, cur_trunks);
-	if (cur_trunks.size() != 1)
+	RegionManager &RM = getAnalysis<RegionManager>();
+
+	vector<Region> cur_regions;
+	RM.get_containing_regions(i2, cur_regions);
+	if (cur_regions.size() != 1)
 		return;
-	int cur_thr_id = cur_trunks[0].first;
-	size_t cur_trunk_id = cur_trunks[0].second;
-	if (cur_trunk_id >= LT.get_n_trunks(cur_thr_id)) {
-		errs() << "cur_thr_id = " << cur_thr_id << "\n";
-		errs() << "cur_trunk_id = " << cur_trunk_id << "\n";
-		errs() << "size = " << LT.get_n_trunks(cur_thr_id) << "\n";
-	}
-	assert(cur_trunk_id < LT.get_n_trunks(cur_thr_id));
+	int cur_thr_id = cur_regions[0].thr_id;
+	size_t prev_enforcing = cur_regions[0].prev_enforcing_landmark;
 
 	dbgs() << "capture_overwriting_to: " << cur_thr_id << ' ' <<
-		cur_trunk_id << ":" << *i2 << "\n";
+		prev_enforcing << ":" << *i2 << "\n";
 
 	// Compute the latest dominator in each thread. 
 	vector<int> thr_ids = LT.get_thr_ids();
 	vector<Instruction *> latest_doms(thr_ids.size(), NULL);
 	for (size_t k = 0; k < thr_ids.size(); ++k) {
 		int i = thr_ids[k];
-		if (i == cur_thr_id)
+		if (i == cur_thr_id) {
 			latest_doms[k] = i2;
-		else {
-			size_t j = LT.get_latest_happens_before(cur_thr_id, cur_trunk_id, i);
-			if (j != (size_t)-1) {
-				// TraceManager is still looking at the trace for the original program.
-				// But, we should use the cloned instruction.
-				unsigned orig_ins_id = LT.get_landmark(i, j).ins_id;
-				latest_doms[k] = CIM.get_instruction(i, j, orig_ins_id);
-				if (!latest_doms[k]) {
-					errs() << "get_landmark: " << i << ' ' << j <<
-						' ' << orig_ins_id << "\n";
-				}
-				assert(latest_doms[k] && "Cannot find the cloned landmark");
-			}
+			continue;
 		}
+		if (prev_enforcing == (size_t)-1)
+			continue;
+		size_t j = LT.get_latest_happens_before(cur_thr_id, prev_enforcing, i);
+		if (j == (size_t)-1)
+			continue;
+		// TraceManager is still looking at the trace for the original program.
+		// But, we should use the cloned instruction.
+		unsigned orig_ins_id = LT.get_landmark(i, j).ins_id;
+		latest_doms[k] = CIM.get_instruction(i, j, orig_ins_id);
+		if (!latest_doms[k]) {
+			errs() << "get_landmark: " << i << ' ' << j <<
+				' ' << orig_ins_id << "\n";
+		}
+		assert(latest_doms[k] && "Cannot find the cloned landmark");
 	}
 
 	// Compute the latest overwriter of the latest dominator in each thread. 
@@ -239,41 +238,28 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 	// These latest overwriters may not all be the valid sources of
 	// this LoadInst. Compare their containing regions, and prune out
 	// those which cannot. 
-	vector<pair<size_t, size_t> > overwriter_trunks;
-	overwriter_trunks.resize(thr_ids.size());
+	vector<pair<size_t, size_t> > overwriter_regions;
+	overwriter_regions.resize(thr_ids.size());
 	for (size_t k = 0; k < thr_ids.size(); ++k) {
 		Instruction *i1 = latest_overwriters[k];
 		if (!i1) {
 			// An invalid trunk range. 
-			overwriter_trunks[k] = make_pair((size_t)-1, 0);
+			overwriter_regions[k] = make_pair((size_t)-1, (size_t)-1);
 			continue;
 		}
-		vector<pair<int, size_t> > containing_trunks;
-		CIM.get_containing_trunks(i1, containing_trunks);
-		assert(containing_trunks.size() > 0);
-		size_t s = (size_t)-1, e = 0;
-		for (size_t t = 0; t < containing_trunks.size(); ++t) {
-			if (containing_trunks[t].first == thr_ids[k]) {
-				s = min(s, containing_trunks[t].second);
-				e = max(e, containing_trunks[t].second);
+		vector<Region> regions;
+		RM.get_containing_regions(i1, regions);
+		assert(regions.size() > 0);
+		size_t s = (size_t)-1, e = (size_t)-1;
+		for (size_t t = 0; t < regions.size(); ++t) {
+			if (regions[t].thr_id == thr_ids[k]) {
+				if (s == (size_t)-1 || regions[t].prev_enforcing_landmark < s)
+					s = regions[t].prev_enforcing_landmark;
+				if (e == (size_t)-1 || regions[t].next_enforcing_landmark > e)
+					e = regions[t].next_enforcing_landmark;
 			}
 		}
-		if (s == (size_t)-1) {
-			errs() << "current thread = " << thr_ids[k] << "\n";
-			errs() << "latest_dom:" << *latest_doms[k] << "\n";
-			errs() << "latest_overwriter:" << *i1 << "\n";
-			if (CIM.has_clone_info(i1)) {
-				CloneInfo ci = CIM.get_clone_info(i1);
-				errs() << ci.thr_id << ' ' << ci.trunk_id << ' ' <<
-					ci.orig_ins_id << "\n";
-			}
-			for (size_t t = 0; t < containing_trunks.size(); ++t) {
-				errs() << containing_trunks[t].first << ' ' <<
-					containing_trunks[t].second << "\n";
-			}
-		}
-		assert(s != (size_t)-1);
-		overwriter_trunks[k] = make_pair(s, e);
+		overwriter_regions[k] = make_pair(s, e);
 	}
 
 	for (size_t k1 = 0; k1 < thr_ids.size(); ++k1) {
@@ -285,9 +271,14 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 				continue;
 			// If latest_overwriters[k1] must happen before latest_overwriters[k2], 
 			// remove latest_overwriters[k1]. 
-			if (LT.happens_before(
-						thr_ids[k1], overwriter_trunks[k1].second,
-						thr_ids[k2], overwriter_trunks[k2].first)) {
+			size_t t1 = overwriter_regions[k1].second;
+			size_t t2 = overwriter_regions[k2].first;
+			if (t1 == (size_t)-1 || t2 == (size_t)-1)
+				continue;
+			assert(LT.is_enforcing_landmark(thr_ids[k1], t1));
+			assert(LT.is_enforcing_landmark(thr_ids[k2], t2));
+			if (LT.get_landmark_timestamp(thr_ids[k1], t1) <
+					LT.get_landmark_timestamp(thr_ids[k2], t2)) {
 				before = true;
 				break;
 			}
