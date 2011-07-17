@@ -20,7 +20,6 @@ using namespace llvm;
 using namespace std;
 
 #include "max-slicing.h"
-#include "config.h"
 #include "../trace/landmark-trace.h"
 using namespace slicer;
 
@@ -56,7 +55,6 @@ void MaxSlicing::build_cfg(
 				cut,
 				it->first);
 	}
-#ifdef CHECK
 	// Every instructions in the cloned program should have parent BBs and
 	// parent functions.
 	forall(InstMapping, it, clone_map_r) {
@@ -65,7 +63,6 @@ void MaxSlicing::build_cfg(
 		assert(it->first->getParent()->getParent() &&
 				"Each instruction should have its parent function");
 	}
-#endif
 	dbgs() << "Done building CFG\n";
 }
 

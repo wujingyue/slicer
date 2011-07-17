@@ -21,7 +21,6 @@ using namespace llvm;
 #include <sstream>
 using namespace std;
 
-#include "config.h"
 #include "max-slicing.h"
 #include "trace/landmark-trace.h"
 #include "trace/enforcing-landmarks.h"

@@ -17,7 +17,6 @@ using namespace llvm;
 #include <sstream>
 using namespace std;
 
-#include "config.h"
 #include "max-slicing.h"
 using namespace slicer;
 
@@ -34,6 +33,7 @@ void MaxSlicing::redirect_program_entry(
 }
 
 void MaxSlicing::fix_def_use_bb(Module &M) {
+
 	dbgs() << "Fixing BBs in def-use graph...\n";
 	DenseMap<Function *, BasicBlock *> unreach_bbs;
 	forallfunc(M, fi) {
@@ -128,7 +128,7 @@ void MaxSlicing::fix_def_use_bb(Module &M) {
 			} // if (ti == NULL)
 		} // for bb
 	} // for func
-#ifdef CHECK
+	
 	forallbb(M, bi) {
 		unsigned n_terminators = 0;
 		forall(BasicBlock, ii, *bi) {
@@ -137,7 +137,6 @@ void MaxSlicing::fix_def_use_bb(Module &M) {
 		}
 		assert(n_terminators == 1);
 	}
-#endif
 }
 
 Instruction *MaxSlicing::find_op_in_cloned(

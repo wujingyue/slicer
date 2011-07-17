@@ -205,6 +205,7 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 	dbgs() << "capture_overwriting_to: " << cur_thr_id << ' ' <<
 		cur_trunk_id << ":" << *i2 << "\n";
 
+	// Compute the latest dominator in each thread. 
 	vector<int> thr_ids = LT.get_thr_ids();
 	vector<Instruction *> latest_doms(thr_ids.size(), NULL);
 	for (size_t k = 0; k < thr_ids.size(); ++k) {
@@ -227,6 +228,7 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 		}
 	}
 
+	// Compute the latest overwriter of the latest dominator in each thread. 
 	Value *q = i2->getPointerOperand();
 	vector<Instruction *> latest_overwriters(thr_ids.size(), NULL);
 	for (size_t k = 0; k < thr_ids.size(); ++k) {
@@ -234,6 +236,9 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 			latest_overwriters[k] = find_latest_overwriter(latest_doms[k], q);
 	}
 
+	// These latest overwriters may not all be the valid sources of
+	// this LoadInst. Compare their containing regions, and prune out
+	// those which cannot. 
 	vector<pair<size_t, size_t> > overwriter_trunks;
 	overwriter_trunks.resize(thr_ids.size());
 	for (size_t k = 0; k < thr_ids.size(); ++k) {
