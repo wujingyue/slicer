@@ -5,9 +5,12 @@
  * on MicroBasicBlocks instead of Instructions. 
  */
 
+#define DEBUG_TYPE "max-slicing"
+
 #include "llvm/Module.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/Debug.h"
 #include "common/id-manager/IDManager.h"
 #include "common/callgraph-fp/callgraph-fp.h"
 #include "common/cfg/may-exec.h"
@@ -42,7 +45,7 @@ void MaxSlicing::getAnalysisUsage(AnalysisUsage &AU) const {
 	ModulePass::getAnalysisUsage(AU);
 }
 
-void MaxSlicing::print_inst_set(const InstSet &s) {
+void MaxSlicing::print_inst_set(raw_ostream &O, const InstSet &s) {
 	IDManager &IDM = getAnalysis<IDManager>();
 	vector<unsigned> inst_ids;
 	for (InstSet::const_iterator it = s.begin();
@@ -50,11 +53,11 @@ void MaxSlicing::print_inst_set(const InstSet &s) {
 		inst_ids.push_back(IDM.getInstructionID(*it));
 	sort(inst_ids.begin(), inst_ids.end());
 	forall(vector<unsigned>, it, inst_ids)
-		cerr << *it << " ";
-	cerr << endl;
+		O << *it << " ";
+	O << "\n";
 }
 
-void MaxSlicing::print_edge_set(const EdgeSet &s) {
+void MaxSlicing::print_edge_set(raw_ostream &O, const EdgeSet &s) {
 	IDManager &IDM = getAnalysis<IDManager>();
 	vector<pair<unsigned, unsigned> > edge_ids;
 	forallconst(EdgeSet, it, s) {
@@ -64,29 +67,8 @@ void MaxSlicing::print_edge_set(const EdgeSet &s) {
 	}
 	sort(edge_ids.begin(), edge_ids.end());
 	for (size_t i = 0; i < edge_ids.size(); ++i)
-		cerr << "(" << edge_ids[i].first << "," << edge_ids[i].second << ") ";
-	cerr << endl;
-}
-
-void MaxSlicing::print_levels_in_thread(
-		int thr_id,
-		const DenseMap<Instruction *, int> &level) {
-	vector<pair<pair<size_t, unsigned>, int> > leveled;
-	for (size_t i = 0; i < clone_map[thr_id].size(); ++i) {
-		forall(InstMapping, it, clone_map[thr_id][i]) {
-			IDManager &IDM = getAnalysis<IDManager>();
-			if (level.count(it->second)) {
-				leveled.push_back(make_pair(
-							make_pair(i, IDM.getInstructionID(it->first)),
-							level.lookup(it->second)));
-			}
-		}
-	}
-	sort(leveled.begin(), leveled.end());
-	for (size_t i = 0; i < leveled.size(); ++i) {
-		cerr << "{" << leveled[i].first.first << ":"
-			<< leveled[i].first.second << "} = " << leveled[i].second << endl;
-	}
+		O << "(" << edge_ids[i].first << "," << edge_ids[i].second << ") ";
+	O << "\n";
 }
 
 void MaxSlicing::read_trace_and_cut(
@@ -160,10 +142,8 @@ bool MaxSlicing::runOnModule(Module &M) {
 	// to remove them. 
 	volatile_landmarks(M, trace);
 
-#ifdef VERBOSE
-	cerr << "Dumping module...\n";
-	M.dump();
-#endif
+	DEBUG(dbgs() << "Dumping module...\n";
+	M.dump(););
 	
 	return true;
 }
@@ -202,7 +182,7 @@ void MaxSlicing::volatile_landmarks(Module &M, const Trace &trace) {
 }
 
 void MaxSlicing::stat(Module &M) {
-	cerr << "Stat...\n";
+	errs() << "Stat...\n";
 	unsigned n_orig_insts = 0;
 	InstSet cloned_orig_insts;
 	forallinst(M, ii) {
@@ -212,21 +192,8 @@ void MaxSlicing::stat(Module &M) {
 		else
 			cloned_orig_insts.insert(orig);
 	}
-	cerr << cloned_orig_insts.size() << " out of " << n_orig_insts
+	errs() << cloned_orig_insts.size() << " out of " << n_orig_insts
 		<< " instructions are still in the sliced program.\n";
-}
-
-void MaxSlicing::print_cloned_inst(Instruction *ins) {
-	assert(clone_map_r.count(ins));
-	assert(cloned_to_trunk.count(ins));
-	Instruction *ii = clone_map_r.lookup(ins);
-	cerr << "===== print_cloned_inst =====\n";
-	cerr << ii->getParent()->getParent()->getNameStr() << "."
-		<< ii->getParent()->getNameStr() << endl;
-	ii->dump();
-	IDManager &IDM = getAnalysis<IDManager>();
-	cerr << "trunk = " << cloned_to_trunk.lookup(ins) << "; "
-		<< "ID = " << IDM.getInstructionID(ii) << endl;
 }
 
 char MaxSlicing::ID = 0;

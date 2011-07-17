@@ -65,14 +65,23 @@ bool Instrument::blocks(Instruction *ins) {
 }
 
 bool Instrument::runOnModule(Module &M) {
+
+	ObjectID &OI = getAnalysis<ObjectID>();
 	setup(M);
+	
 	forallbb(M, bi) {
 		for (BasicBlock::iterator ii = bi->begin(); ii != bi->end(); ++ii) {
 			// Do not instrument PHI nodes because each BB must start with them. 
 			if (isa<PHINode>(ii))
 				continue;
-			ObjectID &OI = getAnalysis<ObjectID>();
 			unsigned ins_id = OI.getInstructionID(ii);
+			// Cannot find the instruction ID, which means the instruction is
+			// the tracing instruction we added. 
+			if (ins_id == ObjectID::INVALID_ID) {
+				assert(isa<CallInst>(ii));
+				assert(cast<CallInst>(ii)->getCalledFunction() == trace);
+				continue;
+			}
 			// pthread_create needs a special wrapper. 
 			if (CallInst *ci = dyn_cast<CallInst>(ii)) {
 				if (Function *callee = ci->getCalledFunction()) {
@@ -98,21 +107,31 @@ bool Instrument::runOnModule(Module &M) {
 			if (!blocks(ii))
 				CallInst::Create(trace, ConstantInt::get(uint_type, ins_id), "", ii);
 			else {
-				assert(bi->getTerminator() != ii &&
-						"We assume terminators are non-blocking for now. "
-						"Maynot be always true, e.g. invoke pthread_mutex_lock");
-				/*
-				 * inst 1
-				 *   <== trace
-				 * inst 2
-				 */
-				// ii -> inst 1
-				++ii;
-				// ii -> inst 2
-				CallInst::Create(trace, ConstantInt::get(uint_type, ins_id), "", ii);
-				// ii -> inst 2
-				--ii;
-				// ii -> trace
+				if (InvokeInst *inv = dyn_cast<InvokeInst>(ii)) {
+					// TODO: We don't instrument the unwind BB currently. 
+					BasicBlock *dest = inv->getNormalDest();
+					assert(dest->getSinglePredecessor() == bi &&
+							"Did you run nocrit before?");
+					CallInst::Create(
+							trace, ConstantInt::get(uint_type, ins_id), "",
+							dest->getFirstNonPHI());
+				} else {
+					assert(bi->getTerminator() != ii &&
+							"We assume terminators are non-blocking for now. "
+							"Maynot be always true, e.g. invoke pthread_mutex_lock");
+					/*
+					 * inst 1
+					 *   <== trace
+					 * inst 2
+					 */
+					// ii -> inst 1
+					++ii;
+					// ii -> inst 2
+					CallInst::Create(trace, ConstantInt::get(uint_type, ins_id), "", ii);
+					// ii -> inst 2
+					--ii;
+					// ii -> trace
+				}
 			}
 		}
 	}
@@ -121,9 +140,9 @@ bool Instrument::runOnModule(Module &M) {
 
 void Instrument::setup(Module &M) {
 	// sizeof(unsigned) == 4
-	uint_type = IntegerType::get(getGlobalContext(), 32);
+	uint_type = IntegerType::get(M.getContext(), 32);
 	FunctionType *trace_type = FunctionType::get(
-			Type::getVoidTy(getGlobalContext()),
+			Type::getVoidTy(M.getContext()),
 			vector<const Type *>(1, uint_type),
 			false);
 	trace = dyn_cast<Function>(M.getOrInsertFunction("trace_inst", trace_type));

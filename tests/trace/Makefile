@@ -1,5 +1,5 @@
 PROG_NAMES = test-thread test-overwrite aget-nocrit FFT-nocrit RADIX-nocrit \
-	     test-loop test-reducer
+	     test-loop test-reducer pbzip2-nocrit
 PROGS_DIR = ../progs
 TRACED_PROGS = $(PROG_NAMES:=.trace)
 LANDMARK_TRACES = $(PROG_NAMES:=.lt)
@@ -30,6 +30,9 @@ landmark-trace: $(LANDMARK_TRACES)
 # Also, most of our test programs are multi-threaded
 %: %.s
 	$(CXX) $< -o $@ -pthread
+
+pbzip2%: pbzip2%.s
+	$(CXX) $< -o $@ -pthread -lbz2
 
 %.lt: %.ft
 	opt -disable-output \

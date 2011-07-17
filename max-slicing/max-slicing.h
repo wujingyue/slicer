@@ -92,9 +92,13 @@ namespace slicer {
 				const InstList &thr_trace,
 				const InstSet &cut,
 				int thr_id);
-		/*
+		/**
 		 * Build the CFG of a particular trunk. 
 		 * [start, end] indicates the range of the trunk.
+		 *
+		 * <call_stack> should contain the calling context of <start>
+		 * when calling this function. It will contain the calling context
+		 * of <end> after this function returns. 
 		 */
 		void build_cfg_of_trunk(
 				Instruction *start,
@@ -102,7 +106,7 @@ namespace slicer {
 				const InstSet &cut,
 				int thr_id,
 				size_t trunk_id,
-				vector<Instruction *> &call_stack);
+				InstList &call_stack);
 		/*
 		 * Create the cloned instruction, and
 		 * link the original instruction and the cloned instruction
@@ -110,29 +114,27 @@ namespace slicer {
 		 */
 		void create_and_link_cloned_inst(
 				int thr_id, size_t trunk_id, Instruction *orig);
-		/*
+		/**
 		 * DFS algorithm used in reachability analysis. 
 		 * This one exploits the call stack and is different from
 		 * the standard one.
+		 *
+		 * <end_call_stack> records the calling context when reaching <end>. 
 		 */
 		void dfs(
-				Instruction *x,
-				const InstSet &cut,
-				InstSet &visited_nodes,
-				EdgeSet &visited_edges,
-				InstList &call_stack);
+				Instruction *x, Instruction *end, const InstSet &cut,
+				InstSet &visited_nodes, EdgeSet &visited_edges,
+				InstList &call_stack, InstList &end_call_stack);
 		/*
 		 * A common function used in DFS.
 		 * Modifies visited_nodes and visited_edges,
 		 * and calls DFS recursively. 
 		 */
 		void move_on(
-				Instruction *x,
-				Instruction *y,
-				const InstSet &cut,
-				InstSet &visited_nodes,
-				EdgeSet &visited_edges,
-				InstList &call_stack);
+				Instruction *x, Instruction *y,
+				Instruction *end, const InstSet &cut,
+				InstSet &visited_nodes, EdgeSet &visited_edges,
+				InstList &call_stack, InstList &end_call_stack);
 		/*
 		 * Assign each instruction a containing BB and a containing function. 
 		 * We calculate the assignment of an instruction according to its
@@ -186,12 +188,9 @@ namespace slicer {
 				InstSet &visited_nodes,
 				EdgeSet &visited_edges);
 		/* For debugging */
-		void print_inst_set(const InstSet &s);
-		void print_edge_set(const EdgeSet &s);
-		void print_cloned_inst(Instruction *ii);
-		void print_levels_in_thread(
-				int thr_id,
-				const DenseMap<Instruction *, int> &level);
+		void print_inst_set(raw_ostream &O, const InstSet &s);
+		void print_edge_set(raw_ostream &O, const EdgeSet &s);
+		void print_call_stack(raw_ostream &O, const InstList &cs);
 		/*
 		 * DFS the CFG. 
 		 *

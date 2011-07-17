@@ -2,9 +2,12 @@
  * Author: Jingyue
  */
 
+#define DEBUG_TYPE "max-slicing"
+
 #include "llvm/Module.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
 #include "common/callgraph-fp/callgraph-fp.h"
 #include "common/cfg/may-exec.h"
@@ -35,7 +38,7 @@ void MaxSlicing::build_cfg(
 		const Trace &trace,
 		const InstSet &cut) {
 
-	cerr << "\nBuilding CFG...\n";
+	dbgs() << "\nBuilding CFG...\n";
 	// Initialize global variables related to building CFG. 
 	cfg.clear();
 	cfg_r.clear();
@@ -63,11 +66,11 @@ void MaxSlicing::build_cfg(
 				"Each instruction should have its parent function");
 	}
 #endif
-	cerr << "Done building CFG\n";
+	dbgs() << "Done building CFG\n";
 }
 
 void MaxSlicing::dump_thr_cfg(const CFG &cfg, int thr_id) {
-	cerr << "Printing CFG of Thread " << thr_id << "...\n";
+	dbgs() << "Printing CFG of Thread " << thr_id << "...\n";
 	IDManager &IDM = getAnalysis<IDManager>();
 	for (size_t i = 0; i < clone_map[thr_id].size(); ++i) {
 		forall(InstMapping, it, clone_map[thr_id][i]) {
@@ -80,7 +83,7 @@ void MaxSlicing::dump_thr_cfg(const CFG &cfg, int thr_id) {
 				assert(orig_next);
 				assert(cloned_to_trunk.count(cloned) &&
 						cloned_to_trunk.count(cloned_next));
-				cerr << "{" << cloned_to_trunk.lookup(cloned)
+				dbgs() << "{" << cloned_to_trunk.lookup(cloned)
 					<< ":" << IDM.getInstructionID(orig)
 					<< "} => {" << cloned_to_trunk.lookup(cloned_next)
 					<< ":" << IDM.getInstructionID(orig_next)
@@ -267,7 +270,7 @@ void MaxSlicing::build_cfg_of_thread(
 		const InstList &thr_trace,
 		const InstSet &cut,
 		int thr_id) {
-	cerr << "Building CFG of Thread " << thr_id << "...\n";
+	dbgs() << "Building CFG of Thread " << thr_id << "...\n";
 	clone_map[thr_id].clear();
 	vector<Instruction *> call_stack;
 	assert(thr_trace.size() > 0);
@@ -283,7 +286,10 @@ void MaxSlicing::build_cfg_of_thread(
 		// The last instruction is automatically added when processing the
 		// second-to-last trunk. 
 		for (size_t i = 0, E = thr_trace.size(); i + 1 < E; ++i) {
-			cerr << "Building CFG of Trunk " << i << "...\n";
+			dbgs() << "Building CFG of Trunk " << i << "...\n";
+			DEBUG(dbgs() << "  " << *thr_trace[i] << "\n";
+			dbgs() << "  " << *thr_trace[i + 1] << "\n";
+			print_call_stack(dbgs(), call_stack););
 			build_cfg_of_trunk(
 					thr_trace[i],
 					thr_trace[i + 1],
@@ -294,9 +300,7 @@ void MaxSlicing::build_cfg_of_thread(
 		}
 	}
 
-#ifdef VERBOSE
-	dump_thr_cfg(cfg, thr_id);
-#endif
+	DEBUG(dump_thr_cfg(cfg, thr_id););
 	// Assign containers. 
 	assert(!thr_trace.empty());
 	assert(clone_map[thr_id].size() > 0);
@@ -305,26 +309,34 @@ void MaxSlicing::build_cfg_of_thread(
 	assign_containers(M, start);
 }
 
+void MaxSlicing::print_call_stack(raw_ostream &O, const InstList &cs) {
+	O << "=== Call stack ===\n";
+	for (size_t i = 0; i < cs.size(); ++i)
+		O << "  " << *cs[i] << "\n";
+}
+
 void MaxSlicing::build_cfg_of_trunk(
 		Instruction *start,
 		Instruction *end,
 		const InstSet &cut,
 		int thr_id,
 		size_t trunk_id,
-		vector<Instruction *> &call_stack) {
+		InstList &call_stack) {
+	assert(cut.count(end));
 	// DFS in both directions to find the instructions may be
 	// visited in the trunk. 
 	InstSet visited_nodes; visited_nodes.insert(start);
 	EdgeSet visited_edges;
-	dfs(start, cut, visited_nodes, visited_edges, call_stack);
-#ifdef VERBOSE
+	InstList end_call_stack;
+	dfs(start, end, cut, visited_nodes, visited_edges, call_stack, end_call_stack);
+	call_stack = end_call_stack;
+	// NOTE: Be careful. <call_stack> already gets changed. 
 	if (!visited_nodes.count(end)) {
 		IDManager &IDM = getAnalysis<IDManager>();
-		errs() << "Cannot reach:\n";
+		errs() << "=== Cannot reach ===\n";
 		errs() << IDM.getInstructionID(start) << ":" << *start << "\n";
 		errs() << IDM.getInstructionID(end) << ":" << *end << "\n";
 	}
-#endif
 	assert(visited_nodes.count(end) &&
 			"Unable to reach from <start> to <end>");
 	refine_from_end(start, end, cut, visited_nodes, visited_edges);
@@ -341,10 +353,10 @@ void MaxSlicing::build_cfg_of_trunk(
 	}
 	// <end> belongs to the next trunk. 
 	create_and_link_cloned_inst(thr_id, trunk_id + 1, end);
-#ifdef VERBOSE
-	print_inst_set(visited_nodes);
-	print_edge_set(visited_edges);
-#endif
+
+	DEBUG(print_inst_set(dbgs(), visited_nodes);
+	print_edge_set(dbgs(), visited_edges););
+	
 	// Add this trunk to the CFG. 
 	forall(EdgeSet, it, visited_edges) {
 		Instruction *x, *y, *x1, *y1;
@@ -430,19 +442,15 @@ void MaxSlicing::dfs_cfg(
 }
 
 void MaxSlicing::dfs(
-		Instruction *x,
-		const InstSet &cut,
-		InstSet &visited_nodes,
-		EdgeSet &visited_edges,
-		InstList &call_stack) {
+		Instruction *x, Instruction *end, const InstSet &cut,
+		InstSet &visited_nodes, EdgeSet &visited_edges,
+		InstList &call_stack, InstList &end_call_stack) {
 
 	assert(x && "<x> cannot be NULL");
 	assert(visited_nodes.count(x));
 
-#ifdef VERBOSE
-	cerr << "dfs:";
-	x->dump();
-#endif
+	DEBUG(dbgs() << "dfs:" << *x << "\n";
+	print_call_stack(dbgs(), call_stack););
 
 	// We are performing intra-thread analysis now. 
 	// Don't go to the thread function. 
@@ -463,7 +471,10 @@ void MaxSlicing::dfs(
 					continue;
 				Instruction *y = callees[j]->getEntryBlock().begin();
 				call_stack.push_back(x);
-				move_on(x, y, cut, visited_nodes, visited_edges, call_stack);
+				move_on(x, y, end, cut,
+						visited_nodes, visited_edges, call_stack, end_call_stack);
+				assert(call_stack.back() == x);
+				call_stack.pop_back();
 			}
 			return;
 		}
@@ -487,33 +498,34 @@ void MaxSlicing::dfs(
 		} else {
 			assert(false && "Only CallInsts and InvokeInsts can call functions");
 		}
+		Instruction *bkp = call_stack.back();
 		call_stack.pop_back();
-		move_on(x, y, cut, visited_nodes, visited_edges, call_stack);
+		move_on(x, y, end, cut,
+				visited_nodes, visited_edges, call_stack, end_call_stack);
+		call_stack.push_back(bkp);
 		return;
 	} // if is_ret
 
 	if (!x->isTerminator()) {
 		BasicBlock::iterator y = x; ++y;
-		move_on(x, y, cut, visited_nodes, visited_edges, call_stack);
+		move_on(x, y, end, cut,
+				visited_nodes, visited_edges, call_stack, end_call_stack);
 	} else {
 		TerminatorInst *ti = dyn_cast<TerminatorInst>(x);
 		for (unsigned j = 0, E = ti->getNumSuccessors(); j < E; ++j) {
 			Instruction *y = ti->getSuccessor(j)->begin();
-			move_on(x, y, cut, visited_nodes, visited_edges, call_stack);
+			move_on(x, y, end, cut,
+					visited_nodes, visited_edges, call_stack, end_call_stack);
 		}
 	}
 }
 
 void MaxSlicing::move_on(
-		Instruction *x,
-		Instruction *y,
-		const InstSet &cut,
-		InstSet &visited_nodes,
-		EdgeSet &visited_edges,
-		InstList &call_stack) {
-#ifdef VERBOSE
-	errs() << "move_on:" << *y << "\n";
-#endif
+		Instruction *x, Instruction *y,
+		Instruction *end, const InstSet &cut,
+		InstSet &visited_nodes, EdgeSet &visited_edges,
+		InstList &call_stack, InstList &end_call_stack) {
+	DEBUG(dbgs() << "move_on:" << *y << "\n";);
 	/*
 	 * No matter whether <y> is in the cut, we mark <y> and <x, y>
 	 * as visited. But we don't continue traversing <y> if <y>
@@ -523,6 +535,11 @@ void MaxSlicing::move_on(
 	if (!visited_nodes.count(y)) {
 		visited_nodes.insert(y);
 		if (!cut.count(y))
-			dfs(y, cut, visited_nodes, visited_edges, call_stack);
+			dfs(y, end, cut, visited_nodes, visited_edges, call_stack, end_call_stack);
+		if (y == end) {
+			end_call_stack.clear();
+			end_call_stack.insert(end_call_stack.end(),
+					call_stack.begin(), call_stack.end());
+		}
 	}
 }

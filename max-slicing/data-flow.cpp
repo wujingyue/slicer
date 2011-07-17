@@ -2,9 +2,12 @@
  * Author: Jingyue
  */
 
+#define DEBUG_TYPE "max-slicing"
+
 #include "llvm/Module.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/Debug.h"
 #include "common/callgraph-fp/callgraph-fp.h"
 #include "common/cfg/may-exec.h"
 using namespace llvm;
@@ -31,7 +34,7 @@ void MaxSlicing::redirect_program_entry(
 }
 
 void MaxSlicing::fix_def_use_bb(Module &M) {
-	cerr << "Fixing BBs in def-use graph...\n";
+	dbgs() << "Fixing BBs in def-use graph...\n";
 	DenseMap<Function *, BasicBlock *> unreach_bbs;
 	forallfunc(M, fi) {
 		forall(Function, bi, *fi) {
@@ -75,8 +78,8 @@ void MaxSlicing::fix_def_use_bb(Module &M) {
 			// Fix the terminator. 
 			TerminatorInst *ti = bi->getTerminator();
 			if (ti == NULL) {
-				errs() << "[Warning] No terminator: " << fi->getNameStr() << "."
-					<< bi->getNameStr() << "\n";
+				DEBUG(errs() << "[Warning] No terminator: " << fi->getNameStr() << "."
+					<< bi->getNameStr() << "\n";);
 				/*
 				 * Some BBs don't have a Terminator because they end with functions
 				 * such as pthread_exit() or exit(), or the CFG is not complete due
@@ -166,16 +169,16 @@ void MaxSlicing::fix_def_use(
 	// TODO: Each fix_def_use_ function iterates through all cloned
 	// instructions for now. Could make it faster by maintaining a list
 	// of unresolved operands. 
-	cerr << "\nFixing def-use...\n";
+	dbgs() << "\nFixing def-use...\n";
 	fix_def_use_bb(M);
 	fix_def_use_insts(M, trace);
 	fix_def_use_func_param(M);
 	fix_def_use_func_call(M);
-	cerr << "Done fix_def_use\n";
+	dbgs() << "Done fix_def_use\n";
 }
 
 void MaxSlicing::fix_def_use_func_call(Module &M) {
-	cerr << "Fixing function calls in def-use graph...\n";
+	dbgs() << "Fixing function calls in def-use graph...\n";
 	forall(InstMapping, it, clone_map_r) {
 		Instruction *ins = it->first;
 		if (is_call(ins) && !is_intrinsic_call(ins)) {
@@ -204,7 +207,7 @@ void MaxSlicing::fix_def_use_func_call(Module &M) {
 }
 
 void MaxSlicing::fix_def_use_func_param(Module &M) {
-	cerr << "Fixing function parameters in def-use graph...\n";
+	dbgs() << "Fixing function parameters in def-use graph...\n";
 	forall(InstMapping, it, clone_map_r) {
 		Instruction *ins = it->first;
 		Instruction *orig_ins = it->second;
@@ -229,7 +232,7 @@ void MaxSlicing::fix_def_use_func_param(Module &M) {
 void MaxSlicing::fix_def_use_insts(
 		Module &M,
 		const Trace &trace) {
-	cerr << "Fixing instructions in def-use graph...\n";
+	dbgs() << "Fixing instructions in def-use graph...\n";
 	// Construct the DFS tree. 
 	InstMapping parent;
 	// We borrow assign_level to calculate <parent>. 
