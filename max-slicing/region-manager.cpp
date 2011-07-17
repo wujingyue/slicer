@@ -162,8 +162,6 @@ void RegionManager::mark_region(
 	}
 }
 
-const Region *RegionManager::get_region(const Instruction *ins) const {
-	DenseMap<const Instruction *, Region>::const_iterator it;
-	it = ins_region.find(ins);
-	return (it == ins_region.end() ? NULL : &it->second);
+Region RegionManager::get_region(const Instruction *ins) const {
+	return ins_region.lookup(ins);
 }

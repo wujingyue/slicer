@@ -4,6 +4,7 @@ using namespace llvm;
 
 #include "config.h"
 #include "capture.h"
+#include "../max-slicing/max-slicing.h"
 using namespace slicer;
 
 void CaptureConstraints::capture_unreachable(Module &M) {
@@ -11,18 +12,6 @@ void CaptureConstraints::capture_unreachable(Module &M) {
 		if (!fi->isDeclaration())
 			capture_unreachable_in_func(fi);
 	}
-}
-
-bool CaptureConstraints::is_unreachable(const BasicBlock *bb) {
-	if (!isa<UnreachableInst>(bb->getTerminator()))
-		return false;
-	forallconst(BasicBlock, ii, *bb) {
-		if (const IntrinsicInst *intr = dyn_cast<IntrinsicInst>(ii)) {
-			if (intr->getIntrinsicID() == Intrinsic::trap)
-				return true;
-		}
-	}
-	return false;
 }
 
 Clause *CaptureConstraints::get_avoid_branch(
@@ -110,7 +99,7 @@ void CaptureConstraints::capture_unreachable_in_func(Function *f) {
 	// TODO: We could make it faster. For now, we use an O(n^2) approach. 
 	ConstBBSet sink;
 	forall(Function, bi, *f) {
-		if (is_unreachable(bi))
+		if (MaxSlicing::is_unreachable(bi))
 			sink.insert(bi);
 	}
 	forall(Function, bi, *f) {
@@ -135,7 +124,7 @@ void CaptureConstraints::capture_unreachable_in_func(Function *f) {
 		TerminatorInst *ti = bi->getTerminator();
 		if (post_doms && ti->getNumSuccessors() > 1) {
 			for (unsigned i = 0; i < ti->getNumSuccessors(); ++i) {
-				if (is_unreachable(ti->getSuccessor(i))) {
+				if (MaxSlicing::is_unreachable(ti->getSuccessor(i))) {
 					Clause *c = get_avoid_branch(ti, i);
 					if (c)
 						constraints.push_back(c);

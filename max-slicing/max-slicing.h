@@ -45,53 +45,45 @@ namespace slicer {
 			int child_tid;
 		};
 
-		static char ID;
-
 		// TODO: in MBB-level.
 		typedef DenseMap<Instruction *, InstList> CFG;
 		typedef InstPair Edge;
 		typedef DenseSet<Edge> EdgeSet;
 		typedef map<int, InstList> Trace;
 
+		static char ID;
 		MaxSlicing(): ModulePass(&ID) {}
-
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual bool runOnModule(Module &M);
 
+		/**
+		 * Returns whether <bb> is one of the unreachable BBs we added. 
+		 */
+		static bool is_unreachable(const BasicBlock *bb);
+
 	private:
 		void read_trace_and_cut(
-				Trace &trace,
-				vector<ThreadCreationRecord> &thr_cr_records,
+				Trace &trace, vector<ThreadCreationRecord> &thr_cr_records,
 				InstSet &cut);
 		void dump_thr_cfg(const CFG &cfg, int thr_id);
 		void link_thr_funcs(
-				Module &M,
-				const Trace &trace,
+				Module &M, const Trace &trace,
 				const vector<ThreadCreationRecord> &thr_cr_records);
 		void link_thr_func(
-				Module &M,
-				const Trace &trace,
-				int parent_tid,
-				size_t trunk_id,
-				int child_tid);
+				Module &M, const Trace &trace,
+				int parent_tid, size_t trunk_id, int child_tid);
 		void add_cfg_edge(Instruction *x, Instruction *y);
 		/*
 		 * Builds the control flow graph. 
 		 * Builds <clone_map> and <clone_map_r> as well. 
 		 */
-		void build_cfg(
-				Module &M,
-				const Trace &trace,
-				const InstSet &cut);
+		void build_cfg(Module &M, const Trace &trace, const InstSet &cut);
 		/*
 		 * <cfg> and <parent> are shared by all threads.
 		 * Do *not* clear them in this function. 
 		 */
 		void build_cfg_of_thread(
-				Module &M,
-				const InstList &thr_trace,
-				const InstSet &cut,
-				int thr_id);
+				Module &M, const InstList &thr_trace, const InstSet &cut, int thr_id);
 		/**
 		 * Build the CFG of a particular trunk. 
 		 * [start, end] indicates the range of the trunk.
@@ -101,12 +93,8 @@ namespace slicer {
 		 * of <end> after this function returns. 
 		 */
 		void build_cfg_of_trunk(
-				Instruction *start,
-				Instruction *end,
-				const InstSet &cut,
-				int thr_id,
-				size_t trunk_id,
-				InstList &call_stack);
+				Instruction *start, Instruction *end, const InstSet &cut,
+				int thr_id, size_t trunk_id, InstList &call_stack);
 		/*
 		 * Create the cloned instruction, and
 		 * link the original instruction and the cloned instruction
@@ -146,8 +134,7 @@ namespace slicer {
 		 */
 		void assign_containers(Module &M, Instruction *x);
 		void assign_container(
-				Module &M,
-				Instruction *x,
+				Module &M, Instruction *x,
 				const DenseMap<Instruction *, int> &level,
 				const InstMapping &parent);
 		/*

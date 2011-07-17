@@ -28,7 +28,7 @@ namespace slicer {
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual bool runOnModule(Module &M);
 
-		const Region *get_region(const Instruction *ins) const;
+		Region get_region(const Instruction *ins) const;
 
 	private:
 		void mark_region(

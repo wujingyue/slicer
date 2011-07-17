@@ -111,9 +111,7 @@ void MaxSlicing::fix_def_use_bb(Module &M) {
 							// <fi>, but it's fine because the BB list is simply a
 							// linked list.
 							BasicBlock *unreachable_bb = BasicBlock::Create(
-									getGlobalContext(),
-									"unreachable",
-									fi);
+									getGlobalContext(), "unreachable" + SLICER_SUFFIX, fi);
 							// Insert an llvm.trap in the unreachable BB. 
 							Function *trap = Intrinsic::getDeclaration(&M, Intrinsic::trap);
 							CallInst::Create(trap, "", unreachable_bb);
@@ -155,9 +153,7 @@ Instruction *MaxSlicing::find_op_in_cloned(
 	return op2;
 }
 
-void MaxSlicing::fix_def_use(
-		Module &M,
-		const Trace &trace) {
+void MaxSlicing::fix_def_use(Module &M, const Trace &trace) {
 	/*
 	 * Things to fix:
 	 * . BBs used in PHINodes and TerminatorInsts. 

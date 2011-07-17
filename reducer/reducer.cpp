@@ -17,6 +17,7 @@ using namespace llvm;
 #include "../int/iterate.h"
 #include "../int/capture.h"
 #include "../int/solve.h"
+#include "../max-slicing/max-slicing.h"
 using namespace slicer;
 
 static RegisterPass<Reducer> X(
@@ -139,8 +140,7 @@ bool Reducer::remove_branches(Module &M) {
 		// If not in the cache, we try to find an existing unreachable BB.
 		if (!unreachable_bb) {
 			forall(Function, bb, *f) {
-				CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
-				if (CC.is_unreachable(bb)) {
+				if (MaxSlicing::is_unreachable(bb)) {
 					unreachable_bb = bb;
 					break;
 				}
@@ -156,13 +156,12 @@ bool Reducer::remove_branch(
 		TerminatorInst *bi, unsigned i, BasicBlock *&unreachable_bb) {
 
 	assert(i < bi->getNumSuccessors());
-	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 	/*
 	 * There may be multiple unreachable BBs in a function. Therefore, 
 	 * we should call function is_unreachable instead of simply comparing
 	 * the sucessor with <unreachable_bb>.
 	 */
-	if (CC.is_unreachable(bi->getSuccessor(i)))
+	if (MaxSlicing::is_unreachable(bi->getSuccessor(i)))
 		return false;
 
 	errs() << "=== remove_branch ===\n";

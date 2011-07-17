@@ -540,3 +540,7 @@ void MaxSlicing::move_on(
 		}
 	}
 }
+
+bool MaxSlicing::is_unreachable(const BasicBlock *bb) {
+	return bb->getNameStr().find(SLICER_SUFFIX) != string::npos;
+}
