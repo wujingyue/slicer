@@ -4,7 +4,7 @@
 
 #ifndef __SLICER_EXPRESSION_H
 #define __SLICER_EXPRESSION_H
-
+#include "common/include/util.h"
 #include "llvm/Instruction.h"
 #include "llvm/Use.h"
 #include "idm/id.h"

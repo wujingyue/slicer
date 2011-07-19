@@ -1,6 +1,6 @@
+#include "common/include/util.h"
 #include "llvm/Support/CommandLine.h"
 using namespace llvm;
-
 #include "enforcing-landmarks.h"
 using namespace slicer;
 

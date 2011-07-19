@@ -1,6 +1,7 @@
 #include "llvm/Support/CFG.h"
 #include "idm/id.h"
 #include "common/cfg/identify-thread-funcs.h"
+#include "common/include/util.h"
 using namespace llvm;
 
 #include "enforcing-landmarks.h"

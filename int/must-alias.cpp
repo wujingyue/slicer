@@ -10,7 +10,7 @@
  * An alternative approach is instead of maintaining a disjoint-set, we query
  * BddAliasAnalysis each time we get a query. 
  */
-
+#include "common/include/util.h"
 #include "common/cfg/exec-once.h"
 using namespace llvm;
 
