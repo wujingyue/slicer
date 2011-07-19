@@ -9,7 +9,7 @@ CXXFLAGS += -I$(LLVM_ROOT)
 PROG_NAMES = aget aget-nocrit test-thread test-overwrite
 PROGS_DIR = ../progs
 
-run:: $(addsuffix .slice.icfg, $(PROG_NAMES))
+run:: $(addsuffix .slice, $(PROG_NAMES))
 
 %.icfg: $(PROGS_DIR)/%.bc
 	opt -analyze \

@@ -1,4 +1,4 @@
-PROG_NAMES = aget FFT RADIX pbzip2
+PROG_NAMES = aget FFT RADIX pbzip2 CHOLESKY
 PROGS_DIR = ../progs
 
 PROGS = $(addprefix $(PROGS_DIR)/, $(PROG_NAMES))

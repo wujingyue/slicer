@@ -2,17 +2,18 @@ LEVEL = $(shell $(LLVM_ROOT)/scripts/level-to-llvm-root)/llvm-obj
 LIBRARYNAME = int-test
 LOADABLE_MODULE = 1
 SOURCES = int-test.cpp
-include $(LEVEL)/Makefile.common
-
 CXXFLAGS += -I$(LLVM_ROOT) -I$(SLICER_ROOT) -I$(SLICER_ROOT)/stp/install/include
 
-PROG_NAMES = aget-nocrit.simple test-overwrite.slice FFT-nocrit.slice \
-	     FFT-nocrit.simple RADIX-nocrit.simple test-loop.slice \
-	     test-loop.simple test-reducer.simple
+include $(LEVEL)/Makefile.common
+
+PROG_NAMES = test-overwrite.slice test-loop.slice test-loop.simple \
+	     test-reducer.simple aget-nocrit.simple FFT-nocrit.simple \
+	     RADIX-nocrit.simple FFT-nocrit.slice CHOLESKY-nocrit.simple
 PROGS_DIR = ../progs
 
 run:: $(PROG_NAMES)
 
+# Remove .simple/.slice
 landmark_trace_name = $(subst .simple,,$(subst .slice,,$(1))).lt
 
 %: $(PROGS_DIR)/%.bc
@@ -47,4 +48,7 @@ landmark_trace_name = $(subst .simple,,$(subst .slice,,$(1))).lt
 		../trace/$(call landmark_trace_name,$(@:.ic=)) \
 		< $< 2> $@
 
-.PHONY: run
+clean::
+	rm -f *.ic
+
+.PHONY: run clean

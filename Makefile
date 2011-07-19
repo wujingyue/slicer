@@ -14,16 +14,6 @@ install:
 	make -C reducer install
 	make -C simplifier install
 
-trace:
-	cd $@
-	make install
-
-stp/install/bin/stp: stp
-	cd stp && ./clean-install.sh --with-g++='g++ -fPIC' --with-gcc='gcc -fPIC' --with-prefix=$PWD/../install
-
-stp:
-	svn co https://stp-fast-prover.svn.sourceforge.net/svnroot/stp-fast-prover/trunk/stp stp
-
 clean:
 	make -C stp clean
 	make -C trace clean
@@ -35,4 +25,4 @@ clean:
 dist-clean: clean
 	make -C stp dist-clean
 
-.PHONY: clean dist-clean
+.PHONY: clean dist-clean install
