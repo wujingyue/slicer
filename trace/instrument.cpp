@@ -7,7 +7,7 @@
 #include "llvm/LLVMContext.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Support/CallSite.h"
-#include "idm/id.h"
+#include "common/id-manager/IDManager.h"
 #include "common/include/util.h"
 using namespace llvm;
 
@@ -47,7 +47,7 @@ char Instrument::ID = 0;
 
 void Instrument::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesCFG();
-	AU.addRequired<ObjectID>();
+	AU.addRequired<IDManager>();
 	ModulePass::getAnalysisUsage(AU);
 }
 
@@ -68,7 +68,8 @@ bool Instrument::blocks(Instruction *ins) {
 
 bool Instrument::runOnModule(Module &M) {
 
-	ObjectID &OI = getAnalysis<ObjectID>();
+	IDManager &IDM = getAnalysis<IDManager>();
+
 	setup(M);
 	
 	forallbb(M, bi) {
@@ -76,10 +77,10 @@ bool Instrument::runOnModule(Module &M) {
 			// Do not instrument PHI nodes because each BB must start with them. 
 			if (isa<PHINode>(ii))
 				continue;
-			unsigned ins_id = OI.getInstructionID(ii);
+			unsigned ins_id = IDM.getInstructionID(ii);
 			// Cannot find the instruction ID, which means the instruction is
 			// the tracing instruction we added. 
-			if (ins_id == ObjectID::INVALID_ID) {
+			if (ins_id == IDManager::INVALID_ID) {
 				assert(isa<CallInst>(ii));
 				assert(cast<CallInst>(ii)->getCalledFunction() == trace);
 				continue;

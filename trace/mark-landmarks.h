@@ -17,8 +17,13 @@ namespace slicer {
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual void print(raw_ostream &O, const Module *M) const;
 
-		/* Enforcing landmarks or derived landmarks. */
+		/**
+		 * Enforcing landmarks or derived landmarks.
+		 */
 		bool is_landmark(Instruction *ins) const { return landmarks.count(ins); }
+		/**
+		 * Get all enforcing landmarks and derived landmarks.
+		 */
 		const InstSet &get_landmarks() const;
 
 	private:
@@ -28,10 +33,6 @@ namespace slicer {
 		// Mark the entry and the exits of each thread function. 
 		// Function main is considered as a thread function as well. 
 		void mark_thread(Module &M);
-#if 0
-		// Read landmarks from the specified file. 
-		void read_landmarks(const string &cut_file);
-#endif
 
 		InstSet landmarks;
 	};

@@ -24,11 +24,13 @@ landmark-trace: $(LANDMARK_TRACES)
 %.trace.bc: %.bc1 ../../trace/tracing.bc
 	llvm-ld $^ -b $@ -link-as-library -disable-opt
 
-%.s: %.bc
-	llc $< -o $@
+# Default option is -O2.
+%.trace.s: %.trace.bc
+	llc $< -o $@ -O0
+
 # pthread may not always be necessary, but does no harm
 # Also, most of our test programs are multi-threaded
-%: %.s
+%.trace: %.trace.s
 	$(CXX) $< -o $@ -pthread
 
 pbzip2%: pbzip2%.s
