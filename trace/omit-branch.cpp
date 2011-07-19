@@ -67,15 +67,14 @@ BasicBlock *find_nearest_common_post_dominator(
 
 	// Collect NodeA dominators set.
 	SmallPtrSet<DomTreeNodeBase<BasicBlock>*, 16> NodeADoms;
-	NodeADoms.insert(NodeA);
-	DomTreeNodeBase<BasicBlock> *IDomA = NodeA->getIDom();
+	DomTreeNodeBase<BasicBlock> *IDomA = NodeA;
 	while (IDomA) {
 		NodeADoms.insert(IDomA);
 		IDomA = IDomA->getIDom();
 	}
 
 	// Walk NodeB immediate dominators chain and find common dominator node.
-	DomTreeNodeBase<BasicBlock> *IDomB = NodeB->getIDom();
+	DomTreeNodeBase<BasicBlock> *IDomB = NodeB;
 	while (IDomB) {
 		if (NodeADoms.count(IDomB) != 0)
 			return IDomB->getBlock();
