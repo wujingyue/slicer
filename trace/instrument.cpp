@@ -13,6 +13,7 @@ using namespace llvm;
 
 #include "trace.h"
 #include "instrument.h"
+#include "mark-landmarks.h"
 using namespace slicer;
 
 static RegisterPass<slicer::Instrument> X(
@@ -48,6 +49,7 @@ char Instrument::ID = 0;
 void Instrument::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesCFG();
 	AU.addRequired<IDManager>();
+	AU.addRequired<MarkLandmarks>();
 	ModulePass::getAnalysisUsage(AU);
 }
 
@@ -69,22 +71,19 @@ bool Instrument::blocks(Instruction *ins) {
 bool Instrument::runOnModule(Module &M) {
 
 	IDManager &IDM = getAnalysis<IDManager>();
+	MarkLandmarks &ML = getAnalysis<MarkLandmarks>();
 
 	setup(M);
 	
 	forallbb(M, bi) {
 		for (BasicBlock::iterator ii = bi->begin(); ii != bi->end(); ++ii) {
-			// Do not instrument PHI nodes because each BB must start with them. 
-			if (isa<PHINode>(ii))
+			// Instruments landmarks (including derived ones) only. 
+			if (!ML.is_landmark(ii))
 				continue;
+			assert(!isa<PHINode>(ii) &&
+					"PHINodes shouldn't be marked as landmarks.");
 			unsigned ins_id = IDM.getInstructionID(ii);
-			// Cannot find the instruction ID, which means the instruction is
-			// the tracing instruction we added. 
-			if (ins_id == IDManager::INVALID_ID) {
-				assert(isa<CallInst>(ii));
-				assert(cast<CallInst>(ii)->getCalledFunction() == trace);
-				continue;
-			}
+			assert(ins_id != IDManager::INVALID_ID);
 			// pthread_create needs a special wrapper. 
 			if (CallInst *ci = dyn_cast<CallInst>(ii)) {
 				if (Function *callee = ci->getCalledFunction()) {

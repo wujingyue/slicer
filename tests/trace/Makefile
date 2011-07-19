@@ -8,7 +8,7 @@ all: $(TRACED_PROGS)
 
 landmark-trace: $(LANDMARK_TRACES)
 
-%.bc1: $(PROGS_DIR)/%.bc
+%.bc1: $(PROGS_DIR)/%-id.bc
 	opt -o $@ \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \

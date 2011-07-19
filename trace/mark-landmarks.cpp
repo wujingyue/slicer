@@ -1,6 +1,6 @@
 #include "llvm/Support/CFG.h"
-#include "idm/id.h"
 #include "common/cfg/identify-thread-funcs.h"
+#include "common/id-manager/IDManager.h"
 #include "common/include/util.h"
 using namespace llvm;
 
@@ -64,7 +64,7 @@ void MarkLandmarks::mark_branch_succs(Module &M) {
 
 void MarkLandmarks::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
-	AU.addRequiredTransitive<ObjectID>();
+	AU.addRequiredTransitive<IDManager>();
 	AU.addRequired<EnforcingLandmarks>();
 	AU.addRequired<OmitBranch>();
 	AU.addRequired<IdentifyThreadFuncs>();
@@ -72,11 +72,11 @@ void MarkLandmarks::getAnalysisUsage(AnalysisUsage &AU) const {
 }
 
 void MarkLandmarks::print(raw_ostream &O, const Module *M) const {
-	ObjectID &IDM = getAnalysis<ObjectID>();
+	IDManager &IDM = getAnalysis<IDManager>();
 	vector<unsigned> all_inst_ids;
 	forallconst(InstSet, it, landmarks) {
 		unsigned ins_id = IDM.getInstructionID(*it);
-		assert(ins_id != ObjectID::INVALID_ID);
+		assert(ins_id != IDManager::INVALID_ID);
 		all_inst_ids.push_back(ins_id);
 	}
 	sort(all_inst_ids.begin(), all_inst_ids.end());
