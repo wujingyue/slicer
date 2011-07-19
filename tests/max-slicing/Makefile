@@ -26,7 +26,7 @@ $(PROGS_DIR)/%.slice.bc: $(PROGS_DIR)/%-id.bc ../trace/%.lt
 
 # These BC's are not used by other modules, therefore put them here locally. 
 %.region: $(PROGS_DIR)/%.slice.bc ../trace/%.lt
-	opt -analyze \
+	opt -disable-output \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \

@@ -2,7 +2,10 @@
  * Author: Jingyue
  */
 
+#define DEBUG_TYPE "int"
+
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Analysis/Dominators.h"
 #include "common/include/util.h"
 #include "common/cfg/intra-reach.h"
@@ -68,7 +71,7 @@ bool SolveConstraints::recalculate(Module &M) {
 	create_vc();
 	translate_captured();
 	identify_fixed_values();
-	errs() << "=== Identifying fixed values takes " <<
+	errs() << "=== Identifying fixed values took " <<
 		(int)(0.5 + (double)(clock() - start) / CLOCKS_PER_SEC) << " secs. ===\n";
 
 	destroy_vc();
@@ -568,9 +571,9 @@ bool SolveConstraints::contains_only_consts(const BoolExpr *be) {
 bool SolveConstraints::contains_only_consts(const Expr *e) {
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 	if (e->type == Expr::SingleDef)
-		return CC.is_constant(e->v);
+		return CC.is_constant(e->v) || isa<Constant>(e->v);
 	if (e->type == Expr::SingleUse)
-		return CC.is_constant(e->u->get());
+		return CC.is_constant(e->u->get()) || isa<Constant>(e->u->get());
 	if (e->type == Expr::Unary)
 		return contains_only_consts(e->e1);
 	if (e->type == Expr::Binary)
@@ -598,11 +601,9 @@ bool SolveConstraints::provable(
 			delete c;
 			continue;
 		}
-#if 1
-		errs() << "Proving: ";
-		print_clause(errs(), c, getAnalysis<ObjectID>());
-		errs() << "\n";
-#endif
+		DEBUG(dbgs() << "Proving: ";
+				print_clause(dbgs(), c, getAnalysis<ObjectID>());
+				dbgs() << "\n";);
 		conj = vc_andExpr(vc, conj, translate_to_vc(c));
 		delete c;
 	}
@@ -777,12 +778,12 @@ void SolveConstraints::avoid_overflow(
 			break;
 		case Instruction::UDiv:
 		case Instruction::SDiv:
-			// TODO: assume the divisor > 0
+			// TODO: We shouldn't assume the divisor > 0
 			vc_assertFormula(vc, vc_sbvGtExpr(vc, right, vc_zero(vc)));
 			break;
 		case Instruction::URem:
 		case Instruction::SRem:
-			// TODO: assume the divisor > 0
+			// TODO: We shouldn't assume the divisor > 0
 			vc_assertFormula(vc, vc_sbvGtExpr(vc, right, vc_zero(vc)));
 			break;
 		case Instruction::Shl:

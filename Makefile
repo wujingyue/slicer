@@ -1,24 +1,22 @@
-.PHONY:alias-pairs int max-slicing trace
+all:
+	make -C stp
+	make -C trace
+	make -C max-slicing
+	make -C int
+	make -C reducer
+	make -C simplifier
 
-install: all
-
-all: alias-pairs int max-slicing  trace
-
-
-alias-pairs:
-	cd alias-pairs && make install
-
-int: stp/install/bin/stp
-	cd int && ./configure && make install
-
-max-slicing:
-	cd max-slicing && ./configure && make install
-
-racy-pairs:
-	cd racy-pairs && ./configure && make install
+install:
+	make -C stp install
+	make -C trace install
+	make -C max-slicing install
+	make -C int install
+	make -C reducer install
+	make -C simplifier install
 
 trace:
-	cd trace && make install
+	cd $@
+	make install
 
 stp/install/bin/stp: stp
 	cd stp && ./clean-install.sh --with-g++='g++ -fPIC' --with-gcc='gcc -fPIC' --with-prefix=$PWD/../install
@@ -27,11 +25,14 @@ stp:
 	svn co https://stp-fast-prover.svn.sourceforge.net/svnroot/stp-fast-prover/trunk/stp stp
 
 clean:
-	cd alias-pairs && make clean
-	cd int && make clean
-	cd max-slicing && make clean
-	cd racy-pairs && make clean
-	cd trace && make clean
+	make -C stp clean
+	make -C trace clean
+	make -C max-slicing clean
+	make -C int clean
+	make -C reducer clean
+	make -C simplifier clean
 
 dist-clean: clean
-	rm -rf stp
+	make -C stp dist-clean
+
+.PHONY: clean dist-clean

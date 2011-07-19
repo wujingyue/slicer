@@ -25,6 +25,7 @@ namespace slicer {
 	};
 	bool operator<(const Region &a, const Region &b);
 	bool operator==(const Region &a, const Region &b);
+	raw_ostream &operator<<(raw_ostream &O, const Region &r);
 
 	struct RegionManager: public ModulePass {
 
@@ -39,7 +40,7 @@ namespace slicer {
 
 	private:
 		void mark_region(
-				const Instruction *s_ins, const Instruction *e_ins,
+				const InstList &s_insts, const InstList &e_insts,
 				int thr_id, size_t s_tr, size_t e_tr);
 
 		void search_containing_regions(const Instruction *ins,

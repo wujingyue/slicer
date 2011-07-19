@@ -3,6 +3,9 @@
  *
  * Collect integer constraints on address-taken variables. 
  */
+
+#define DEBUG_TYPE "int"
+
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/DominatorInternals.h"
 #include "llvm/Support/Timer.h"
@@ -161,13 +164,40 @@ void CaptureConstraints::capture_must_assign(Module &M) {
 	}
 }
 
+Instruction *CaptureConstraints::find_nearest_common_dom(
+		Instruction *i1, Instruction *i2) {
+
+	if (i1 == NULL)
+		return i2;
+	if (i2 == NULL)
+		return i1;
+	
+	MicroBasicBlockBuilder &MBBB = getAnalysis<MicroBasicBlockBuilder>();
+	MicroBasicBlock *m1 = MBBB.parent(i1), *m2 = MBBB.parent(i2);
+	assert(m1 != m2 && "Not supported currently");
+	assert(m1 && m2);
+
+	ICFG &PIB = getAnalysis<PartialICFGBuilder>();
+	ICFGNode *n1 = PIB[m1], *n2 = PIB[m2];
+	assert(n1 && n2);
+
+	ICFGNode *n = IDT.findNearestCommonDominator(n1, n2);
+	assert(n);
+	MicroBasicBlock *m = n->getMBB();
+	assert(m);
+	return &m->back();
+}
+
 Instruction *CaptureConstraints::find_latest_overwriter(
 		Instruction *i2, Value *q) {
+	
 	PartialICFGBuilder &PIB = getAnalysis<PartialICFGBuilder>();
 	MicroBasicBlockBuilder &MBBB = getAnalysis<MicroBasicBlockBuilder>();
+	
 	MicroBasicBlock *m2 = MBBB.parent(i2);
 	if (!PIB[m2])
 		return NULL;
+	
 	// Find the latest dominator <i1> that stores to or loads from
 	// a pointer that must alias with <q>. 
 	Instruction *i1 = get_idom_ip(i2);
@@ -199,27 +229,34 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 	int cur_thr_id = cur_regions[0].thr_id;
 	size_t prev_enforcing = cur_regions[0].prev_enforcing_landmark;
 
-	dbgs() << "capture_overwriting_to: " << cur_thr_id << ' ' <<
-		prev_enforcing << ":" << *i2 << "\n";
+	DEBUG(dbgs() << "capture_overwriting_to: " << cur_thr_id << ' ' <<
+		prev_enforcing << ":" << *i2 << "\n";);
 
 	// Compute the latest dominator in each thread. 
 	vector<int> thr_ids = LT.get_thr_ids();
 	vector<Instruction *> latest_doms(thr_ids.size(), NULL);
 	for (size_t k = 0; k < thr_ids.size(); ++k) {
+		
 		int i = thr_ids[k];
 		if (i == cur_thr_id) {
 			latest_doms[k] = i2;
 			continue;
 		}
+		
 		if (prev_enforcing == (size_t)-1)
 			continue;
 		size_t j = LT.get_latest_happens_before(cur_thr_id, prev_enforcing, i);
 		if (j == (size_t)-1)
 			continue;
+		
 		// TraceManager is still looking at the trace for the original program.
 		// But, we should use the cloned instruction.
 		unsigned orig_ins_id = LT.get_landmark(i, j).ins_id;
-		latest_doms[k] = CIM.get_instruction(i, j, orig_ins_id);
+		const InstList &landmarks = CIM.get_instructions(i, j, orig_ins_id);
+		assert(landmarks.size() > 0);
+		latest_doms[k] = NULL;
+		for (size_t t = 0; t < landmarks.size(); ++t)
+			latest_doms[k] = find_nearest_common_dom(latest_doms[k], landmarks[t]);
 		if (!latest_doms[k]) {
 			errs() << "get_landmark: " << i << ' ' << j <<
 				' ' << orig_ins_id << "\n";
@@ -296,6 +333,7 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 		}
 	}
 
+	DEBUG(dbgs() << "# of overwriters = " << n_overwriters << "\n";);
 	if (n_overwriters == 0) {
 		// TODO: Check whether the value may be overwritten by any trunk from
 		// the program start to the current trunk. 
@@ -324,11 +362,9 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 						CmpInst::ICMP_EQ,
 						new Expr(i2),
 						new Expr(get_value_operand(latest_overwriters[the_thr_idx]))));
-#if 0
-			errs() << "From overwriting: ";
-			print_clause(errs(), c, getAnalysis<ObjectID>());
-			errs() << "\n";
-#endif
+			DEBUG(dbgs() << "From overwriting: ";
+			print_clause(dbgs(), c, getAnalysis<ObjectID>());
+			dbgs() << "\n";);
 			constraints.push_back(c);
 		}
 	}

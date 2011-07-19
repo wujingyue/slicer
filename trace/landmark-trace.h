@@ -2,6 +2,8 @@
  * Author: Jingyue
  *
  * TODO: Renmae to LandmarkTraceManager. 
+ * TODO: Introduce the concept of region. Move "struct region" definition
+ * here. 
  */
 
 #ifndef __SLICER_LANDMARK_TRACE_H

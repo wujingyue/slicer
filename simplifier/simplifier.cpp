@@ -190,21 +190,14 @@ int RunOptimizationPasses(Module *M) {
 	if (TD)
 		Passes.add(TD);
 
-#if 1
 	FunctionPassManager *FPasses = NULL;
 	FPasses = new FunctionPassManager(M);
 	if (TD)
 		FPasses->add(new TargetData(*TD));
 
 	AddOptimizationPasses(Passes, *FPasses, 3);
-#else
-	Passes.add(createAggressiveDCEPass());
-	Passes.add(createCFGSimplificationPass());
-	Passes.add(createGlobalDCEPass());
-#endif
 
 	bool changed = false;
-#if 1
 	/*
 	 * Run intra-procedural opts first.
 	 * We could also use just one pass manager, but then we would have
@@ -214,12 +207,19 @@ int RunOptimizationPasses(Module *M) {
 	FPasses->doInitialization();
 	for (Module::iterator I = M->begin(), E = M->end(); I != E; ++I)
 		changed |= FPasses->run(*I);
-#endif
 
 	// Now that we have all of the passes ready, run them.
 	changed |= Passes.run(*M);
 
 	return (changed ? 1 : 0);
+}
+
+int RunPasses(Module *M, const vector<Pass *> &Passes) {
+	PassManager PM;
+	for (size_t i = 0; i < Passes.size(); ++i)
+		AddPass(PM, Passes[i]);
+	return (PM.run(*M) ? 1 : 0);
+	// return 0;
 }
 
 /*
@@ -229,7 +229,7 @@ int RunOptimizationPasses(Module *M) {
  * Returns 1 if <M> gets changed. 
  * Returns 0 if <M> is unchanged. 
  */
-int RunPasses(Module *M, const vector<const PassInfo *> &PIs) {
+int RunPassInfos(Module *M, const vector<const PassInfo *> &PIs) {
 
 	// Create a PassManager to hold and optimize the collection of passes we are
 	// about to build...
@@ -245,6 +245,17 @@ int RunPasses(Module *M, const vector<const PassInfo *> &PIs) {
 	
 	for (size_t i = 0; i < PIs.size(); ++i) {
 		const PassInfo *PI = PIs[i];
+		// FIXME: Quick hacks. PreReducer and AggressiveLoopUnroll requires
+		// some LLVM internal LoopPass's, but they cannot directly acquire them
+		// because they have acquired some other passes that these internal
+		// passes don't preserve (likely to be a bug in LLVM). 
+		if (PI == Listener.getAggressiveLoopUnroll()) {
+			AddPass(Passes, createLCSSAPass());
+			// TODO: explain why. 
+			AddPass(Passes, createLoopSimplifyPass());
+		}
+		if (PI == Listener.getPreReducer())
+			AddPass(Passes, createLoopSimplifyPass());
 		if (!PI->getNormalCtor()) {
 			errs() << "Cannot create Pass " << PI->getPassName() << "\n";
 			return -1;
@@ -316,15 +327,6 @@ int DoOneIteration(Module *M) {
 	 * has changed the module or not. 
 	 */
 
-	// Run the LoopSimplifier beforehand. 
-	// Otherwise, the PreReducer wouldn't be effective. 
-	PassManager PM;
-	PM.add(createLoopSimplifyPass());
-	PM.add(createVerifierPass());
-	PM.add(createLCSSAPass());
-	PM.add(createVerifierPass());
-	PM.run(*M);
-
 	// Run the PreReducer to aggresively hoist LoadInst's. 
 	vector<const PassInfo *> PIs;
 	if (const PassInfo *PI = Listener.getPreReducer()) {
@@ -333,7 +335,7 @@ int DoOneIteration(Module *M) {
 		errs() << "PreReducer hasn't been loaded.\n";
 		return -1;
 	}
-	if (RunPasses(M, PIs) == -1)
+	if (RunPassInfos(M, PIs) == -1)
 		return -1;
 
 	// Aggressively unroll loops even if it contains function calls. 
@@ -344,7 +346,7 @@ int DoOneIteration(Module *M) {
 		errs() << "AggressiveLoopUnroll hasn't been loaded.\n";
 		return -1;
 	}
-	if (RunPasses(M, PIs) == -1)
+	if (RunPassInfos(M, PIs) == -1)
 		return -1;
 
 	// Run -O3 again to remove unnecessary instructions/BBs inserted
@@ -370,7 +372,7 @@ int DoOneIteration(Module *M) {
 		errs() << "Reducer hasn't been loaded.\n";
 		return -1;
 	}
-	return RunPasses(M, PIs);
+	return RunPassInfos(M, PIs);
 }
 
 int main(int argc, char *argv[]) {
@@ -404,9 +406,14 @@ int main(int argc, char *argv[]) {
 		Timer *TmrIter = new Timer(OSS.str(), TG);
 		Tmrs.push_back(TmrIter);
 		TmrIter->startTimer();
-		errs() << "=== Starting Iteration " << IterNo << "... ===\n";
+		dbgs() << "=== Starting Iteration " << IterNo << "... ===\n";
 		int Changed = DoOneIteration(M);
-		errs() << "=== Iteration " << IterNo << " finished. ===\n";
+		dbgs() << "=== Iteration " << IterNo << " finished === ";
+		if (Changed == 1)
+			dbgs() << "Changed";
+		else if (Changed == 0)
+			dbgs() << "Unchanged";
+		dbgs() << "\n";
 		TmrIter->stopTimer();
 		
 		if (Changed == -1) {

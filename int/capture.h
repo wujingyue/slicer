@@ -103,6 +103,7 @@ namespace slicer {
 		Instruction *get_idom(Instruction *ins);
 		MicroBasicBlock *get_idom_ip(MicroBasicBlock *mbb);
 		Instruction *get_idom_ip(Instruction *ins);
+		Instruction *find_nearest_common_dom(Instruction *i1, Instruction *i2);
 		// Check if any instruction between <i1> and <i2> may write to <q>. 
 		// <i1> must dominate <i2>, and they are in the same function. 
 		// We don't consider <i1> and <i2> in the path, i.e. the path is an

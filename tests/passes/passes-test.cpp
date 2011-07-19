@@ -19,15 +19,13 @@ using namespace slicer;
 
 static RegisterPass<PassesTest> X(
 		"passes-test",
-		"",
+		"Pass Test",
 		false,
 		false);
 
 char PassesTest::ID = 0;
 
 bool PassesTest::runOnModule(Module &M) {
-	PassB &PB = getAnalysis<PassB>();
-	PB.runOnModule(M);
 	return false;
 }
 

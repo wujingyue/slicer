@@ -10,6 +10,7 @@
 
 #include "llvm/LLVMContext.h"
 #include "llvm/Support/Timer.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/ADT/Statistic.h"
 #include "common/include/util.h"
 using namespace llvm;
@@ -65,7 +66,7 @@ bool Reducer::constantize(Module &M) {
 			local.push_back(&ui.getUse());
 		if (local.size() > 0) {
 			++VariablesConstantized;
-			errs() << "=== replacing with a constant ===\n";
+			DEBUG(dbgs() << "=== replacing with a constant ===\n";);
 		}
 		// FIXME: Integer types in the solver may not be consistent with there
 		// real types. Therefore, we create new ConstantInt's with respect to
@@ -101,14 +102,14 @@ bool Reducer::runOnModule(Module &M) {
 	Timer tmr_constantize("Constantize", tg);
 
 	// Replace variables with ConstantInts whenever possible.
-	tmr_remove_br.startTimer();
+	tmr_constantize.startTimer();
 	changed |= constantize(M);
-	tmr_remove_br.stopTimer();
+	tmr_constantize.stopTimer();
 	
 	// Remove unreachable branches. 
-	tmr_constantize.startTimer();
+	tmr_remove_br.startTimer();
 	changed |= remove_branches(M);
-	tmr_constantize.stopTimer();
+	tmr_remove_br.stopTimer();
 
 	return changed;
 }
@@ -157,6 +158,7 @@ bool Reducer::remove_branch(
 		TerminatorInst *ti, unsigned i, BasicBlock *&unreachable_bb) {
 
 	assert(i < ti->getNumSuccessors());
+	// Already unreachable. 
 	if (MaxSlicing::is_unreachable(ti->getSuccessor(i)))
 		return false;
 

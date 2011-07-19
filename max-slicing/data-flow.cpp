@@ -78,8 +78,6 @@ void MaxSlicing::fix_def_use_bb(Module &M) {
 			// Fix the terminator. 
 			TerminatorInst *ti = bi->getTerminator();
 			if (ti == NULL) {
-				DEBUG(errs() << "[Warning] No terminator: " << fi->getNameStr() << "."
-					<< bi->getNameStr() << "\n";);
 				/*
 				 * Some BBs don't have a Terminator because they end with functions
 				 * such as pthread_exit() or exit(), or the CFG is not complete due
@@ -87,7 +85,26 @@ void MaxSlicing::fix_def_use_bb(Module &M) {
 				 * Need to append UnreachableInsts to them
 				 * because LLVM requires all BBs to end with a TerminatorInst. 
 				 */
-				new UnreachableInst(getGlobalContext(), bi);
+				bool ends_with_no_return;
+				if (bi->empty())
+					ends_with_no_return = false;
+				else {
+					CallSite cs = CallSite::get(&bi->back());
+					if (!cs.getInstruction())
+						ends_with_no_return = false;
+					else
+						ends_with_no_return = cs.doesNotReturn();
+				}
+				if (ends_with_no_return)
+					new UnreachableInst(getGlobalContext(), bi);
+				else {
+					errs() << "[Warning] CFG broken due to incomplete execution: " <<
+						fi->getNameStr() << "." << bi->getNameStr() << "\n";
+					BasicBlock *&unreachable_bb = unreach_bbs[fi];
+					if (!unreachable_bb)
+						unreachable_bb = create_unreachable(fi);
+					BranchInst::Create(unreachable_bb, bi);
+				}
 			} else {
 				BBMapping actual_succ_bbs; // Map to the cloned CFG. 
 				const InstList &actual_succ_insts = cfg.lookup(ti);
@@ -105,15 +122,16 @@ void MaxSlicing::fix_def_use_bb(Module &M) {
 					// otherwise, redirect the outcoming edge to the cloned CFG. 
 					BasicBlock *outcoming_bb = ti->getSuccessor(j);;
 					if (!actual_succ_bbs.count(outcoming_bb)) {
-						if (!unreach_bbs.count(fi)) {
+						// NOTE: This refers to a slot in the hash map. 
+						BasicBlock *&unreachable_bb = unreach_bbs[fi];
+						if (!unreachable_bb) {
 							// <fi> does not have an unreachable BB yet. Create one. 
 							// This statement changes <fi> while we are still scanning
 							// <fi>, but it's fine because the BB list is simply a
 							// linked list.
-							BasicBlock *unreachable_bb = create_unreachable(fi);
-							unreach_bbs[fi] = unreachable_bb;
+							unreachable_bb = create_unreachable(fi);
 						}
-						ti->setSuccessor(j, unreach_bbs[fi]);
+						ti->setSuccessor(j, unreachable_bb);
 					} else {
 						ti->setSuccessor(j, actual_succ_bbs[outcoming_bb]);
 					}
@@ -348,7 +366,19 @@ void MaxSlicing::link_thr_funcs(
 }
 
 bool MaxSlicing::is_unreachable(const BasicBlock *bb) {
-	return bb->getNameStr().find(SLICER_SUFFIX) != string::npos;
+	if (bb->getNameStr().find("unreachable" + SLICER_SUFFIX) != string::npos)
+		return true;
+	// Don't always trust the name. Double check the content. 
+	// Optimizations may combine BBs, and thus change the names. 
+	if (!isa<UnreachableInst>(bb->getTerminator()))
+		return false;
+	forallconst(BasicBlock, ins, *bb) {
+		if (const IntrinsicInst *intr = dyn_cast<IntrinsicInst>(ins)) {
+			if (intr->getIntrinsicID() == Intrinsic::trap)
+				return true;
+		}
+	}
+	return false;
 }
 
 BasicBlock *MaxSlicing::create_unreachable(Function *f) {

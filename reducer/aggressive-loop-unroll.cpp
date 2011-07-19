@@ -3,6 +3,7 @@
  */
 
 #include "llvm/Transforms/Utils/UnrollLoop.h"
+#include "llvm/Support/Debug.h"
 using namespace llvm;
 
 #include "aggressive-loop-unroll.h"
@@ -16,19 +17,22 @@ char AggressiveLoopUnroll::ID = 0;
 
 /* Requires LCSSA. */
 void AggressiveLoopUnroll::getAnalysisUsage(AnalysisUsage &AU) const {
-#if 0
-	AU.addRequiredID(LCSSAID);
-#endif
 	AU.addRequired<LoopInfo>();
-#if 0
-	AU.addPreservedID(LCSSAID);
-#endif
 	LoopPass::getAnalysisUsage(AU);
 }
 
 bool AggressiveLoopUnroll::runOnLoop(Loop *L, LPPassManager &LPM) {
+#if 0
+	dbgs() << "AggressiveLoopUnroll::runOnLoop: " <<
+		L->getHeader()->getParent()->getName() << "." <<
+		L->getHeader()->getName() << "\n";
+#endif
 
 	LoopInfo &LI = getAnalysis<LoopInfo>();
+
+	if (!L->isLCSSAForm()) {
+		errs() << "not LCSSA:" << *(L->getHeader()) << "\n";
+	}
 	assert(L->isLCSSAForm());
 
 	unsigned trip_count = L->getSmallConstantTripCount();

@@ -2,6 +2,8 @@
  * Author: Jingyue
  */
 
+#define DEBUG_TYPE "reducer"
+
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Transforms/Scalar.h"
@@ -12,9 +14,9 @@
 using namespace llvm;
 
 #include "pre-reducer.h"
-#include "../max-slicing/clone-info-manager.h"
-#include "../trace/landmark-trace.h"
-#include "../identify-loops/identify-loops.h"
+#include "max-slicing/clone-info-manager.h"
+#include "trace/landmark-trace.h"
+#include "identify-loops/identify-loops.h"
 using namespace slicer;
 
 #include "bc2bdd/BddAliasAnalysis.h"
@@ -34,19 +36,11 @@ char PreReducer::ID = 0;
  */
 void PreReducer::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesCFG(); // Are you sure? 
-#if 0
-	AU.addRequiredID(LoopSimplifyID);
-#endif
 	AU.addRequired<LoopInfo>();
 	AU.addRequired<LandmarkTrace>();
 	AU.addRequired<CloneInfoManager>();
 	AU.addRequired<BddAliasAnalysis>();
 	AU.addRequired<CallGraphFP>();
-#if 0
-	AU.addPreserved<ScalarEvolution>();
-	AU.addPreserved<DominanceFrontier>();
-	AU.addPreservedID(LoopSimplifyID);
-#endif
 	LoopPass::getAnalysisUsage(AU);
 }
 
@@ -77,7 +71,7 @@ bool PreReducer::runOnLoop(Loop *L, LPPassManager &LPM) {
 		// Promote to_promote[i] to <preheader>. 
 		// Copied from LICM.cpp, around Line 607. 
 		Instruction *ins = to_promote[i];
-		dbgs() << "=== Promoting " << *ins << " ===\n";
+		DEBUG(dbgs() << "=== Promoting " << *ins << " ===\n";);
 		ins->removeFromParent();
 		preheader->getInstList().insert(preheader->getTerminator(), ins);
 	}

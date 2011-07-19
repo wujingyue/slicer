@@ -2,7 +2,7 @@
  * Author: Jingyue
  */
 
-#define DEBUG_TYPE "int-constraints"
+#define DEBUG_TYPE "int"
 
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_os_ostream.h"
@@ -179,7 +179,7 @@ void CaptureConstraints::check_clone_info(Module &M) {
 		for (size_t j = 0; j < n_trunks; ++j) {
 			if (LT.is_enforcing_landmark(i, j)) {
 				unsigned orig_ins_id = LT.get_landmark(i, j).ins_id;
-				if (CIM.get_instruction(i, j, orig_ins_id) == NULL) {
+				if (CIM.get_instructions(i, j, orig_ins_id).empty()) {
 					errs() << "(" << i << ", " << j << ", " <<
 						orig_ins_id << ") not found\n";
 					assert(false && "Some enforcing landmarks cannot be found.");

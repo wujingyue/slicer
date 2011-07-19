@@ -71,9 +71,9 @@ namespace slicer {
 		 */
 		CloneInfo get_clone_info(const Instruction *ins) const;
 		/**
-		 * Returns NULL if cannot find such clone_info. 
+		 * Returns all instructions with this clone_info. 
 		 */
-		Instruction *get_instruction(
+		const InstList &get_instructions(
 				int thr_id, size_t trunk_id, unsigned orig_ins_id) const;
 		/**
 		 * Returns any instruction in Thread <thr_id>. 
@@ -85,7 +85,7 @@ namespace slicer {
 		Instruction *get_any_instruction(int thr_id) const;
 
 	private:
-		DenseMap<CloneInfo, Instruction *> rmap;
+		DenseMap<CloneInfo, InstList> rmap;
 	};
 }
 

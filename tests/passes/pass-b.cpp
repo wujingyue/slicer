@@ -7,7 +7,7 @@ using namespace slicer;
 
 static RegisterPass<PassB> X(
 		"pass-b",
-		"",
+		"Pass B",
 		false,
 		true);
 
@@ -18,6 +18,7 @@ PassB::PassB(): ModulePass(&ID) {
 }
 
 bool PassB::runOnModule(Module &M) {
+	errs() << "PassB::runOnModule\n";
 	PassA &PA = getAnalysis<PassA>();
 	errs() << "PA.getSize() = " << PA.getSize() << "\n";
 	return false;
@@ -26,6 +27,7 @@ bool PassB::runOnModule(Module &M) {
 void PassB::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
 	AU.addRequired<PassA>();
+	AU.addPreserved<PassA>();
 	ModulePass::getAnalysisUsage(AU);
 }
 

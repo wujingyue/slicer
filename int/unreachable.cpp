@@ -1,4 +1,5 @@
 #include "llvm/LLVMContext.h"
+#include "llvm/Support/Debug.h"
 #include "common/cfg/intra-reach.h"
 #include "common/include/util.h"
 using namespace llvm;
@@ -26,18 +27,18 @@ Clause *CaptureConstraints::get_avoid_branch(
 		assert(cond && cond->getType()->isIntegerTy(1));
 		if (!is_constant(cond))
 			return NULL;
-		// i == 0 => cond is 1
-		// i == 1 => cond is 0
+		// i == 0 => avoid true branch => cond is 0
+		// i == 1 => avoid false branch => cond is 1
 		if (i == 0) {
 			return new Clause(new BoolExpr(
 						CmpInst::ICMP_EQ,
 						new Expr(cond),
-						new Expr(ConstantInt::getFalse(getGlobalContext()))));
+						new Expr(ConstantInt::getFalse(ti->getContext()))));
 		} else {
 			return new Clause(new BoolExpr(
 						CmpInst::ICMP_EQ,
 						new Expr(cond),
-						new Expr(ConstantInt::getTrue(getGlobalContext()))));
+						new Expr(ConstantInt::getTrue(ti->getContext()))));
 		}
 	} else if (const SwitchInst *si = dyn_cast<SwitchInst>(ti)) {
 		/*

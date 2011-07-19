@@ -22,7 +22,7 @@ bool CloneInfoManager::runOnModule(Module &M) {
 	forallinst(M, ins) {
 		if (!has_clone_info(ins))
 			continue;
-		rmap[get_clone_info(ins)] = ins;
+		rmap[get_clone_info(ins)].push_back(ins);
 	}
 	assert(rmap.size() > 0 && "The program does not contain any clone_info.");
 	return false;
@@ -49,20 +49,25 @@ CloneInfo CloneInfoManager::get_clone_info(const Instruction *ins) const {
 	return ci;
 }
 
-Instruction *CloneInfoManager::get_instruction(
+const InstList &CloneInfoManager::get_instructions(
 		int thr_id, size_t trunk_id, unsigned orig_ins_id) const {
 	CloneInfo ci;
 	ci.thr_id = thr_id;
 	ci.trunk_id = trunk_id;
 	ci.orig_ins_id = orig_ins_id;
-	return rmap.lookup(ci);
+	DenseMap<CloneInfo, InstList>::const_iterator it = rmap.find(ci);
+	assert(it != rmap.end() &&
+			"Cannot find any instruction with this clone_info");
+	return it->second;
 }
 
 Instruction *CloneInfoManager::get_any_instruction(int thr_id) const {
-	for (DenseMap<CloneInfo, Instruction *>::const_iterator it = rmap.begin();
+	for (DenseMap<CloneInfo, InstList>::const_iterator it = rmap.begin();
 			it != rmap.end(); ++it) {
-		if (it->first.thr_id == thr_id)
-			return it->second;
+		if (it->first.thr_id == thr_id) {
+			assert(!it->second.empty());
+			return it->second.front();
+		}
 	}
 	return NULL;
 }

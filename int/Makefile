@@ -14,5 +14,5 @@ CXXFLAGS += -I$(LLVM_ROOT) -I$(SLICER_ROOT) -I$(SLICER_ROOT)/stp/install/include
 LDFLAGS += -L$(SLICER_ROOT)/stp/install/lib
 
 include $(LEVEL)/Makefile.common
-
+# Must be put after the include. 
 LIBS += -lstp

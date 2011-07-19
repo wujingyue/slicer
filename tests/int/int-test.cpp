@@ -329,9 +329,6 @@ void IntTest::test_fft_nocrit_common(const Module &M) {
 
 		if (starts_with(f->getName(), "SlaveStart.SLICER")) {
 			
-			string str_id = f->getName().substr(strlen("SlaveStart.SLICER"));
-			int id = (str_id == "" ? 0 : atoi(str_id.c_str()) - 1);
-			assert(id >= 0);
 			const Instruction *start = NULL;
 			for (BasicBlock::const_iterator ins = f->getEntryBlock().begin();
 					ins != f->getEntryBlock().end(); ++ins) {
@@ -348,12 +345,12 @@ void IntTest::test_fft_nocrit_common(const Module &M) {
 			const Value *local_id = NULL;
 			for (BasicBlock::const_iterator ins = start;
 					ins != f->getEntryBlock().end(); ++ins) {
-				if (ins->getOpcode() == Instruction::Add) {
+				if (isa<StoreInst>(ins)) {
 					local_id = ins->getOperand(0);
 					break;
 				}
 			}
-			assert(local_id && "Cannot find the Add instruction");
+			assert(local_id && "Cannot find the StoreInst.");
 			errs() << "local_id in " << f->getName() << ": " << *local_id << "\n";
 			local_ids.push_back(local_id);
 		}
