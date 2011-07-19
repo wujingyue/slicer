@@ -32,6 +32,19 @@ landmark_trace_name = $(subst .simple,,$(subst .slice,,$(1))).lt
 		-input-landmark-trace ../trace/$(call landmark_trace_name,$@) \
 		< $<
 
+%.ctxt: $(PROGS_DIR)/%.bc
+	opt -analyze \
+		-load $(LLVM_ROOT)/install/lib/libidm.so \
+		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
+		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
+		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/libcfg.so \
+		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
+		-load $(LLVM_ROOT)/install/lib/libmax-slicing.so \
+		-load $(LLVM_ROOT)/install/lib/libint.so \
+		-count-ctxts \
+		< $<
+
 %.ic: $(PROGS_DIR)/%.bc
 	opt -disable-output \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
