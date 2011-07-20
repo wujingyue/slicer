@@ -124,7 +124,8 @@ namespace slicer {
 		void add_eq_constraint(const Value *v1, const Value *v2);
 		// TODO: We care about Instructions and ConstantExprs only. We could use
 		// Operator as the argument. 
-		void capture_in_user(const User *user);
+		void capture_from_user(const User *user);
+		void capture_from_argument(const Argument *arg);
 		/*
 		 * These capture_* functions need to check whether their operands
 		 * are constant.

@@ -69,46 +69,58 @@ void CaptureConstraints::capture_top_level(Module &M) {
 	 */
 	forall(ConstValueSet, it, integers) {
 		if (const Argument *arg = dyn_cast<Argument>(*it)) {
-			// Needn't handle function declarations.
-			if (arg->getParent()->isDeclaration())
-				continue;
-			CallGraphFP &CG = getAnalysis<CallGraphFP>();
-			ExecOnce &EO = getAnalysis<ExecOnce>();
-			InstList call_sites = CG.get_call_sites(arg->getParent());
-			unsigned n_reachable_call_sites = 0;
-			Instruction *call_site = NULL;
-			for (size_t j = 0; j < call_sites.size(); ++j) {
-				if (!EO.not_executed(call_sites[j])) {
-					n_reachable_call_sites++;
-					call_site = call_sites[j];
-				}
-			}
-			// A function may have no callers after slicing. 
-			assert(n_reachable_call_sites <= 1 &&
-					"Otherwise it shouldn't be a constant");
-			if (n_reachable_call_sites == 1) {
-				// Matches the formal argument with the actual argument. 
-				// TODO: The order of operands of CallInst/InvokeInst is changed
-				// in later version. 
-				if (is_pthread_create(call_site)) {
-					// pthread_create(thread, attr, func, arg)
-					assert(arg->getArgNo() == 0);
-					assert(call_site->getNumOperands() == 5);
-					assert(integers.count(call_site->getOperand(4)));
-					add_eq_constraint(arg, call_site->getOperand(4));
-				} else {
-					add_eq_constraint(arg, call_site->getOperand(arg->getArgNo() + 1));
-				}
-			}
+			capture_from_argument(arg);
 		} else if (const User *user = dyn_cast<User>(*it)) {
-			capture_in_user(user);
+			capture_from_user(user);
 		} else {
 			assert(false && "Not supported");
 		}
 	}
 }
 
-void CaptureConstraints::capture_in_user(const User *user) {
+void CaptureConstraints::capture_from_argument(const Argument *arg) {
+	
+	CallGraphFP &CG = getAnalysis<CallGraphFP>();
+	ExecOnce &EO = getAnalysis<ExecOnce>();
+
+	const Function *f = arg->getParent();
+	// Needn't handle function declarations.
+	if (f->isDeclaration())
+		return;
+	
+	InstList call_sites = CG.get_call_sites(arg->getParent());
+	Clause *disj = NULL;
+	for (size_t j = 0; j < call_sites.size(); ++j) {
+		if (!EO.not_executed(call_sites[j])) {
+			const Instruction *call_site = call_sites[j];
+			// Matches the formal argument with the actual argument. 
+			// TODO: The order of operands of CallInst/InvokeInst is changed
+			// in later version. 
+			const Value *param;
+			if (is_pthread_create(call_site)) {
+				// pthread_create(thread, attr, func, arg)
+				assert(arg->getArgNo() == 0);
+				assert(call_site->getNumOperands() == 5);
+				assert(integers.count(call_site->getOperand(4)));
+				param = call_site->getOperand(4);
+			} else {
+				param = call_site->getOperand(arg->getArgNo() + 1);
+			}
+			Clause *c = new Clause(new BoolExpr(
+						CmpInst::ICMP_EQ, new Expr(arg), new Expr(param)));
+			if (disj == NULL)
+				disj = c;
+			else
+				disj = new Clause(Instruction::Or, disj, c);
+		}
+	}
+	if (!disj)
+		errs() << "[Warning] Function " << f->getName() << " is unreachable.\n";
+	if (disj)
+		constraints.push_back(disj);
+}
+
+void CaptureConstraints::capture_from_user(const User *user) {
 	assert(is_integer(user));
 	unsigned opcode = Operator::getOpcode(user);
 	if (opcode == Instruction::UserOp1)
