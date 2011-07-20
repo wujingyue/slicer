@@ -74,14 +74,20 @@ void CaptureConstraints::capture_addr_taken(Module &M) {
 }
 
 void CaptureConstraints::capture_may_assign(Module &M) {
+
+	ExecOnce &EO = getAnalysis<ExecOnce>();
+
+	// Find all loads and stores. 
+	vector<const LoadInst *> all_loads;
 	// <value, pointer>
-	vector<pair<const Value *, const Value *> > all_stores, all_loads;
+	// <all_stores> includes global variable initializers as well. 
+	// Therefore, not always a StoreInst. 
+	vector<pair<const Value *, const Value *> > all_stores;
 	// Scan through all loads and stores. 
 	// NOTE: We don't guarantee these stores and loads are constant. 
 	// Actually, we need consider non-constant stores here, because any
 	// instruction that loads from it may end up loading anything. 
 	forallinst(M, ii) {
-		ExecOnce &EO = getAnalysis<ExecOnce>();
 		if (EO.not_executed(ii))
 			continue;
 		Value *v = get_value_operand(ii);
@@ -91,9 +97,10 @@ void CaptureConstraints::capture_may_assign(Module &M) {
 			if (StoreInst *si = dyn_cast<StoreInst>(ii))
 				all_stores.push_back(make_pair(v, si->getPointerOperand()));
 			if (LoadInst *li = dyn_cast<LoadInst>(ii))
-				all_loads.push_back(make_pair(v, li->getPointerOperand()));
+				all_loads.push_back(li);
 		}
 	}
+	
 	// Scan through all global variables. 
 	for (Module::global_iterator gi = M.global_begin();
 			gi != M.global_end(); ++gi) {
@@ -113,24 +120,30 @@ void CaptureConstraints::capture_may_assign(Module &M) {
 	errs() << "# of stores = " << all_stores.size() << "\n";
 
 	for (size_t i = 0; i < all_loads.size(); ++i) {
-		if (!is_integer(all_loads[i].first))
+		// TODO: Capture constant => non-constant assignments as well. 
+		if (!EO.executed_once(all_loads[i]))
 			continue;
+
 		Clause *disj = NULL;
 		for (size_t j = 0; j < all_stores.size(); ++j) {
-			if (AA->alias(all_loads[i].second, 0, all_stores[j].second, 0)) {
+			if (AA->alias(
+						all_loads[i]->getPointerOperand(), 0, all_stores[j].second, 0)) {
 				// If the stored value is not constant, the loaded value
 				// can be anything. So, no constraint will be captured in
 				// this case. 
-				if (!is_integer(all_stores[j].first)) {
-					// errs() << "[Warning] Stores a variable\n";
-					if (disj)
-						delete disj;
-					disj = NULL;
-					break;
+				if (const Instruction *si = dyn_cast<Instruction>(all_stores[j].first)) {
+					if (!EO.executed_once(si)) {
+						// dbgs() << "[Warning] Stores a variable\n";
+						if (disj) {
+							delete disj;
+							disj = NULL;
+						}
+						break;
+					}
 				}
 				Clause *c = new Clause(new BoolExpr(
 							CmpInst::ICMP_EQ,
-							new Expr(all_loads[i].first),
+							new Expr(all_loads[i]),
 							new Expr(all_stores[j].first)));
 				if (!disj)
 					disj = c;

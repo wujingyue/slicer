@@ -5,6 +5,7 @@
  */
 
 #include "llvm/LLVMContext.h"
+#include "llvm/Support/CallSite.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Support/CallSite.h"
 #include "common/id-manager/IDManager.h"

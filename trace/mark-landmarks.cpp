@@ -1,10 +1,13 @@
+/**
+ * Author: Jingyue
+ */
+
 #include "llvm/Support/CFG.h"
 #include "llvm/ADT/SCCIterator.h"
 #include "common/cfg/identify-thread-funcs.h"
 #include "common/cfg/may-exec.h"
 #include "common/callgraph-fp/callgraph-fp.h"
 #include "common/id-manager/IDManager.h"
-#include "common/include/util.h"
 using namespace llvm;
 
 #include "enforcing-landmarks.h"
