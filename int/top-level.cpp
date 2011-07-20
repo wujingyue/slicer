@@ -26,8 +26,10 @@ void CaptureConstraints::extract_from_consts(Constant *c) {
 }
 
 void CaptureConstraints::identify_integers(Module &M) {
-	integers.clear();
+
 	ExecOnce &EO = getAnalysis<ExecOnce>();
+	
+	integers.clear();
 	// Global variables. 
 	for (Module::global_iterator gi = M.global_begin();
 			gi != M.global_end(); ++gi) {
@@ -37,6 +39,7 @@ void CaptureConstraints::identify_integers(Module &M) {
 				extract_from_consts(gi->getInitializer());
 		}
 	}
+	
 	// Instructions and their constant operands. 
 	forallinst(M, ii) {
 		if (EO.executed_once(ii) && !EO.not_executed(ii) &&
@@ -48,6 +51,7 @@ void CaptureConstraints::identify_integers(Module &M) {
 				extract_from_consts(c);
 		}
 	}
+	
 	// Function parameters. 
 	forallfunc(M, fi) {
 		if (!EO.executed_once(fi) || EO.not_executed(fi))

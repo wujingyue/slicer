@@ -225,14 +225,16 @@ Instruction *CaptureConstraints::find_latest_overwriter(
 }
 
 void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
-	
-	if (!is_integer(i2))
-		return;
-	
+
 	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
 	CloneInfoManager &CIM = getAnalysis<CloneInfoManager>();
 	RegionManager &RM = getAnalysis<RegionManager>();
+	ExecOnce &EO = getAnalysis<ExecOnce>();
 
+	// We only handle the case that <i2> is executed once for now. 
+	if (!EO.executed_once(i2))
+		return;
+	
 	vector<Region> cur_regions;
 	RM.get_containing_regions(i2, cur_regions);
 	if (cur_regions.size() != 1)
