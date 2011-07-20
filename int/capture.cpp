@@ -79,7 +79,7 @@ CaptureConstraints::~CaptureConstraints() {
 
 void CaptureConstraints::print(raw_ostream &O, const Module *M) const {
 	O << "\nConstants:\n";
-	forallconst(ConstValueSet, it, constants) {
+	forallconst(ConstValueSet, it, integers) {
 		print_value(O, *it);
 	}
 	O << "\nConstraints:\n";
@@ -107,30 +107,6 @@ void CaptureConstraints::print_value(raw_ostream &O, const Value *v) {
 
 const Clause *CaptureConstraints::get_constraint(unsigned i) const {
 	return constraints[i];
-}
-
-bool CaptureConstraints::is_int_operation(unsigned opcode) {
-	switch (opcode) {
-		case Instruction::Add:
-		case Instruction::Sub:
-		case Instruction::Mul:
-		case Instruction::UDiv:
-		case Instruction::SDiv:
-		case Instruction::URem:
-		case Instruction::SRem:
-		case Instruction::Shl:
-		case Instruction::LShr:
-		case Instruction::AShr:
-		case Instruction::And:
-		case Instruction::Or:
-		case Instruction::Xor:
-		case Instruction::ICmp:
-		case Instruction::ZExt:
-		case Instruction::SExt:
-			return true;
-		default:
-			return false;
-	}
 }
 
 void CaptureConstraints::stat(Module &M) {
@@ -169,41 +145,19 @@ bool CaptureConstraints::runOnModule(Module &M) {
 	return recalculate(M);
 }
 
-void CaptureConstraints::check_clone_info(Module &M) {
-	CloneInfoManager &CIM = getAnalysis<CloneInfoManager>();
-	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
-	vector<int> thr_ids = LT.get_thr_ids();
-	for (size_t k = 0; k < thr_ids.size(); ++k) {
-		int i = thr_ids[k];
-		size_t n_trunks = LT.get_n_trunks(i);
-		for (size_t j = 0; j < n_trunks; ++j) {
-			if (LT.is_enforcing_landmark(i, j)) {
-				unsigned orig_ins_id = LT.get_landmark(i, j).ins_id;
-				if (CIM.get_instructions(i, j, orig_ins_id).empty()) {
-					errs() << "(" << i << ", " << j << ", " <<
-						orig_ins_id << ") not found\n";
-					assert(false && "Some enforcing landmarks cannot be found.");
-				}
-			}
-		}
-	}
-}
-
 bool CaptureConstraints::recalculate(Module &M) {
-
-	// Check clone_info metadata. 
-	check_clone_info(M);
 
 	constraints.clear();
 	
-	// Identify all integer and pointer constants.
-	// Note that we define constants in a different way. 
-	identify_constants(M);
+	// Identify all integer and pointer variables. 
+	identify_integers(M);
 	
 	// Look at arithmetic operations on these constants. 
-	capture_constraints_on_consts(M);
+	capture_top_level(M);
 	
 	// Look at loads and stores. 
+	// The algorithm to capture address-taken variables are flow-sensitive.
+	// Need compute the inter-procedural CFG before hand. 
 	ICFG &PIB = getAnalysis<PartialICFGBuilder>();
 	IDT.recalculate(PIB);
 	capture_addr_taken(M);

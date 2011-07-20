@@ -16,7 +16,6 @@ using namespace llvm;
 #include "pre-reducer.h"
 #include "max-slicing/clone-info-manager.h"
 #include "trace/landmark-trace.h"
-#include "identify-loops/identify-loops.h"
 using namespace slicer;
 
 #include "bc2bdd/BddAliasAnalysis.h"

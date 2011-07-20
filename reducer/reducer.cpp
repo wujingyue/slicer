@@ -45,7 +45,8 @@ bool Reducer::constantize(Module &M) {
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 
 	vector<pair<const Value *, ConstantInt *> > to_replace;
-	const ConstValueSet &constants = CC.get_constants();
+	// TODO: consider only constants. 
+	const ConstValueSet &constants = CC.get_integers();
 	forallconst(ConstValueSet, it, constants) {
 		// Skip if already a constant. 
 		if (isa<Constant>(*it))
@@ -197,7 +198,7 @@ void Reducer::prepare_remove_branch(
 		return;
 	
 	Value *cond = bi->getCondition();
-	if (!CC.is_constant(cond))
+	if (!CC.is_integer(cond))
 		return;
 	
 	const Use *use_cond = &bi->getOperandUse(0);

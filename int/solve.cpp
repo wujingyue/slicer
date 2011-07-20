@@ -108,7 +108,7 @@ void SolveConstraints::identify_fixed_values() {
 
 	// Try to constantize as many variables as possible. 
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
-	const ConstValueSet &constants = CC.get_constants();
+	const ConstValueSet &constants = CC.get_integers();
 	/*
 	 * Algorithm:
 	 * 1. Find a satisfiable assignment, and assume each variable must equal
@@ -571,9 +571,9 @@ bool SolveConstraints::contains_only_consts(const BoolExpr *be) {
 bool SolveConstraints::contains_only_consts(const Expr *e) {
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 	if (e->type == Expr::SingleDef)
-		return CC.is_constant(e->v) || isa<Constant>(e->v);
+		return CC.is_integer(e->v) || isa<Constant>(e->v);
 	if (e->type == Expr::SingleUse)
-		return CC.is_constant(e->u->get()) || isa<Constant>(e->u->get());
+		return CC.is_integer(e->u->get()) || isa<Constant>(e->u->get());
 	if (e->type == Expr::Unary)
 		return contains_only_consts(e->e1);
 	if (e->type == Expr::Binary)

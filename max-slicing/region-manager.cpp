@@ -71,6 +71,8 @@ bool RegionManager::runOnModule(Module &M) {
 				unsigned orig_ins_id = LT.get_landmark(i, j).ins_id;
 				const InstList &landmarks = CIM.get_instructions(
 						i, j, orig_ins_id);
+				// Enforcing landmarks should be resistent to compiler optimizations,
+				// because we mark them as volatile. 
 				if (landmarks.empty()) {
 					errs() << "(" << i << ", " << j << ", " <<
 						orig_ins_id << ") not found\n";

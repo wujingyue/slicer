@@ -28,7 +28,7 @@ using namespace llvm;
 #include "../trace/landmark-trace.h"
 using namespace slicer;
 
-Value *CaptureConstraints::get_pointer_operand(Instruction *i) const {
+Value *CaptureConstraints::get_pointer_operand(Instruction *i) {
 	if (StoreInst *si = dyn_cast<StoreInst>(i))
 		return si->getPointerOperand();
 	if (LoadInst *li = dyn_cast<LoadInst>(i))
@@ -36,8 +36,7 @@ Value *CaptureConstraints::get_pointer_operand(Instruction *i) const {
 	return NULL;
 }
 
-const Value *CaptureConstraints::get_pointer_operand(
-		const Instruction *i) const {
+const Value *CaptureConstraints::get_pointer_operand(const Instruction *i) {
 	if (const StoreInst *si = dyn_cast<StoreInst>(i))
 		return si->getPointerOperand();
 	if (const LoadInst *li = dyn_cast<LoadInst>(i))
@@ -45,7 +44,7 @@ const Value *CaptureConstraints::get_pointer_operand(
 	return NULL;
 }
 
-Value *CaptureConstraints::get_value_operand(Instruction *i) const {
+Value *CaptureConstraints::get_value_operand(Instruction *i) {
 	if (StoreInst *si = dyn_cast<StoreInst>(i))
 		return si->getOperand(0);
 	if (LoadInst *li = dyn_cast<LoadInst>(i))
@@ -53,8 +52,7 @@ Value *CaptureConstraints::get_value_operand(Instruction *i) const {
 	return NULL;
 }
 
-const Value *CaptureConstraints::get_value_operand(
-		const Instruction *i) const {
+const Value *CaptureConstraints::get_value_operand(const Instruction *i) {
 	if (const StoreInst *si = dyn_cast<StoreInst>(i))
 		return si->getOperand(0);
 	if (const LoadInst *li = dyn_cast<LoadInst>(i))
@@ -115,7 +113,7 @@ void CaptureConstraints::capture_may_assign(Module &M) {
 	errs() << "# of stores = " << all_stores.size() << "\n";
 
 	for (size_t i = 0; i < all_loads.size(); ++i) {
-		if (!is_constant(all_loads[i].first))
+		if (!is_integer(all_loads[i].first))
 			continue;
 		Clause *disj = NULL;
 		for (size_t j = 0; j < all_stores.size(); ++j) {
@@ -123,7 +121,7 @@ void CaptureConstraints::capture_may_assign(Module &M) {
 				// If the stored value is not constant, the loaded value
 				// can be anything. So, no constraint will be captured in
 				// this case. 
-				if (!is_constant(all_stores[j].first)) {
+				if (!is_integer(all_stores[j].first)) {
 					// errs() << "[Warning] Stores a variable\n";
 					if (disj)
 						delete disj;
@@ -215,7 +213,7 @@ Instruction *CaptureConstraints::find_latest_overwriter(
 
 void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 	
-	if (!is_constant(i2))
+	if (!is_integer(i2))
 		return;
 	
 	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();

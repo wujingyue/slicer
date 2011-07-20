@@ -27,7 +27,7 @@ void CaptureConstraints::capture_libcall(const CallSite &cs) {
 	if (name == "pwrite") {
 		// The return value >= 0.
 		const Instruction *ret = cs.getInstruction();
-		if (is_constant(ret)) {
+		if (is_integer(ret)) {
 			constraints.push_back(new Clause(new BoolExpr(
 							CmpInst::ICMP_SGE,
 							new Expr(ret),

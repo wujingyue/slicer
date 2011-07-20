@@ -9,7 +9,7 @@ using namespace llvm;
 #include "capture.h"
 using namespace slicer;
 
-void CaptureConstraints::extract_consts(Constant *c) {
+void CaptureConstraints::extract_from_consts(Constant *c) {
 	// We don't care about functions. 
 	// We might unlikely in the future, when we want to reason about integer
 	// constraints on function pointers. 
@@ -18,34 +18,34 @@ void CaptureConstraints::extract_consts(Constant *c) {
 	// Only handle integer constants and pointer constants. 
 	if (!isa<IntegerType>(c->getType()) && !isa<PointerType>(c->getType()))
 		return;
-	constants.insert(c);
+	integers.insert(c);
 	for (unsigned i = 0; i < c->getNumOperands(); ++i) {
 		if (Constant *ct = dyn_cast<Constant>(c->getOperand(i)))
-			extract_consts(ct);
+			extract_from_consts(ct);
 	}
 }
 
-void CaptureConstraints::identify_constants(Module &M) {
-	constants.clear();
+void CaptureConstraints::identify_integers(Module &M) {
+	integers.clear();
 	ExecOnce &EO = getAnalysis<ExecOnce>();
 	// Global variables. 
 	for (Module::global_iterator gi = M.global_begin();
 			gi != M.global_end(); ++gi) {
 		if (isa<IntegerType>(gi->getType()) || isa<PointerType>(gi->getType())) {
-			constants.insert(gi);
+			integers.insert(gi);
 			if (gi->hasInitializer())
-				extract_consts(gi->getInitializer());
+				extract_from_consts(gi->getInitializer());
 		}
 	}
 	// Instructions and their constant operands. 
 	forallinst(M, ii) {
 		if (EO.executed_once(ii) && !EO.not_executed(ii) &&
 				(isa<IntegerType>(ii->getType()) || isa<PointerType>(ii->getType())))
-			constants.insert(ii);
+			integers.insert(ii);
 		// Constant expressions. 
 		for (unsigned i = 0; i < ii->getNumOperands(); ++i) {
 			if (Constant *c = dyn_cast<Constant>(ii->getOperand(i)))
-				extract_consts(c);
+				extract_from_consts(c);
 		}
 	}
 	// Function parameters. 
@@ -55,19 +55,19 @@ void CaptureConstraints::identify_constants(Module &M) {
 		for (Function::arg_iterator ai = fi->arg_begin();
 				ai != fi->arg_end(); ++ai) {
 			if (isa<IntegerType>(ai->getType()) || isa<PointerType>(ai->getType()))
-				constants.insert(ai);
+				integers.insert(ai);
 		}
 	}
 }
 
-void CaptureConstraints::capture_constraints_on_consts(Module &M) {
+void CaptureConstraints::capture_top_level(Module &M) {
 	/*
 	 * Constants:
 	 * - Constants (global vars, constant exprs, ...)
 	 * - Instructions
 	 * - Function parameters
 	 */
-	forall(ConstValueSet, it, constants) {
+	forall(ConstValueSet, it, integers) {
 		if (const Argument *arg = dyn_cast<Argument>(*it)) {
 			// Needn't handle function declarations.
 			if (arg->getParent()->isDeclaration())
@@ -94,7 +94,7 @@ void CaptureConstraints::capture_constraints_on_consts(Module &M) {
 					// pthread_create(thread, attr, func, arg)
 					assert(arg->getArgNo() == 0);
 					assert(call_site->getNumOperands() == 5);
-					assert(constants.count(call_site->getOperand(4)));
+					assert(integers.count(call_site->getOperand(4)));
 					add_eq_constraint(arg, call_site->getOperand(4));
 				} else {
 					add_eq_constraint(arg, call_site->getOperand(arg->getArgNo() + 1));
@@ -109,7 +109,7 @@ void CaptureConstraints::capture_constraints_on_consts(Module &M) {
 }
 
 void CaptureConstraints::capture_in_user(const User *user) {
-	assert(is_constant(user));
+	assert(is_integer(user));
 	unsigned opcode = Operator::getOpcode(user);
 	if (opcode == Instruction::UserOp1)
 		return;
@@ -156,7 +156,7 @@ void CaptureConstraints::capture_in_user(const User *user) {
 void CaptureConstraints::capture_in_unary(const User *u) {
 	assert(u->getNumOperands() == 1);
 	const Value *v = u->getOperand(0);
-	if (!constants.count(v))
+	if (!integers.count(v))
 		return;
 	// u == v, but they may have different bit widths. 
 	unsigned opcode = Operator::getOpcode(u);
@@ -182,7 +182,7 @@ void CaptureConstraints::capture_in_icmp(const ICmpInst *icmp) {
 	// i.e. (icmp == 0) ^ (branch holds) == 1
 	const Value *op0 = icmp->getOperand(0);
 	const Value *op1 = icmp->getOperand(1);
-	if (!is_constant(op0) || !is_constant(op1))
+	if (!is_integer(op0) || !is_integer(op1))
 		return;
 	Clause *branch = new Clause(new BoolExpr(
 				icmp->getPredicate(), new Expr(op0), new Expr(op1)));
@@ -197,7 +197,7 @@ void CaptureConstraints::capture_in_icmp(const ICmpInst *icmp) {
 
 void CaptureConstraints::capture_in_phi(const PHINode *phi) {
 	for (unsigned i = 0; i < phi->getNumIncomingValues(); ++i) {
-		if (!constants.count(phi->getIncomingValue(i)))
+		if (!integers.count(phi->getIncomingValue(i)))
 			return;
 	}
 	Clause *disj = NULL;
@@ -217,9 +217,9 @@ void CaptureConstraints::capture_in_phi(const PHINode *phi) {
 
 void CaptureConstraints::capture_in_binary(const User *user, unsigned opcode) {
 	assert(user->getNumOperands() == 2);
-	if (!constants.count(user->getOperand(0)))
+	if (!integers.count(user->getOperand(0)))
 		return;
-	if (!constants.count(user->getOperand(1)))
+	if (!integers.count(user->getOperand(1)))
 		return;
 	Expr *e1 = new Expr(user);
 	Expr *e2 = new Expr(
@@ -244,7 +244,7 @@ void CaptureConstraints::capture_in_binary(const User *user, unsigned opcode) {
 
 void CaptureConstraints::capture_in_gep(const User *user) {
 	for (unsigned i = 0; i < user->getNumOperands(); ++i) {
-		if (!constants.count(user->getOperand(i)))
+		if (!integers.count(user->getOperand(i)))
 			return;
 	}
 	const Value *base = user->getOperand(0);
@@ -284,8 +284,4 @@ void CaptureConstraints::capture_in_gep(const User *user) {
 void CaptureConstraints::add_eq_constraint(const Value *v1, const Value *v2) {
 	BoolExpr *be = new BoolExpr(CmpInst::ICMP_EQ, new Expr(v1), new Expr(v2));
 	constraints.push_back(new Clause(be));
-}
-
-bool CaptureConstraints::is_constant(const Value *v) const {
-	return constants.count(const_cast<Value *>(v));
 }
