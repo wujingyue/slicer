@@ -33,6 +33,16 @@ namespace slicer {
 		// Mark the entry and the exits of each thread function. 
 		// Function main is considered as a thread function as well. 
 		void mark_thread(Module &M);
+		/**
+		 * Mark the return sites of recursive functions that may execute
+		 * enforcing landmarks. 
+		 */
+		void mark_recursive_rets(Module &M);
+		/**
+		 * Used by mark_recursive_rets.
+		 * Mark the return sits of function <f> as derived landmarks. 
+		 */
+		void mark_rets(Function *f);
 
 		InstSet landmarks;
 	};

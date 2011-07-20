@@ -23,19 +23,14 @@ using namespace std;
 #include "../trace/landmark-trace.h"
 using namespace slicer;
 
-void MaxSlicing::add_cfg_edge(
-		Instruction *x,
-		Instruction *y) {
+void MaxSlicing::add_cfg_edge(Instruction *x, Instruction *y) {
 	assert(clone_map_r.count(x) && "<x> must be in the cloned CFG");
 	assert(clone_map_r.count(y) && "<y> must be in the cloned CFG");
 	cfg[x].push_back(y);
 	cfg_r[y].push_back(x);
 }
 
-void MaxSlicing::build_cfg(
-		Module &M,
-		const Trace &trace,
-		const InstSet &cut) {
+void MaxSlicing::build_cfg(Module &M, const Trace &trace, const InstSet &cut) {
 
 	dbgs() << "\nBuilding CFG...\n";
 	// Initialize global variables related to building CFG. 
@@ -116,7 +111,14 @@ void MaxSlicing::assign_level(
 		Instruction *x,
 		DenseMap<Instruction *, int> &level,
 		InstMapping &parent) {
+	
 	assert(x && "<x> cannot be NULL");
+	
+	DEBUG(IDManager &IDM = getAnalysis<IDManager>();
+	dbgs() << "level of {" << cloned_to_trunk.lookup(x) << ":" <<
+		IDM.getInstructionID(clone_map_r.lookup(x)) << "} = " <<
+		level.lookup(x) << "\n";);
+	
 	const InstList &next_insts = cfg.lookup(x);
 	for (size_t j = 0, E = next_insts.size(); j < E; ++j) {
 		Instruction *y = next_insts[j];
@@ -134,9 +136,8 @@ void MaxSlicing::assign_level(
 	}
 }
 
-void MaxSlicing::assign_containers(
-		Module &M,
-		Instruction *start) {
+void MaxSlicing::assign_containers(Module &M, Instruction *start) {
+	// <start> is a cloned instruction. 
 	DenseMap<Instruction *, int> level;
 	level[start] = 0;
 	InstMapping parent;
@@ -209,25 +210,26 @@ void MaxSlicing::assign_container(
 MaxSlicing::EdgeType MaxSlicing::get_edge_type(
 		Instruction *x,
 		Instruction *y) {
+
 	assert(x && y && "<x> and <y> cannot be NULL");
 	x = clone_map_r.lookup(x);
 	assert(x && "<x> must be in the cloned CFG");
 	y = clone_map_r.lookup(y);
 	assert(y && "<y> must be in the cloned CFG");
 
-	if (x->getParent()->getParent() != y->getParent()->getParent()) {
-		// In different functions. Either call or ret. 
-		if (is_call(x))
+	MayExec &ME = getAnalysis<MayExec>();
+	if (is_call(x)) {
+		// is_call(x) does not necessarily mean x => y is a call edge. 
+		// It may also be the case that the callee is not sliced and <y> is just
+		// a successor of the CallInst. 
+		Function *fy = y->getParent()->getParent();
+		if (y == fy->begin()->begin() && ME.may_exec_landmark(fy))
 			return EDGE_CALL;
-		else {
-			assert((isa<ReturnInst>(x) || isa<UnwindInst>(x)) &&
-					"<x> should be either a call or a ret");
-			return EDGE_RET;
-		}
-	} else if (x->getParent() == y->getParent())
-		return EDGE_INTRA_BB;
-	else
-		return EDGE_INTER_BB;
+	}
+	if (is_ret(x))
+		return EDGE_RET;
+	assert(x->getParent()->getParent() == y->getParent()->getParent());
+	return (x->getParent() == y->getParent() ? EDGE_INTRA_BB : EDGE_INTER_BB);
 }
 
 Instruction *MaxSlicing::clone_inst(
@@ -319,12 +321,16 @@ void MaxSlicing::build_cfg_of_trunk(
 		int thr_id,
 		size_t trunk_id,
 		InstList &call_stack) {
+	
 	assert(cut.count(end));
+	
 	// DFS in both directions to find the instructions may be
 	// visited in the trunk. 
 	InstSet visited_nodes; visited_nodes.insert(start);
 	EdgeSet visited_edges;
 	InstList end_call_stack;
+	// Put a tombstone. 
+	end_call_stack.push_back(NULL);
 	dfs(start, end, cut, visited_nodes, visited_edges, call_stack, end_call_stack);
 	call_stack = end_call_stack;
 	// NOTE: Be careful. <call_stack> already gets changed. 
@@ -336,6 +342,9 @@ void MaxSlicing::build_cfg_of_trunk(
 	}
 	assert(visited_nodes.count(end) &&
 			"Unable to reach from <start> to <end>");
+	// <end_call_stack> should be changed. 
+	assert(end_call_stack.empty() || end_call_stack.front() != NULL);
+
 	refine_from_end(start, end, cut, visited_nodes, visited_edges);
 	// Clone instructions in this trunk. 
 	// Note <start> may equal <end>. 
@@ -529,15 +538,17 @@ void MaxSlicing::move_on(
 	 * is in the cut.
 	 */
 	visited_edges.insert(make_pair(x, y));
+	// Don't put it in the "if (!visited_nodes.count(y))". 
+	// <y> might be visited as the starting point. 
+	if (y == end) {
+		end_call_stack.clear();
+		end_call_stack.insert(end_call_stack.end(),
+				call_stack.begin(), call_stack.end());
+	}
 	if (!visited_nodes.count(y)) {
 		visited_nodes.insert(y);
 		if (!cut.count(y))
 			dfs(y, end, cut, visited_nodes, visited_edges, call_stack, end_call_stack);
-		if (y == end) {
-			end_call_stack.clear();
-			end_call_stack.insert(end_call_stack.end(),
-					call_stack.begin(), call_stack.end());
-		}
 	}
 }
 

@@ -1,5 +1,5 @@
-PROG_NAMES = aget-nocrit test-thread test-overwrite FFT-nocrit RADIX-nocrit \
-	     test-loop test-reducer pbzip2-nocrit CHOLESKY-nocrit
+PROG_NAMES = test-loop test-reducer test-thread test-overwrite test-recursive \
+	     FFT-nocrit RADIX-nocrit aget-nocrit pbzip2-nocrit
 PROGS_DIR = ../progs
 PROGS = $(addprefix $(PROGS_DIR)/, $(PROG_NAMES))
 SLICED_PROGS = $(addsuffix .slice, $(PROGS))

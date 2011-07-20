@@ -146,6 +146,10 @@ void MaxSlicing::fix_def_use_bb(Module &M) {
 			if (ii->isTerminator())
 				n_terminators++;
 		}
+		if (n_terminators != 1) {
+			errs() << bi->getParent()->getName() << "." << bi->getName() <<
+				" has 0 or multiple terminators.\n";
+		}
 		assert(n_terminators == 1);
 	}
 }

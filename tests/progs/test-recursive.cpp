@@ -1,16 +1,19 @@
 #include <iostream>
+#include <pthread.h>
 using namespace std;
 
-int fib(int n) {
-	fprintf(stderr, "fib(%d)\n", n);
-	if (n == 0)
-		return 0;
-	if (n == 1)
-		return 1;
-	return fib(n - 2) + fib(n - 1);
+void my_malloc(int x) {
+	cout << pthread_self() << endl;
+	if (x) {
+		cout << "non-zero\n";
+		my_malloc(0);
+	} else {
+		cout << "zero\n";
+	}
 }
 
-int main(int argc, char *argv[]) {
-	cout << fib(atoi(argv[1])) << endl;
+int main() {
+	my_malloc(1);
+	my_malloc(0);
 	return 0;
 }

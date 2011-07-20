@@ -1,5 +1,6 @@
-PROG_NAMES = test-thread test-overwrite aget-nocrit FFT-nocrit RADIX-nocrit \
-	     test-loop test-reducer pbzip2-nocrit CHOLESKY-nocrit
+PROG_NAMES = test-thread test-overwrite test-loop test-reducer \
+	     test-recursive aget-nocrit FFT-nocrit RADIX-nocrit \
+	     pbzip2-nocrit CHOLESKY-nocrit
 PROGS_DIR = ../progs
 TRACED_PROGS = $(PROG_NAMES:=.trace)
 LANDMARK_TRACES = $(PROG_NAMES:=.lt)
@@ -55,7 +56,18 @@ pbzip2%: pbzip2%.s
 %.display-lt: %.lt
 	trace-display landmark < $<
 
+%.landmarks: $(PROGS_DIR)/%-id.bc
+	opt -analyze \
+		-load $(LLVM_ROOT)/install/lib/libidm.so \
+		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
+		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
+		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/libcfg.so \
+		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
+		-mark-landmarks \
+		< $<
+
 clean:
 	rm -f *.trace *.trace.bc *.trace.s *.bc1 *.lt
 
-.PHONY: clean landmark-trace *.display
+.PHONY: clean landmark-trace *.display-lt *.display-ft *.landmarks

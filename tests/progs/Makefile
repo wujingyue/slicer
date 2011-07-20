@@ -1,7 +1,8 @@
 PROGS = test-thread test-path test-overwrite test-ctxt test-recursive \
-	test-branch test-loop test-reducer
+	test-branch test-loop test-reducer test-bound test-ret test-phi
 BCS = $(PROGS:=.bc)
 
+# Better not use -O here; otherwise difficult to construct examples.
 CFLAGS = -g -Wall
 CXXFLAGS = -g -Wall
 
