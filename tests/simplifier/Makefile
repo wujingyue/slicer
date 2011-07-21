@@ -1,8 +1,7 @@
 # simplifier only works on sliced programs 
 
 PROG_NAMES = test-loop test-reducer test-overwrite test-bound \
-	     aget-nocrit FFT-nocrit \
-	     RADIX-nocrit CHOLESKY-nocrit
+	     aget-nocrit FFT-nocrit RADIX-nocrit CHOLESKY-nocrit
 PROGS_DIR = ../progs
 PROGS = $(addprefix $(PROGS_DIR)/, $(PROG_NAMES))
 SIMPLE_PROGS = $(PROGS:=.simple)

@@ -612,7 +612,8 @@ void SolveConstraints::realize(const Expr *e) {
 	} else if (e->type == Expr::SingleUse) {
 		realize(e->u);
 	} else {
-		realize(dyn_cast<Instruction>(e->v));
+		if (const Instruction *ins = dyn_cast<Instruction>(e->v))
+			realize(ins);
 	}
 }
 
