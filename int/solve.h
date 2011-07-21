@@ -96,19 +96,9 @@ namespace slicer {
 		void update_appeared(ConstValueSet &appeared, const Clause *c);
 		void update_appeared(ConstValueSet &appeared, const BoolExpr *be);
 		void update_appeared(ConstValueSet &appeared, const Expr *e);
-		bool contains_only_consts(const Clause *c);
-		bool contains_only_consts(const BoolExpr *be);
-		bool contains_only_consts(const Expr *e);
-#if 0
-		/**
-		 * Returns whether the clause only contains ConstantInt's. 
-		 * If so, we can simply discard this clause, because we assume
-		 * the captured constraints are consistent. 
-		 */
-		bool contains_only_constints(const Clause *c) const;
-		bool contains_only_constints(const BoolExpr *be) const;
-		bool contains_only_constints(const Expr *e) const;
-#endif
+		bool contains_only_ints(const Clause *c);
+		bool contains_only_ints(const BoolExpr *be);
+		bool contains_only_ints(const Expr *e);
 
 		static void vc_error_handler(const char *err_msg);
 		static VCExpr vc_zero(VC vc) {

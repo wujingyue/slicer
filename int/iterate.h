@@ -13,14 +13,6 @@ namespace slicer {
 		Iterate(): ModulePass(&ID) {}
 		virtual bool runOnModule(Module &M);
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
-
-	private:
-		void run_tests(Module &M);
-		void test1(Module &M);
-		void test2(Module &M);
-		void test3(Module &M);
-		void test4(Module &M);
-		void test5(Module &M);
 	};
 }
 

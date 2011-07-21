@@ -49,6 +49,9 @@ namespace slicer {
 		bool is_integer(const Value *v) const {
 			return integers.count(const_cast<Value *>(v));
 		}
+		/**
+		 * Returns all reachable integers or pointers. 
+		 */
 		const ConstValueSet &get_integers() const { return integers; }
 		/**
 		 * Used by the solver as well, so need make it public.
@@ -56,6 +59,12 @@ namespace slicer {
 		 * unreachable BBs. 
 		 */
 		Clause *get_avoid_branch(const TerminatorInst *ti, unsigned i) const;
+		/**
+		 * Used by the solver. 
+		 * Get the constraints on the loop index of loop <L>. 
+		 * Returns NULL if we are unable to infer the bounds. 
+		 */
+		Clause *get_loop_bound(const Loop *L) const;
 
 	private:
 		// Utility functions. 
@@ -64,6 +73,17 @@ namespace slicer {
 		static const Value *get_pointer_operand(const Instruction *i);
 		static Value *get_value_operand(Instruction *i);
 		static const Value *get_value_operand(const Instruction *i);
+		/**
+		 * Create a constraint saying lb (<= or <) v && v (<= or <) ub.
+		 * Q: Why not just have an inclusive mode, and translate a < b into
+		 * a <= b - 1? 
+		 * A: b - 1 requires bound checks. 
+		 * Think about a <= i1 <= b - 1 and b <= i2 <= c
+		 * a = 0, b = 0, c = 1, i1 = 0, i2 = 0 is actually a satisfying assignment. 
+		 */
+		static Clause *create_bound_constraint(const Value *v,
+				const Value *lb, bool lb_inclusive,
+				const Value *ub, bool ub_inclusive);
 		
 		// Address taken variables. 
 		void capture_addr_taken(Module &M);

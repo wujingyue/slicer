@@ -79,9 +79,12 @@ CaptureConstraints::~CaptureConstraints() {
 }
 
 void CaptureConstraints::print(raw_ostream &O, const Module *M) const {
-	O << "\nConstants:\n";
+	ObjectID &OI = getAnalysis<ObjectID>();
+	O << "\nIntegers:\n";
 	forallconst(ConstValueSet, it, integers) {
-		print_value(O, *it);
+		unsigned value_id = OI.getValueID(*it);
+		assert(value_id != ObjectID::INVALID_ID);
+		O << "  x" << value_id << "\n";
 	}
 	O << "\nConstraints:\n";
 	forallconst(vector<Clause *>, it, constraints) {

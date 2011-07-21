@@ -272,30 +272,6 @@ void SolveConstraints::update_appeared(
 		assert_not_supported();
 }
 
-#if 0
-bool SolveConstraints::contains_only_constints(const Clause *c) const {
-	if (c->be)
-		return contains_only_constints(c->be);
-	else
-		return contains_only_constints(c->c1) && contains_only_constints(c->c2);
-}
-
-bool SolveConstraints::contains_only_constints(const BoolExpr *be) const {
-	return contains_only_constints(be->e1) && contains_only_constints(be->e2);
-}
-
-bool SolveConstraints::contains_only_constints(const Expr *e) const {
-	switch (e->type) {
-		case Expr::SingleDef: return isa<ConstantInt>(e->v);
-		case Expr::SingleUse: return isa<ConstantInt>(e->u->get());
-		case Expr::Unary: return contains_only_constints(e->e1);
-		case Expr::Binary:
-			return contains_only_constints(e->e1) && contains_only_constints(e->e2);
-	}
-	assert_not_supported();
-}
-#endif
-
 void SolveConstraints::translate_captured() {
 
 	assert(vc);
@@ -529,6 +505,7 @@ void SolveConstraints::print(raw_ostream &O, const Module *M) const {
 void SolveConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
 	AU.addRequiredTransitive<ObjectID>();
+	AU.addRequiredTransitive<LoopInfo>();
 	AU.addRequiredTransitive<DominatorTree>();
 	AU.addRequiredTransitive<IntraReach>();
 	AU.addRequiredTransitive<CaptureConstraints>();
@@ -558,26 +535,26 @@ bool SolveConstraints::satisfiable(
 	return ret == 0;
 }
 
-bool SolveConstraints::contains_only_consts(const Clause *c) {
+bool SolveConstraints::contains_only_ints(const Clause *c) {
 	if (c->be)
-		return contains_only_consts(c->be);
-	return contains_only_consts(c->c1) && contains_only_consts(c->c2);
+		return contains_only_ints(c->be);
+	return contains_only_ints(c->c1) && contains_only_ints(c->c2);
 }
 
-bool SolveConstraints::contains_only_consts(const BoolExpr *be) {
-	return contains_only_consts(be->e1) && contains_only_consts(be->e2);
+bool SolveConstraints::contains_only_ints(const BoolExpr *be) {
+	return contains_only_ints(be->e1) && contains_only_ints(be->e2);
 }
 
-bool SolveConstraints::contains_only_consts(const Expr *e) {
+bool SolveConstraints::contains_only_ints(const Expr *e) {
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 	if (e->type == Expr::SingleDef)
 		return CC.is_integer(e->v) || isa<Constant>(e->v);
 	if (e->type == Expr::SingleUse)
 		return CC.is_integer(e->u->get()) || isa<Constant>(e->u->get());
 	if (e->type == Expr::Unary)
-		return contains_only_consts(e->e1);
+		return contains_only_ints(e->e1);
 	if (e->type == Expr::Binary)
-		return contains_only_consts(e->e1) && contains_only_consts(e->e2);
+		return contains_only_ints(e->e1) && contains_only_ints(e->e2);
 	assert_not_supported();
 }
 
@@ -585,7 +562,7 @@ bool SolveConstraints::provable(
 		const vector<const Clause *> &more_clauses) {
 	vc_push(vc);
 	forallconst(vector<const Clause *>, it, more_clauses) {
-		if (!contains_only_consts(*it)) {
+		if (!contains_only_ints(*it)) {
 			vc_pop(vc);
 			return false;
 		}
@@ -653,42 +630,66 @@ BasicBlock *SolveConstraints::get_idom(BasicBlock *bb) {
 void SolveConstraints::realize(const Use *u) {
 	// The value of a llvm::Constant is compile-time known. Therefore,
 	// we don't need to capture extra constraints. 
-	realize(dyn_cast<Instruction>(u->getUser()));
+	if (const Instruction *ins = dyn_cast<Instruction>(u->getUser()))
+		realize(ins);
 }
 
 void SolveConstraints::realize(const Instruction *ins) {
-	if (!ins)
-		return;
+	
+	assert(ins);
 	BasicBlock *bb = const_cast<BasicBlock *>(ins->getParent());
 	Function *f = bb->getParent();
+
+	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
+	// TODO: Make it inter-procedural
 	IntraReach &IR = getAnalysis<IntraReach>(*f);
-	while (bb != &f->getEntryBlock()) {
-		BasicBlock *p = get_idom(bb);
+	LoopInfo &LI = getAnalysis<LoopInfo>(*f);
+
+	// Realize each dominating BranchInst. 
+	BasicBlock *dom = bb;
+	while (dom != &f->getEntryBlock()) {
+		BasicBlock *p = get_idom(dom);
 		assert(p);
 		/*
-		 * If a successor of <p> cannot reach <bb>, the condition that leads
+		 * If a successor of <p> cannot reach <dom>, the condition that leads
 		 * to that successor must not hold. 
 		 */ 
 		TerminatorInst *ti = p->getTerminator();
 		for (unsigned i = 0; i < ti->getNumSuccessors(); ++i) {
-			if (!IR.reachable(ti->getSuccessor(i), bb)) {
-				CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
+			if (!IR.reachable(ti->getSuccessor(i), dom)) {
 				const Clause *c = CC.get_avoid_branch(ti, i);
 				if (c) {
-#if 0
-					errs() << "[realize] ";
-					print_clause(errs(), c, getAnalysis<ObjectID>());
-					errs() << "\n";
-#endif
+					DEBUG(dbgs() << "[realize] ";
+							print_clause(dbgs(), c, getAnalysis<ObjectID>());
+							dbgs() << "\n";);
 					Clause *c2 = c->clone();
 					replace_with_root(c2);
+					// TODO: Simplify c2
 					vc_assertFormula(vc, translate_to_vc(c2));
 					delete c2;
 					delete c;
 				}
 			}
 		}
-		bb = p;
+		dom = p;
+	}
+
+	// Realize each containing loop. 
+	Loop *l = LI.getLoopFor(bb);
+	while (l) {
+		const Clause *c = CC.get_loop_bound(l);
+		if (c) {
+			DEBUG(dbgs() << "[realize] ";
+					print_clause(dbgs(), c, getAnalysis<ObjectID>());
+					dbgs() << "\n";);
+			Clause *c2 = c->clone();
+			replace_with_root(c2);
+			// TODO: Simplify c2
+			vc_assertFormula(vc, translate_to_vc(c2));
+			delete c2;
+			delete c;
+		}
+		l = l->getParentLoop();
 	}
 }
 

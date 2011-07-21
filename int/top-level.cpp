@@ -1,4 +1,5 @@
 #include "llvm/LLVMContext.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Target/TargetData.h"
 #include "idm/id.h"
 #include "common/callgraph-fp/callgraph-fp.h"
@@ -65,21 +66,103 @@ void CaptureConstraints::identify_integers(Module &M) {
 }
 
 void CaptureConstraints::capture_top_level(Module &M) {
-	/*
-	 * Constants:
-	 * - Constants (global vars, constant exprs, ...)
-	 * - Instructions
-	 * - Function parameters
-	 */
+
+	// Users: Instructions or ConstantExprs
+	forall(ConstValueSet, it, integers) {
+		if (const User *user = dyn_cast<User>(*it)) {
+			capture_from_user(user);
+		}
+	}
+	
+	// Function parameters: formal = actual
 	forall(ConstValueSet, it, integers) {
 		if (const Argument *arg = dyn_cast<Argument>(*it)) {
 			capture_from_argument(arg);
-		} else if (const User *user = dyn_cast<User>(*it)) {
-			capture_from_user(user);
-		} else {
-			assert(false && "Not supported");
 		}
 	}
+}
+
+Clause *CaptureConstraints::create_bound_constraint(const Value *v,
+		const Value *lb, bool lb_inclusive,
+		const Value *ub, bool ub_inclusive) {
+	Clause *c_lb = new Clause(new BoolExpr(
+				(lb_inclusive ? CmpInst::ICMP_SGE : CmpInst::ICMP_SGT),
+				new Expr(v), new Expr(lb)));
+	Clause *c_ub = new Clause(new BoolExpr(
+				(ub_inclusive ? CmpInst::ICMP_SLE : CmpInst::ICMP_SLT),
+				new Expr(v), new Expr(ub)));
+	return new Clause(Instruction::And, c_lb, c_ub);
+}
+
+Clause *CaptureConstraints::get_loop_bound(const Loop *L) const {
+	
+	const PHINode *IV = L->getCanonicalInductionVariable();
+	// Give up if we cannot find the loop index. 
+	if (!IV)
+		return NULL;
+	if (IV->getNumIncomingValues() != 2)
+		return NULL;
+
+	// Best case: Already optimized as a loop with a trip count. 
+	if (Value *Trip = L->getTripCount()) {
+		return create_bound_constraint(
+				IV, ConstantInt::get(int_type, 0), true, Trip, false);
+	}
+
+	// Borrowed from LLVM.
+	bool P0InLoop = L->contains(IV->getIncomingBlock(0));
+	Value *Init = IV->getIncomingValue(P0InLoop);
+	Value *Inc = IV->getIncomingValue(!P0InLoop);
+	BasicBlock *BackedgeBlock = IV->getIncomingBlock(!P0InLoop);
+
+	if (BranchInst *BI = dyn_cast<BranchInst>(BackedgeBlock->getTerminator()))
+		if (BI->isConditional()) {
+			if (ICmpInst *ICI = dyn_cast<ICmpInst>(BI->getCondition())) {
+				if (ICI->getOperand(0) == Inc || ICI->getOperand(1) == Inc) {
+					CmpInst::Predicate Pred = ICI->getPredicate();
+					Value *Op0 = ICI->getOperand(0);
+					Value *Op1 = ICI->getOperand(1);
+					// If BI's true branch returns to the loop header,
+					// ICI holds for the loop; otherwise (not ICI) holds for
+					// the loop. 
+					if (BI->getSuccessor(0) != L->getHeader())
+						Pred = CmpInst::getInversePredicate(Pred);
+					// Canonicalize the condition to make Inc as the 0-th operand. 
+					if (Op0 != Inc) {
+						Pred = CmpInst::getSwappedPredicate(Pred);
+						swap(Op0, Op1);
+					}
+					assert(Op0 == Inc);
+					Clause *c;
+					switch (Pred) {
+						case CmpInst::ICMP_SLT:
+						case CmpInst::ICMP_ULT:
+							// Init <= IV < Op1
+							c = create_bound_constraint(IV, Init, true, Op1, false);
+							break;
+						case CmpInst::ICMP_SLE:
+						case CmpInst::ICMP_ULE:
+							// Init <= IV <= Op1
+							c = create_bound_constraint(IV, Init, true, Op1, true);
+							break;
+						case CmpInst::ICMP_SGT:
+						case CmpInst::ICMP_UGT:
+							// Init >= IV > Op1
+							c = create_bound_constraint(IV, Op1, false, Init, true);
+							break;
+						case CmpInst::ICMP_SGE:
+						case CmpInst::ICMP_UGE:
+							// Init >= IV >= Op1
+							c = create_bound_constraint(IV, Op1, true, Init, true);
+							break;
+						default:
+							c = NULL;
+					}
+					return c;
+				}
+			}
+		}
+	return NULL;
 }
 
 void CaptureConstraints::capture_from_argument(const Argument *arg) {
