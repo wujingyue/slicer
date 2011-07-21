@@ -1,5 +1,5 @@
-#ifndef __SLICER_TEST_BANNER_H
-#define __SLICER_TEST_BANNER_H
+#ifndef __SLICER_TEST_UTILS_H
+#define __SLICER_TEST_UTILS_H
 
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
@@ -12,9 +12,11 @@ namespace slicer {
 	struct TestBanner {
 
 		static void print_banner(const string &content) {
+			errs().changeColor(raw_ostream::BLUE, true);
 			errs() << "+" << string(content.length() + 2, '-') << "+\n";
 			errs() << "| " << content << " |\n";
 			errs() << "+" << string(content.length() + 2, '-') << "+\n";
+			errs().resetColor();
 		}
 
 		TestBanner(const string &name) {
@@ -29,6 +31,16 @@ namespace slicer {
 	private:
 		string name;
 	};
+
+	inline void print_pass(raw_ostream &O) {
+		O.changeColor(raw_ostream::GREEN, true) << "Passed\n";
+		O.resetColor();
+	}
+
+	inline void print_fail(raw_ostream &O) {
+		O.changeColor(raw_ostream::RED, true) << "Failed\n";
+		O.resetColor();
+	}
 }
 
 #endif

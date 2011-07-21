@@ -6,11 +6,11 @@
  * Identify the variables only? 
  * Saves the solving time during debugging. 
  */
-// #define IDENTIFY_ONLY
 
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/DominatorInternals.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/raw_ostream.h"
 #include "common/include/util.h"
 using namespace llvm;
 
@@ -18,7 +18,7 @@ using namespace llvm;
 #include "int/capture.h"
 #include "int/solve.h"
 #include "int/adv-alias.h"
-#include "../include/test-banner.h"
+#include "../include/test-utils.h"
 using namespace slicer;
 
 #include <map>
@@ -65,13 +65,11 @@ char IntTest::ID = 0;
 
 void IntTest::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
-#ifndef IDENTIFY_ONLY
 	AU.addRequired<ObjectID>();
 	AU.addRequired<Iterate>();
 	AU.addRequired<SolveConstraints>();
 	AU.addRequired<CaptureConstraints>();
 	AU.addRequired<AdvancedAlias>();
-#endif
 	ModulePass::getAnalysisUsage(AU);
 }
 
@@ -128,7 +126,9 @@ void IntTest::test_test_bound_simple(const Module &M) {
 		assert(v1 && v2 && "Found less than 2 GEPs");
 		AdvancedAlias &AAA = getAnalysis<AdvancedAlias>();
 		errs() << "v1:" << *v1 << "\nv2:" << *v2 << "\n";
+		errs() << "v1 and v2 alias? ...";
 		assert(AAA.alias(v1, 0, v2, 0) == AliasAnalysis::NoAlias);
+		print_pass(errs());
 	}
 }
 
@@ -156,10 +156,12 @@ void IntTest::test_test_reducer_simple(const Module &M) {
 						SolveConstraints &SC = getAnalysis<SolveConstraints>();
 						errs() << "GEP:" << *gep << "\n";
 						const IntegerType *int_type = IntegerType::get(M.getContext(), 32);
+						errs() << "argc - 1 >= 0? ...";
 						assert(SC.provable(
 									CmpInst::ICMP_SGT,
 									&gep->getOperandUse(1),
 									ConstantInt::get(int_type, 0)));
+						print_pass(errs());
 					}
 				}
 			}
@@ -185,8 +187,9 @@ void IntTest::test_test_loop_simple(const Module &M) {
 			}
 		}
 	}
-	errs() << "There are " << n_printfs << " printf's.\n";
+	errs() << "3 printf's? ...";
 	assert(n_printfs == 3);
+	print_pass(errs());
 }
 
 void IntTest::test_radix_nocrit_simple(const Module &M) {
@@ -222,7 +225,7 @@ void IntTest::test_radix_nocrit_simple(const Module &M) {
 		for (size_t j = i + 1; j < ranks.size(); ++j) {
 			errs() << "Comparing ranks[" << i << "] and ranks[" << j << "]... ";
 			assert(AA.alias(ranks[i], 0, ranks[j], 0) == AliasAnalysis::NoAlias);
-			errs() << "Good\n";
+			print_pass(errs());
 		}
 	}
 }
@@ -268,7 +271,9 @@ void IntTest::test_radix_nocrit_common(const Module &M) {
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	for (size_t i = 0; i < local_ids.size(); ++i) {
 		for (size_t j = i + 1; j < local_ids.size(); ++j) {
+			errs() << "local_ids[" << i << "] != local_ids[" << j << "]? ...";
 			assert(SC.provable(CmpInst::ICMP_NE, local_ids[i], local_ids[j]));
+			print_pass(errs());
 		}
 	}
 
@@ -321,10 +326,9 @@ void IntTest::test_fft_nocrit_common(const Module &M) {
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	for (size_t i = 0; i < local_ids.size(); ++i) {
 		for (size_t j = i + 1; j < local_ids.size(); ++j) {
-			errs() << "Comparing local_ids[" << i <<
-				"] and local_ids[" << j << "]... ";
+			errs() << "local_ids[" << i << "] != local_ids[" << j << "]? ...";
 			assert(SC.provable(CmpInst::ICMP_NE, local_ids[i], local_ids[j]));
-			errs() << "Good\n";
+			print_pass(errs());
 		}
 	}
 
@@ -355,7 +359,9 @@ void IntTest::test_fft_nocrit_common(const Module &M) {
 						new Expr(ranges[j].second),
 						new Expr(ranges[i].first)));
 			Clause *disjoint = new Clause(Instruction::Or, c1, c2);
+			errs() << "ranges[" << i << "] and ranges[" << j << "] are disjoint? ...";
 			assert(SC.provable(disjoint));
+			print_pass(errs());
 			delete disjoint;
 		}
 	}
@@ -390,7 +396,9 @@ void IntTest::test_test_overwrite_simple(const Module &M) {
 	
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	errs() << *v1 << "\n" << *v2 << "\n";
+	errs() << "v1 == v2? ...";
 	assert(SC.provable(CmpInst::ICMP_EQ, v1, v2));
+	print_pass(errs());
 }
 
 void IntTest::test_aget_nocrit_simple(const Module &M) {
@@ -513,26 +521,38 @@ void IntTest::test_aget_nocrit_simple(const Module &M) {
 	assert(soffset2);
 	errs() << "soffset2:" << *soffset2 << "\n";
 
-#ifndef IDENTIFY_ONLY
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	// soffset <= offset
+	errs() << "soffset <= offset? ...";
 	assert(SC.provable(CmpInst::ICMP_SLE, soffset, offset));
+	print_pass(errs());
+	
 	// offset < foffset
+	errs() << "offset < foffset? ...";
 	assert(SC.provable(CmpInst::ICMP_SLT, offset, foffset));
+	print_pass(errs());
+	
 	// offset + dr <= foffset
+	errs() << "offset + dr <= foffset? ...";
 	Expr *end = new Expr(Instruction::Add, new Expr(offset), new Expr(dr));
 	Clause *c = new Clause(new BoolExpr(
 				CmpInst::ICMP_SLE, end, new Expr(foffset)));
 	assert(SC.provable(c));
 	delete end;
 	delete c;
+	print_pass(errs());
+	
 	// offset + remain <= foffset
+	errs() << "offset + remain <= foffset? ...";
 	end = new Expr(Instruction::Add, new Expr(offset), new Expr(remain));
 	c = new Clause(new BoolExpr(CmpInst::ICMP_SLE, end, new Expr(foffset)));
 	assert(SC.provable(c));
 	delete end;
 	delete c;
+	print_pass(errs());
+	
 	// foffset <= soffset2
+	errs() << "foffset <= soffset2? ...";
 	assert(SC.provable(CmpInst::ICMP_SLE, foffset, soffset2));
-#endif
+	print_pass(errs());
 }
