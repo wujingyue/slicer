@@ -1,3 +1,5 @@
+# TODO: Always works on simplified programs. 
+
 LEVEL = $(shell $(LLVM_ROOT)/scripts/level-to-llvm-root)/llvm-obj
 LIBRARYNAME = int-test
 LOADABLE_MODULE = 1
@@ -6,9 +8,10 @@ CXXFLAGS += -I$(LLVM_ROOT) -I$(SLICER_ROOT) -I$(SLICER_ROOT)/stp/install/include
 
 include $(LEVEL)/Makefile.common
 
-PROG_NAMES = test-overwrite.slice test-loop.slice test-loop.simple \
-	     test-reducer.simple aget-nocrit.simple FFT-nocrit.simple \
-	     RADIX-nocrit.simple FFT-nocrit.slice CHOLESKY-nocrit.simple
+PROG_NAMES = test-overwrite.simple test-loop.simple test-reducer.simple \
+	     test-bound.simple \
+	     aget-nocrit.simple FFT-nocrit.simple \
+	     RADIX-nocrit.simple CHOLESKY-nocrit.simple
 PROGS_DIR = ../progs
 
 run:: $(PROG_NAMES)

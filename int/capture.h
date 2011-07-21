@@ -9,6 +9,7 @@
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/DominatorInternals.h"
+#include "llvm/Analysis/LoopInfo.h"
 #include "common/include/typedefs.h"
 #include "common/cfg/icfg.h"
 using namespace llvm;
@@ -23,22 +24,9 @@ namespace slicer {
 
 	struct CaptureConstraints: public ModulePass {
 
-		static char ID;
-
-#if 0
-		enum EdgeType {
-			EDGE_CALL,
-			EDGE_INTER_BB,
-			EDGE_INTRA_BB,
-			EDGE_RET
-		};
-#endif
-
 		const static unsigned INVALID_VAR_ID = (unsigned)-1;
 
-		typedef DenseMap<Value *, pair<Expr, Expr> > ValueBoundsInBB;
-		typedef pair<Value *, pair<Expr, Expr> > BoundsInBB;
-
+		static char ID;
 		CaptureConstraints();
 		virtual ~CaptureConstraints();
 		virtual bool runOnModule(Module &M);
@@ -111,6 +99,8 @@ namespace slicer {
 		void simplify_constraints();
 		void stat(Module &M);
 		void setup(Module &M);
+		void check_loop(Loop *l);
+		void check_loops(Module &M);
 
 		// Integer and pointer values. 
 		void capture_top_level(Module &M);
@@ -128,13 +118,20 @@ namespace slicer {
 		void capture_from_argument(const Argument *arg);
 		/*
 		 * These capture_* functions need to check whether their operands
-		 * are constant.
+		 * are integers. 
 		 */
 		void capture_in_icmp(const ICmpInst *user);
 		void capture_in_unary(const User *user);
 		void capture_in_binary(const User *user, unsigned opcode);
 		void capture_in_gep(const User *user);
 		void capture_in_phi(const PHINode *phi);
+		/**
+		 * Returns true if
+		 * 1. x is shallower than y OR
+		 * 2. x and y are at the same level, but x => y is a backedge of
+		 *    their containing loop. 
+		 */
+		bool comes_from_shallow(const BasicBlock *x, const BasicBlock *y);
 		/* Constraints from unreachable blocks. */
 		void capture_unreachable(Module &M);
 		void capture_unreachable_in_func(Function *f);

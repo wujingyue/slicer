@@ -42,10 +42,10 @@ void CaptureConstraints::identify_integers(Module &M) {
 	
 	// Instructions and their constant operands. 
 	forallinst(M, ii) {
-		if (EO.executed_once(ii) && !EO.not_executed(ii) &&
+		if (!EO.not_executed(ii) &&
 				(isa<IntegerType>(ii->getType()) || isa<PointerType>(ii->getType())))
 			integers.insert(ii);
-		// Constant expressions. 
+		// No matter reachable or not, capture its constant operands. 
 		for (unsigned i = 0; i < ii->getNumOperands(); ++i) {
 			if (Constant *c = dyn_cast<Constant>(ii->getOperand(i)))
 				extract_from_consts(c);
@@ -54,7 +54,7 @@ void CaptureConstraints::identify_integers(Module &M) {
 	
 	// Function parameters. 
 	forallfunc(M, fi) {
-		if (!EO.executed_once(fi) || EO.not_executed(fi))
+		if (EO.not_executed(fi))
 			continue;
 		for (Function::arg_iterator ai = fi->arg_begin();
 				ai != fi->arg_end(); ++ai) {
@@ -211,11 +211,34 @@ void CaptureConstraints::capture_in_icmp(const ICmpInst *icmp) {
 				branch));
 }
 
+bool CaptureConstraints::comes_from_shallow(
+		const BasicBlock *x, const BasicBlock *y) {
+	assert(x->getParent() == y->getParent());
+	const Function *f = x->getParent();
+	LoopInfo &LI = getAnalysis<LoopInfo>(*const_cast<Function *>(f));
+	if (LI.getLoopDepth(x) < LI.getLoopDepth(y))
+		return true;
+	if (LI.getLoopDepth(x) > LI.getLoopDepth(y))
+		return false;
+	if (LI.isLoopHeader(const_cast<BasicBlock *>(y))) {
+		const Loop *ly = LI.getLoopFor(y);
+		assert(ly);
+		if (ly->contains(x))
+			return false;
+	}
+	return true;
+}
+
 void CaptureConstraints::capture_in_phi(const PHINode *phi) {
+
+	// Check the loop depths. 
+	// Each incoming edge must be from a shallower loop or a loop from
+	// the same depth but not a backedge. 
 	for (unsigned i = 0; i < phi->getNumIncomingValues(); ++i) {
-		if (!integers.count(phi->getIncomingValue(i)))
+		if (!comes_from_shallow(phi->getIncomingBlock(i), phi->getParent()))
 			return;
 	}
+
 	Clause *disj = NULL;
 	for (unsigned i = 0; i < phi->getNumIncomingValues(); ++i) {
 		Clause *c = new Clause(new BoolExpr(

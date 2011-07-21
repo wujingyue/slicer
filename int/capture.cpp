@@ -52,6 +52,7 @@ char CaptureConstraints::ID = 0;
 void CaptureConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
 	AU.addRequiredTransitive<TargetData>();
+	AU.addRequiredTransitive<LoopInfo>();
 	AU.addRequiredTransitive<ObjectID>();
 	AU.addRequiredTransitive<DominatorTree>();
 	AU.addRequiredTransitive<IntraReach>();
@@ -145,9 +146,30 @@ bool CaptureConstraints::runOnModule(Module &M) {
 	return recalculate(M);
 }
 
+void CaptureConstraints::check_loop(Loop *l) {
+	assert(l->isLCSSAForm());
+	assert(l->isLoopSimplifyForm());
+	for (Loop::iterator li = l->begin(); li != l->end(); ++li)
+		check_loop(*li);
+}
+
+void CaptureConstraints::check_loops(Module &M) {
+	forallfunc(M, f) {
+		if (f->isDeclaration())
+			continue;
+		LoopInfo &LI = getAnalysis<LoopInfo>(*f);
+		for (LoopInfo::iterator lii = LI.begin(); lii != LI.end(); ++lii) {
+			Loop *l = *lii;
+			check_loop(l);
+		}
+	}
+}
+
 bool CaptureConstraints::recalculate(Module &M) {
 
 	constraints.clear();
+
+	check_loops(M);
 	
 	// Identify all integer and pointer variables. 
 	identify_integers(M);

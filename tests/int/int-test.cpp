@@ -37,18 +37,15 @@ namespace slicer {
 
 	private:
 		/* These test functions give assertion failures on incorrect results. */
-		void test_aget_nocrit_slice(const Module &M);
 		void test_aget_nocrit_simple(const Module &M);
-		void test_test_overwrite_slice(const Module &M);
-		void test_fft_nocrit_slice(const Module &M);
+		void test_test_overwrite_simple(const Module &M);
 		void test_fft_nocrit_simple(const Module &M);
 		void test_fft_nocrit_common(const Module &M);
-		void test_radix_nocrit_slice(const Module &M);
 		void test_radix_nocrit_simple(const Module &M);
 		void test_radix_nocrit_common(const Module &M);
-		void test_test_loop_slice(const Module &M);
 		void test_test_loop_simple(const Module &M);
 		void test_test_reducer_simple(const Module &M);
+		void test_test_bound_simple(const Module &M);
 	};
 }
 
@@ -89,21 +86,50 @@ bool IntTest::runOnModule(Module &M) {
 	 * Each test case will check whether it should be run according
 	 * to the program name. 
 	 */
-	test_aget_nocrit_slice(M);
 	test_aget_nocrit_simple(M);
-	test_test_overwrite_slice(M);
-	test_fft_nocrit_slice(M);
+	test_test_overwrite_simple(M);
 	test_fft_nocrit_simple(M);
-	test_radix_nocrit_slice(M);
 	test_radix_nocrit_simple(M);
-	test_test_loop_slice(M);
 	test_test_loop_simple(M);
 	test_test_reducer_simple(M);
+	test_test_bound_simple(M);
 	return false;
 }
 
 static bool starts_with(const string &a, const string &b) {
 	return a.length() >= b.length() && a.compare(0, b.length(), b) == 0;
+}
+
+void IntTest::test_test_bound_simple(const Module &M) {
+
+	if (Program != "test-bound.simple")
+		return;
+	TestBanner X("test-bound.simple");
+
+	forallconst(Module, f, M) {
+		if (f->getName() != "main")
+			continue;
+		const Value *v1 = NULL, *v2 = NULL;
+		forallconst(Function, bb, *f) {
+			forallconst(BasicBlock, ins, *bb) {
+				if (const GetElementPtrInst *gep = dyn_cast<GetElementPtrInst>(ins)) {
+					// Look at GEPs from <arr> only. 
+					if (gep->getOperand(0)->getName() != "arr")
+						continue;
+					if (!v1)
+						v1 = gep;
+					else if (!v2)
+						v2 = gep;
+					else
+						assert(false && "Found more than 2 GEPs");
+				}
+			}
+		}
+		assert(v1 && v2 && "Found less than 2 GEPs");
+		AdvancedAlias &AAA = getAnalysis<AdvancedAlias>();
+		errs() << "v1:" << *v1 << "\nv2:" << *v2 << "\n";
+		assert(AAA.alias(v1, 0, v2, 0) == AliasAnalysis::NoAlias);
+	}
 }
 
 void IntTest::test_test_reducer_simple(const Module &M) {
@@ -161,51 +187,6 @@ void IntTest::test_test_loop_simple(const Module &M) {
 	}
 	errs() << "There are " << n_printfs << " printf's.\n";
 	assert(n_printfs == 3);
-}
-
-void IntTest::test_test_loop_slice(const Module &M) {
-
-	if (Program != "test-loop.slice")
-		return;
-	TestBanner X("test-loop.slice");
-
-	SolveConstraints &SC = getAnalysis<SolveConstraints>();
-
-	forallconst(Module, f, M) {
-		if (f->getName() != "main")
-			continue;
-		bool started = false;
-		forallconst(Function, bb, *f) {
-			forallconst(BasicBlock, ins, *bb) {
-				if (const CallInst *ci = dyn_cast<CallInst>(ins)) {
-					const Function *callee = ci->getCalledFunction();
-					if (callee && callee->getName() == "pthread_self")
-						started = true;
-				}
-				if (!started)
-					continue;
-				// Check all "load from n"s after the first "pthread_self". 
-				if (const LoadInst *li = dyn_cast<LoadInst>(ins)) {
-					const Value *p = li->getPointerOperand();
-					if (p->getName() == "n") {
-						errs() << "load from n:" << *li << "\n";
-						const IntegerType *int_type = IntegerType::get(M.getContext(), 32);
-						assert(SC.provable(
-									CmpInst::ICMP_EQ, li, ConstantInt::get(int_type, 3)));
-					}
-				}
-			}
-		}
-	}
-}
-
-void IntTest::test_radix_nocrit_slice(const Module &M) {
-	
-	if (Program != "RADIX-nocrit.slice")
-		return;
-	TestBanner X("RADIX-nocrit.slice");
-
-	test_radix_nocrit_common(M);
 }
 
 void IntTest::test_radix_nocrit_simple(const Module &M) {
@@ -303,15 +284,6 @@ void IntTest::test_radix_nocrit_common(const Module &M) {
 
 }
 
-void IntTest::test_fft_nocrit_slice(const Module &M) {
-	
-	if (Program != "FFT-nocrit.slice")
-		return;
-	TestBanner X("FFT-nocrit.slice");
-
-	test_fft_nocrit_common(M);
-}
-
 void IntTest::test_fft_nocrit_simple(const Module &M) {
 	
 	if (Program != "FFT-nocrit.simple")
@@ -399,18 +371,11 @@ void IntTest::test_fft_nocrit_common(const Module &M) {
 	}
 }
 
-void IntTest::test_aget_nocrit_slice(const Module &M) {
+void IntTest::test_test_overwrite_simple(const Module &M) {
 	
-	if (Program != "aget-nocrit.slice")
+	if (Program != "test-overwrite.simple")
 		return;
-	TestBanner X("aget-nocrit.slice");
-}
-
-void IntTest::test_test_overwrite_slice(const Module &M) {
-	
-	if (Program != "test-overwrite.slice")
-		return;
-	TestBanner X("test-overwrite.slice");
+	TestBanner X("test-overwrite.simple");
 
 	const Value *v1 = NULL, *v2 = NULL;
 	forallconst(Module, f, M) {

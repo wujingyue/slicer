@@ -56,6 +56,10 @@ const InstList &CloneInfoManager::get_instructions(
 	ci.trunk_id = trunk_id;
 	ci.orig_ins_id = orig_ins_id;
 	DenseMap<CloneInfo, InstList>::const_iterator it = rmap.find(ci);
+	if (it == rmap.end()) {
+		errs() << "(" << thr_id << ", " << trunk_id << ", " <<
+			orig_ins_id << ") not found\n";
+	}
 	assert(it != rmap.end() &&
 			"Cannot find any instruction with this clone_info");
 	return it->second;

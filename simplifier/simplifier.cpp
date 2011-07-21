@@ -219,7 +219,6 @@ int RunPasses(Module *M, const vector<Pass *> &Passes) {
 	for (size_t i = 0; i < Passes.size(); ++i)
 		AddPass(PM, Passes[i]);
 	return (PM.run(*M) ? 1 : 0);
-	// return 0;
 }
 
 /*
@@ -354,12 +353,20 @@ int DoOneIteration(Module *M) {
 	if (RunOptimizationPasses(M) == -1)
 		return -1;
 
+	// CaptureConstraints requires all loops in LCSSA form. 
+	vector<Pass *> Passes;
+	Passes.push_back(createLCSSAPass());
+	Passes.push_back(createLoopSimplifyPass());
+	if (RunPasses(M, Passes) == -1)
+		return -1;
+	
 	// As a side effect of PrintAfterEachIteration, print the module before
 	// the integer constraint solving. 
 	if (PrintAfterEachIteration) {
 		if (OutputModule(M, "before-reducer.bc") == -1)
 			return -1;
 	}
+
 	/*
 	 * Constantizer and BranchRemover require Iterate,
 	 * so don't worry about the Iterate. 
@@ -442,6 +449,14 @@ int main(int argc, char *argv[]) {
 		delete M;
 		return 1;
 	}
+
+	// The simplified program needs to be in the LCSSA form, which is
+	// required by the integer constraint solver. 
+	vector<Pass *> Passes;
+	Passes.push_back(createLCSSAPass());
+	Passes.push_back(createLoopSimplifyPass());
+	if (RunPasses(M, Passes) == -1)
+		return -1;
 
 	if (OutputModule(M, OutputFilename) == -1) {
 		delete M;

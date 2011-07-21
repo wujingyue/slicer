@@ -1,5 +1,6 @@
 PROG_NAMES = test-thread test-overwrite test-loop test-reducer \
-	     test-recursive aget-nocrit FFT-nocrit RADIX-nocrit \
+	     test-recursive test-ret test-phi test-bound \
+	     aget-nocrit FFT-nocrit RADIX-nocrit \
 	     pbzip2-nocrit CHOLESKY-nocrit
 PROGS_DIR = ../progs
 PROGS = $(addprefix $(PROGS_DIR)/, $(PROG_NAMES))
