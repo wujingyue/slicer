@@ -5,6 +5,7 @@
 #define DEBUG_TYPE "region-manager"
 
 #include "llvm/Support/Debug.h"
+#include "common/cfg/exec-once.h"
 #include "common/cfg/partial-icfg-builder.h"
 #include "common/cfg/reach.h"
 #include "common/callgraph-fp/callgraph-fp.h"
@@ -31,6 +32,7 @@ void RegionManager::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<CloneInfoManager>();
 	AU.addRequired<LandmarkTrace>();
 	AU.addRequired<MicroBasicBlockBuilder>();
+	AU.addRequired<ExecOnce>();
 	AU.addRequired<PartialICFGBuilder>();
 	AU.addRequiredTransitive<CallGraphFP>();
 	ModulePass::getAnalysisUsage(AU);
@@ -56,6 +58,7 @@ bool RegionManager::runOnModule(Module &M) {
 
 	CloneInfoManager &CIM = getAnalysis<CloneInfoManager>();
 	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
+	ExecOnce &EO = getAnalysis<ExecOnce>();
 
 	vector<int> thr_ids = LT.get_thr_ids();
 	for (size_t k = 0; k < thr_ids.size(); ++k) {
@@ -84,6 +87,9 @@ bool RegionManager::runOnModule(Module &M) {
 
 	// Check the completeness of region info. 
 	forallinst(M, ins) {
+		// Skip unreachable instructions. 
+		if (EO.not_executed(ins))
+			continue;
 		if (!ins_region.count(ins)) {
 			BasicBlock *bb = ins->getParent();
 			Function *f = bb->getParent();
@@ -110,6 +116,12 @@ void RegionManager::mark_region(
 		for (size_t j = i + 1; j < e_insts.size(); ++j)
 			assert(e_insts[i]->getParent() != e_insts[j]->getParent());
 	}
+	dbgs() << "===== start =====\n";
+	for (size_t i = 0; i < s_insts.size(); ++i)
+		dbgs() << *s_insts[i] << "\n";
+	dbgs() << "===== end =====\n";
+	for (size_t i = 0; i < e_insts.size(); ++i)
+		dbgs() << *e_insts[i] << "\n";
 
 	MicroBasicBlockBuilder &MBBB = getAnalysis<MicroBasicBlockBuilder>();
 	ICFG &PIB = getAnalysis<PartialICFGBuilder>();
@@ -156,14 +168,18 @@ void RegionManager::mark_region(
 		forallconst(InstList, it, s_insts) {
 			Instruction *s_ins = *it;
 			MicroBasicBlock *m = MBBB.parent(s_ins); assert(m);
-			ICFGNode *n = PIB[m]; assert(n);
-			src.insert(n);
+			// For some reason, LLVM somtimes still keeps a function after
+			// inlining it. In this case, the original function still has
+			// clone_info, but is unreachable. 
+			if (ICFGNode *n = PIB[m])
+				src.insert(n);
 		}
 		forallconst(InstList, it, e_insts) {
 			Instruction *e_ins = *it;
 			MicroBasicBlock *m = MBBB.parent(e_ins); assert(m);
-			ICFGNode *n = PIB[m]; assert(n);
-			sink.insert(n);
+			// See above. 
+			if (ICFGNode *n = PIB[m])
+				sink.insert(n);
 		}
 		assert(!src.empty() || !sink.empty());
 

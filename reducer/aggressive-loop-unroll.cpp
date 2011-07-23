@@ -38,6 +38,10 @@ bool AggressiveLoopUnroll::runOnLoop(Loop *L, LPPassManager &LPM) {
 	unsigned trip_count = L->getSmallConstantTripCount();
 	if (trip_count == 0)
 		return false;
+#if 1
+	if (trip_count > 10)
+		return false;
+#endif
 
 	if (!UnrollLoop(L, trip_count, &LI, &LPM))
 		return false;

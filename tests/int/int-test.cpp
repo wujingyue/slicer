@@ -12,6 +12,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
 #include "common/include/util.h"
+#include "common/cfg/exec-once.h"
 using namespace llvm;
 
 #include "int/iterate.h"
@@ -40,6 +41,7 @@ namespace slicer {
 		void test_aget_nocrit_simple(const Module &M);
 		void test_test_overwrite_simple(const Module &M);
 		void test_fft_nocrit_simple(const Module &M);
+		void test_fft_like_simple(const Module &M);
 		void test_fft_nocrit_common(const Module &M);
 		void test_radix_nocrit_simple(const Module &M);
 		void test_radix_nocrit_common(const Module &M);
@@ -66,6 +68,7 @@ char IntTest::ID = 0;
 void IntTest::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
 	AU.addRequired<ObjectID>();
+	AU.addRequired<ExecOnce>();
 	AU.addRequired<Iterate>();
 	AU.addRequired<SolveConstraints>();
 	AU.addRequired<CaptureConstraints>();
@@ -87,6 +90,7 @@ bool IntTest::runOnModule(Module &M) {
 	test_aget_nocrit_simple(M);
 	test_test_overwrite_simple(M);
 	test_fft_nocrit_simple(M);
+	test_fft_like_simple(M);
 	test_radix_nocrit_simple(M);
 	test_test_loop_simple(M);
 	test_test_reducer_simple(M);
@@ -107,27 +111,35 @@ void IntTest::test_test_bound_simple(const Module &M) {
 	forallconst(Module, f, M) {
 		if (f->getName() != "main")
 			continue;
-		const Value *v1 = NULL, *v2 = NULL;
+		const GetElementPtrInst *gep1 = NULL, *gep2 = NULL;
 		forallconst(Function, bb, *f) {
 			forallconst(BasicBlock, ins, *bb) {
 				if (const GetElementPtrInst *gep = dyn_cast<GetElementPtrInst>(ins)) {
 					// Look at GEPs from <arr> only. 
 					if (gep->getOperand(0)->getName() != "arr")
 						continue;
-					if (!v1)
-						v1 = gep;
-					else if (!v2)
-						v2 = gep;
+					if (!gep1)
+						gep1 = gep;
+					else if (!gep2)
+						gep2 = gep;
 					else
 						assert(false && "Found more than 2 GEPs");
 				}
 			}
 		}
-		assert(v1 && v2 && "Found less than 2 GEPs");
+		assert(gep1 && gep2 && "Found less than 2 GEPs");
+
+		SolveConstraints &SC = getAnalysis<SolveConstraints>();
 		AdvancedAlias &AAA = getAnalysis<AdvancedAlias>();
-		errs() << "v1:" << *v1 << "\nv2:" << *v2 << "\n";
-		errs() << "v1 and v2 alias? ...";
-		assert(AAA.alias(v1, 0, v2, 0) == AliasAnalysis::NoAlias);
+
+		errs() << "gep1:" << *gep1 << "\ngep2:" << *gep2 << "\n";
+		assert(gep1->getNumOperands() == 3 && gep2->getNumOperands() == 3);
+		errs() << "i1 != i2? ...";
+		assert(SC.provable(CmpInst::ICMP_NE,
+					&gep1->getOperandUse(2), &gep2->getOperandUse(2)));
+		print_pass(errs());
+		errs() << "gep1 and gep2 alias? ...";
+		assert(AAA.alias(gep1, 0, gep2, 0) == AliasAnalysis::NoAlias);
 		print_pass(errs());
 	}
 }
@@ -288,39 +300,50 @@ void IntTest::test_fft_nocrit_simple(const Module &M) {
 	test_fft_nocrit_common(M);
 }
 
+void IntTest::test_fft_like_simple(const Module &M) {
+
+	if (Program != "FFT-like.simple")
+		return;
+	TestBanner X("FFT-like.simple");
+
+	test_fft_nocrit_common(M);
+}
+
 void IntTest::test_fft_nocrit_common(const Module &M) {
 
 	// MyNum's are distinct. 
 	vector<const Value *> local_ids;
 	forallconst(Module, f, M) {
 
-		if (starts_with(f->getName(), "SlaveStart.SLICER")) {
-			
-			const Instruction *start = NULL;
-			for (BasicBlock::const_iterator ins = f->getEntryBlock().begin();
-					ins != f->getEntryBlock().end(); ++ins) {
-				if (const CallInst *ci = dyn_cast<CallInst>(ins)) {
-					const Function *callee = ci->getCalledFunction();
-					if (callee && callee->getName() == "pthread_mutex_lock") {
-						start = ci;
-						break;
-					}
-				}
-			}
-			assert(start && "Cannot find a pthread_mutex_lock in the entry block");
-			
-			const Value *local_id = NULL;
-			for (BasicBlock::const_iterator ins = start;
-					ins != f->getEntryBlock().end(); ++ins) {
-				if (isa<StoreInst>(ins)) {
-					local_id = ins->getOperand(0);
+		if (getAnalysis<ExecOnce>().not_executed(f))
+			continue;
+		if (!starts_with(f->getName(), "SlaveStart.SLICER"))
+			continue;
+
+		const Instruction *start = NULL;
+		for (BasicBlock::const_iterator ins = f->getEntryBlock().begin();
+				ins != f->getEntryBlock().end(); ++ins) {
+			if (const CallInst *ci = dyn_cast<CallInst>(ins)) {
+				const Function *callee = ci->getCalledFunction();
+				if (callee && callee->getName() == "pthread_mutex_lock") {
+					start = ci;
 					break;
 				}
 			}
-			assert(local_id && "Cannot find the StoreInst.");
-			errs() << "local_id in " << f->getName() << ": " << *local_id << "\n";
-			local_ids.push_back(local_id);
 		}
+		assert(start && "Cannot find a pthread_mutex_lock in the entry block");
+
+		const Value *local_id = NULL;
+		for (BasicBlock::const_iterator ins = start;
+				ins != f->getEntryBlock().end(); ++ins) {
+			if (isa<StoreInst>(ins)) {
+				local_id = ins->getOperand(0);
+				break;
+			}
+		}
+		assert(local_id && "Cannot find the StoreInst.");
+		errs() << "local_id in " << f->getName() << ": " << *local_id << "\n";
+		local_ids.push_back(local_id);
 	}
 
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
@@ -395,7 +418,7 @@ void IntTest::test_test_overwrite_simple(const Module &M) {
 	assert(v1 && v2 && "There should be exactly 2 volatile loads.");
 	
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
-	errs() << *v1 << "\n" << *v2 << "\n";
+	errs() << "v1:" << *v1 << "\n" << "v2:" << *v2 << "\n";
 	errs() << "v1 == v2? ...";
 	assert(SC.provable(CmpInst::ICMP_EQ, v1, v2));
 	print_pass(errs());

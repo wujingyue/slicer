@@ -10,6 +10,9 @@
 #include "llvm/System/Mutex.h"
 using namespace llvm;
 
+#include <list>
+using namespace std;
+
 #include "expression.h"
 
 #define Expr VCExpr
@@ -75,7 +78,13 @@ namespace slicer {
 		VCExpr translate_to_vc(const Expr *e);
 		VCExpr translate_to_vc(const Value *v);
 		VCExpr translate_to_vc(const Use *u);
+		/**
+		 * Used by translate_to_vc. 
+		 * Avoid numeric overflow or underflow by adding extra constraints. 
+		 */
 		void avoid_overflow(unsigned op, VCExpr left, VCExpr right);
+		void avoid_overflow_add(VCExpr left, VCExpr right);
+		void avoid_overflow_mul(VCExpr left, VCExpr right);
 		// Checks whether <c> is in the form of (v1 == v2).
 		// If so, outputs <v1> and <v2> as well if they are not <NULL>. 
 		static bool is_simple_eq(
@@ -84,6 +93,7 @@ namespace slicer {
 		void identify_eqs();
 		// Updates <root>. Make the identified fixed values the roots. 
 		void identify_fixed_values();
+		void refine_candidates(list<const Value *> &candidates);
 		const Value *get_root(const Value *x);
 		void replace_with_root(Clause *c);
 		void replace_with_root(BoolExpr *be);

@@ -117,6 +117,7 @@ bool Reducer::runOnModule(Module &M) {
 
 bool Reducer::remove_branches(Module &M) {
 
+	dbgs() << "Try removing branches...\n";
 	// TODO: We could do the same thing for SwitchInsts too. 
 	/*
 	 * <should_remove_branch> queries the solver. Therefore, we shouldn't
@@ -199,6 +200,12 @@ void Reducer::prepare_remove_branch(
 	
 	Value *cond = bi->getCondition();
 	if (!CC.is_integer(cond))
+		return;
+
+	// If one of the branches is already removed, don't waste time do
+	// it again. 
+	if (MaxSlicing::is_unreachable(bi->getSuccessor(0)) ||
+			MaxSlicing::is_unreachable(bi->getSuccessor(1)))
 		return;
 	
 	const Use *use_cond = &bi->getOperandUse(0);

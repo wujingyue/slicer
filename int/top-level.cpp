@@ -364,6 +364,17 @@ void CaptureConstraints::capture_in_binary(const User *user, unsigned opcode) {
 	constraints.push_back(new Clause(be));
 }
 
+bool CaptureConstraints::is_power_of_two(uint64_t a, uint64_t &e) {
+	if (a <= 0)
+		return false;
+	e = 0;
+	while (a % 2 == 0) {
+		a /= 2;
+		++e;
+	}
+	return a == 1;
+}
+
 void CaptureConstraints::capture_in_gep(const User *user) {
 	for (unsigned i = 0; i < user->getNumOperands(); ++i) {
 		if (!integers.count(user->getOperand(i)))
@@ -378,10 +389,18 @@ void CaptureConstraints::capture_in_gep(const User *user) {
 	for (unsigned i = 1; i < user->getNumOperands(); ++i) {
 		if (const SequentialType *sqt = dyn_cast<SequentialType>(type)) {
 			const Type *et = sqt->getElementType();
-			Expr *delta = new Expr(
-					Instruction::Mul,
-					new Expr(ConstantInt::get(int_type, TD.getTypeSizeInBits(et))),
-					new Expr(user->getOperand(i)));
+			uint64_t type_size = TD.getTypeSizeInBits(et);
+			uint64_t exp = 0;
+			Expr *delta;
+			if (is_power_of_two(type_size, exp)) {
+				delta = new Expr(Instruction::Shl,
+						new Expr(user->getOperand(i)),
+						new Expr(ConstantInt::get(int_type, exp)));
+			} else {
+				delta = new Expr(Instruction::Mul,
+						new Expr(ConstantInt::get(int_type, type_size)),
+						new Expr(user->getOperand(i)));
+			}
 			cur = new Expr(Instruction::Add, cur, delta);
 			type = et;
 		} else if (const StructType *st = dyn_cast<StructType>(type)) {
@@ -406,4 +425,15 @@ void CaptureConstraints::capture_in_gep(const User *user) {
 void CaptureConstraints::add_eq_constraint(const Value *v1, const Value *v2) {
 	BoolExpr *be = new BoolExpr(CmpInst::ICMP_EQ, new Expr(v1), new Expr(v2));
 	constraints.push_back(new Clause(be));
+}
+
+bool CaptureConstraints::is_constant_integer(const Value *v) const {
+	
+	ExecOnce &EO = getAnalysis<ExecOnce>();
+
+	if (!is_integer(v))
+		return false;
+	if (const Instruction *ins = dyn_cast<Instruction>(v))
+		return EO.executed_once(ins);
+	return true;
 }

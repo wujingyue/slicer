@@ -7,11 +7,22 @@ using namespace llvm;
 using namespace slicer;
 
 bool CompareClause::operator()(const Clause *a, const Clause *b) {
+	
 	string str_a, str_b;
 	raw_string_ostream oss_a(str_a), oss_b(str_b);
 	print_clause(oss_a, a, OI);
 	print_clause(oss_b, b, OI);
-	return oss_a.str() < oss_b.str();
+	oss_a.flush();
+	oss_b.flush();
+
+	unsigned n_brackets_a = 0, n_brackets_b = 0;
+	for (size_t i = 0; i < str_a.length(); ++i)
+		n_brackets_a += (str_a[i] == '(' || str_a[i] == ')');
+	for (size_t i = 0; i < str_b.length(); ++i)
+		n_brackets_b += (str_b[i] == '(' || str_b[i] == ')');
+	// Put simple constraints up front. 
+	return n_brackets_a < n_brackets_b ||
+		(n_brackets_a == n_brackets_b && str_a < str_b);
 }
 
 Expr *Expr::clone() const {

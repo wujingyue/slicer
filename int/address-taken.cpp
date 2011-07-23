@@ -62,15 +62,17 @@ const Value *CaptureConstraints::get_value_operand(const Instruction *i) {
 
 void CaptureConstraints::capture_addr_taken(Module &M) {
 
-	Timer tmr_pairwise("may-assign");
-	tmr_pairwise.startTimer();
+#if 1
+	Timer tmr_may_assign("may-assign");
+	tmr_may_assign.startTimer();
 	capture_may_assign(M);
-	tmr_pairwise.stopTimer();
+	tmr_may_assign.stopTimer();
+#endif
 	
-	Timer tmr_overwritten("must-assign");
-	tmr_overwritten.startTimer();
+	Timer tmr_must_assign("must-assign");
+	tmr_must_assign.startTimer();
 	capture_must_assign(M);
-	tmr_overwritten.stopTimer();
+	tmr_must_assign.stopTimer();
 }
 
 void CaptureConstraints::capture_may_assign(Module &M) {
@@ -125,6 +127,7 @@ void CaptureConstraints::capture_may_assign(Module &M) {
 			continue;
 
 		Clause *disj = NULL;
+		unsigned n_terms = 0;
 		for (size_t j = 0; j < all_stores.size(); ++j) {
 			if (AA->alias(
 						all_loads[i]->getPointerOperand(), 0, all_stores[j].second, 0)) {
@@ -151,8 +154,15 @@ void CaptureConstraints::capture_may_assign(Module &M) {
 					assert(disj != c);
 					disj = new Clause(Instruction::Or, disj, c);
 				}
+				++n_terms;
 			}
 		} // for store
+#if 0
+		if (n_terms != 1 && disj) {
+			delete disj;
+			disj = NULL;
+		}
+#endif
 		if (disj)
 			constraints.push_back(disj);
 	}
@@ -243,7 +253,7 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 	size_t prev_enforcing = cur_regions[0].prev_enforcing_landmark;
 
 	DEBUG(dbgs() << "capture_overwriting_to: " << cur_thr_id << ' ' <<
-		prev_enforcing << ":" << *i2 << "\n";);
+			prev_enforcing << ":" << *i2 << "\n";);
 
 	// Compute the latest dominator in each thread. 
 	vector<int> thr_ids = LT.get_thr_ids();

@@ -103,45 +103,31 @@ void SolveConstraints::identify_eqs() {
 	}
 }
 
-/* TODO: Could do the same thing for uses as well, but too many uses. */
-void SolveConstraints::identify_fixed_values() {
+void SolveConstraints::refine_candidates(list<const Value *> &candidates) {
 
-	// Try to constantize as many variables as possible. 
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
-	const ConstValueSet &constants = CC.get_integers();
-	/*
-	 * Algorithm:
-	 * 1. Find a satisfiable assignment, and assume each variable must equal
-	 *    the assigned value. 
-	 * 2. Try negating any one of them.
-	 * 3. If the assignment is still satisfiable, this negated variable is 
-	 *    not really fixed. 
-	 * 4. Check each variable in the new assignment, and remove all variables
-	 *    that have a new value. 
-	 * 5. Return to Step 2. 
-	 */
-	// Find a satisfiable assignment. 
-	list<pair<const Value *, pair<unsigned, int> > > candidates;
-	vc_push(vc);
-	// TODO: Not sure whether flags are part of the checkpoint. 
-	vc_setFlags(vc, 'c');
-	assert(vc_query(vc, vc_falseExpr(vc)) == 0);
-	forallconst(ConstValueSet, it, constants) {
-		const Value *v = *it;
+
+	list<const Value *>::iterator i, j, to_del;
+	for (i = candidates.begin(); i != candidates.end(); ) {
+		const Value *v = *i;
+		bool to_be_removed = false;
+		// Only try those integers defined only once. 
+		to_be_removed = to_be_removed || !CC.is_constant_integer(v);
 		// Only try fixing values for the roots of equivalent class. 
-		if (get_root(v) != v)
-			continue;
+		to_be_removed = to_be_removed || (get_root(v) != v);
 		// Not fixed if it's a pointer. 
-		if (!isa<IntegerType>(v->getType()))
-			continue;
+		to_be_removed = to_be_removed || (!isa<IntegerType>(v->getType()));
 		// Already fixed if it's a ConstantInt. 
-		if (isa<ConstantInt>(v))
-			continue;
-		VCExpr ce = vc_getCounterExample(vc, translate_to_vc(v));
-		candidates.push_back(make_pair(
-					v, make_pair(getBVUnsigned(ce), vc_getBVLength(vc, ce))));
+		to_be_removed = to_be_removed || isa<ConstantInt>(v);
+		if (!to_be_removed) {
+			++i;
+		} else {
+			to_del = i;
+			++i;
+			candidates.erase(to_del);
+		}
 	}
-	vc_pop(vc);
+
 	/*
 	 * OPT: Many variables, although identified as constants (i.e. never changes
 	 * in an execution), don't appear in any clause. These variables' values
@@ -158,14 +144,12 @@ void SolveConstraints::identify_fixed_values() {
 		// If can be proved by simplification, don't add it to the constraint set. 
 		if (vc_isBool(vce) == -1)
 			update_appeared(appeared, c);
-		// TODO: Remove the simplified expression?
 		delete c; // c is cloned
 		vc_pop(vc);
 	}
 	// Remove variables that don't appear in any clause. 
-	list<pair<const Value *, pair<unsigned, int> > >::iterator i, j, to_del;
 	for (i = candidates.begin(); i != candidates.end(); ) {
-		if (appeared.count(i->first))
+		if (appeared.count(*i))
 			++i;
 		else {
 			to_del = i;
@@ -173,51 +157,94 @@ void SolveConstraints::identify_fixed_values() {
 			candidates.erase(to_del);
 		}
 	}
-	// The captured constraints should be consistent. 
-	vc_push(vc);
-	assert(vc_query(vc, vc_falseExpr(vc)) == 0 &&
-			"The captured constraints is not consistent.");
-	vc_pop(vc);
+}
+
+/* TODO: Could do the same thing for uses as well, but too many uses. */
+void SolveConstraints::identify_fixed_values() {
+
+	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
+
+	// Get all integers that are possible to be a fixed value. 
+	// No need to be sound. 
+	list<const Value *> candidates;
+	const ConstValueSet &integers = CC.get_integers();
+	candidates.insert(candidates.end(), integers.begin(), integers.end());
+	refine_candidates(candidates);
 	errs() << "# of candidates = " << candidates.size() << "\n";
+	
+	/*
+	 * Try to constantize as many variables as possible. 
+	 * Algorithm:
+	 * 1. Find a satisfiable assignment, and assume each variable must equal
+	 *    the assigned value. 
+	 * 2. Try negating any one of them.
+	 * 3. If the assignment is still satisfiable, this negated variable is 
+	 *    not really fixed. 
+	 * 4. Check each variable in the new assignment, and remove all variables
+	 *    that have a new value. 
+	 * 5. Return to Step 2. 
+	 */
+	// Find a satisfiable assignment. 
+	list<pair<const Value *, pair<unsigned, int> > > fixed_values;
+	list<pair<const Value *, pair<unsigned, int> > >::iterator i, j, to_del;
+	
+	vc_push(vc);
+	errs() << "???\n";
+	assert(vc_query(vc, vc_falseExpr(vc)) == 0);
+	errs() << "!!!\n";
+	
+	forall(list<const Value *>, it, candidates) {
+		const Value *v = *it;
+		VCExpr ce = vc_getCounterExample(vc, translate_to_vc(v));
+		fixed_values.push_back(make_pair(
+					v, make_pair(getBVUnsigned(ce), vc_getBVLength(vc, ce))));
+	}
+	vc_pop(vc);
+	
 	// Try negating. 
-	for (i = candidates.begin(); i != candidates.end(); ) {
+	unsigned n_fixed = 0, n_not_fixed = 0, n_opted = 0;
+	for (i = fixed_values.begin(); i != fixed_values.end(); ) {
 		vc_push(vc);
-		vc_setFlags(vc, 'c');
-		vc_assertFormula(vc, vc_notExpr(vc, vc_eqExpr(
-						vc,
+		vc_assertFormula(vc, vc_notExpr(vc, vc_eqExpr(vc,
 						translate_to_vc(i->first),
 						vc_bvConstExprFromInt(vc, i->second.second, i->second.first))));
-		int ret = vc_query(vc, vc_falseExpr(vc));
-		assert(ret != 2);
-		if (ret == 1) {
+		// Returns 1 if cannot find a satisfying assignment any more, 
+		// which means the value is unique. 
+		int fixed = vc_query(vc, vc_falseExpr(vc));
+		assert(fixed != 2);
+		if (fixed == 1) {
 			// Cannot find a satisfiable assignment any more. 
 			// <i>'s value must be fixed. 
 			// Skip to the next candidate. 
+			errs().changeColor(raw_ostream::GREEN) << "Y"; errs().resetColor();
+			++n_fixed;
 #if 0
-			errs() << "identified a fixed value: ";
 			Expr *e = new Expr(i->first);
 			print_expr(errs(), e, getAnalysis<ObjectID>());
 			delete e;
-			errs() << " = " << i->second.first << "\n";
+			errs() << " = " << i->second.first;
+			errs() << " is fixed: " << *(i->first) << "\n";
 #endif
 			++i;
 		} else {
+			errs().changeColor(raw_ostream::RED) << "N"; errs().resetColor();
+			++n_not_fixed;
 #if 0
-			errs() << "not fixed: " << *(i->first) << "\n";
 			Expr *e = new Expr(i->first);
 			print_expr(errs(), e, getAnalysis<ObjectID>());
 			delete e;
-			errs() << "\n";
+			errs() << " is NOT fixed: " << *(i->first) << "\n";
 #endif
-			// <i> does not have a fixed value. 
 			j = i; ++j;
-			while (j != candidates.end()) {
+			while (j != fixed_values.end()) {
 				VCExpr ce = vc_getCounterExample(vc, translate_to_vc(j->first));
-				to_del = candidates.end();
+				to_del = fixed_values.end();
 				if (j->second.first != getBVUnsigned(ce))
 					to_del = j;
 				++j;
-				if (to_del != candidates.end()) {
+				if (to_del != fixed_values.end()) {
+					errs().changeColor(raw_ostream::BLUE) << "O"; errs().resetColor();
+					++n_opted;
 #if 0
 					errs() << "optimized: ";
 					Expr *ex = new Expr(to_del->first);
@@ -225,17 +252,22 @@ void SolveConstraints::identify_fixed_values() {
 					delete ex;
 					errs() << "\n";
 #endif
-					candidates.erase(to_del);
+					fixed_values.erase(to_del);
 				}
+				vc_DeleteExpr(ce);
 			}
+			// <i> does not have a fixed value. 
 			to_del = i;
 			++i;
-			candidates.erase(to_del);
+			fixed_values.erase(to_del);
 		}
 		vc_pop(vc);
 	}
+	dbgs() << "\n";
+	dbgs() << "fixed = " << n_fixed << "; not fixed = " << n_not_fixed <<
+		"; opted = " << n_opted << "\n";
 	// Finally, make identified fixed values to be roots. 
-	for (i = candidates.begin(); i != candidates.end(); ++i) {
+	for (i = fixed_values.begin(); i != fixed_values.end(); ++i) {
 		const Value *v = i->first;
 		root[v] = ConstantInt::get(v->getType(), i->second.first);
 	}
@@ -280,6 +312,7 @@ void SolveConstraints::translate_captured() {
 	for (unsigned i = 0; i < CC.get_num_constraints(); ++i) {
 		Clause *c = CC.get_constraint(i)->clone();
 		replace_with_root(c);
+#if 1
 		vc_push(vc); // FIXME: Necessary to create a new context?
 		VCExpr vce = vc_simplify(vc, translate_to_vc(c));
 		int ret = vc_isBool(vce);
@@ -291,13 +324,31 @@ void SolveConstraints::translate_captured() {
 			// creates an expression in a different context. 
 			vc_assertFormula(vc, translate_to_vc(c));
 		}
+#endif
+#if 0
+		VCExpr orig_vce = translate_to_vc(c);
+		VCExpr vce = vc_simplify(vc, orig_vce);
+		vc_DeleteExpr(orig_vce);
+		int ret = vc_isBool(vce);
+		assert(ret != 0);
+		if (ret == -1) {
+			// If can be proved by simplification, don't add it to the constraint set. 
+			// Need call <translate_to_vc> again because the previous call
+			// creates an expression in a different context. 
+			vc_assertFormula(vc, vce);
+		} else {
+			vc_DeleteExpr(vce);
+		}
+#endif
 		delete c; // c is cloned
 	}
 	
 	// The captured constraints should be consistent. 
 	vc_push(vc);
+	errs() << "???\n";
 	assert(vc_query(vc, vc_falseExpr(vc)) == 0 &&
 			"The captured constraints is not consistent.");
+	errs() << "!!!\n";
 	vc_pop(vc);
 }
 
@@ -694,89 +745,129 @@ void SolveConstraints::realize(const Instruction *ins) {
 	}
 }
 
+void SolveConstraints::avoid_overflow_add(VCExpr left, VCExpr right) {
+	// TODO: Not sure which one is faster. 
+
+	VCExpr sum = vc_bv32PlusExpr(vc, left, right);
+	VCExpr h_left = vc_bvBoolExtract_One(vc, left, 31);
+	VCExpr h_right = vc_bvBoolExtract_One(vc, right, 31);
+	VCExpr h_sum = vc_bvBoolExtract_One(vc, sum, 31);
+	vc_assertFormula(vc, vc_orExpr(vc,
+				vc_xorExpr(vc, h_left, h_right),
+				vc_iffExpr(vc, h_right, h_sum)));
+
+#if 0
+	VCExpr left_gt_0 = vc_sbvGtExpr(vc, left, vc_zero(vc));
+	VCExpr left_lt_0 = vc_sbvLtExpr(vc, left, vc_zero(vc));
+	VCExpr right_gt_0 = vc_sbvGtExpr(vc, right, vc_zero(vc));
+	VCExpr right_lt_0 = vc_sbvLtExpr(vc, right, vc_zero(vc));
+	VCExpr sum = vc_bv32PlusExpr(vc, left, right);
+	VCExpr overflow = vc_andExpr(vc,
+			vc_andExpr(vc, left_gt_0, right_gt_0),
+			vc_sbvLtExpr(vc, sum, vc_zero(vc)));
+	VCExpr underflow = vc_andExpr(vc,
+			vc_andExpr(vc, left_lt_0, right_lt_0),
+			vc_sbvGtExpr(vc, sum, vc_zero(vc)));
+	vc_assertFormula(vc, vc_notExpr(vc, overflow));
+	vc_assertFormula(vc, vc_notExpr(vc, underflow));
+#endif
+
+#if 0
+	VCExpr long_sum = vc_bvPlusExpr(
+			vc, 64,
+			vc_bvSignExtend(vc, left, 64), vc_bvSignExtend(vc, right, 64));
+	vc_assertFormula(
+			vc, vc_sbvLeExpr(vc, vc_int_min_64(vc), long_sum));
+	vc_assertFormula(
+			vc, vc_sbvLeExpr(vc, long_sum, vc_int_max_64(vc)));
+#endif
+
+#if 0
+	// -oo <= left + right <= oo
+	// left >= 0: right <= oo - left
+	// left < 0: right >= -oo - left
+	vc_assertFormula(
+			vc,
+			vc_impliesExpr(
+				vc,
+				vc_sbvGeExpr(vc, left, vc_zero(vc)),
+				vc_sbvLeExpr(
+					vc,
+					right,
+					vc_bv32MinusExpr(vc, vc_int_max(vc), left))));
+	vc_assertFormula(
+			vc,
+			vc_impliesExpr(
+				vc,
+				vc_sbvLtExpr(vc, left, vc_zero(vc)),
+				vc_sbvGeExpr(
+					vc,
+					right,
+					vc_bv32MinusExpr(vc, vc_int_min(vc), left))));
+#endif
+}
+
+void SolveConstraints::avoid_overflow_mul(VCExpr left, VCExpr right) {
+#if 0
+	// TODO: does not support negative numbers
+	/*
+	 * FIXME: impliesExpr doesn't work as expected. 
+	 * We expected to use it to get around the "div-by-zero" problem.
+	 * Therefore, we extend the operands to 64-bit integers, and check
+	 * whether the product is really out of range. 
+	 */
+	// left >= 0, right >= 0, left * right <= oo
+	{
+		vc_assertFormula(vc, vc_sbvGeExpr(vc, left, vc_zero(vc)));
+		vc_assertFormula(vc, vc_sbvGeExpr(vc, right, vc_zero(vc)));
+		VCExpr long_product = vc_bvMultExpr(
+				vc, 64,
+				vc_bvSignExtend(vc, left, 64), vc_bvSignExtend(vc, right, 64));
+		vc_assertFormula(
+				vc, vc_sbvLeExpr(vc, long_product, vc_int_max_64(vc)));
+	}
+#endif
+#if 0
+	// left > 0 => right <= oo / left
+	vc_assertFormula(
+			vc,
+			vc_impliesExpr(
+				vc,
+				vc_sbvGtExpr(vc, left, vc_zero(vc)),
+				vc_sbvLeExpr(
+					vc,
+					right,
+					vc_sbvDivExpr(vc, 32, vc_int_max(vc), left))));
+	// right > 0 => left <= oo / right
+	vc_assertFormula(
+			vc,
+			vc_impliesExpr(
+				vc,
+				vc_sbvGtExpr(vc, right, vc_zero(vc)),
+				vc_sbvLeExpr(
+					vc,
+					left,
+					vc_sbvDivExpr(vc, 32, vc_int_max(vc), right))));
+#endif
+}
+
 void SolveConstraints::avoid_overflow(
 		unsigned op, VCExpr left, VCExpr right) {
 	switch (op) {
 		case Instruction::Add:
-			// TODO: Not sure which one is faster. 
-			{
-				VCExpr long_sum = vc_bvPlusExpr(
-						vc, 64,
-						vc_bvSignExtend(vc, left, 64), vc_bvSignExtend(vc, right, 64));
-				vc_assertFormula(
-						vc, vc_sbvLeExpr(vc, vc_int_min_64(vc), long_sum));
-				vc_assertFormula(
-						vc, vc_sbvLeExpr(vc, long_sum, vc_int_max_64(vc)));
-			}
-#if 0
+#if 1
 			// -oo <= left + right <= oo
-			// left >= 0: right <= oo - left
-			// left < 0: right >= -oo - left
-			vc_assertFormula(
-					vc,
-					vc_impliesExpr(
-						vc,
-						vc_sbvGeExpr(vc, left, vc_zero(vc)),
-						vc_sbvLeExpr(
-							vc,
-							right,
-							vc_bv32MinusExpr(vc, vc_int_max(vc), left))));
-			vc_assertFormula(
-					vc,
-					vc_impliesExpr(
-						vc,
-						vc_sbvLtExpr(vc, left, vc_zero(vc)),
-						vc_sbvGeExpr(
-							vc,
-							right,
-							vc_bv32MinusExpr(vc, vc_int_min(vc), left))));
+			avoid_overflow_add(left, right);
 #endif
 			break;
 		case Instruction::Sub:
+#if 1
 			// -oo <= left + (-right) <= oo
-			avoid_overflow(
-					Instruction::Add, left, vc_bvUMinusExpr(vc, right));
+			avoid_overflow_add(left, vc_bvUMinusExpr(vc, right));
+#endif
 			break;
 		case Instruction::Mul:
-			// TODO: does not support negative numbers
-			/*
-			 * FIXME: impliesExpr doesn't work as expected. 
-			 * We expected to use it to get around the "div-by-zero" problem.
-			 * Therefore, we extend the operands to 64-bit integers, and check
-			 * whether the product is really out of range. 
-			 */
-			// left >= 0, right >= 0, left * right <= oo
-			{
-				vc_assertFormula(vc, vc_sbvGeExpr(vc, left, vc_zero(vc)));
-				vc_assertFormula(vc, vc_sbvGeExpr(vc, right, vc_zero(vc)));
-				VCExpr long_product = vc_bvMultExpr(
-						vc, 64,
-						vc_bvSignExtend(vc, left, 64), vc_bvSignExtend(vc, right, 64));
-				vc_assertFormula(
-						vc, vc_sbvLeExpr(vc, long_product, vc_int_max_64(vc)));
-			}
-#if 0
-			// left > 0 => right <= oo / left
-			vc_assertFormula(
-					vc,
-					vc_impliesExpr(
-						vc,
-						vc_sbvGtExpr(vc, left, vc_zero(vc)),
-						vc_sbvLeExpr(
-							vc,
-							right,
-							vc_sbvDivExpr(vc, 32, vc_int_max(vc), left))));
-			// right > 0 => left <= oo / right
-			vc_assertFormula(
-					vc,
-					vc_impliesExpr(
-						vc,
-						vc_sbvGtExpr(vc, right, vc_zero(vc)),
-						vc_sbvLeExpr(
-							vc,
-							left,
-							vc_sbvDivExpr(vc, 32, vc_int_max(vc), right))));
-#endif
+			avoid_overflow_mul(left, right);
 			break;
 		case Instruction::UDiv:
 		case Instruction::SDiv:
@@ -790,6 +881,7 @@ void SolveConstraints::avoid_overflow(
 			break;
 		case Instruction::Shl:
 			// (left << right) <= oo ==> left <= (oo >> right)
+			vc_assertFormula(vc, vc_bvBoolExtract_Zero(vc, left, 31));
 			vc_assertFormula(vc, vc_sbvLeExpr(vc, left, vc_bvVar32RightShiftExpr(
 							vc, right, vc_int_max(vc))));
 			break;

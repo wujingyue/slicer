@@ -45,10 +45,15 @@ namespace slicer {
 		long get_fingerprint() const;
 		/**
 		 * In <integers>?
+		 * i.e. is a reachable integer or pointer?
 		 */
 		bool is_integer(const Value *v) const {
 			return integers.count(const_cast<Value *>(v));
 		}
+		/**
+		 * Is <v> an integer that's defined only once?
+		 */
+		bool is_constant_integer(const Value *v) const;
 		/**
 		 * Returns all reachable integers or pointers. 
 		 */
@@ -73,6 +78,7 @@ namespace slicer {
 		static const Value *get_pointer_operand(const Instruction *i);
 		static Value *get_value_operand(Instruction *i);
 		static const Value *get_value_operand(const Instruction *i);
+		static bool is_power_of_two(uint64_t a, uint64_t &e);
 		/**
 		 * Create a constraint saying lb (<= or <) v && v (<= or <) ub.
 		 * Q: Why not just have an inclusive mode, and translate a < b into
