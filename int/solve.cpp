@@ -44,6 +44,9 @@ void SolveConstraints::create_vc() {
 	assert(vc_mutex.tryacquire() && "There can be only one VC instance running");
 	assert(!vc && "create_vc and destroy_vc are not paired");
 	vc = vc_createValidityChecker();
+	// Don't delete persistant nodes on vc_Destroy. 
+	// We are responsible to delete them. 
+	vc_setInterfaceFlags(vc, EXPRDELETE, 0);
 	vc_registerErrorHandler(vc_error_handler);
 	assert(vc && "Failed to create a VC");
 }
@@ -426,12 +429,16 @@ VCExpr SolveConstraints::translate_to_vc(const Clause *c) {
 		return translate_to_vc(c->be);
 	VCExpr vce1 = translate_to_vc(c->c1);
 	VCExpr vce2 = translate_to_vc(c->c2);
+	VCExpr vce;
 	if (c->op == Instruction::And)
-		return vc_andExpr(vc, vce1, vce2);
+		vce = vc_andExpr(vc, vce1, vce2);
 	else if (c->op == Instruction::Or)
-		return vc_orExpr(vc, vce1, vce2);
+		vce = vc_orExpr(vc, vce1, vce2);
 	else
-		return vc_xorExpr(vc, vce1, vce2);
+		vce = vc_xorExpr(vc, vce1, vce2);
+	vc_DeleteExpr(vce1);
+	vc_DeleteExpr(vce2);
+	return vce;
 }
 
 VCExpr SolveConstraints::translate_to_vc(const BoolExpr *be) {
@@ -439,25 +446,39 @@ VCExpr SolveConstraints::translate_to_vc(const BoolExpr *be) {
 	assert(e1->get_width() == e2->get_width());
 	VCExpr vce1 = translate_to_vc(e1);
 	VCExpr vce2 = translate_to_vc(e2);
+	VCExpr vce;
 	switch (be->p) {
 		case CmpInst::ICMP_EQ:
-			return vc_eqExpr(vc, vce1, vce2);
+			vce = vc_eqExpr(vc, vce1, vce2);
+			break;
 		case CmpInst::ICMP_NE:
-			return vc_notExpr(vc, vc_eqExpr(vc, vce1, vce2));
+			{
+				VCExpr eq = vc_eqExpr(vc, vce1, vce2);
+				vce = vc_notExpr(vc, eq);
+				vc_DeleteExpr(eq);
+			}
+			break;
 		case CmpInst::ICMP_UGT:
 		case CmpInst::ICMP_SGT:
-			return vc_sbvGtExpr(vc, vce1, vce2);
+			vce = vc_sbvGtExpr(vc, vce1, vce2);
+			break;
 		case CmpInst::ICMP_UGE:
 		case CmpInst::ICMP_SGE:
-			return vc_sbvGeExpr(vc, vce1, vce2);
+			vce = vc_sbvGeExpr(vc, vce1, vce2);
+			break;
 		case CmpInst::ICMP_ULT:
 		case CmpInst::ICMP_SLT:
-			return vc_sbvLtExpr(vc, vce1, vce2);
+			vce = vc_sbvLtExpr(vc, vce1, vce2);
+			break;
 		case CmpInst::ICMP_ULE:
 		case CmpInst::ICMP_SLE:
-			return vc_sbvLeExpr(vc, vce1, vce2);
+			vce = vc_sbvLeExpr(vc, vce1, vce2);
+			break;
 		default: assert(false && "Invalid predicate");
 	}
+	vc_DeleteExpr(vce1);
+	vc_DeleteExpr(vce2);
+	return vce;
 }
 
 VCExpr SolveConstraints::translate_to_vc(const Expr *e) {
@@ -467,82 +488,102 @@ VCExpr SolveConstraints::translate_to_vc(const Expr *e) {
 		return translate_to_vc(e->u);
 	if (e->type == Expr::Unary) {
 		VCExpr child = translate_to_vc(e->e1);
-		if (e->op == Instruction::SExt) {
-			assert(e->e1->get_width() == 1);
-			return vc_bvSignExtend(vc, child, 32);
+		VCExpr vce;
+		switch (e->op) {
+			case Instruction::SExt:
+				assert(e->e1->get_width() == 1);
+				vce = vc_bvSignExtend(vc, child, 32);
+				break;
+			case Instruction::ZExt:
+				{
+					assert(e->e1->get_width() == 1);
+					// STP does not have bvUnsignExtend
+					VCExpr zero_31 = vc_bvConstExprFromInt(vc, 31, 0);
+					vce = vc_bvConcatExpr(vc, zero_31, child);
+					vc_DeleteExpr(zero_31);
+				}
+				break;
+			case Instruction::Trunc:
+				assert(e->e1->get_width() == 32);
+				vce = vc_bvExtract(vc, child, 0, 0);
+				break;
+			default: assert_not_supported();
 		}
-		if (e->op == Instruction::ZExt) {
-			assert(e->e1->get_width() == 1);
-			// STP does not have bvUnsignExtend
-			return vc_bvConcatExpr(
-					vc,
-					vc_bvConstExprFromInt(vc, 31, 0),
-					child);
-		}
-		if (e->op == Instruction::Trunc) {
-			assert(e->e1->get_width() == 32);
-			return vc_bvExtract(vc, child, 0, 0);
-		}
-		assert_not_supported();
+		vc_DeleteExpr(child);
+		return vce;
 	}
 	if (e->type == Expr::Binary) {
 		VCExpr left = translate_to_vc(e->e1);
 		VCExpr right = translate_to_vc(e->e2);
 		avoid_overflow(e->op, left, right);
+		VCExpr vce;
 		switch (e->op) {
 			case Instruction::Add:
-				return vc_bv32PlusExpr(vc, left, right);
+				vce = vc_bv32PlusExpr(vc, left, right);
+				break;
 			case Instruction::Sub:
-				return vc_bv32MinusExpr(vc, left, right);
+				vce = vc_bv32MinusExpr(vc, left, right);
+				break;
 			case Instruction::Mul:
-				return vc_bv32MultExpr(vc, left, right);
+				vce = vc_bv32MultExpr(vc, left, right);
+				break;
 			case Instruction::UDiv:
 			case Instruction::SDiv:
-				// FIXME: sbvDiv doesn't work. 
-				return vc_bvDivExpr(vc, 32, left, right);
+				vce = vc_sbvDivExpr(vc, 32, left, right);
+				break;
 			case Instruction::URem:
 			case Instruction::SRem:
-				// FIXME: sbvRem doesn't work. 
-				return vc_bvModExpr(vc, 32, left, right);
+				vce = vc_sbvModExpr(vc, 32, left, right);
+				break;
 			case Instruction::Shl:
 				// left << right
-				return vc_bvVar32LeftShiftExpr(vc, right, left);
+				vce = vc_bvVar32LeftShiftExpr(vc, right, left);
+				break;
 			case Instruction::LShr:
 			case Instruction::AShr:
 				// left >> right
-				return vc_bvVar32RightShiftExpr(vc, right, left);
+				vce = vc_bvVar32RightShiftExpr(vc, right, left);
+				break;
 			case Instruction::And:
-				return vc_bvAndExpr(vc, left, right);
+				vce = vc_bvAndExpr(vc, left, right);
+				break;
 			case Instruction::Or:
-				return vc_bvOrExpr(vc, left, right);
+				vce = vc_bvOrExpr(vc, left, right);
+				break;
 			case Instruction::Xor:
-				return vc_bvXorExpr(vc, left, right);
+				vce = vc_bvXorExpr(vc, left, right);
+				break;
 			default: assert_not_supported();
 		}
+		vc_DeleteExpr(left);
+		vc_DeleteExpr(right);
+		return vce;
 	}
 	assert(false && "Invalid expression type");
 }
 
 VCExpr SolveConstraints::translate_to_vc(const Value *v) {
 	if (const ConstantInt *ci = dyn_cast<ConstantInt>(v)) {
-		if (ci->getType()->getBitWidth() == 1)
-			return (ci->isOne() ?
-					vc_boolToBVExpr(vc, vc_trueExpr(vc)) :
-					vc_boolToBVExpr(vc, vc_falseExpr(vc)));
-		else
+		if (ci->getType()->getBitWidth() == 1) {
+			VCExpr b = (ci->isOne() ? vc_trueExpr(vc) : vc_falseExpr(vc));
+			VCExpr vce = vc_boolToBVExpr(vc, b);
+			vc_DeleteExpr(b);
+			return vce;
+		} else {
 			return vc_bv32ConstExprFromInt(vc, ci->getSExtValue());
+		}
 	}
 	ObjectID &OI = getAnalysis<ObjectID>();
 	unsigned value_id = OI.getValueID(v);
 	assert(value_id != ObjectID::INVALID_ID);
 	ostringstream oss;
 	oss << "x" << value_id;
-	VCType vct;
-	if (v->getType()->isIntegerTy(1))
-		vct = vc_bvType(vc, 1);
-	else
-		vct = vc_bv32Type(vc);
-	return vc_varExpr(vc, oss.str().c_str(), vct);
+	VCType vct = (v->getType()->isIntegerTy(1) ?
+			vc_bvType(vc, 1) :
+			vc_bv32Type(vc));
+	VCExpr vce = vc_varExpr(vc, oss.str().c_str(), vct);
+	vc_DeleteExpr(vct);
+	return vce;
 }
 
 VCExpr SolveConstraints::translate_to_vc(const Use *u) {
@@ -851,8 +892,7 @@ void SolveConstraints::avoid_overflow_mul(VCExpr left, VCExpr right) {
 #endif
 }
 
-void SolveConstraints::avoid_overflow(
-		unsigned op, VCExpr left, VCExpr right) {
+void SolveConstraints::avoid_overflow(unsigned op, VCExpr left, VCExpr right) {
 	switch (op) {
 		case Instruction::Add:
 #if 1
@@ -863,7 +903,11 @@ void SolveConstraints::avoid_overflow(
 		case Instruction::Sub:
 #if 1
 			// -oo <= left + (-right) <= oo
-			avoid_overflow_add(left, vc_bvUMinusExpr(vc, right));
+			{
+				VCExpr minus_right = vc_bvUMinusExpr(vc, right);
+				avoid_overflow_add(left, minus_right);
+				vc_DeleteExpr(minus_right);
+			}
 #endif
 			break;
 		case Instruction::Mul:
@@ -871,19 +915,31 @@ void SolveConstraints::avoid_overflow(
 			break;
 		case Instruction::UDiv:
 		case Instruction::SDiv:
-			// TODO: We shouldn't assume the divisor > 0
-			vc_assertFormula(vc, vc_sbvGtExpr(vc, right, vc_zero(vc)));
-			break;
 		case Instruction::URem:
 		case Instruction::SRem:
 			// TODO: We shouldn't assume the divisor > 0
-			vc_assertFormula(vc, vc_sbvGtExpr(vc, right, vc_zero(vc)));
+			{
+				VCExpr zero = vc_zero(vc);
+				VCExpr right_gt_0 = vc_sbvGtExpr(vc, right, zero);
+				vc_assertFormula(vc, right_gt_0);
+				vc_DeleteExpr(zero);
+				vc_DeleteExpr(right_gt_0);
+			}
 			break;
 		case Instruction::Shl:
 			// (left << right) <= oo ==> left <= (oo >> right)
-			vc_assertFormula(vc, vc_bvBoolExtract_Zero(vc, left, 31));
-			vc_assertFormula(vc, vc_sbvLeExpr(vc, left, vc_bvVar32RightShiftExpr(
-							vc, right, vc_int_max(vc))));
+			{
+				VCExpr int_max = vc_int_max(vc);
+				VCExpr left_ge_0 = vc_bvBoolExtract_Zero(vc, left, 31);
+				VCExpr int_max_shr = vc_bvVar32RightShiftExpr(vc, right, int_max);
+				VCExpr left_le = vc_sbvLeExpr(vc, left, int_max_shr);
+				vc_assertFormula(vc, left_ge_0);
+				vc_assertFormula(vc, left_le);
+				vc_DeleteExpr(int_max);
+				vc_DeleteExpr(left_ge_0);
+				vc_DeleteExpr(int_max_shr);
+				vc_DeleteExpr(left_le);
+			}
 			break;
 	}
 }

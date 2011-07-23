@@ -81,6 +81,7 @@ namespace slicer {
 		/**
 		 * Used by translate_to_vc. 
 		 * Avoid numeric overflow or underflow by adding extra constraints. 
+		 * This function doesn't delete <left> or <right>. 
 		 */
 		void avoid_overflow(unsigned op, VCExpr left, VCExpr right);
 		void avoid_overflow_add(VCExpr left, VCExpr right);
