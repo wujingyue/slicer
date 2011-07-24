@@ -830,10 +830,13 @@ void SolveConstraints::realize(const Instruction *ins) {
 
 void SolveConstraints::avoid_overflow_add(VCExpr left, VCExpr right) {
 	
+	int bit_width = vc_getBVLength(vc, left);
+	assert(vc_getBVLength(vc, right) == bit_width);
+
 	VCExpr sum = vc_bv32PlusExpr(vc, left, right);
-	VCExpr h_left = vc_bvBoolExtract_One(vc, left, 31);
-	VCExpr h_right = vc_bvBoolExtract_One(vc, right, 31);
-	VCExpr h_sum = vc_bvBoolExtract_One(vc, sum, 31);
+	VCExpr h_left = vc_bvBoolExtract_One(vc, left, bit_width - 1);
+	VCExpr h_right = vc_bvBoolExtract_One(vc, right, bit_width - 1);
+	VCExpr h_sum = vc_bvBoolExtract_One(vc, sum, bit_width - 1);
 	VCExpr xor_expr = vc_xorExpr(vc, h_left, h_right);
 	VCExpr iff_expr = vc_iffExpr(vc, h_right, h_sum);
 	VCExpr or_expr = vc_orExpr(vc, xor_expr, iff_expr);
@@ -933,7 +936,8 @@ void SolveConstraints::avoid_overflow(unsigned op, VCExpr left, VCExpr right) {
 			// (left << right) <= oo ==> left <= (oo >> right)
 			{
 				VCExpr int_max = vc_int_max(vc);
-				VCExpr left_ge_0 = vc_bvBoolExtract_Zero(vc, left, 31);
+				VCExpr left_ge_0 = vc_bvBoolExtract_Zero(
+						vc, left, vc_getBVLength(vc, left) - 1);
 				VCExpr int_max_shr = vc_bvVar32RightShiftExpr(vc, right, int_max);
 				VCExpr left_le = vc_sbvLeExpr(vc, left, int_max_shr);
 				
