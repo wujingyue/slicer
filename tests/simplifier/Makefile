@@ -1,6 +1,7 @@
 # simplifier only works on sliced programs 
 
 PROG_NAMES = test-loop test-reducer test-overwrite test-bound FFT-like \
+	     aget-like \
 	     aget-nocrit FFT-nocrit RADIX-nocrit CHOLESKY-nocrit
 PROGS_DIR = ../progs
 PROGS = $(addprefix $(PROGS_DIR)/, $(PROG_NAMES))
@@ -21,7 +22,7 @@ $(PROGS_DIR)/test-bound.simple.bc: $(PROGS_DIR)/test-bound.slice.bc
 # We use -o whenever possible, because <simplifier> will remove the output
 # file on failure. 
 $(PROGS_DIR)/%.simple.bc: $(PROGS_DIR)/%.slice.bc ../trace/%.lt
-	simplifier -debug-only=region-manager -o $@ -input-landmark-trace $(word 2, $^) -p < $<
+	simplifier -o $@ -input-landmark-trace $(word 2, $^) -p < $<
 
 %.s: %.bc
 	llc $< -o $@
