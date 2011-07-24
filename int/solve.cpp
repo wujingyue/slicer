@@ -247,7 +247,8 @@ void SolveConstraints::identify_fixed_values() {
 #endif
 			j = i; ++j;
 			while (j != fixed_values.end()) {
-				VCExpr ce = vc_getCounterExample(vc, vce);
+				VCExpr vj = translate_to_vc(j->first);
+				VCExpr ce = vc_getCounterExample(vc, vj);
 				if (j->second.first == getBVUnsigned(ce)) {
 					++j;
 				} else {
@@ -264,6 +265,7 @@ void SolveConstraints::identify_fixed_values() {
 #endif
 					fixed_values.erase(to_del);
 				}
+				vc_DeleteExpr(vj);
 				vc_DeleteExpr(ce);
 			}
 			// <i> does not have a fixed value. 
@@ -328,17 +330,18 @@ void SolveConstraints::translate_captured() {
 		Clause *c = CC.get_constraint(i)->clone();
 		replace_with_root(c);
 #if 1
-		vc_push(vc); // FIXME: Necessary to create a new context?
-		VCExpr vce = vc_simplify(vc, translate_to_vc(c));
-		int ret = vc_isBool(vce);
-		vc_pop(vc);
+		VCExpr vce = translate_to_vc(c);
+		VCExpr simplified_vce = vc_simplify(vc, vce);
+		int ret = vc_isBool(simplified_vce);
 		assert(ret != 0);
 		if (ret == -1) {
 			// If can be proved by simplification, don't add it to the constraint set. 
 			// Need call <translate_to_vc> again because the previous call
 			// creates an expression in a different context. 
-			vc_assertFormula(vc, translate_to_vc(c));
+			vc_assertFormula(vc, vce);
 		}
+		vc_DeleteExpr(vce);
+		vc_DeleteExpr(simplified_vce);
 #endif
 #if 0
 		VCExpr orig_vce = translate_to_vc(c);
@@ -361,8 +364,9 @@ void SolveConstraints::translate_captured() {
 	// The captured constraints should be consistent. 
 	vc_push(vc);
 	errs() << "???\n";
-	assert(vc_query(vc, vc_falseExpr(vc)) == 0 &&
-			"The captured constraints is not consistent.");
+	VCExpr f = vc_falseExpr(vc);
+	assert(vc_query(vc, f) == 0 && "The captured constraints is inconsistent.");
+	vc_DeleteExpr(f);
 	errs() << "!!!\n";
 	vc_pop(vc);
 }
@@ -630,10 +634,14 @@ bool SolveConstraints::satisfiable(
 			delete c;
 			continue;
 		}
-		vc_assertFormula(vc, translate_to_vc(c));
+		VCExpr vce = translate_to_vc(c);
+		vc_assertFormula(vc, vce);
+		vc_DeleteExpr(vce);
 		delete c;
 	}
-	int ret = vc_query(vc, vc_falseExpr(vc));
+	VCExpr f = vc_falseExpr(vc);
+	int ret = vc_query(vc, f);
+	vc_DeleteExpr(f);
 	assert(ret != 2);
 	vc_pop(vc);
 	return ret == 0;
@@ -664,6 +672,7 @@ bool SolveConstraints::contains_only_ints(const Expr *e) {
 
 bool SolveConstraints::provable(
 		const vector<const Clause *> &more_clauses) {
+	
 	vc_push(vc);
 	forallconst(vector<const Clause *>, it, more_clauses) {
 		if (!contains_only_ints(*it)) {
@@ -672,7 +681,8 @@ bool SolveConstraints::provable(
 		}
 		realize(*it);
 	}
-	VCExpr conj = vc_trueExpr(vc);
+	
+	vector<VCExpr> vces;
 	forallconst(vector<const Clause *>, it, more_clauses) {
 		Clause *c = (*it)->clone();
 		replace_with_root(c);
@@ -685,11 +695,27 @@ bool SolveConstraints::provable(
 		DEBUG(dbgs() << "Proving: ";
 				print_clause(dbgs(), c, getAnalysis<ObjectID>());
 				dbgs() << "\n";);
-		conj = vc_andExpr(vc, conj, translate_to_vc(c));
+		vces.push_back(translate_to_vc(c));
 		delete c;
 	}
+
+	if (vces.size() == 0)
+		return true;
+
+	VCExpr conj;
+	if (vces.size() == 1)
+		conj = vces[0];
+	else
+		conj = vc_andExprN(vc, &vces[0], vces.size());
+	
 	int ret = vc_query(vc, conj);
+
+	for (size_t i = 0; i < vces.size(); ++i)
+		vc_DeleteExpr(vces[i]);
+	if (vces.size() > 1)
+		vc_DeleteExpr(conj);
 	vc_pop(vc);
+
 	return ret == 1;
 }
 
@@ -770,7 +796,9 @@ void SolveConstraints::realize(const Instruction *ins) {
 					Clause *c2 = c->clone();
 					replace_with_root(c2);
 					// TODO: Simplify c2
-					vc_assertFormula(vc, translate_to_vc(c2));
+					VCExpr vce = translate_to_vc(c2);
+					vc_assertFormula(vc, vce);
+					vc_DeleteExpr(vce);
 					delete c2;
 					delete c;
 				}
@@ -790,7 +818,9 @@ void SolveConstraints::realize(const Instruction *ins) {
 			Clause *c2 = c->clone();
 			replace_with_root(c2);
 			// TODO: Simplify c2
-			vc_assertFormula(vc, translate_to_vc(c2));
+			VCExpr vce = translate_to_vc(c2);
+			vc_assertFormula(vc, vce);
+			vc_DeleteExpr(vce);
 			delete c2;
 			delete c;
 		}
@@ -892,7 +922,9 @@ void SolveConstraints::avoid_overflow(unsigned op, VCExpr left, VCExpr right) {
 			{
 				VCExpr zero = vc_zero(vc);
 				VCExpr right_gt_0 = vc_sbvGtExpr(vc, right, zero);
+				
 				vc_assertFormula(vc, right_gt_0);
+				
 				vc_DeleteExpr(zero);
 				vc_DeleteExpr(right_gt_0);
 			}
@@ -904,8 +936,10 @@ void SolveConstraints::avoid_overflow(unsigned op, VCExpr left, VCExpr right) {
 				VCExpr left_ge_0 = vc_bvBoolExtract_Zero(vc, left, 31);
 				VCExpr int_max_shr = vc_bvVar32RightShiftExpr(vc, right, int_max);
 				VCExpr left_le = vc_sbvLeExpr(vc, left, int_max_shr);
+				
 				vc_assertFormula(vc, left_ge_0);
 				vc_assertFormula(vc, left_le);
+				
 				vc_DeleteExpr(int_max);
 				vc_DeleteExpr(left_ge_0);
 				vc_DeleteExpr(int_max_shr);
