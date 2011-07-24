@@ -11,10 +11,10 @@ CXXFLAGS = -g -Wall
 all: $(BCS)
 
 %.bc: %.c
-	llvm-gcc -o $@ $< -c -emit-llvm $(CFLAGS)
+	llvm-gcc $< -o $@ -c -emit-llvm $(CFLAGS)
 
 %.bc: %.cpp
-	llvm-g++ -o $@ $< -c -emit-llvm $(CXXFLAGS)
+	llvm-g++ $< -o $@ -c -emit-llvm $(CXXFLAGS)
 
 %.s: %.bc
 	llc $< -o $@

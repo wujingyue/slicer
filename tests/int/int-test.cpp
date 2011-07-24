@@ -141,6 +141,8 @@ void IntTest::test_test_bound_simple(const Module &M) {
 		errs() << "gep1 and gep2 alias? ...";
 		assert(AAA.alias(gep1, 0, gep2, 0) == AliasAnalysis::NoAlias);
 		print_pass(errs());
+
+		SC.print_assertions();
 	}
 }
 

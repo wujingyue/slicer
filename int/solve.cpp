@@ -346,7 +346,6 @@ void SolveConstraints::translate_captured() {
 #if 0
 		VCExpr orig_vce = translate_to_vc(c);
 		VCExpr vce = vc_simplify(vc, orig_vce);
-		vc_DeleteExpr(orig_vce);
 		int ret = vc_isBool(vce);
 		assert(ret != 0);
 		if (ret == -1) {
@@ -354,9 +353,9 @@ void SolveConstraints::translate_captured() {
 			// Need call <translate_to_vc> again because the previous call
 			// creates an expression in a different context. 
 			vc_assertFormula(vc, vce);
-		} else {
-			vc_DeleteExpr(vce);
 		}
+		vc_DeleteExpr(orig_vce);
+		vc_DeleteExpr(vce);
 #endif
 		delete c; // c is cloned
 	}
@@ -531,7 +530,7 @@ VCExpr SolveConstraints::translate_to_vc(const Expr *e) {
 	if (e->type == Expr::Binary) {
 		VCExpr left = translate_to_vc(e->e1);
 		VCExpr right = translate_to_vc(e->e2);
-		avoid_overflow(e->op, left, right);
+		// avoid_overflow(e->op, left, right);
 		VCExpr res;
 		switch (e->op) {
 			case Instruction::Add:
@@ -828,8 +827,48 @@ void SolveConstraints::realize(const Instruction *ins) {
 	}
 }
 
+void SolveConstraints::avoid_div_by_zero(VCExpr left, VCExpr right) {
+
+	// TODO: We shouldn't assume the divisor > 0
+	VCExpr zero = vc_zero(vc);
+	VCExpr right_gt_0 = vc_sbvGtExpr(vc, right, zero);
+
+	vc_assertFormula(vc, right_gt_0);
+
+	vc_DeleteExpr(zero);
+	vc_DeleteExpr(right_gt_0);
+}
+
+void SolveConstraints::avoid_overflow_shl(VCExpr left, VCExpr right) {
+
+	// (left << right) <= oo ==> left <= (oo >> right)
+	int bit_width = vc_getBVLength(vc, left);
+	assert(vc_getBVLength(vc, right) == bit_width);
+
+	VCExpr int_max = vc_int_max(vc);
+	VCExpr left_ge_0 = vc_bvBoolExtract_Zero(vc, left, bit_width - 1);
+	VCExpr int_max_shr = vc_bvVar32RightShiftExpr(vc, right, int_max);
+	VCExpr left_le = vc_sbvLeExpr(vc, left, int_max_shr);
+
+	vc_assertFormula(vc, left_ge_0);
+	vc_assertFormula(vc, left_le);
+
+	vc_DeleteExpr(int_max);
+	vc_DeleteExpr(left_ge_0);
+	vc_DeleteExpr(int_max_shr);
+	vc_DeleteExpr(left_le);
+}
+
+void SolveConstraints::avoid_overflow_sub(VCExpr left, VCExpr right) {
+	// -oo <= left + (-right) <= oo
+	VCExpr minus_right = vc_bvUMinusExpr(vc, right);
+	avoid_overflow_add(left, minus_right);
+	vc_DeleteExpr(minus_right);
+}
+
 void SolveConstraints::avoid_overflow_add(VCExpr left, VCExpr right) {
 	
+	// -oo <= left + right <= oo
 	int bit_width = vc_getBVLength(vc, left);
 	assert(vc_getBVLength(vc, right) == bit_width);
 
@@ -898,57 +937,33 @@ void SolveConstraints::avoid_overflow_mul(VCExpr left, VCExpr right) {
 
 void SolveConstraints::avoid_overflow(unsigned op, VCExpr left, VCExpr right) {
 	switch (op) {
+		
 		case Instruction::Add:
-#if 1
-			// -oo <= left + right <= oo
 			avoid_overflow_add(left, right);
-#endif
 			break;
+		
 		case Instruction::Sub:
-#if 1
-			// -oo <= left + (-right) <= oo
-			{
-				VCExpr minus_right = vc_bvUMinusExpr(vc, right);
-				avoid_overflow_add(left, minus_right);
-				vc_DeleteExpr(minus_right);
-			}
-#endif
+			avoid_overflow_sub(left, right);
 			break;
+		
 		case Instruction::Mul:
 			avoid_overflow_mul(left, right);
 			break;
+		
 		case Instruction::UDiv:
 		case Instruction::SDiv:
 		case Instruction::URem:
 		case Instruction::SRem:
-			// TODO: We shouldn't assume the divisor > 0
-			{
-				VCExpr zero = vc_zero(vc);
-				VCExpr right_gt_0 = vc_sbvGtExpr(vc, right, zero);
-				
-				vc_assertFormula(vc, right_gt_0);
-				
-				vc_DeleteExpr(zero);
-				vc_DeleteExpr(right_gt_0);
-			}
+			avoid_div_by_zero(left, right);
 			break;
+		
 		case Instruction::Shl:
-			// (left << right) <= oo ==> left <= (oo >> right)
-			{
-				VCExpr int_max = vc_int_max(vc);
-				VCExpr left_ge_0 = vc_bvBoolExtract_Zero(
-						vc, left, vc_getBVLength(vc, left) - 1);
-				VCExpr int_max_shr = vc_bvVar32RightShiftExpr(vc, right, int_max);
-				VCExpr left_le = vc_sbvLeExpr(vc, left, int_max_shr);
-				
-				vc_assertFormula(vc, left_ge_0);
-				vc_assertFormula(vc, left_le);
-				
-				vc_DeleteExpr(int_max);
-				vc_DeleteExpr(left_ge_0);
-				vc_DeleteExpr(int_max_shr);
-				vc_DeleteExpr(left_le);
-			}
+			avoid_overflow_shl(left, right);
 			break;
 	}
+}
+
+void SolveConstraints::print_assertions() {
+	assert(vc);
+	vc_printAsserts(vc);
 }

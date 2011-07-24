@@ -67,6 +67,9 @@ namespace slicer {
 			return ret;
 		}
 
+		// Debugging functions. 
+		void print_assertions();
+
 	private:
 		/*
 		 * Translates and simplifies captured constraints, and
@@ -85,7 +88,10 @@ namespace slicer {
 		 */
 		void avoid_overflow(unsigned op, VCExpr left, VCExpr right);
 		void avoid_overflow_add(VCExpr left, VCExpr right);
+		void avoid_overflow_sub(VCExpr left, VCExpr right);
 		void avoid_overflow_mul(VCExpr left, VCExpr right);
+		void avoid_div_by_zero(VCExpr left, VCExpr right);
+		void avoid_overflow_shl(VCExpr left, VCExpr right);
 		// Checks whether <c> is in the form of (v1 == v2).
 		// If so, outputs <v1> and <v2> as well if they are not <NULL>. 
 		static bool is_simple_eq(
@@ -112,6 +118,8 @@ namespace slicer {
 		bool contains_only_ints(const Expr *e);
 
 		static void vc_error_handler(const char *err_msg);
+		// Some construct functions. 
+		// Remember to call vc_DeleteExpr. 
 		static VCExpr vc_zero(VC vc) {
 			return vc_bv32ConstExprFromInt(vc, 0);
 		}
