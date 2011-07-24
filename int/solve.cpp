@@ -139,16 +139,20 @@ void SolveConstraints::refine_candidates(list<const Value *> &candidates) {
 	 */
 	ConstValueSet appeared;
 	for (unsigned k = 0; k < CC.get_num_constraints(); ++k) {
+
 		Clause *c = CC.get_constraint(k)->clone();
 		replace_with_root(c);
-		vc_push(vc);
-		VCExpr vce = vc_simplify(vc, translate_to_vc(c));
-		assert(vc_isBool(vce) != 0);
+
+		VCExpr vce = translate_to_vc(c);
+		VCExpr simplified_vce = vc_simplify(vc, vce);
+		assert(vc_isBool(simplified_vce) != 0);
 		// If can be proved by simplification, don't add it to the constraint set. 
-		if (vc_isBool(vce) == -1)
+		if (vc_isBool(simplified_vce) == -1)
 			update_appeared(appeared, c);
+		vc_DeleteExpr(vce);
+		vc_DeleteExpr(simplified_vce);
+
 		delete c; // c is cloned
-		vc_pop(vc);
 	}
 	// Remove variables that don't appear in any clause. 
 	for (i = candidates.begin(); i != candidates.end(); ) {
@@ -193,32 +197,35 @@ void SolveConstraints::identify_fixed_values() {
 	
 	vc_push(vc);
 	errs() << "???\n";
-	assert(vc_query(vc, vc_falseExpr(vc)) == 0);
+	VCExpr f = vc_falseExpr(vc);
+	assert(vc_query(vc, f) == 0);
+	vc_DeleteExpr(f);
 	errs() << "!!!\n";
 	
 	forall(list<const Value *>, it, candidates) {
 		const Value *v = *it;
-		VCExpr ce = vc_getCounterExample(vc, translate_to_vc(v));
+		VCExpr vce = translate_to_vc(v);
+		VCExpr ce = vc_getCounterExample(vc, vce);
 		fixed_values.push_back(make_pair(
 					v, make_pair(getBVUnsigned(ce), vc_getBVLength(vc, ce))));
+		vc_DeleteExpr(vce);
+		vc_DeleteExpr(ce);
 	}
 	vc_pop(vc);
 	
-	// Try negating. 
+	// Try proving each guess. 
 	unsigned n_fixed = 0, n_not_fixed = 0, n_opted = 0;
 	for (i = fixed_values.begin(); i != fixed_values.end(); ) {
+
 		vc_push(vc);
-		vc_assertFormula(vc, vc_notExpr(vc, vc_eqExpr(vc,
-						translate_to_vc(i->first),
-						vc_bvConstExprFromInt(vc, i->second.second, i->second.first))));
-		// Returns 1 if cannot find a satisfying assignment any more, 
-		// which means the value is unique. 
-		int fixed = vc_query(vc, vc_falseExpr(vc));
+		VCExpr guessed_value = vc_bvConstExprFromInt(vc,
+				i->second.second, i->second.first);
+		VCExpr vce = translate_to_vc(i->first);
+		VCExpr eq = vc_eqExpr(vc, vce, guessed_value);
+		int fixed = vc_query(vc, eq);
 		assert(fixed != 2);
 		if (fixed == 1) {
-			// Cannot find a satisfiable assignment any more. 
-			// <i>'s value must be fixed. 
-			// Skip to the next candidate. 
+			// <i>'s value must be fixed. Skip to the next candidate. 
 			errs().changeColor(raw_ostream::GREEN) << "Y"; errs().resetColor();
 			++n_fixed;
 #if 0
@@ -240,12 +247,12 @@ void SolveConstraints::identify_fixed_values() {
 #endif
 			j = i; ++j;
 			while (j != fixed_values.end()) {
-				VCExpr ce = vc_getCounterExample(vc, translate_to_vc(j->first));
-				to_del = fixed_values.end();
-				if (j->second.first != getBVUnsigned(ce))
+				VCExpr ce = vc_getCounterExample(vc, vce);
+				if (j->second.first == getBVUnsigned(ce)) {
+					++j;
+				} else {
 					to_del = j;
-				++j;
-				if (to_del != fixed_values.end()) {
+					++j;
 					errs().changeColor(raw_ostream::BLUE) << "O"; errs().resetColor();
 					++n_opted;
 #if 0
@@ -264,8 +271,13 @@ void SolveConstraints::identify_fixed_values() {
 			++i;
 			fixed_values.erase(to_del);
 		}
+
+		vc_DeleteExpr(guessed_value);
+		vc_DeleteExpr(vce);
+		vc_DeleteExpr(eq);
 		vc_pop(vc);
 	}
+	
 	dbgs() << "\n";
 	dbgs() << "fixed = " << n_fixed << "; not fixed = " << n_not_fixed <<
 		"; opted = " << n_opted << "\n";
@@ -429,16 +441,16 @@ VCExpr SolveConstraints::translate_to_vc(const Clause *c) {
 		return translate_to_vc(c->be);
 	VCExpr vce1 = translate_to_vc(c->c1);
 	VCExpr vce2 = translate_to_vc(c->c2);
-	VCExpr vce;
+	VCExpr res;
 	if (c->op == Instruction::And)
-		vce = vc_andExpr(vc, vce1, vce2);
+		res = vc_andExpr(vc, vce1, vce2);
 	else if (c->op == Instruction::Or)
-		vce = vc_orExpr(vc, vce1, vce2);
+		res = vc_orExpr(vc, vce1, vce2);
 	else
-		vce = vc_xorExpr(vc, vce1, vce2);
+		res = vc_xorExpr(vc, vce1, vce2);
 	vc_DeleteExpr(vce1);
 	vc_DeleteExpr(vce2);
-	return vce;
+	return res;
 }
 
 VCExpr SolveConstraints::translate_to_vc(const BoolExpr *be) {
@@ -446,39 +458,39 @@ VCExpr SolveConstraints::translate_to_vc(const BoolExpr *be) {
 	assert(e1->get_width() == e2->get_width());
 	VCExpr vce1 = translate_to_vc(e1);
 	VCExpr vce2 = translate_to_vc(e2);
-	VCExpr vce;
+	VCExpr res;
 	switch (be->p) {
 		case CmpInst::ICMP_EQ:
-			vce = vc_eqExpr(vc, vce1, vce2);
+			res = vc_eqExpr(vc, vce1, vce2);
 			break;
 		case CmpInst::ICMP_NE:
 			{
 				VCExpr eq = vc_eqExpr(vc, vce1, vce2);
-				vce = vc_notExpr(vc, eq);
+				res = vc_notExpr(vc, eq);
 				vc_DeleteExpr(eq);
 			}
 			break;
 		case CmpInst::ICMP_UGT:
 		case CmpInst::ICMP_SGT:
-			vce = vc_sbvGtExpr(vc, vce1, vce2);
+			res = vc_sbvGtExpr(vc, vce1, vce2);
 			break;
 		case CmpInst::ICMP_UGE:
 		case CmpInst::ICMP_SGE:
-			vce = vc_sbvGeExpr(vc, vce1, vce2);
+			res = vc_sbvGeExpr(vc, vce1, vce2);
 			break;
 		case CmpInst::ICMP_ULT:
 		case CmpInst::ICMP_SLT:
-			vce = vc_sbvLtExpr(vc, vce1, vce2);
+			res = vc_sbvLtExpr(vc, vce1, vce2);
 			break;
 		case CmpInst::ICMP_ULE:
 		case CmpInst::ICMP_SLE:
-			vce = vc_sbvLeExpr(vc, vce1, vce2);
+			res = vc_sbvLeExpr(vc, vce1, vce2);
 			break;
 		default: assert(false && "Invalid predicate");
 	}
 	vc_DeleteExpr(vce1);
 	vc_DeleteExpr(vce2);
-	return vce;
+	return res;
 }
 
 VCExpr SolveConstraints::translate_to_vc(const Expr *e) {
@@ -488,76 +500,76 @@ VCExpr SolveConstraints::translate_to_vc(const Expr *e) {
 		return translate_to_vc(e->u);
 	if (e->type == Expr::Unary) {
 		VCExpr child = translate_to_vc(e->e1);
-		VCExpr vce;
+		VCExpr res;
 		switch (e->op) {
 			case Instruction::SExt:
 				assert(e->e1->get_width() == 1);
-				vce = vc_bvSignExtend(vc, child, 32);
+				res = vc_bvSignExtend(vc, child, 32);
 				break;
 			case Instruction::ZExt:
 				{
 					assert(e->e1->get_width() == 1);
 					// STP does not have bvUnsignExtend
 					VCExpr zero_31 = vc_bvConstExprFromInt(vc, 31, 0);
-					vce = vc_bvConcatExpr(vc, zero_31, child);
+					res = vc_bvConcatExpr(vc, zero_31, child);
 					vc_DeleteExpr(zero_31);
 				}
 				break;
 			case Instruction::Trunc:
 				assert(e->e1->get_width() == 32);
-				vce = vc_bvExtract(vc, child, 0, 0);
+				res = vc_bvExtract(vc, child, 0, 0);
 				break;
 			default: assert_not_supported();
 		}
 		vc_DeleteExpr(child);
-		return vce;
+		return res;
 	}
 	if (e->type == Expr::Binary) {
 		VCExpr left = translate_to_vc(e->e1);
 		VCExpr right = translate_to_vc(e->e2);
 		avoid_overflow(e->op, left, right);
-		VCExpr vce;
+		VCExpr res;
 		switch (e->op) {
 			case Instruction::Add:
-				vce = vc_bv32PlusExpr(vc, left, right);
+				res = vc_bv32PlusExpr(vc, left, right);
 				break;
 			case Instruction::Sub:
-				vce = vc_bv32MinusExpr(vc, left, right);
+				res = vc_bv32MinusExpr(vc, left, right);
 				break;
 			case Instruction::Mul:
-				vce = vc_bv32MultExpr(vc, left, right);
+				res = vc_bv32MultExpr(vc, left, right);
 				break;
 			case Instruction::UDiv:
 			case Instruction::SDiv:
-				vce = vc_sbvDivExpr(vc, 32, left, right);
+				res = vc_sbvDivExpr(vc, 32, left, right);
 				break;
 			case Instruction::URem:
 			case Instruction::SRem:
-				vce = vc_sbvModExpr(vc, 32, left, right);
+				res = vc_sbvModExpr(vc, 32, left, right);
 				break;
 			case Instruction::Shl:
 				// left << right
-				vce = vc_bvVar32LeftShiftExpr(vc, right, left);
+				res = vc_bvVar32LeftShiftExpr(vc, right, left);
 				break;
 			case Instruction::LShr:
 			case Instruction::AShr:
 				// left >> right
-				vce = vc_bvVar32RightShiftExpr(vc, right, left);
+				res = vc_bvVar32RightShiftExpr(vc, right, left);
 				break;
 			case Instruction::And:
-				vce = vc_bvAndExpr(vc, left, right);
+				res = vc_bvAndExpr(vc, left, right);
 				break;
 			case Instruction::Or:
-				vce = vc_bvOrExpr(vc, left, right);
+				res = vc_bvOrExpr(vc, left, right);
 				break;
 			case Instruction::Xor:
-				vce = vc_bvXorExpr(vc, left, right);
+				res = vc_bvXorExpr(vc, left, right);
 				break;
 			default: assert_not_supported();
 		}
 		vc_DeleteExpr(left);
 		vc_DeleteExpr(right);
-		return vce;
+		return res;
 	}
 	assert(false && "Invalid expression type");
 }
@@ -566,9 +578,9 @@ VCExpr SolveConstraints::translate_to_vc(const Value *v) {
 	if (const ConstantInt *ci = dyn_cast<ConstantInt>(v)) {
 		if (ci->getType()->getBitWidth() == 1) {
 			VCExpr b = (ci->isOne() ? vc_trueExpr(vc) : vc_falseExpr(vc));
-			VCExpr vce = vc_boolToBVExpr(vc, b);
+			VCExpr res = vc_boolToBVExpr(vc, b);
 			vc_DeleteExpr(b);
-			return vce;
+			return res;
 		} else {
 			return vc_bv32ConstExprFromInt(vc, ci->getSExtValue());
 		}
@@ -581,9 +593,9 @@ VCExpr SolveConstraints::translate_to_vc(const Value *v) {
 	VCType vct = (v->getType()->isIntegerTy(1) ?
 			vc_bvType(vc, 1) :
 			vc_bv32Type(vc));
-	VCExpr vce = vc_varExpr(vc, oss.str().c_str(), vct);
+	VCExpr res = vc_varExpr(vc, oss.str().c_str(), vct);
 	vc_DeleteExpr(vct);
-	return vce;
+	return res;
 }
 
 VCExpr SolveConstraints::translate_to_vc(const Use *u) {
@@ -787,65 +799,24 @@ void SolveConstraints::realize(const Instruction *ins) {
 }
 
 void SolveConstraints::avoid_overflow_add(VCExpr left, VCExpr right) {
-	// TODO: Not sure which one is faster. 
-
+	
 	VCExpr sum = vc_bv32PlusExpr(vc, left, right);
 	VCExpr h_left = vc_bvBoolExtract_One(vc, left, 31);
 	VCExpr h_right = vc_bvBoolExtract_One(vc, right, 31);
 	VCExpr h_sum = vc_bvBoolExtract_One(vc, sum, 31);
-	vc_assertFormula(vc, vc_orExpr(vc,
-				vc_xorExpr(vc, h_left, h_right),
-				vc_iffExpr(vc, h_right, h_sum)));
+	VCExpr xor_expr = vc_xorExpr(vc, h_left, h_right);
+	VCExpr iff_expr = vc_iffExpr(vc, h_right, h_sum);
+	VCExpr or_expr = vc_orExpr(vc, xor_expr, iff_expr);
 
-#if 0
-	VCExpr left_gt_0 = vc_sbvGtExpr(vc, left, vc_zero(vc));
-	VCExpr left_lt_0 = vc_sbvLtExpr(vc, left, vc_zero(vc));
-	VCExpr right_gt_0 = vc_sbvGtExpr(vc, right, vc_zero(vc));
-	VCExpr right_lt_0 = vc_sbvLtExpr(vc, right, vc_zero(vc));
-	VCExpr sum = vc_bv32PlusExpr(vc, left, right);
-	VCExpr overflow = vc_andExpr(vc,
-			vc_andExpr(vc, left_gt_0, right_gt_0),
-			vc_sbvLtExpr(vc, sum, vc_zero(vc)));
-	VCExpr underflow = vc_andExpr(vc,
-			vc_andExpr(vc, left_lt_0, right_lt_0),
-			vc_sbvGtExpr(vc, sum, vc_zero(vc)));
-	vc_assertFormula(vc, vc_notExpr(vc, overflow));
-	vc_assertFormula(vc, vc_notExpr(vc, underflow));
-#endif
-
-#if 0
-	VCExpr long_sum = vc_bvPlusExpr(
-			vc, 64,
-			vc_bvSignExtend(vc, left, 64), vc_bvSignExtend(vc, right, 64));
-	vc_assertFormula(
-			vc, vc_sbvLeExpr(vc, vc_int_min_64(vc), long_sum));
-	vc_assertFormula(
-			vc, vc_sbvLeExpr(vc, long_sum, vc_int_max_64(vc)));
-#endif
-
-#if 0
-	// -oo <= left + right <= oo
-	// left >= 0: right <= oo - left
-	// left < 0: right >= -oo - left
-	vc_assertFormula(
-			vc,
-			vc_impliesExpr(
-				vc,
-				vc_sbvGeExpr(vc, left, vc_zero(vc)),
-				vc_sbvLeExpr(
-					vc,
-					right,
-					vc_bv32MinusExpr(vc, vc_int_max(vc), left))));
-	vc_assertFormula(
-			vc,
-			vc_impliesExpr(
-				vc,
-				vc_sbvLtExpr(vc, left, vc_zero(vc)),
-				vc_sbvGeExpr(
-					vc,
-					right,
-					vc_bv32MinusExpr(vc, vc_int_min(vc), left))));
-#endif
+	vc_assertFormula(vc, or_expr);
+	
+	vc_DeleteExpr(sum);
+	vc_DeleteExpr(h_left);
+	vc_DeleteExpr(h_right);
+	vc_DeleteExpr(h_sum);
+	vc_DeleteExpr(xor_expr);
+	vc_DeleteExpr(iff_expr);
+	vc_DeleteExpr(or_expr);
 }
 
 void SolveConstraints::avoid_overflow_mul(VCExpr left, VCExpr right) {
