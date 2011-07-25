@@ -231,3 +231,18 @@ long CaptureConstraints::get_fingerprint() const {
 	}
 	return res;
 }
+
+bool CaptureConstraints::print_progress(
+		raw_ostream &O, unsigned cur, unsigned tot) {
+	bool printed = false;
+	for (unsigned p = 0; p < 10; ++p) {
+		unsigned threshold = p * tot / 10;
+		if (cur == threshold) {
+			O << "========== " << p * 10 << "%" << " ==========\n";
+			printed = true;
+			// Do not return here. We may need to print multiple percentages if
+			// tot is small. 
+		}
+	}
+	return printed;
+}

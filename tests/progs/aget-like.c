@@ -5,13 +5,14 @@
 #include <pthread.h>
 
 #define GETRECVSIZ (8192)
+#define MAX_N_THREADS (1024)
 
 struct thread_data {
 	long long soffset, foffset, offset;
 	pthread_t tid;
 };
 
-struct thread_data *wthread;
+struct thread_data wthread[MAX_N_THREADS];
 int nthreads;
 unsigned int bwritten = 0;
 pthread_mutex_t bwritten_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -62,12 +63,12 @@ int main(int argc, char *argv[]) {
 	int i;
 	long long clength;
 
-	if (argc < 2)
+	if (argc < 3) {
+		fprintf(stderr, "%s <file length> <# of threads>\n", argv[0]);
 		return 1;
+	}
 	clength = atoi(argv[1]);
-	nthreads = (argc > 2 ? atoi(argv[2]) : 1);
-
-	wthread = (struct thread_data *)malloc(nthreads * sizeof(struct thread_data));
+	nthreads = atoi(argv[2]);
 
 	for (i = 0; i < nthreads; ++i) {
 		long long soffset = calc_offset(clength, i, nthreads);

@@ -55,6 +55,12 @@ static cl::opt<string> OutputFilename(
 		cl::desc("Override output filename"),
 		cl::value_desc("filename"),
 		cl::init("-"));
+
+static cl::opt<bool> UnitAtATime(
+		"funit-at-a-time",
+		cl::desc("Enable IPO. This is same as llvm-gcc's -funit-at-a-time"),
+		cl::init(true));
+
 static cl::opt<bool> PrintAfterEachIteration(
 		"p",
 		cl::desc("Print module after each iteration"));
@@ -94,7 +100,7 @@ void AddOptimizationPasses(PassManager &MPM, FunctionPassManager &FPM,
 	 */
 	createStandardModulePasses(&MPM, OptLevel,
 			/*OptimizeSize=*/ false,
-			/*UnitAtATime=*/ true,
+			/*UnitAtATime=*/ UnitAtATime,
 			/*UnrollLoops=*/ OptLevel > 1,
 			/*SimplifyLibCalls=*/ false,
 			/*HaveExceptions=*/ true,

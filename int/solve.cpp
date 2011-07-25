@@ -4,6 +4,10 @@
 
 #define DEBUG_TYPE "int"
 
+// TODO: Put into the configuration file
+// #define CHECK_BOUND
+#define CHECK_DIV
+
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Analysis/Dominators.h"
@@ -196,11 +200,11 @@ void SolveConstraints::identify_fixed_values() {
 	list<pair<const Value *, pair<unsigned, int> > >::iterator i, j, to_del;
 	
 	vc_push(vc);
-	errs() << "???\n";
+	errs() << "identify_fixed_values ???\n";
 	VCExpr f = vc_falseExpr(vc);
 	assert(vc_query(vc, f) == 0);
 	vc_DeleteExpr(f);
-	errs() << "!!!\n";
+	errs() << "identify_fixed_values !!!\n";
 	
 	forall(list<const Value *>, it, candidates) {
 		const Value *v = *it;
@@ -362,11 +366,11 @@ void SolveConstraints::translate_captured() {
 	
 	// The captured constraints should be consistent. 
 	vc_push(vc);
-	errs() << "???\n";
+	errs() << "translate_captured ???\n";
 	VCExpr f = vc_falseExpr(vc);
 	assert(vc_query(vc, f) == 0 && "The captured constraints is inconsistent.");
 	vc_DeleteExpr(f);
-	errs() << "!!!\n";
+	errs() << "translate_captured !!!\n";
 	vc_pop(vc);
 }
 
@@ -530,7 +534,7 @@ VCExpr SolveConstraints::translate_to_vc(const Expr *e) {
 	if (e->type == Expr::Binary) {
 		VCExpr left = translate_to_vc(e->e1);
 		VCExpr right = translate_to_vc(e->e2);
-		// avoid_overflow(e->op, left, right);
+		avoid_overflow(e->op, left, right);
 		VCExpr res;
 		switch (e->op) {
 			case Instruction::Add:
@@ -937,28 +941,33 @@ void SolveConstraints::avoid_overflow_mul(VCExpr left, VCExpr right) {
 
 void SolveConstraints::avoid_overflow(unsigned op, VCExpr left, VCExpr right) {
 	switch (op) {
-		
 		case Instruction::Add:
+#ifdef CHECK_BOUND
 			avoid_overflow_add(left, right);
+#endif
 			break;
-		
 		case Instruction::Sub:
+#ifdef CHECK_BOUND
 			avoid_overflow_sub(left, right);
+#endif
 			break;
-		
 		case Instruction::Mul:
+#ifdef CHECK_BOUND
 			avoid_overflow_mul(left, right);
+#endif
 			break;
-		
 		case Instruction::UDiv:
 		case Instruction::SDiv:
 		case Instruction::URem:
 		case Instruction::SRem:
+#ifdef CHECK_DIV
 			avoid_div_by_zero(left, right);
+#endif
 			break;
-		
 		case Instruction::Shl:
+#ifdef CHECK_BOUND
 			avoid_overflow_shl(left, right);
+#endif
 			break;
 	}
 }

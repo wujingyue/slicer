@@ -167,7 +167,7 @@ bool Reducer::remove_branch(
 	if (MaxSlicing::is_unreachable(ti->getSuccessor(i)))
 		return false;
 
-	errs() << "=== remove_branch ===\n";
+	DEBUG(dbgs() << "=== remove_branch ===\n";);
 	++BranchesRemoved;
 	// Create the unreachable BB if necessary. 
 	if (!unreachable_bb) {

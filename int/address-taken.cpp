@@ -118,10 +118,14 @@ void CaptureConstraints::capture_may_assign(Module &M) {
 				all_stores.push_back(make_pair(ci, gi));
 		}
 	}
-	errs() << "# of loads = " << all_loads.size() << "; ";
-	errs() << "# of stores = " << all_stores.size() << "\n";
+	dbgs() << "=== Capturing may assignments === ";
+	dbgs() << "loads = " << all_loads.size() << "; ";
+	dbgs() << "stores = " << all_stores.size() << "\n";
 
 	for (size_t i = 0; i < all_loads.size(); ++i) {
+
+		print_progress(dbgs(), i, all_loads.size());
+
 		// TODO: Capture constant => non-constant assignments as well. 
 		if (!EO.executed_once(all_loads[i]))
 			continue;
@@ -170,16 +174,35 @@ void CaptureConstraints::capture_may_assign(Module &M) {
 
 void CaptureConstraints::capture_must_assign(Module &M) {
 
-	forallfunc(M, fi) {
-		if (fi->isDeclaration())
+	ExecOnce &EO = getAnalysis<ExecOnce>();
+
+	unsigned n_loads = 0;
+	forallfunc(M, f) {
+		if (!f->isDeclaration() && !EO.not_executed(f)) {
+			forall(Function, bb, *f) {
+				forall(BasicBlock, ins, *bb) {
+					if (isa<LoadInst>(ins))
+						++n_loads;
+				}
+			}
+		}
+	}
+	dbgs() << "=== Capturing must assignments === ";
+	dbgs() << "loads = " << n_loads << "\n";
+
+	unsigned cur = 0;
+	forallfunc(M, f) {
+		if (f->isDeclaration())
 			continue;
-		ExecOnce &EO = getAnalysis<ExecOnce>();
-		if (EO.not_executed(fi))
+		if (EO.not_executed(f))
 			continue;
-		forall(Function, bi, *fi) {
-			forall(BasicBlock, ii, *bi) {
-				if (LoadInst *i2 = dyn_cast<LoadInst>(ii))
+		forall(Function, bb, *f) {
+			forall(BasicBlock, ins, *bb) {
+				if (LoadInst *i2 = dyn_cast<LoadInst>(ins)) {
+					print_progress(dbgs(), cur, n_loads);
 					capture_overwriting_to(i2);
+					++cur;
+				}
 			}
 		}
 	}

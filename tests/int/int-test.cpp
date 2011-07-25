@@ -11,6 +11,7 @@
 #include "llvm/Analysis/DominatorInternals.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/Debug.h"
 #include "common/include/util.h"
 #include "common/cfg/exec-once.h"
 using namespace llvm;
@@ -489,152 +490,158 @@ void IntTest::test_aget_nocrit_simple(const Module &M) {
 		return;
 	TestBanner X("aget-nocrit.simple");
 
-	/*
-	 * Instruction IDs and value IDs are not deterministic because max-slicing
-	 * is not. Need a way to identify instructions and values more
-	 * deterministically regardless of the ID mapping. 
-	 */
-	const Function *http_get_slicer = NULL, *http_get_slicer2 = NULL;
-	forallconst(Module, fi, M) {
-		if (fi->getName() == "http_get.SLICER") {
-			assert(!http_get_slicer);
-			http_get_slicer = fi;
-		}
-		if (fi->getName() == "http_get.SLICER2") {
-			assert(!http_get_slicer2);
-			http_get_slicer2 = fi;
-		}
+	vector<const Function *> thr_funcs;
+	forallconst(Module, f, M) {
+		if (starts_with(f->getName(), "http_get.SLICER"))
+			thr_funcs.push_back(f);
 	}
-	assert(http_get_slicer && "Cannot find function http_get.SLICER");
-	assert(http_get_slicer2 && "Cannot find function http_get.SLICER2");
-
-	unsigned n_pwrites = 0;
-	const Value *offset = NULL, *soffset = NULL, *foffset = NULL, *remain = NULL;
-	const Use *dr = NULL;
-	forallconst(Function, bi, *http_get_slicer) {
-		forallconst(BasicBlock, ii, *bi) {
-			if (const CallInst *ci = dyn_cast<CallInst>(ii)) {
-				const Function *callee = ci->getCalledFunction();
-				if (callee && callee->getNameStr() == "pwrite") {
-					
-					const Use *off_use = &ci->getOperandUse(4);
-					const Use *len_use = &ci->getOperandUse(3);
-					const Value *off = off_use->get();
-					const Value *len = len_use->get();
-
-					const LoadInst *li = dyn_cast<LoadInst>(off);
-					assert(li);
-					const GetElementPtrInst *gep = dyn_cast<GetElementPtrInst>(
-							li->getPointerOperand());
-					assert(gep);
-					assert(2 < gep->getNumOperands());
-					const ConstantInt *idx = dyn_cast<ConstantInt>(gep->getOperand(2));
-					if (idx->getZExtValue() == 4) {
-						offset = off;
-						if (isa<CallInst>(len))
-							dr = len_use;
-						else
-							remain = len;
-					} else if (idx->getZExtValue() == 2) {
-						soffset = off;
+	dbgs() << "Thread functions:";
+	for (size_t i = 0; i < thr_funcs.size(); ++i)
+		dbgs() << " " << thr_funcs[i]->getName();
+	dbgs() << "\n";
+	
+	vector<const Value *> soffsets(thr_funcs.size(), NULL);
+	vector<const Value *> foffsets(thr_funcs.size(), NULL);
+	for (size_t i = 0; i < thr_funcs.size(); ++i) {
+		const Function *f = thr_funcs[i];
+		assert(distance(f->arg_begin(), f->arg_end()) == 1);
+		const Value *td = f->arg_begin();
+		for (Value::use_const_iterator ui = td->use_begin();
+				ui != td->use_end(); ++ui) {
+			if (const GetElementPtrInst *gep = dyn_cast<GetElementPtrInst>(*ui)) {
+				if (gep->getNumOperands() >= 3 && gep->getOperand(0) == td) {
+					const ConstantInt *op1 = dyn_cast<ConstantInt>(gep->getOperand(1));
+					const ConstantInt *op2 = dyn_cast<ConstantInt>(gep->getOperand(2));
+					if (op1 && op2 && op1->isZero()) {
+						uint64_t index = op2->getZExtValue();
+						// struct thread_data
+						// 2: soffset
+						// 3: foffset
+						// 4: offset
+						if (index == 2 && soffsets[i] == NULL) {
+							for (Value::use_const_iterator ui2 = gep->use_begin();
+									ui2 != gep->use_end(); ++ui2) {
+								if (isa<LoadInst>(*ui2)) {
+									soffsets[i] = *ui2;
+									break;
+								}
+							}
+						}
+						if (index == 3 && foffsets[i] == NULL) {
+							for (Value::use_const_iterator ui2 = gep->use_begin();
+									ui2 != gep->use_end(); ++ui2) {
+								if (isa<LoadInst>(*ui2)) {
+									foffsets[i] = *ui2;
+									break;
+								}
+							}
+						}
 					}
-					++n_pwrites;
-				}
-			} // if CallInst
-			if (const LoadInst *li = dyn_cast<LoadInst>(ii)) {
-				assert(http_get_slicer->getArgumentList().size() == 1);
-				const Value *arg = http_get_slicer->getArgumentList().begin();
-				const GetElementPtrInst *gep = dyn_cast<GetElementPtrInst>(
-						li->getPointerOperand());
-				if (gep && 2 < gep->getNumOperands() && gep->getOperand(0) == arg) {
-					bool found = true;
-					if (const ConstantInt *idx_1 = dyn_cast<ConstantInt>(
-								gep->getOperand(1))) {
-						if (idx_1->getZExtValue() != 0)
-							found = false;
-					}
-					if (const ConstantInt *idx_2 = dyn_cast<ConstantInt>(
-								gep->getOperand(2))) {
-						if (idx_2->getZExtValue() != 3)
-							found = false;
-					}
-					if (found)
-						foffset = ii;
 				}
 			}
 		}
 	}
-	assert(n_pwrites == 4 && "There should be exactly 4 pwrites "
-			"in function http_get.SLICER");
-	assert(soffset && foffset && offset && remain && dr);
-	errs() << "offset:" << *offset << "\n";
-	errs() << "soffset:" << *soffset << "\n";
-	errs() << "foffset:" << *foffset << "\n";
-	errs() << "dr:" << *(dr->get()) << "\n";
-	errs() << "remain:" << *remain << "\n";
+	for (size_t i = 0; i < thr_funcs.size(); ++i) {
+		dbgs() << "soffset in thread " << i << ":";
+		if (soffsets[i])
+			dbgs() << *soffsets[i] << "\n";
+		else
+			dbgs() << "  <null>\n";
+		dbgs() << "foffset in thread " << i << ":";
+		if (foffsets[i])
+			dbgs() << *foffsets[i] << "\n";
+		else
+			dbgs() << "  <null>\n";
+	}
 
-	const Value *soffset2 = NULL;
-	n_pwrites = 0;
-	forallconst(Function, bi, *http_get_slicer2) {
-		forallconst(BasicBlock, ii, *bi) {
-			if (const CallInst *ci = dyn_cast<CallInst>(ii)) {
-				const Function *callee = ci->getCalledFunction();
-				if (callee && callee->getNameStr() == "pwrite") {
-					
-					const Use *off_use = &ci->getOperandUse(4);
-					const Value *off = off_use->get();
-
-					const LoadInst *li = dyn_cast<LoadInst>(off);
-					assert(li);
-					const GetElementPtrInst *gep = dyn_cast<GetElementPtrInst>(
-							li->getPointerOperand());
-					assert(gep);
-					assert(2 < gep->getNumOperands());
-					const ConstantInt *idx = dyn_cast<ConstantInt>(gep->getOperand(2));
-					if (idx->getZExtValue() == 2)
-						soffset2 = off;
-					++n_pwrites;
+	vector<vector<ConstUsePair> > ranges;
+	ranges.resize(thr_funcs.size());
+	for (size_t i = 0; i < thr_funcs.size(); ++i) {
+		const Function *f = thr_funcs[i];
+		forallconst(Function, bb, *f) {
+			forallconst(BasicBlock, ins, *bb) {
+				if (const CallInst *ci = dyn_cast<CallInst>(ins)) {
+					const Function *callee = ci->getCalledFunction();
+					if (callee && callee->getName() == "pwrite") {
+						assert(ci->getNumOperands() == 5);
+						// pwrite(???, ???, len, offset)
+						const Value *offset = ci->getOperand(4);
+						if (const LoadInst *li = dyn_cast<LoadInst>(offset)) {
+							const GetElementPtrInst *gep =
+								dyn_cast<GetElementPtrInst>(li->getPointerOperand());
+							assert(gep);
+							assert(gep->getNumOperands() > 2);
+							const ConstantInt *idx = dyn_cast<ConstantInt>(gep->getOperand(2));
+							if (idx->getZExtValue() == 4) {
+								// From <offset> rather than <soffset>. 
+								ranges[i].push_back(make_pair(
+											&ci->getOperandUse(4), &ci->getOperandUse(3)));
+							}
+						}
+					}
 				}
-			} // if CallInst
+			}
+		}
+		dbgs() << "Ranges in thread " << i << ":\n";
+		for (size_t j = 0; j < ranges[i].size(); ++j) {
+			const User *user = ranges[i][j].first->getUser();
+			assert(user == ranges[i][j].second->getUser());
+			dbgs() << *user << "\n";
 		}
 	}
-	assert(n_pwrites == 4 && "There should be exactly 4 pwrites "
-			"in function http_get.SLICER2");
-	assert(soffset2);
-	errs() << "soffset2:" << *soffset2 << "\n";
+	
 
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
-	// soffset <= offset
-	errs() << "soffset <= offset? ...";
-	assert(SC.provable(CmpInst::ICMP_SLE, soffset, offset));
-	print_pass(errs());
+	for (size_t i = 0; i < thr_funcs.size(); ++i) {
+		if (soffsets[i] && foffsets[i]) {
+			errs() << "soffsets[" << i << "] <= foffsets[" << i << "]? ...";
+			assert(SC.provable(CmpInst::ICMP_SLE, soffsets[i], foffsets[i]));
+			print_pass(errs());
+		}
+	}
 	
-	// offset < foffset
-	errs() << "offset < foffset? ...";
-	assert(SC.provable(CmpInst::ICMP_SLT, offset, foffset));
-	print_pass(errs());
+	for (size_t i = 0; i < thr_funcs.size(); ++i) {
+		for (size_t j = 0; j < ranges[i].size(); ++j) {
+			dbgs() << "Range {" << i << ", " << j << "}\n";
+			if (soffsets[i]) {
+				errs() << "  soffsets <= offset? ...";
+				assert(SC.provable(CmpInst::ICMP_SLE, soffsets[i], ranges[i][j].first));
+				print_pass(errs());
+			}
+			if (foffsets[i]) {
+				errs() << "  offset < foffset? ...";
+				assert(SC.provable(CmpInst::ICMP_SLT, ranges[i][j].first, foffsets[i]));
+				print_pass(errs());
+				errs() << "  offset + len <= foffset? ...";
+				assert(SC.provable(new Clause(new BoolExpr(CmpInst::ICMP_SLE,
+									new Expr(Instruction::Add,
+										new Expr(ranges[i][j].first), new Expr(ranges[i][j].second)),
+									new Expr(foffsets[i])))));
+				print_pass(errs());
+			}
+		}
+	}
 	
-	// offset + dr <= foffset
-	errs() << "offset + dr <= foffset? ...";
-	Expr *end = new Expr(Instruction::Add, new Expr(offset), new Expr(dr));
-	Clause *c = new Clause(new BoolExpr(
-				CmpInst::ICMP_SLE, end, new Expr(foffset)));
-	assert(SC.provable(c));
-	delete end;
-	delete c;
-	print_pass(errs());
-	
-	// offset + remain <= foffset
-	errs() << "offset + remain <= foffset? ...";
-	end = new Expr(Instruction::Add, new Expr(offset), new Expr(remain));
-	c = new Clause(new BoolExpr(CmpInst::ICMP_SLE, end, new Expr(foffset)));
-	assert(SC.provable(c));
-	delete end;
-	delete c;
-	print_pass(errs());
-	
-	// foffset <= soffset2
-	errs() << "foffset <= soffset2? ...";
-	assert(SC.provable(CmpInst::ICMP_SLE, foffset, soffset2));
-	print_pass(errs());
+	for (size_t i1 = 0; i1 < thr_funcs.size(); ++i1) {
+		for (size_t i2 = i1 + 1; i2 < thr_funcs.size(); ++i2) {
+			for (size_t j1 = 0; j1 < ranges[i1].size(); ++j1) {
+				for (size_t j2 = 0; j2 < ranges[i2].size(); ++j2) {
+					Expr *end1 = new Expr(Instruction::Add,
+							new Expr(ranges[i1][j1].first), new Expr(ranges[i1][j1].second));
+					Expr *end2 = new Expr(Instruction::Add,
+							new Expr(ranges[i2][j2].first), new Expr(ranges[i2][j2].second));
+					// end1 <= start2 or end2 <= start1
+					Clause *c1 = new Clause(new BoolExpr(CmpInst::ICMP_SLE,
+								end1, new Expr(ranges[i2][j2].first)));
+					Clause *c2 = new Clause(new BoolExpr(CmpInst::ICMP_SLE,
+								end2, new Expr(ranges[i1][j1].first)));
+					errs() << "{" << i1 << ", " << j1 << "} and {" << i2 << ", " << j2 <<
+						"} are disjoint? ...";
+					assert(SC.provable(vector<const Clause *>(
+								1, new Clause(Instruction::Or, c1, c2))));
+					print_pass(errs());
+				}
+			}
+		}
+	}
 }

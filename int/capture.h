@@ -79,6 +79,7 @@ namespace slicer {
 		static Value *get_value_operand(Instruction *i);
 		static const Value *get_value_operand(const Instruction *i);
 		static bool is_power_of_two(uint64_t a, uint64_t &e);
+		static bool print_progress(raw_ostream &O, unsigned cur, unsigned tot);
 		/**
 		 * Create a constraint saying lb (<= or <) v && v (<= or <) ub.
 		 * Q: Why not just have an inclusive mode, and translate a < b into

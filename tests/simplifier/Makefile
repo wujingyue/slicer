@@ -17,12 +17,14 @@ $(PROGS_DIR)/test-overwrite.simple.bc: $(PROGS_DIR)/test-overwrite.slice.bc
 $(PROGS_DIR)/test-bound.simple.bc: $(PROGS_DIR)/test-bound.slice.bc
 	opt -O3 -lcssa -loopsimplify -o $@ < $<
 
-# If the sliced program exists, work on it. 
-# Otherwise, work on the original program. 
 # We use -o whenever possible, because <simplifier> will remove the output
 # file on failure. 
+# For aget, need turn on flag unit-at-a-time to disable some annoying LLVM opts. 
+$(PROGS_DIR)/aget-nocrit.simple.bc: $(PROGS_DIR)/aget-nocrit.slice.bc ../trace/aget-nocrit.lt
+	simplifier -o $@ -input-landmark-trace $(word 2, $^) -p -funit-at-a-time=false < $<
+
 $(PROGS_DIR)/%.simple.bc: $(PROGS_DIR)/%.slice.bc ../trace/%.lt
-	simplifier -debug-only=reducer -o $@ -input-landmark-trace $(word 2, $^) -p < $<
+	simplifier -o $@ -input-landmark-trace $(word 2, $^) -p < $<
 
 %.s: %.bc
 	llc $< -o $@
