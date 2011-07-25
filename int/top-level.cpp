@@ -1,4 +1,3 @@
-#include "llvm/LLVMContext.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Target/TargetData.h"
 #include "idm/id.h"
@@ -232,7 +231,7 @@ void CaptureConstraints::capture_from_user(const User *user) {
 			// ICmpInst
 		case Instruction::ICmp:
 			assert(isa<ICmpInst>(user));
-			capture_in_icmp(dyn_cast<ICmpInst>(user));
+			capture_in_icmp(cast<ICmpInst>(user));
 			break;
 			// Unary Instructions
 		case Instruction::Trunc:
@@ -246,10 +245,37 @@ void CaptureConstraints::capture_from_user(const User *user) {
 		case Instruction::GetElementPtr:
 			capture_in_gep(user);
 			break;
+		case Instruction::Select:
+			assert(isa<SelectInst>(user));
+			capture_in_select(cast<SelectInst>(user));
+			break;
 		case Instruction::PHI:
 			capture_in_phi(dyn_cast<PHINode>(user));
 			break;
 	}
+}
+
+void CaptureConstraints::capture_in_select(const SelectInst *si) {
+
+	// TODO: Handle the case where the condition is a vector of i1. 
+	// FIXME: We are assuming the true value and the false value are
+	// exclusive. Not always true. 
+	const Value *cond = si->getCondition();
+	const Value *true_value = si->getTrueValue();
+	const Value *false_value = si->getFalseValue();
+	if (!is_integer(cond) || !is_integer(true_value) || !is_integer(false_value))
+		return;
+	if (!cond->getType()->isIntegerTy(1))
+		return;
+
+	// cond == 1 <==> si == true value
+	// ==>
+	// (cond == 0) ^ (si == true value) == 1
+	constraints.push_back(new Clause(Instruction::Xor,
+			new Clause(new BoolExpr(CmpInst::ICMP_EQ,
+					new Expr(cond), new Expr(ConstantInt::getFalse(si->getContext())))),
+			new Clause(new BoolExpr(CmpInst::ICMP_EQ,
+					new Expr(si), new Expr(true_value)))));
 }
 
 void CaptureConstraints::capture_in_unary(const User *u) {
@@ -275,6 +301,10 @@ void CaptureConstraints::capture_in_unary(const User *u) {
 }
 
 void CaptureConstraints::capture_in_icmp(const ICmpInst *icmp) {
+	/*
+	 * FIXME: We are assuming the true value and the false value are
+	 * exclusive. Not always true. 
+	 */
 	// icmp == 1 <==> branch holds
 	// NOTE: <icmp> will be translated to one STP bit. Therefore, 
 	// it's either 0 or 1. 
@@ -285,12 +315,10 @@ void CaptureConstraints::capture_in_icmp(const ICmpInst *icmp) {
 		return;
 	Clause *branch = new Clause(new BoolExpr(
 				icmp->getPredicate(), new Expr(op0), new Expr(op1)));
-	ConstantInt *f = ConstantInt::getFalse(getGlobalContext());
+	ConstantInt *f = ConstantInt::getFalse(icmp->getContext());
 	assert(icmp->getType() == f->getType());
-	constraints.push_back(new Clause(
-				Instruction::Xor,
-				new Clause(new BoolExpr(
-						CmpInst::ICMP_EQ, new Expr(icmp), new Expr(f))),
+	constraints.push_back(new Clause(Instruction::Xor,
+				new Clause(new BoolExpr(CmpInst::ICMP_EQ, new Expr(icmp), new Expr(f))),
 				branch));
 }
 
@@ -356,7 +384,7 @@ void CaptureConstraints::capture_in_binary(const User *user, unsigned opcode) {
 			if (ci->getSExtValue() == 32) {
 				delete e2->e2;
 				e2->e2 = new Expr(
-						ConstantInt::get(IntegerType::get(getGlobalContext(), 32), 0));
+						ConstantInt::get(IntegerType::get(user->getContext(), 32), 0));
 			}
 		}
 	}

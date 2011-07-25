@@ -146,7 +146,8 @@ namespace slicer {
 		 * These capture_* functions need to check whether their operands
 		 * are integers. 
 		 */
-		void capture_in_icmp(const ICmpInst *user);
+		void capture_in_icmp(const ICmpInst *icmp);
+		void capture_in_select(const SelectInst *si);
 		void capture_in_unary(const User *user);
 		void capture_in_binary(const User *user, unsigned opcode);
 		void capture_in_gep(const User *user);

@@ -39,6 +39,7 @@ namespace slicer {
 	private:
 		/* These test functions give assertion failures on incorrect results. */
 		void test_aget_nocrit_simple(const Module &M);
+		void test_aget_like_simple(const Module &M);
 		void test_test_overwrite_simple(const Module &M);
 		void test_fft_nocrit_simple(const Module &M);
 		void test_fft_like_simple(const Module &M);
@@ -88,6 +89,7 @@ bool IntTest::runOnModule(Module &M) {
 	 * to the program name. 
 	 */
 	test_aget_nocrit_simple(M);
+	test_aget_like_simple(M);
 	test_test_overwrite_simple(M);
 	test_fft_nocrit_simple(M);
 	test_fft_like_simple(M);
@@ -424,6 +426,61 @@ void IntTest::test_test_overwrite_simple(const Module &M) {
 	errs() << "v1 == v2? ...";
 	assert(SC.provable(CmpInst::ICMP_EQ, v1, v2));
 	print_pass(errs());
+}
+
+void IntTest::test_aget_like_simple(const Module &M) {
+
+	if (Program != "aget-like.simple")
+		return;
+	TestBanner X("aget-like.simple");
+
+	vector<vector<ConstUsePair> > ranges;
+	forallconst(Module, f, M) {
+		
+		if (!starts_with(f->getName(), "http_get.SLICER"))
+			continue;
+		errs() << "=== Function " << f->getName() << " ===\n";
+		
+		ranges.push_back(vector<ConstUsePair>());
+		forallconst(Function, bb, *f) {
+			forallconst(BasicBlock, ins, *bb) {
+				if (const CallInst *ci = dyn_cast<CallInst>(ins)) {
+					const Function *callee = ci->getCalledFunction();
+					if (callee && callee->getName() == "fake_write") {
+						// fake_write(buffer, size, offset)
+						errs() << *ci << "\n";
+						ranges.back().push_back(make_pair(
+									&ci->getOperandUse(3),
+									&ci->getOperandUse(2)));
+					}
+				}
+			}
+		}
+	}
+
+	SolveConstraints &SC = getAnalysis<SolveConstraints>();
+	for (size_t i1 = 0; i1 < ranges.size(); ++i1) {
+		for (size_t i2 = i1 + 1; i2 < ranges.size(); ++i2) {
+			for (size_t j1 = 0; j1 < ranges[i1].size(); ++j1) {
+				for (size_t j2 = 0; j2 < ranges[i2].size(); ++j2) {
+					Expr *end1 = new Expr(Instruction::Add,
+							new Expr(ranges[i1][j1].first), new Expr(ranges[i1][j1].second));
+					Expr *end2 = new Expr(Instruction::Add,
+							new Expr(ranges[i2][j2].first), new Expr(ranges[i2][j2].second));
+					// end1 <= start2 or end2 <= start1
+					Clause *c1 = new Clause(new BoolExpr(CmpInst::ICMP_SLE,
+								end1, new Expr(ranges[i2][j2].first)));
+					Clause *c2 = new Clause(new BoolExpr(CmpInst::ICMP_SLE,
+								end2, new Expr(ranges[i1][j1].first)));
+					errs() << "{" << i1 << ", " << j1 << "} and {" << i2 << ", " << j2 <<
+						"} are disjoint? ...";
+					assert(SC.provable(vector<const Clause *>(
+								1, new Clause(Instruction::Or, c1, c2))));
+					print_pass(errs());
+				}
+			}
+		}
+	}
 }
 
 void IntTest::test_aget_nocrit_simple(const Module &M) {

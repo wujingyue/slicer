@@ -22,7 +22,7 @@ $(PROGS_DIR)/test-bound.simple.bc: $(PROGS_DIR)/test-bound.slice.bc
 # We use -o whenever possible, because <simplifier> will remove the output
 # file on failure. 
 $(PROGS_DIR)/%.simple.bc: $(PROGS_DIR)/%.slice.bc ../trace/%.lt
-	simplifier -o $@ -input-landmark-trace $(word 2, $^) -p < $<
+	simplifier -debug-only=reducer -o $@ -input-landmark-trace $(word 2, $^) -p < $<
 
 %.s: %.bc
 	llc $< -o $@

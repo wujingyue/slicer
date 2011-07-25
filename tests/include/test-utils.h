@@ -32,14 +32,21 @@ namespace slicer {
 		string name;
 	};
 
-	inline void print_pass(raw_ostream &O) {
+	static inline void print_pass(raw_ostream &O) {
 		O.changeColor(raw_ostream::GREEN, true) << "Passed\n";
 		O.resetColor();
 	}
 
-	inline void print_fail(raw_ostream &O) {
+	static inline void print_fail(raw_ostream &O) {
 		O.changeColor(raw_ostream::RED, true) << "Failed\n";
 		O.resetColor();
+	}
+
+	static inline void print_result(raw_ostream &O, bool result) {
+		if (result)
+			print_pass(O);
+		else
+			print_fail(O);
 	}
 }
 

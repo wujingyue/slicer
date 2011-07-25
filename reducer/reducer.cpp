@@ -65,13 +65,10 @@ bool Reducer::constantize(Module &M) {
 		for (Value::use_const_iterator ui = v->use_begin();
 				ui != v->use_end(); ++ui)
 			local.push_back(&ui.getUse());
-		if (local.size() > 0) {
-			++VariablesConstantized;
-			DEBUG(dbgs() << "=== replacing with a constant ===\n";);
-		}
 		// FIXME: Integer types in the solver may not be consistent with there
 		// real types. Therefore, we create new ConstantInt's with respect to
 		// the correct integer types. 
+		bool locally_changed = false;
 		for (size_t j = 0; j < local.size(); ++j) {
 			const IntegerType *int_type =
 				dyn_cast<IntegerType>(local[j]->get()->getType());
@@ -83,8 +80,14 @@ bool Reducer::constantize(Module &M) {
 			// Signed values. 
 			int64_t svalue = to_replace[i].second->getSExtValue();
 			local[j]->set(ConstantInt::get(int_type, svalue, true));
-			changed = true;
+			locally_changed = true;
 		}
+		if (locally_changed) {
+			++VariablesConstantized;
+			DEBUG(dbgs() << "=== replacing with a constant ===\n";);
+			DEBUG(dbgs() << *v << "\n";);
+		}
+		changed |= locally_changed;
 	}
 
 	return changed;

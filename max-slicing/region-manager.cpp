@@ -116,12 +116,12 @@ void RegionManager::mark_region(
 		for (size_t j = i + 1; j < e_insts.size(); ++j)
 			assert(e_insts[i]->getParent() != e_insts[j]->getParent());
 	}
-	dbgs() << "===== start =====\n";
+	DEBUG(dbgs() << "===== start =====\n";
 	for (size_t i = 0; i < s_insts.size(); ++i)
 		dbgs() << *s_insts[i] << "\n";
 	dbgs() << "===== end =====\n";
 	for (size_t i = 0; i < e_insts.size(); ++i)
-		dbgs() << *e_insts[i] << "\n";
+		dbgs() << *e_insts[i] << "\n";);
 
 	MicroBasicBlockBuilder &MBBB = getAnalysis<MicroBasicBlockBuilder>();
 	ICFG &PIB = getAnalysis<PartialICFGBuilder>();
