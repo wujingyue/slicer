@@ -300,19 +300,23 @@ void MaxSlicing::link_thr_func(
 		int parent_tid,
 		size_t trunk_id,
 		int child_tid) {
-	// pthread_create in the original program. 
+	
+	// <orig_site> is the pthread_create site in the original program. 
 	Trace::const_iterator it = trace.find(parent_tid);
 	assert(it != trace.end());
 	Instruction *orig_site = it->second[trunk_id];
-	// pthread_create in the cloned program. 
+	
+	// <new_site> is the pthread_create site in the cloned program. 
 	assert(clone_map.count(parent_tid));
 	Instruction *new_site = clone_map[parent_tid][trunk_id].lookup(orig_site);
 	assert(new_site &&
 			"Cannot find the thread creation site in the cloned CFG");
+	
 	// Old thread entry.
 	Trace::const_iterator j = trace.find(child_tid);
 	assert(j != trace.end());
 	Instruction *orig_entry = j->second[0];
+	
 	// New thread entry.
 	assert(clone_map.count(child_tid));
 	// It's possible that the cloned thread function is not complete due to
@@ -323,37 +327,21 @@ void MaxSlicing::link_thr_func(
 	Instruction *new_entry = clone_map[child_tid][0].lookup(orig_entry);
 	assert(new_entry &&
 			"Cannot find the thread entry in the cloned program.");
+
 	// The thread function in the cloned program. 
 	Function *thr_func = new_entry->getParent()->getParent();
+	
 	// Replace the target function in pthread_create to <thr_func>.
-	assert(is_call(new_site) && !is_intrinsic_call(new_site));
-	CallSite cs(new_site);
-	Function *callee = cs.getCalledFunction();
-	assert(callee && (callee->getNameStr() == "pthread_create" ||
-				callee->getNameStr() == "tern_wrap_pthread_create"));
-	unsigned arg_no;
-	if (callee->getNameStr() == "pthread_create") {
-		// pthread_create(&t, NULL, foo, ...)	
-		assert(cs.arg_size() >= 3 &&
-				"A pthread_create must have at least 3 arguments.");
-		arg_no = 2;
-	} else {
-		// tern_wrap_pthread_create(unknown, unknown, &t, NULL, foo, ...)
-		assert(cs.arg_size() >= 5 &&
-				"A tern_wrap_pthread_create must have at least 5 arguments.");
-		arg_no = 4;
-	}
-	if (cs.getArgument(arg_no)->getType() == thr_func->getType())
-		cs.setArgument(arg_no, thr_func);
+	assert(is_pthread_create(new_site));
+	const Value *thr_func_arg = get_pthread_create_callee(new_site);
+	if (thr_func_arg->getType() == thr_func->getType())
+		set_pthread_create_callee(new_site, thr_func);
 	else {
 		// <thr_func> may not have the same signature as required by the
 		// pthread_create, because our alias analysis catches bitcast.
 		Value *wrapped_thr_func = new BitCastInst(
-				thr_func,
-				cs.getArgument(arg_no)->getType(),
-				"",
-				new_site);
-		cs.setArgument(arg_no, wrapped_thr_func);
+				thr_func, thr_func_arg->getType(), "", new_site);
+		set_pthread_create_callee(new_site, wrapped_thr_func);
 	}
 }
 
@@ -370,22 +358,27 @@ void MaxSlicing::link_thr_funcs(
 }
 
 bool MaxSlicing::is_unreachable(const BasicBlock *bb) {
+	
 	if (bb->getNameStr().find("unreachable" + SLICER_SUFFIX) != string::npos)
 		return true;
+
 	// Don't always trust the name. Double check the content. 
 	// Optimizations may combine BBs, and thus change the names. 
 	if (!isa<UnreachableInst>(bb->getTerminator()))
 		return false;
+	
 	forallconst(BasicBlock, ins, *bb) {
 		if (const IntrinsicInst *intr = dyn_cast<IntrinsicInst>(ins)) {
 			if (intr->getIntrinsicID() == Intrinsic::trap)
 				return true;
 		}
 	}
+	
 	return false;
 }
 
 BasicBlock *MaxSlicing::create_unreachable(Function *f) {
+
 	BasicBlock *unreachable_bb = BasicBlock::Create(
 			f->getContext(), "unreachable" + SLICER_SUFFIX, f);
 	// Insert an llvm.trap in the unreachable BB. 

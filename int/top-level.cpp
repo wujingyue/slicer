@@ -178,20 +178,13 @@ void CaptureConstraints::capture_from_argument(const Argument *arg) {
 	Clause *disj = NULL;
 	for (size_t j = 0; j < call_sites.size(); ++j) {
 		if (!EO.not_executed(call_sites[j])) {
-			const Instruction *call_site = call_sites[j];
+			CallSite cs(call_sites[j]);
 			// Matches the formal argument with the actual argument. 
-			// TODO: The order of operands of CallInst/InvokeInst is changed
-			// in later version. 
 			const Value *param;
-			if (is_pthread_create(call_site)) {
-				// pthread_create(thread, attr, func, arg)
-				assert(arg->getArgNo() == 0);
-				assert(call_site->getNumOperands() == 5);
-				assert(integers.count(call_site->getOperand(4)));
-				param = call_site->getOperand(4);
-			} else {
-				param = call_site->getOperand(arg->getArgNo() + 1);
-			}
+			if (is_pthread_create(cs.getInstruction()))
+				param = get_pthread_create_arg(cs.getInstruction());
+			else
+				param = cs.getArgument(arg->getArgNo());
 			Clause *c = new Clause(new BoolExpr(
 						CmpInst::ICMP_EQ, new Expr(arg), new Expr(param)));
 			if (disj == NULL)
