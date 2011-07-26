@@ -634,33 +634,32 @@ void SolveConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
 	ModulePass::getAnalysisUsage(AU);
 }
 
-bool SolveConstraints::satisfiable(
-		const vector<const Clause *> &more_clauses) {
+bool SolveConstraints::satisfiable(const Clause *c) {
 
 	vc_push(vc);
-	forallconst(vector<const Clause *>, it, more_clauses)
-		realize(*it);
 
-	for (size_t i = 0; i < more_clauses.size(); ++i) {
-		Clause *c = more_clauses[i]->clone();
-		replace_with_root(c);
-		// OPT: if in the format of v0 == v0, then must be true. 
-		const Value *v1 = NULL, *v2 = NULL;
-		if (is_simple_eq(c, &v1, &v2) && v1 == v2) {
-			delete c;
-			continue;
-		}
-		VCExpr vce = translate_to_vc(c);
+	realize(c);
+
+	Clause *c2 = c->clone();
+	replace_with_root(c2);
+	// OPT: if in the format of v0 == v0, then must be true. 
+	const Value *v1 = NULL, *v2 = NULL;
+	if (is_simple_eq(c2, &v1, &v2) && v1 == v2) {
+		/* Do nothing */
+	} else {
+		VCExpr vce = translate_to_vc(c2);
 		vc_assertFormula(vc, vce);
 		vc_DeleteExpr(vce);
-		delete c;
 	}
+	delete c2;
 
 	VCExpr f = vc_falseExpr(vc);
 	int ret = vc_query(vc, f);
 	vc_DeleteExpr(f);
 	assert(ret != 2);
+
 	vc_pop(vc);
+	
 	return ret == 0;
 }
 
@@ -687,52 +686,35 @@ bool SolveConstraints::contains_only_ints(const Expr *e) {
 	assert_not_supported();
 }
 
-bool SolveConstraints::provable(
-		const vector<const Clause *> &more_clauses) {
+bool SolveConstraints::provable(const Clause *c) {
 	
 	vc_push(vc);
-	forallconst(vector<const Clause *>, it, more_clauses) {
-		if (!contains_only_ints(*it)) {
-			vc_pop(vc);
-			return false;
-		}
-		realize(*it);
+
+	if (!contains_only_ints(c)) {
+		vc_pop(vc);
+		return false;
 	}
 	
-	vector<VCExpr> vces;
-	forallconst(vector<const Clause *>, it, more_clauses) {
-		Clause *c = (*it)->clone();
-		replace_with_root(c);
-		const Value *v1 = NULL, *v2 = NULL;
-		// OPT: If is in the format of v0 == v0, then must be true.
-		if (is_simple_eq(c, &v1, &v2) && v1 == v2) {
-			delete c;
-			continue;
-		}
-		DEBUG(dbgs() << "Proving: ";
-				print_clause(dbgs(), c, getAnalysis<ObjectID>());
-				dbgs() << "\n";);
-		vces.push_back(translate_to_vc(c));
-		delete c;
-	}
-
-	VCExpr conj;
-	if (vces.size() == 0) {
-		conj = vc_trueExpr(vc);
-	} else if (vces.size() == 1) {
-		// NOTE: We reuse a pointer here. 
-		conj = vces[0];
+	realize(c);
+	
+	Clause *c2 = c->clone();
+	replace_with_root(c2);
+	const Value *v1 = NULL, *v2 = NULL;
+	// OPT: If is in the format of v0 == v0, then must be true.
+	VCExpr vce;
+	if (is_simple_eq(c2, &v1, &v2) && v1 == v2) {
+		vce = vc_trueExpr(vc);
 	} else {
-		conj = vc_andExprN(vc, &vces[0], vces.size());
+		DEBUG(dbgs() << "Proving: ";
+				print_clause(dbgs(), c2, getAnalysis<ObjectID>());
+				dbgs() << "\n";);
+		vce = translate_to_vc(c2);
 	}
-	
-	int ret = vc_query(vc, conj);
+	delete c2;
 
-	for (size_t i = 0; i < vces.size(); ++i)
-		vc_DeleteExpr(vces[i]);
-	// NOTE: vces.size() == 1 is the only case where we reuse a pointer. 
-	if (vces.size() != 1)
-		vc_DeleteExpr(conj);
+	int ret = vc_query(vc, vce);
+	vc_DeleteExpr(vce);
+
 	vc_pop(vc);
 
 	return ret == 1;

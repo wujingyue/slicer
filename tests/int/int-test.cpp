@@ -475,8 +475,7 @@ void IntTest::test_aget_like_simple(const Module &M) {
 								end2, new Expr(ranges[i1][j1].first)));
 					errs() << "{" << i1 << ", " << j1 << "} and {" << i2 << ", " << j2 <<
 						"} are disjoint? ...";
-					assert(SC.provable(vector<const Clause *>(
-								1, new Clause(Instruction::Or, c1, c2))));
+					assert(SC.provable(new Clause(Instruction::Or, c1, c2)));
 					print_pass(errs());
 				}
 			}
@@ -637,8 +636,7 @@ void IntTest::test_aget_nocrit_simple(const Module &M) {
 								end2, new Expr(ranges[i1][j1].first)));
 					errs() << "{" << i1 << ", " << j1 << "} and {" << i2 << ", " << j2 <<
 						"} are disjoint? ...";
-					assert(SC.provable(vector<const Clause *>(
-								1, new Clause(Instruction::Or, c1, c2))));
+					assert(SC.provable(new Clause(Instruction::Or, c1, c2)));
 					print_pass(errs());
 				}
 			}

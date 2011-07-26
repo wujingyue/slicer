@@ -41,28 +41,30 @@ namespace slicer {
 		void recalculate(Module &M);
 		ConstantInt *get_fixed_value(const Value *v);
 
-		bool satisfiable(const vector<const Clause *> &more_clauses);
-		bool satisfiable(const Clause *c) {
-			return satisfiable(vector<const Clause *>(1, c));
-		}
+		/**
+		 * The caller is responsible to delete this clause.
+		 */
+		bool satisfiable(const Clause *c);
+
 		template <typename T1, typename T2>
 		bool satisfiable(CmpInst::Predicate p, const T1 *v1, const T2 *v2) {
 			const Clause *c = new Clause(new BoolExpr(
 						p, new Expr(v1), new Expr(v2)));
-			bool ret = satisfiable(vector<const Clause *>(1, c));
+			bool ret = satisfiable(c);
 			delete c;
 			return ret;
 		}
 
-		bool provable(const vector<const Clause *> &more_clauses);
-		bool provable(const Clause *c) {
-			return provable(vector<const Clause *>(1, c));
-		}
+		/**
+		 * The caller is responsible to delete this clause.
+		 */
+		bool provable(const Clause *c);
+
 		template <typename T1, typename T2>
 		bool provable(CmpInst::Predicate p, const T1 *v1, const T2 *v2) {
 			const Clause *c = new Clause(new BoolExpr(
 						p, new Expr(v1), new Expr(v2)));
-			bool ret = provable(vector<const Clause *>(1, c));
+			bool ret = provable(c);
 			delete c;
 			return ret;
 		}
