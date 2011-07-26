@@ -636,9 +636,11 @@ void SolveConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
 
 bool SolveConstraints::satisfiable(
 		const vector<const Clause *> &more_clauses) {
+
 	vc_push(vc);
 	forallconst(vector<const Clause *>, it, more_clauses)
 		realize(*it);
+
 	for (size_t i = 0; i < more_clauses.size(); ++i) {
 		Clause *c = more_clauses[i]->clone();
 		replace_with_root(c);
@@ -653,6 +655,7 @@ bool SolveConstraints::satisfiable(
 		vc_DeleteExpr(vce);
 		delete c;
 	}
+
 	VCExpr f = vc_falseExpr(vc);
 	int ret = vc_query(vc, f);
 	vc_DeleteExpr(f);
@@ -713,20 +716,22 @@ bool SolveConstraints::provable(
 		delete c;
 	}
 
-	if (vces.size() == 0)
-		return true;
-
 	VCExpr conj;
-	if (vces.size() == 1)
+	if (vces.size() == 0) {
+		conj = vc_trueExpr(vc);
+	} else if (vces.size() == 1) {
+		// NOTE: We reuse a pointer here. 
 		conj = vces[0];
-	else
+	} else {
 		conj = vc_andExprN(vc, &vces[0], vces.size());
+	}
 	
 	int ret = vc_query(vc, conj);
 
 	for (size_t i = 0; i < vces.size(); ++i)
 		vc_DeleteExpr(vces[i]);
-	if (vces.size() > 1)
+	// NOTE: vces.size() == 1 is the only case where we reuse a pointer. 
+	if (vces.size() != 1)
 		vc_DeleteExpr(conj);
 	vc_pop(vc);
 
