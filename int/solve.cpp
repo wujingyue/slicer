@@ -688,33 +688,30 @@ bool SolveConstraints::contains_only_ints(const Expr *e) {
 
 bool SolveConstraints::provable(const Clause *c) {
 	
-	vc_push(vc);
-
-	if (!contains_only_ints(c)) {
-		vc_pop(vc);
+	if (!contains_only_ints(c))
 		return false;
-	}
-	
-	realize(c);
 	
 	Clause *c2 = c->clone();
 	replace_with_root(c2);
-	const Value *v1 = NULL, *v2 = NULL;
 	// OPT: If is in the format of v0 == v0, then must be true.
-	VCExpr vce;
+	// FIXME: This may not be right, the realized constraints may contain
+	// conflicts. 
+	const Value *v1 = NULL, *v2 = NULL;
 	if (is_simple_eq(c2, &v1, &v2) && v1 == v2) {
-		vce = vc_trueExpr(vc);
-	} else {
-		DEBUG(dbgs() << "Proving: ";
-				print_clause(dbgs(), c2, getAnalysis<ObjectID>());
-				dbgs() << "\n";);
-		vce = translate_to_vc(c2);
+		delete c2;
+		return true;
 	}
-	delete c2;
 
+	DEBUG(dbgs() << "Proving: ";
+			print_clause(dbgs(), c2, getAnalysis<ObjectID>());
+			dbgs() << "\n";);
+
+	vc_push(vc);
+	realize(c);
+	VCExpr vce = translate_to_vc(c2);
+	delete c2;
 	int ret = vc_query(vc, vce);
 	vc_DeleteExpr(vce);
-
 	vc_pop(vc);
 
 	return ret == 1;
