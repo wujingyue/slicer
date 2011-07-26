@@ -38,7 +38,7 @@ namespace slicer {
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual void releaseMemory();
 
-		bool recalculate(Module &M);
+		void recalculate(Module &M);
 		ConstantInt *get_fixed_value(const Value *v);
 
 		bool satisfiable(const vector<const Clause *> &more_clauses);
@@ -71,6 +71,10 @@ namespace slicer {
 		void print_assertions();
 
 	private:
+		/**
+		 * General functions. 
+		 */
+		void calculate(Module &M, bool identify_consts);
 		/*
 		 * Translates and simplifies captured constraints, and
 		 * inserts them to <vc>.

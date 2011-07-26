@@ -63,29 +63,35 @@ void SolveConstraints::releaseMemory() {
 bool SolveConstraints::runOnModule(Module &M) {
 	// Principally paired with the destroy_vc in releaseMemory.
 	create_vc();
-	return recalculate(M);
+	calculate(M, false);
+	return false;
 }
 
-bool SolveConstraints::recalculate(Module &M) {
+void SolveConstraints::recalculate(Module &M) {
+	calculate(M, true);
+}
+
+void SolveConstraints::calculate(Module &M, bool identify_consts) {
 
 	root.clear();
 	identify_eqs(); // This step does not require <vc>.
 
-	// TODO: Add a timer here. 
-	errs() << "=== Start identifying fixed values... ===\n";
-	clock_t start = clock();
-	destroy_vc();
-	create_vc();
-	translate_captured();
-	identify_fixed_values();
-	errs() << "=== Identifying fixed values took " <<
-		(int)(0.5 + (double)(clock() - start) / CLOCKS_PER_SEC) << " secs. ===\n";
+	if (identify_consts) {
+		// TODO: Add a timer here. 
+		errs() << "=== Start identifying fixed values... ===\n";
+		clock_t start = clock();
+		destroy_vc();
+		create_vc();
+		translate_captured();
+		identify_fixed_values();
+		errs() << "=== Identifying fixed values took " <<
+			(int)(0.5 + (double)(clock() - start) / CLOCKS_PER_SEC) <<
+			" secs. ===\n";
+	}
 
 	destroy_vc();
 	create_vc();
 	translate_captured();
-
-	return false;
 }
 
 void SolveConstraints::identify_eqs() {
@@ -147,14 +153,17 @@ void SolveConstraints::refine_candidates(list<const Value *> &candidates) {
 		Clause *c = CC.get_constraint(k)->clone();
 		replace_with_root(c);
 
+		vc_push(vc);
 		VCExpr vce = translate_to_vc(c);
 		VCExpr simplified_vce = vc_simplify(vc, vce);
-		assert(vc_isBool(simplified_vce) != 0);
+		int ret = vc_isBool(simplified_vce);
+		assert(ret != 0);
 		// If can be proved by simplification, don't add it to the constraint set. 
-		if (vc_isBool(simplified_vce) == -1)
+		if (ret == -1)
 			update_appeared(appeared, c);
 		vc_DeleteExpr(vce);
 		vc_DeleteExpr(simplified_vce);
+		vc_pop(vc);
 
 		delete c; // c is cloned
 	}
@@ -181,7 +190,7 @@ void SolveConstraints::identify_fixed_values() {
 	const ConstValueSet &integers = CC.get_integers();
 	candidates.insert(candidates.end(), integers.begin(), integers.end());
 	refine_candidates(candidates);
-	errs() << "# of candidates = " << candidates.size() << "\n";
+	dbgs() << "# of candidates = " << candidates.size() << "\n";
 	
 	/*
 	 * Try to constantize as many variables as possible. 
@@ -200,11 +209,11 @@ void SolveConstraints::identify_fixed_values() {
 	list<pair<const Value *, pair<unsigned, int> > >::iterator i, j, to_del;
 	
 	vc_push(vc);
-	errs() << "identify_fixed_values ???\n";
+	dbgs() << "Constructing a satisfying assignment... ";
 	VCExpr f = vc_falseExpr(vc);
 	assert(vc_query(vc, f) == 0);
 	vc_DeleteExpr(f);
-	errs() << "identify_fixed_values !!!\n";
+	dbgs() << "Done\n";
 	
 	forall(list<const Value *>, it, candidates) {
 		const Value *v = *it;
@@ -335,9 +344,12 @@ void SolveConstraints::translate_captured() {
 		replace_with_root(c);
 #if 1
 		VCExpr vce = translate_to_vc(c);
+		vc_push(vc);
 		VCExpr simplified_vce = vc_simplify(vc, vce);
 		int ret = vc_isBool(simplified_vce);
+		vc_DeleteExpr(simplified_vce);
 		assert(ret != 0);
+		vc_pop(vc);
 		if (ret == -1) {
 			// If can be proved by simplification, don't add it to the constraint set. 
 			// Need call <translate_to_vc> again because the previous call
@@ -345,7 +357,6 @@ void SolveConstraints::translate_captured() {
 			vc_assertFormula(vc, vce);
 		}
 		vc_DeleteExpr(vce);
-		vc_DeleteExpr(simplified_vce);
 #endif
 #if 0
 		VCExpr orig_vce = translate_to_vc(c);
@@ -366,11 +377,11 @@ void SolveConstraints::translate_captured() {
 	
 	// The captured constraints should be consistent. 
 	vc_push(vc);
-	errs() << "translate_captured ???\n";
+	dbgs() << "Checking consistency... ";
 	VCExpr f = vc_falseExpr(vc);
 	assert(vc_query(vc, f) == 0 && "The captured constraints is inconsistent.");
 	vc_DeleteExpr(f);
-	errs() << "translate_captured !!!\n";
+	dbgs() << "Done\n";
 	vc_pop(vc);
 }
 

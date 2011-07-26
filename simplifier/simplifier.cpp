@@ -419,9 +419,11 @@ int main(int argc, char *argv[]) {
 		Timer *TmrIter = new Timer(OSS.str(), TG);
 		Tmrs.push_back(TmrIter);
 		TmrIter->startTimer();
+
 		dbgs() << "=== Starting Iteration " << IterNo << "... ===\n";
 		int Changed = DoOneIteration(M);
 		dbgs() << "=== Iteration " << IterNo << " finished === ";
+
 		if (Changed == 1)
 			dbgs() << "Changed";
 		else if (Changed == 0)

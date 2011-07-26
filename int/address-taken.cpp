@@ -62,14 +62,14 @@ const Value *CaptureConstraints::get_value_operand(const Instruction *i) {
 
 void CaptureConstraints::capture_addr_taken(Module &M) {
 
-#if 1
-	Timer tmr_may_assign("may-assign");
+	TimerGroup tg("Capture constraints on address-taken variables");
+
+	Timer tmr_may_assign("may-assign", tg);
 	tmr_may_assign.startTimer();
 	capture_may_assign(M);
 	tmr_may_assign.stopTimer();
-#endif
 	
-	Timer tmr_must_assign("must-assign");
+	Timer tmr_must_assign("must-assign", tg);
 	tmr_must_assign.startTimer();
 	capture_must_assign(M);
 	tmr_must_assign.stopTimer();

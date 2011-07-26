@@ -200,8 +200,6 @@ void CaptureConstraints::capture_from_argument(const Argument *arg) {
 				disj = new Clause(Instruction::Or, disj, c);
 		}
 	}
-	if (!disj)
-		errs() << "[Warning] Function " << f->getName() << " is unreachable.\n";
 	if (disj)
 		constraints.push_back(disj);
 }

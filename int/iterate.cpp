@@ -4,6 +4,7 @@ using namespace repair;
 #include "llvm/LLVMContext.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Timer.h"
+#include "llvm/Support/Debug.h"
 using namespace llvm;
 
 #include "capture.h"
@@ -44,8 +45,8 @@ bool Iterate::runOnModule(Module &M) {
 		Timer *timer = new Timer(oss.str(), tg);
 		timers.push_back(timer);
 		timer->startTimer();
+		dbgs() << "=== Running iteration " << iter_no << "... ===\n";
 		fingerprint = CC.get_fingerprint();
-		errs() << "=== Running iteration " << iter_no << "... ===\n";
 		AAA.recalculate(M); // Essentially clear the cache. 
 		CC.recalculate(M);
 		SC.recalculate(M);
