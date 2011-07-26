@@ -11,13 +11,22 @@ using namespace llvm;
 
 namespace slicer {
 
+	struct QueryInfo {
+
+		QueryInfo(bool s, const Value *a, const Value *b):
+			satisfiable(s), v1(a), v2(b) {}
+
+		bool satisfiable;
+		const Value *v1, *v2;
+	};
+
 	struct AdvancedAlias: public ModulePass, public AliasAnalysis {
 
 		static char ID;
 
-		AdvancedAlias(): ModulePass(&ID), tot_time(0), n_queries(0) {}
+		AdvancedAlias(): ModulePass(&ID) {}
 		virtual bool runOnModule(Module &M);
-		bool recalculate(Module &M);
+		void recalculate(Module &M);
 		virtual void print(raw_ostream &O, const Module *M) const;
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual void releaseMemory();
@@ -45,11 +54,10 @@ namespace slicer {
 				const Value *V2, unsigned V2Size);
 
 	private:
-		void print_average_query_time();
+		void print_average_query_time(raw_ostream &O) const;
 
 		DenseMap<ConstValuePair, AliasResult> cache;
-		clock_t tot_time;
-		unsigned n_queries;
+		vector<pair<clock_t, QueryInfo> > query_times;
 	};
 }
 

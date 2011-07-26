@@ -49,6 +49,7 @@ bool Iterate::runOnModule(Module &M) {
 		fingerprint = CC.get_fingerprint();
 		AAA.recalculate(M); // Essentially clear the cache. 
 		CC.recalculate(M);
+		AAA.print(dbgs(), &M); // Print stats in AAA. 
 		SC.recalculate(M);
 		timer->stopTimer();
 	} while (CC.get_fingerprint() != fingerprint);

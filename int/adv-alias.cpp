@@ -1,7 +1,14 @@
+/**
+ * Author: Jingyue
+ */
+
+#define DEBUG_TYPE "int"
+
 #include "bc2bdd/BddAliasAnalysis.h"
 using namespace repair;
 
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/Debug.h"
 using namespace llvm;
 
 #include "capture.h"
@@ -11,6 +18,7 @@ using namespace slicer;
 
 #include <sstream>
 #include <iomanip>
+#include <fstream>
 using namespace std;
 
 static RegisterPass<AdvancedAlias> X(
@@ -22,36 +30,50 @@ static RegisterPass<AdvancedAlias> X(
 char AdvancedAlias::ID = 0;
 
 bool AdvancedAlias::runOnModule(Module &M) {
-	return recalculate(M);
-}
-
-void AdvancedAlias::releaseMemory() {
-	print_average_query_time();
-}
-
-void AdvancedAlias::print_average_query_time() {
-	if (n_queries == 0)
-		return;
-	errs() << "Total time = " << tot_time << "\n";
-	errs() << "# of queries = " << n_queries << "\n";
-	ostringstream oss;
-	oss << fixed << setprecision(5) <<
-		(double)tot_time / CLOCKS_PER_SEC / n_queries;
-	errs() << "Average time on each query = " << oss.str() << "\n";
-}
-
-bool AdvancedAlias::recalculate(Module &M) {
-	// Clear the cache. 
-	errs() << "AAA cache size = " << get_cache_size() << "\n";
-	cache.clear();
-	print_average_query_time();
-	tot_time = 0;
-	n_queries = 0;
+	recalculate(M);
 	return false;
 }
 
+void AdvancedAlias::releaseMemory() {
+}
+
+void AdvancedAlias::print_average_query_time(raw_ostream &O) const {
+	
+	if (query_times.size() == 0)
+		return;
+	
+	clock_t tot_time = 0;
+	for (size_t i = 0; i < query_times.size(); ++i)
+		tot_time += query_times[i].first;
+	// raw_ostream does not print real numbers well. 
+	ostringstream oss;
+	oss << fixed << setprecision(5) <<
+		(double)tot_time / CLOCKS_PER_SEC / query_times.size();
+	O << "Average time on each query = " << oss.str() << "\n";
+
+	string error_info;
+	raw_fd_ostream fout("/tmp/query_times.txt", error_info);
+	for (size_t i = 0; i < query_times.size(); ++i) {
+		fout << query_times[i].first << "\n";
+		if (query_times[i].second.satisfiable)
+			fout << "may equal?\n";
+		else
+			fout << "must equal?\n";
+		fout << "V1 = " << *query_times[i].second.v1 << "\n";
+		fout << "V2 = " << *query_times[i].second.v2 << "\n";
+	}
+}
+
+void AdvancedAlias::recalculate(Module &M) {
+	// Clear the cache. 
+	cache.clear();
+	query_times.clear();
+}
+
+
 void AdvancedAlias::print(raw_ostream &O, const Module *M) const {
-	// Not sure what to do yet.
+	O << "AAA cache size = " << get_cache_size() << "\n";
+	print_average_query_time(O);
 }
 
 void AdvancedAlias::getAnalysisUsage(AnalysisUsage &AU) const {
@@ -66,15 +88,9 @@ AliasAnalysis::AliasResult AdvancedAlias::alias(
 		const Value *V1, unsigned V1Size,
 		const Value *V2, unsigned V2Size) {
 
-#if 1
 	BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
 	if (BAA.alias(V1, V1Size, V2, V2Size) == NoAlias)
 		return NoAlias;
-#else
-	AliasAnalysis &BAA = getAnalysis<AliasAnalysis>();
-	if (BAA.alias(V1, V1Size, V2, V2Size) == NoAlias)
-		return NoAlias;
-#endif
 
 	if (V1 > V2)
 		swap(V1, V2);
@@ -87,17 +103,21 @@ AliasAnalysis::AliasResult AdvancedAlias::alias(
 	// TODO: <provable> takes much more time than satisfiable. Sometimes, we
 	// only care about may-aliasing, so we could have a separate interface
 	// doing must-aliasing. 
+	
 	clock_t start = clock();
-	if (!SC.satisfiable(CmpInst::ICMP_EQ, V1, V2))
+	bool sat = SC.satisfiable(CmpInst::ICMP_EQ, V1, V2);
+	query_times.push_back(make_pair(clock() - start, QueryInfo(true, V1, V2)));
+	
+	if (!sat) {
 		res = NoAlias;
-	else if (SC.provable(CmpInst::ICMP_EQ, V1, V2))
-		res = MustAlias;
-	else
-		res = MayAlias;
-	cache[p] = res;
+	} else {
+		start = clock();
+		bool pro = SC.provable(CmpInst::ICMP_EQ, V1, V2);
+		query_times.push_back(make_pair(clock() - start, QueryInfo(false, V1, V2)));
+		res = (pro ? MustAlias : MayAlias);
+	}
 
-	tot_time += clock() - start;
-	n_queries += (res == NoAlias ? 1 : 2);
+	cache[p] = res;
 
 	return res;
 }
