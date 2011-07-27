@@ -120,8 +120,7 @@ void CaptureConstraints::capture_may_assign(Module &M) {
 		Clause *disj = NULL;
 		unsigned n_terms = 0;
 		for (size_t j = 0; j < all_stores.size(); ++j) {
-			if (AA->alias(
-						all_loads[i]->getPointerOperand(), 0, all_stores[j].second, 0)) {
+			if (may_alias(all_loads[i]->getPointerOperand(), all_stores[j].second)) {
 				// If the stored value is not constant, the loaded value
 				// can be anything. So, no constraint will be captured in
 				// this case. 
@@ -234,11 +233,8 @@ Instruction *CaptureConstraints::find_latest_overwriter(
 	Instruction *i1 = get_idom_ip(i2);
 	while (i1) {
 		Value *p = get_pointer_operand(i1);
-		if (p) {
-			AliasAnalysis::AliasResult res = AA->alias(p, 0, q, 0);
-			if (res == AliasAnalysis::MustAlias)
-				break;
-		}
+		if (p && must_alias(p, q))
+			break;
 		i1 = get_idom_ip(i1);
 	}
 	return i1;
@@ -406,7 +402,7 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 bool CaptureConstraints::may_write(
 		const Instruction *i, const Value *q, ConstFuncSet &visited_funcs) {
 	if (const StoreInst *si = dyn_cast<StoreInst>(i)) {
-		if (AA->alias(si->getPointerOperand(), 0, q, 0) != AliasAnalysis::NoAlias)
+		if (may_alias(si->getPointerOperand(), q))
 			return true;
 	}
 	// If <i> is a function call, go into the function. 
@@ -471,8 +467,7 @@ bool CaptureConstraints::path_may_write(
 			e = i2;
 		for (BasicBlock::const_iterator i = s; i != e; ++i) {
 			if (const StoreInst *si = dyn_cast<StoreInst>(i)) {
-				if (AA->alias(si->getPointerOperand(), 0, q, 0) !=
-						AliasAnalysis::NoAlias)
+				if (may_alias(si->getPointerOperand(), q))
 					return true;
 			}
 		}
