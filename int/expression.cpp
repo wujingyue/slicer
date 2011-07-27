@@ -161,6 +161,8 @@ void slicer::print_expr(raw_ostream &O, const Expr *e, ObjectID &OI) {
 				O << ci->getZExtValue();
 			else
 				O << ci->getSExtValue();
+		} else if (isa<ConstantPointerNull>(v)) {
+			O << "0";
 		} else {
 			unsigned value_id = OI.getValueID(v);
 			assert(value_id != ObjectID::INVALID_ID);

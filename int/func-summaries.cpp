@@ -26,12 +26,11 @@ void CaptureConstraints::capture_libcall(const CallSite &cs) {
 	const string &name = callee->getNameStr();
 	if (name == "pwrite") {
 		// The return value >= 0.
+		// FIXME: >= -1. But aget has a bug no checking its return value. 
 		const Instruction *ret = cs.getInstruction();
 		if (is_integer(ret)) {
-			constraints.push_back(new Clause(new BoolExpr(
-							CmpInst::ICMP_SGE,
-							new Expr(ret),
-							new Expr(ConstantInt::get(int_type, 0)))));
+			constraints.push_back(new Clause(new BoolExpr(CmpInst::ICMP_SGE,
+							new Expr(ret), new Expr(ConstantInt::get(int_type, -1)))));
 		}
 	}
 }

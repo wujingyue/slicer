@@ -374,8 +374,7 @@ void CaptureConstraints::capture_in_binary(const User *user, unsigned opcode) {
 		if (ConstantInt *ci = dyn_cast<ConstantInt>(user->getOperand(1))) {
 			if (ci->getSExtValue() == 32) {
 				delete e2->e2;
-				e2->e2 = new Expr(
-						ConstantInt::get(IntegerType::get(user->getContext(), 32), 0));
+				e2->e2 = new Expr(ConstantInt::get(int_type, 0));
 			}
 		}
 	}

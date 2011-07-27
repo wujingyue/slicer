@@ -78,13 +78,13 @@ void SolveConstraints::calculate(Module &M, bool identify_consts) {
 
 	if (identify_consts) {
 		// TODO: Add a timer here. 
-		errs() << "=== Start identifying fixed values... ===\n";
+		dbgs() << "=== Start identifying fixed values... ===\n";
 		clock_t start = clock();
 		destroy_vc();
 		create_vc();
 		translate_captured(M);
 		identify_fixed_values();
-		errs() << "=== Identifying fixed values took " <<
+		dbgs() << "=== Identifying fixed values took " <<
 			(int)(0.5 + (double)(clock() - start) / CLOCKS_PER_SEC) <<
 			" secs. ===\n";
 	}
@@ -104,11 +104,11 @@ void SolveConstraints::identify_eqs() {
 			assert(v1 && v2);
 			const Value *r1 = get_root(v1), *r2 = get_root(v2);
 			/*
-			 * Make sure constants will always be the roots. 
+			 * Make sure constant integers will always be the roots. 
 			 * Otherwise, we would miss information when replacing
 			 * a variable with roots. 
 			 */
-			if (isa<Constant>(r1))
+			if (isa<ConstantInt>(r1) || isa<ConstantPointerNull>(r1))
 				root[r2] = r1;
 			else
 				root[r1] = r2;
@@ -345,7 +345,7 @@ void SolveConstraints::translate_captured(Module &M) {
 		
 		Clause *c = CC.get_constraint(i)->clone();
 		replace_with_root(c);
-		
+
 		VCExpr vce = translate_to_vc(c);
 		vc_push(vc);
 		VCExpr simplified_vce = vc_simplify(vc, vce);
@@ -595,6 +595,10 @@ VCExpr SolveConstraints::translate_to_vc(const Value *v) {
 		} else {
 			return vc_bv32ConstExprFromInt(vc, ci->getSExtValue());
 		}
+	}
+	if (isa<ConstantPointerNull>(v)) {
+		// null == 0
+		return vc_zero(vc);
 	}
 	ObjectID &OI = getAnalysis<ObjectID>();
 	unsigned value_id = OI.getValueID(v);

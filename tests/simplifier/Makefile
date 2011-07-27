@@ -17,6 +17,9 @@ $(PROGS_DIR)/test-overwrite.simple.bc: $(PROGS_DIR)/test-overwrite.slice.bc
 $(PROGS_DIR)/test-bound.simple.bc: $(PROGS_DIR)/test-bound.slice.bc
 	opt -O3 -lcssa -loopsimplify -o $@ < $<
 
+$(PROGS_DIR)/test-thread.simple.bc: $(PROGS_DIR)/test-thread.slice.bc
+	opt -O3 -lcssa -loopsimplify -o $@ < $<
+
 # We use -o whenever possible, because <simplifier> will remove the output
 # file on failure. 
 # For aget, need turn on flag unit-at-a-time to disable some annoying LLVM opts. 

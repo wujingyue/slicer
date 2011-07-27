@@ -50,6 +50,7 @@ namespace slicer {
 		void test_test_loop_simple(const Module &M);
 		void test_test_reducer_simple(const Module &M);
 		void test_test_bound_simple(const Module &M);
+		void test_test_thread_simple(const Module &M);
 	};
 }
 
@@ -82,6 +83,10 @@ bool IntTest::runOnModule(Module &M) {
 	if (Program == "") {
 		CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 		CC.print(errs(), &M);
+#if 0
+		SolveConstraints &SC = getAnalysis<SolveConstraints>();
+		SC.print_assertions();
+#endif
 		return false;
 	}
 	/*
@@ -98,11 +103,36 @@ bool IntTest::runOnModule(Module &M) {
 	test_test_loop_simple(M);
 	test_test_reducer_simple(M);
 	test_test_bound_simple(M);
+	test_test_thread_simple(M);
 	return false;
 }
 
 static bool starts_with(const string &a, const string &b) {
 	return a.length() >= b.length() && a.compare(0, b.length(), b) == 0;
+}
+
+void IntTest::test_test_thread_simple(const Module &M) {
+
+	if (Program != "test-thread.simple")
+		return;
+	TestBanner X("test-thread.simple");
+
+	vector<const Value *> local_ids;
+	forallconst(Module, f, M) {
+		if (starts_with(f->getName(), "sub_routine.SLICER")) {
+			assert(f->arg_size() == 1);
+			local_ids.push_back(f->arg_begin());
+		}
+	}
+
+	SolveConstraints &SC = getAnalysis<SolveConstraints>();
+	for (size_t i = 0; i < local_ids.size(); ++i) {
+		for (size_t j = i + 1; j < local_ids.size(); ++j) {
+			errs() << "local_ids[" << i << "] != local_ids[" << j << "]? ...";
+			assert(SC.provable(CmpInst::ICMP_NE, local_ids[i], local_ids[j]));
+			print_pass(errs());
+		}
+	}
 }
 
 void IntTest::test_test_bound_simple(const Module &M) {
