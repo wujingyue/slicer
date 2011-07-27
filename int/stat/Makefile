@@ -1,3 +1,3 @@
 LEVEL = $(shell $(LLVM_ROOT)/scripts/level-to-llvm-root)/llvm-obj
-TOOLNAME = display-trace
+TOOLNAME = stat-query
 include $(LEVEL)/Makefile.common

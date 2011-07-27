@@ -636,30 +636,26 @@ void SolveConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
 
 bool SolveConstraints::satisfiable(const Clause *c) {
 
-	vc_push(vc);
-
-	realize(c);
-
 	Clause *c2 = c->clone();
 	replace_with_root(c2);
 	// OPT: if in the format of v0 == v0, then must be true. 
 	const Value *v1 = NULL, *v2 = NULL;
 	if (is_simple_eq(c2, &v1, &v2) && v1 == v2) {
-		/* Do nothing */
-	} else {
-		VCExpr vce = translate_to_vc(c2);
-		vc_assertFormula(vc, vce);
-		vc_DeleteExpr(vce);
+		delete c2;
+		return true;
 	}
+
+	vc_push(vc);
+	realize(c);
+	VCExpr vce = translate_to_vc(c2);
 	delete c2;
-
-	VCExpr f = vc_falseExpr(vc);
-	int ret = vc_query(vc, f);
-	vc_DeleteExpr(f);
-	assert(ret != 2);
-
+	VCExpr not_vce = vc_notExpr(vc, vce);
+	vc_DeleteExpr(vce);
+	int ret = vc_query(vc, not_vce);
+	vc_DeleteExpr(not_vce);
 	vc_pop(vc);
 	
+	assert(ret != 2);
 	return ret == 0;
 }
 
@@ -714,6 +710,7 @@ bool SolveConstraints::provable(const Clause *c) {
 	vc_DeleteExpr(vce);
 	vc_pop(vc);
 
+	assert(ret != 2);
 	return ret == 1;
 }
 

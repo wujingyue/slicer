@@ -52,7 +52,7 @@ void AdvancedAlias::print_average_query_time(raw_ostream &O) const {
 	O << "Average time on each query = " << oss.str() << "\n";
 
 	string error_info;
-	raw_fd_ostream fout("/tmp/query_times.txt", error_info);
+	raw_fd_ostream fout("/tmp/query-times.txt", error_info);
 	for (size_t i = 0; i < query_times.size(); ++i) {
 		fout << query_times[i].first << "\n";
 		if (query_times[i].second.satisfiable)
@@ -66,7 +66,8 @@ void AdvancedAlias::print_average_query_time(raw_ostream &O) const {
 
 void AdvancedAlias::recalculate(Module &M) {
 	// Clear the cache. 
-	cache.clear();
+	may_cache.clear();
+	must_cache.clear();
 	query_times.clear();
 }
 
@@ -84,40 +85,67 @@ void AdvancedAlias::getAnalysisUsage(AnalysisUsage &AU) const {
 	ModulePass::getAnalysisUsage(AU);
 }
 
+bool AdvancedAlias::must_alias(const Value *V1, const Value *V2) {
+
+	BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
+	SolveConstraints &SC = getAnalysis<SolveConstraints>();
+
+	if (BAA.alias(V1, 0, V2, 0) == NoAlias)
+		return false;
+
+	if (V1 > V2)
+		swap(V1, V2);
+	ConstValuePair p(V1, V2);
+
+	bool pro;
+	if (must_cache.count(p)) {
+		pro = must_cache.lookup(p);
+	} else {
+		clock_t start = clock();
+		pro = SC.provable(CmpInst::ICMP_EQ, V1, V2);
+		query_times.push_back(make_pair(clock() - start, QueryInfo(false, V1, V2)));
+		must_cache[p] = pro;
+	}
+
+	return pro;
+}
+
 AliasAnalysis::AliasResult AdvancedAlias::alias(
 		const Value *V1, unsigned V1Size,
 		const Value *V2, unsigned V2Size) {
 
 	BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
+	SolveConstraints &SC = getAnalysis<SolveConstraints>();
+
 	if (BAA.alias(V1, V1Size, V2, V2Size) == NoAlias)
 		return NoAlias;
 
 	if (V1 > V2)
 		swap(V1, V2);
 	ConstValuePair p(V1, V2);
-	if (cache.count(p))
-		return cache.lookup(p);
 
-	SolveConstraints &SC = getAnalysis<SolveConstraints>();
-	AliasResult res;
-	// TODO: <provable> takes much more time than satisfiable. Sometimes, we
-	// only care about may-aliasing, so we could have a separate interface
-	// doing must-aliasing. 
-	
-	clock_t start = clock();
-	bool sat = SC.satisfiable(CmpInst::ICMP_EQ, V1, V2);
-	query_times.push_back(make_pair(clock() - start, QueryInfo(true, V1, V2)));
-	
-	if (!sat) {
-		res = NoAlias;
+	bool sat;
+	if (may_cache.count(p)) {
+		sat = may_cache.lookup(p);
 	} else {
-		start = clock();
-		bool pro = SC.provable(CmpInst::ICMP_EQ, V1, V2);
+		clock_t start = clock();
+		sat = SC.satisfiable(CmpInst::ICMP_EQ, V1, V2);
+		query_times.push_back(make_pair(clock() - start, QueryInfo(true, V1, V2)));
+		may_cache[p] = sat;
+	}
+	
+	if (!sat)
+		return NoAlias;
+
+	bool pro;
+	if (must_cache.count(p)) {
+		pro = must_cache.lookup(p);
+	} else {
+		clock_t start = clock();
+		pro = SC.provable(CmpInst::ICMP_EQ, V1, V2);
 		query_times.push_back(make_pair(clock() - start, QueryInfo(false, V1, V2)));
-		res = (pro ? MustAlias : MayAlias);
+		must_cache[p] = pro;
 	}
 
-	cache[p] = res;
-
-	return res;
+	return (pro ? MustAlias : MayAlias);
 }

@@ -13,6 +13,7 @@ LOADABLE_MODULE = 1
 BUILD_ARCHIVE = 1
 CXXFLAGS += -I$(LLVM_ROOT) -I$(SLICER_ROOT) -I$(SLICER_ROOT)/stp/install/include
 LDFLAGS += -L$(SLICER_ROOT)/stp/install/lib
+DIRS = stat
 
 include $(LEVEL)/Makefile.common
 # Must be put after the include. 
