@@ -30,11 +30,10 @@ namespace slicer {
 		CaptureConstraints();
 		virtual ~CaptureConstraints();
 		virtual bool runOnModule(Module &M);
-		bool recalculate(Module &M);
+		void recalculate(Module &M);
+		void calculate(Module &M);
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual void print(raw_ostream &O, const Module *M) const;
-
-		void replace_aa(AliasAnalysis *new_AA);
 
 		unsigned get_num_constraints() const;
 		const Clause *get_constraint(unsigned i) const;
@@ -81,6 +80,7 @@ namespace slicer {
 		/**
 		 * Wrappers to AdvancedAlias and BddAliasAnalysis. 
 		 */
+		bool is_using_advanced_alias();
 		bool may_alias(const Value *v1, const Value *v2);
 		bool must_alias(const Value *v1, const Value *v2);
 		/**
@@ -174,7 +174,6 @@ namespace slicer {
 		vector<Clause *> constraints;
 		ConstValueSet integers;
 		const Type *int_type;
-		AliasAnalysis *AA;
 		DominatorTreeBase<ICFGNode> IDT;
 	};
 }

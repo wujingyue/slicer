@@ -29,7 +29,6 @@ bool Iterate::runOnModule(Module &M) {
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	AdvancedAlias &AAA = getAnalysis<AdvancedAlias>();
-	CC.replace_aa(&AAA);
 	/*
 	 * # of constraints is not a good indicator to decide whether we can
 	 * stop the iterating process. 

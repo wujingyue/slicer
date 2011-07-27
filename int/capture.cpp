@@ -67,9 +67,7 @@ void CaptureConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
 	ModulePass::getAnalysisUsage(AU);
 }
 
-CaptureConstraints::CaptureConstraints(): ModulePass(&ID), IDT(false) {
-	AA = NULL;
-}
+CaptureConstraints::CaptureConstraints(): ModulePass(&ID), IDT(false) {}
 
 CaptureConstraints::~CaptureConstraints() {
 	forall(vector<Clause *>, it, constraints) {
@@ -139,14 +137,14 @@ void CaptureConstraints::stat(Module &M) {
 void CaptureConstraints::setup(Module &M) {
 	// int is always 32-bit long. 
 	int_type = IntegerType::get(M.getContext(), 32);
-	assert(AA == NULL);
-	AA = &getAnalysis<BddAliasAnalysis>();
 }
 
 bool CaptureConstraints::runOnModule(Module &M) {
+	assert(!is_using_advanced_alias());
 	setup(M);
 	stat(M);
-	return recalculate(M);
+	calculate(M);
+	return false;
 }
 
 void CaptureConstraints::check_loop(Loop *l) {
@@ -168,7 +166,12 @@ void CaptureConstraints::check_loops(Module &M) {
 	}
 }
 
-bool CaptureConstraints::recalculate(Module &M) {
+void CaptureConstraints::recalculate(Module &M) {
+	assert(is_using_advanced_alias());
+	calculate(M);
+}
+
+void CaptureConstraints::calculate(Module &M) {
 
 	constraints.clear();
 
@@ -199,8 +202,6 @@ bool CaptureConstraints::recalculate(Module &M) {
 #ifdef VERBOSE
 	errs() << "# of constraints = " << get_num_constraints() << "\n";
 #endif
-
-	return false;
 }
 
 void CaptureConstraints::simplify_constraints() {

@@ -232,9 +232,17 @@ Instruction *CaptureConstraints::find_latest_overwriter(
 	// a pointer that must alias with <q>. 
 	Instruction *i1 = get_idom_ip(i2);
 	while (i1) {
-		Value *p = get_pointer_operand(i1);
-		if (p && must_alias(p, q))
-			break;
+		if (Value *p = get_pointer_operand(i1)) {
+#if 1
+			if (must_alias(p, q))
+				break;
+#endif
+#if 0
+			AliasAnalysis::AliasResult res = AA->alias(p, 0, q, 0);
+			if (res == AliasAnalysis::MustAlias)
+				break;
+#endif
+		}
 		i1 = get_idom_ip(i1);
 	}
 	return i1;
@@ -525,28 +533,23 @@ Instruction *CaptureConstraints::get_idom_ip(Instruction *ins) {
 	}
 }
 
-void CaptureConstraints::replace_aa(AliasAnalysis *new_AA) {
-	assert(AA->ID == BddAliasAnalysis::ID);
-	AA = new_AA;
-	assert(AA->ID == AdvancedAlias::ID);
-}
-
 bool CaptureConstraints::may_alias(const Value *v1, const Value *v2) {
-	if (AA->ID == BddAliasAnalysis::ID) {
-		BddAliasAnalysis *BAA = (BddAliasAnalysis *)AA;
-		return BAA->alias(v1, 0, v2, 0) == AliasAnalysis::MayAlias;
-	} else {
-		AdvancedAlias *AAA = (AdvancedAlias *)AA;
+	if (AdvancedAlias *AAA = getAnalysisIfAvailable<AdvancedAlias>()) {
 		return AAA->may_alias(v1, v2);
+	} else {
+		BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
+		return BAA.alias(v1, 0, v2, 0) == AliasAnalysis::MayAlias;
 	}
 }
 
 bool CaptureConstraints::must_alias(const Value *v1, const Value *v2) {
-	if (AA->ID == BddAliasAnalysis::ID) {
-		// BddAliasAnalysis cannot decide must-aliasing. 
-		return false;
-	} else {
-		AdvancedAlias *AAA = (AdvancedAlias *)AA;
+	if (AdvancedAlias *AAA = getAnalysisIfAvailable<AdvancedAlias>()) {
 		return AAA->must_alias(v1, v2);
+	} else {
+		return false;
 	}
+}
+
+bool CaptureConstraints::is_using_advanced_alias() {
+	return getAnalysisIfAvailable<AdvancedAlias>();
 }
