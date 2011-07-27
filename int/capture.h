@@ -74,12 +74,15 @@ namespace slicer {
 	private:
 		// Utility functions. 
 		static void print_value(raw_ostream &O, const Value *v);
-		static Value *get_pointer_operand(Instruction *i);
-		static const Value *get_pointer_operand(const Instruction *i);
-		static Value *get_value_operand(Instruction *i);
-		static const Value *get_value_operand(const Instruction *i);
+		static Value *get_pointer_operand(const Instruction *i);
+		static Value *get_value_operand(const Instruction *i);
 		static bool is_power_of_two(uint64_t a, uint64_t &e);
 		static bool print_progress(raw_ostream &O, unsigned cur, unsigned tot);
+		/**
+		 * Wrappers to AdvancedAlias and BddAliasAnalysis. 
+		 */
+		bool may_alias(const Value *v1, const Value *v2);
+		bool must_alias(const Value *v1, const Value *v2);
 		/**
 		 * Create a constraint saying lb (<= or <) v && v (<= or <) ub.
 		 * Q: Why not just have an inclusive mode, and translate a < b into

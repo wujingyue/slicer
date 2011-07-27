@@ -42,20 +42,26 @@ namespace slicer {
 			return this;
 		}
 		// For debugging purpose. 
-		size_t get_cache_size() const { return may_cache.size(); }
-		/*
+		size_t get_cache_size() const {
+			return may_cache.size() + must_cache.size();
+		}
+		/**
 		 * AliasAnalysis interfaces.
 		 * Returns: NoAlias, MayAlias, or MustAlias
 		 */
 		virtual AliasResult alias(
 				const Value *V1, unsigned V1Size,
 				const Value *V2, unsigned V2Size);
-		/*
+		/**
 		 * May aliasing seems pretty slow, but must aliasing is fast. 
 		 * Therefore, we provide this interface to perform fast must-aliasing
 		 * queries. 
 		 */
 		bool must_alias(const Value *V1, const Value *V2);
+		/**
+		 * Separate interface for may-aliasing queries. 
+		 */
+		bool may_alias(const Value *V1, const Value *V2);
 
 	private:
 		void print_average_query_time(raw_ostream &O) const;

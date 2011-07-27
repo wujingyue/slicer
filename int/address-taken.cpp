@@ -22,41 +22,28 @@
 #include "max-slicing/region-manager.h"
 using namespace llvm;
 
+#include "bc2bdd/BddAliasAnalysis.h"
+using namespace repair;
+
 #include "capture.h"
 #include "must-alias.h"
 #include "adv-alias.h"
-#include "../trace/landmark-trace.h"
+#include "trace/landmark-trace.h"
 using namespace slicer;
 
-Value *CaptureConstraints::get_pointer_operand(Instruction *i) {
-	if (StoreInst *si = dyn_cast<StoreInst>(i))
-		return si->getPointerOperand();
-	if (LoadInst *li = dyn_cast<LoadInst>(i))
-		return li->getPointerOperand();
-	return NULL;
-}
-
-const Value *CaptureConstraints::get_pointer_operand(const Instruction *i) {
+Value *CaptureConstraints::get_pointer_operand(const Instruction *i) {
 	if (const StoreInst *si = dyn_cast<StoreInst>(i))
-		return si->getPointerOperand();
+		return si->getOperand(1);
 	if (const LoadInst *li = dyn_cast<LoadInst>(i))
-		return li->getPointerOperand();
+		return li->getOperand(0);
 	return NULL;
 }
 
-Value *CaptureConstraints::get_value_operand(Instruction *i) {
-	if (StoreInst *si = dyn_cast<StoreInst>(i))
-		return si->getOperand(0);
-	if (LoadInst *li = dyn_cast<LoadInst>(i))
-		return li;
-	return NULL;
-}
-
-const Value *CaptureConstraints::get_value_operand(const Instruction *i) {
+Value *CaptureConstraints::get_value_operand(const Instruction *i) {
 	if (const StoreInst *si = dyn_cast<StoreInst>(i))
 		return si->getOperand(0);
 	if (const LoadInst *li = dyn_cast<LoadInst>(i))
-		return li;
+		return const_cast<LoadInst *>(li);
 	return NULL;
 }
 
@@ -544,5 +531,27 @@ Instruction *CaptureConstraints::get_idom_ip(Instruction *ins) {
 }
 
 void CaptureConstraints::replace_aa(AliasAnalysis *new_AA) {
+	assert(AA->ID == BddAliasAnalysis::ID);
 	AA = new_AA;
+	assert(AA->ID == AdvancedAlias::ID);
+}
+
+bool CaptureConstraints::may_alias(const Value *v1, const Value *v2) {
+	if (AA->ID == BddAliasAnalysis::ID) {
+		BddAliasAnalysis *BAA = (BddAliasAnalysis *)AA;
+		return BAA->alias(v1, 0, v2, 0) == AliasAnalysis::MayAlias;
+	} else {
+		AdvancedAlias *AAA = (AdvancedAlias *)AA;
+		return AAA->may_alias(v1, v2);
+	}
+}
+
+bool CaptureConstraints::must_alias(const Value *v1, const Value *v2) {
+	if (AA->ID == BddAliasAnalysis::ID) {
+		// BddAliasAnalysis cannot decide must-aliasing. 
+		return false;
+	} else {
+		AdvancedAlias *AAA = (AdvancedAlias *)AA;
+		return AAA->must_alias(v1, v2);
+	}
 }

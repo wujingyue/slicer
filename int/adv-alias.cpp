@@ -105,9 +105,38 @@ bool AdvancedAlias::must_alias(const Value *V1, const Value *V2) {
 		pro = SC.provable(CmpInst::ICMP_EQ, V1, V2);
 		query_times.push_back(make_pair(clock() - start, QueryInfo(false, V1, V2)));
 		must_cache[p] = pro;
+		if (pro) {
+			// OPT: If we find they must equal, then they also may equal. 
+			may_cache[p] = true;
+		}
 	}
 
 	return pro;
+}
+
+bool AdvancedAlias::may_alias(const Value *V1, const Value *V2) {
+
+	BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
+	SolveConstraints &SC = getAnalysis<SolveConstraints>();
+
+	if (BAA.alias(V1, 0, V2, 0) == NoAlias)
+		return false;
+
+	if (V1 > V2)
+		swap(V1, V2);
+	ConstValuePair p(V1, V2);
+
+	bool sat;
+	if (may_cache.count(p)) {
+		sat = must_cache.lookup(p);
+	} else {
+		clock_t start = clock();
+		sat = SC.satisfiable(CmpInst::ICMP_EQ, V1, V2);
+		query_times.push_back(make_pair(clock() - start, QueryInfo(true, V1, V2)));
+		may_cache[p] = sat;
+	}
+
+	return sat;
 }
 
 AliasAnalysis::AliasResult AdvancedAlias::alias(
