@@ -120,7 +120,7 @@ bool Reducer::runOnModule(Module &M) {
 
 bool Reducer::remove_branches(Module &M) {
 
-	dbgs() << "Try removing branches...\n";
+	dbgs() << "Try removing branches... ";
 	// TODO: We could do the same thing for SwitchInsts too. 
 	/*
 	 * <should_remove_branch> queries the solver. Therefore, we shouldn't
@@ -131,6 +131,7 @@ bool Reducer::remove_branches(Module &M) {
 		if (BranchInst *bi = dyn_cast<BranchInst>(bb->getTerminator()))
 			prepare_remove_branch(bi, to_remove);
 	}
+	dbgs() << "Done\n";
 
 	/* Remove those unreachable branches. */
 	/* <unreachable_bbs> is used as a cache. */
