@@ -82,7 +82,7 @@ void SolveConstraints::calculate(Module &M, bool identify_consts) {
 		clock_t start = clock();
 		destroy_vc();
 		create_vc();
-		translate_captured();
+		translate_captured(M);
 		identify_fixed_values();
 		errs() << "=== Identifying fixed values took " <<
 			(int)(0.5 + (double)(clock() - start) / CLOCKS_PER_SEC) <<
@@ -91,7 +91,7 @@ void SolveConstraints::calculate(Module &M, bool identify_consts) {
 
 	destroy_vc();
 	create_vc();
-	translate_captured();
+	translate_captured(M);
 }
 
 void SolveConstraints::identify_eqs() {
@@ -334,15 +334,18 @@ void SolveConstraints::update_appeared(
 		assert_not_supported();
 }
 
-void SolveConstraints::translate_captured() {
-
-	assert(vc);
+void SolveConstraints::translate_captured(Module &M) {
 
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
-	for (unsigned i = 0; i < CC.get_num_constraints(); ++i) {
+
+	assert(vc);
+	unsigned n_constraints = CC.get_num_constraints();
+	dbgs() << "# of constraints = " << n_constraints << "\n";
+	for (unsigned i = 0; i < n_constraints; ++i) {
+		
 		Clause *c = CC.get_constraint(i)->clone();
 		replace_with_root(c);
-#if 1
+		
 		VCExpr vce = translate_to_vc(c);
 		vc_push(vc);
 		VCExpr simplified_vce = vc_simplify(vc, vce);
@@ -357,21 +360,7 @@ void SolveConstraints::translate_captured() {
 			vc_assertFormula(vc, vce);
 		}
 		vc_DeleteExpr(vce);
-#endif
-#if 0
-		VCExpr orig_vce = translate_to_vc(c);
-		VCExpr vce = vc_simplify(vc, orig_vce);
-		int ret = vc_isBool(vce);
-		assert(ret != 0);
-		if (ret == -1) {
-			// If can be proved by simplification, don't add it to the constraint set. 
-			// Need call <translate_to_vc> again because the previous call
-			// creates an expression in a different context. 
-			vc_assertFormula(vc, vce);
-		}
-		vc_DeleteExpr(orig_vce);
-		vc_DeleteExpr(vce);
-#endif
+		
 		delete c; // c is cloned
 	}
 	
@@ -379,7 +368,11 @@ void SolveConstraints::translate_captured() {
 	vc_push(vc);
 	dbgs() << "Checking consistency... ";
 	VCExpr f = vc_falseExpr(vc);
-	assert(vc_query(vc, f) == 0 && "The captured constraints is inconsistent.");
+	bool ret = vc_query(vc, f);
+	if (ret != 0) {
+		CC.print(errs(), &M);
+	}
+	assert(ret == 0 && "The captured constraints is inconsistent.");
 	vc_DeleteExpr(f);
 	dbgs() << "Done\n";
 	vc_pop(vc);

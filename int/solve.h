@@ -81,7 +81,7 @@ namespace slicer {
 		 * Translates and simplifies captured constraints, and
 		 * inserts them to <vc>.
 		 */
-		void translate_captured();
+		void translate_captured(Module &M);
 		VCExpr translate_to_vc(const Clause *c);
 		VCExpr translate_to_vc(const BoolExpr *be);
 		VCExpr translate_to_vc(const Expr *e);

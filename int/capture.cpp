@@ -80,13 +80,17 @@ void CaptureConstraints::print(raw_ostream &O, const Module *M) const {
 	ObjectID &OI = getAnalysis<ObjectID>();
 	O << "\nIntegers:\n";
 	forallconst(ConstValueSet, it, integers) {
+		if (isa<ConstantInt>(*it))
+			continue;
 		unsigned value_id = OI.getValueID(*it);
+		if (value_id == ObjectID::INVALID_ID)
+			O << **it << "\n";
 		assert(value_id != ObjectID::INVALID_ID);
 		O << "  x" << value_id << "\n";
 	}
 	O << "\nConstraints:\n";
-	forallconst(vector<Clause *>, it, constraints) {
-		print_clause(O, *it, getAnalysis<ObjectID>());
+	for (unsigned i = 0; i < get_num_constraints(); ++i) {
+		print_clause(O, get_constraint(i), getAnalysis<ObjectID>());
 		O << "\n";
 	}
 }
@@ -206,7 +210,7 @@ void CaptureConstraints::calculate(Module &M) {
 
 void CaptureConstraints::simplify_constraints() {
 	/*
-	 * Sort constraints on the alphabetical order
+	 * Sort constraints.
 	 * so that get_fingerprint will return the same value deterministically
 	 * for the same set of constraints. 
 	 */
@@ -216,7 +220,8 @@ void CaptureConstraints::simplify_constraints() {
 }
 
 unsigned CaptureConstraints::get_num_constraints() const {
-	return (unsigned)constraints.size();
+	unsigned res = constraints.size();
+	return res;
 }
 
 long CaptureConstraints::get_fingerprint() const {

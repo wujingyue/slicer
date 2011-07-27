@@ -128,7 +128,7 @@ bool AdvancedAlias::may_alias(const Value *V1, const Value *V2) {
 
 	bool sat;
 	if (may_cache.count(p)) {
-		sat = must_cache.lookup(p);
+		sat = may_cache.lookup(p);
 	} else {
 		clock_t start = clock();
 		sat = SC.satisfiable(CmpInst::ICMP_EQ, V1, V2);
