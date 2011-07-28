@@ -629,7 +629,7 @@ void IntTest::test_aget_nocrit_simple(const Module &M) {
 	
 	for (size_t i = 0; i < thr_funcs.size(); ++i) {
 		for (size_t j = 0; j < ranges[i].size(); ++j) {
-			dbgs() << "Range {" << i << ", " << j << "}\n";
+			errs() << "Range {" << i << ", " << j << "}\n";
 			if (soffsets[i]) {
 				errs() << "  soffsets <= offset? ...";
 				assert(SC.provable(CmpInst::ICMP_SLE, soffsets[i], ranges[i][j].first));

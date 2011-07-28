@@ -39,6 +39,13 @@ namespace slicer {
 		virtual void releaseMemory();
 
 		void recalculate(Module &M);
+		/**
+		 * Identify constants. 
+		 */
+		void identify_fixed_values();
+		/**
+		 * Call <identify_fixed_values> beforehand. 
+		 */
 		ConstantInt *get_fixed_value(const Value *v);
 
 		/**
@@ -76,7 +83,7 @@ namespace slicer {
 		/**
 		 * General functions. 
 		 */
-		void calculate(Module &M, bool identify_consts);
+		void calculate(Module &M);
 		/*
 		 * Translates and simplifies captured constraints, and
 		 * inserts them to <vc>.
@@ -105,7 +112,6 @@ namespace slicer {
 		// Updates <root> to reflect simple eqs. 
 		void identify_eqs();
 		// Updates <root>. Make the identified fixed values the roots. 
-		void identify_fixed_values();
 		void refine_candidates(list<const Value *> &candidates);
 		const Value *get_root(const Value *x);
 		void replace_with_root(Clause *c);

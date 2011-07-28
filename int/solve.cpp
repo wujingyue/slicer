@@ -63,34 +63,22 @@ void SolveConstraints::releaseMemory() {
 bool SolveConstraints::runOnModule(Module &M) {
 	// Principally paired with the destroy_vc in releaseMemory.
 	create_vc();
-	calculate(M, false);
+	calculate(M);
 	return false;
 }
 
 void SolveConstraints::recalculate(Module &M) {
-	calculate(M, true);
+	calculate(M);
 }
 
-void SolveConstraints::calculate(Module &M, bool identify_consts) {
+void SolveConstraints::calculate(Module &M) {
+
+	// Reinitialize the STP solver. 
+	destroy_vc();
+	create_vc();
 
 	root.clear();
 	identify_eqs(); // This step does not require <vc>.
-
-	if (identify_consts) {
-		// TODO: Add a timer here. 
-		dbgs() << "=== Start identifying fixed values... ===\n";
-		clock_t start = clock();
-		destroy_vc();
-		create_vc();
-		translate_captured(M);
-		identify_fixed_values();
-		dbgs() << "=== Identifying fixed values took " <<
-			(int)(0.5 + (double)(clock() - start) / CLOCKS_PER_SEC) <<
-			" secs. ===\n";
-	}
-
-	destroy_vc();
-	create_vc();
 	translate_captured(M);
 }
 
@@ -696,7 +684,7 @@ bool SolveConstraints::provable(const Clause *c) {
 	}
 
 	DEBUG(dbgs() << "Proving: ";
-			print_clause(dbgs(), c2, getAnalysis<ObjectID>());
+			print_clause(dbgs(), c, getAnalysis<ObjectID>());
 			dbgs() << "\n";);
 
 	vc_push(vc);

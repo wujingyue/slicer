@@ -30,7 +30,7 @@ void CaptureConstraints::capture_libcall(const CallSite &cs) {
 		const Instruction *ret = cs.getInstruction();
 		if (is_integer(ret)) {
 			constraints.push_back(new Clause(new BoolExpr(CmpInst::ICMP_SGE,
-							new Expr(ret), new Expr(ConstantInt::get(int_type, -1)))));
+							new Expr(ret), new Expr(ConstantInt::get(int_type, 0)))));
 		}
 	}
 }

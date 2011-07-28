@@ -37,9 +37,7 @@ bool Iterate::runOnModule(Module &M) {
 	long fingerprint;
 	TimerGroup tg("Iterator");
 	vector<Timer *> timers;
-	int iter_no = 0;
-	do {
-		++iter_no;
+	for (int iter_no = 1; ; ++iter_no) {
 		ostringstream oss; oss << "Iteration " << iter_no;
 		Timer *timer = new Timer(oss.str(), tg);
 		timers.push_back(timer);
@@ -48,10 +46,22 @@ bool Iterate::runOnModule(Module &M) {
 		fingerprint = CC.get_fingerprint();
 		AAA.recalculate(M); // Essentially clear the cache. 
 		CC.recalculate(M);
-		AAA.print(dbgs(), &M); // Print stats in AAA. 
-		SC.recalculate(M);
 		timer->stopTimer();
-	} while (CC.get_fingerprint() != fingerprint);
+		AAA.print(dbgs(), &M); // Print stats in AAA. 
+		if (CC.get_fingerprint() == fingerprint)
+			break;
+		SC.recalculate(M);
+	}
+
+	// FIXME: Move this step to Constantizer. 
+	Timer *timer_id = new Timer("Constant", tg);
+	timers.push_back(timer_id);
+	timer_id->startTimer();
+	dbgs() << "=== Start identifying fixed values... ===\n";
+	SC.identify_fixed_values();
+	dbgs() << "=== Finished ===\n"; 
+	timer_id->stopTimer();
+
 	for (size_t i = 0; i < timers.size(); ++i)
 		delete timers[i];
 
