@@ -169,6 +169,7 @@ bool Reducer::remove_branch(
 		return false;
 
 	DEBUG(dbgs() << "=== remove_branch ===\n";);
+	DEBUG(dbgs() << "Branch " << i << " of" << *ti << "\n";);
 	++BranchesRemoved;
 	// Create the unreachable BB if necessary. 
 	if (!unreachable_bb) {
@@ -212,13 +213,18 @@ void Reducer::prepare_remove_branch(
 			MaxSlicing::is_unreachable(bi->getSuccessor(1)))
 		return;
 	
-	const Use *use_cond = &bi->getOperandUse(0);
-	// Remove the false branch if always true. 
-	if (SC.provable(
-				CmpInst::ICMP_EQ, use_cond, ConstantInt::getTrue(bi->getContext())))
-		to_remove.push_back(make_pair(bi, 1));
-	// Remove the true branch if always false. 
-	if (SC.provable(
-				CmpInst::ICMP_EQ, use_cond, ConstantInt::getFalse(bi->getContext())))
-		to_remove.push_back(make_pair(bi, 0));
+	// NOTE: Originally we query SolveConstraints with the condition. This
+	// gives us extra constraints on the branches along the way. By using
+	// <get_fixed_value>, we ignore these branch constraints. Is it good? 
+	ConstantInt *ci = SC.get_fixed_value(cond);
+	if (ci) {
+		// Remove the true branch (branch 0) if always false. 
+		// Remove the true branch (branch 1) if always true. 
+		if (ci->isZero())
+			to_remove.push_back(make_pair(bi, 0));
+		else if (ci->isOne())
+			to_remove.push_back(make_pair(bi, 1));
+		else
+			assert_unreachable();
+	}
 }
