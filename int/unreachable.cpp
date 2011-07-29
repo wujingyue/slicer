@@ -4,7 +4,6 @@
 #include "common/include/util.h"
 using namespace llvm;
 
-#include "config.h"
 #include "capture.h"
 #include "max-slicing/max-slicing.h"
 using namespace slicer;

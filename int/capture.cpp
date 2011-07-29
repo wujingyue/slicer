@@ -6,6 +6,7 @@
 
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_os_ostream.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/Passes.h"
@@ -30,7 +31,6 @@ using namespace repair;
 #include <locale>
 using namespace std;
 
-#include "config.h"
 #include "capture.h"
 #include "must-alias.h"
 #include "trace/landmark-trace.h"
@@ -203,9 +203,7 @@ void CaptureConstraints::calculate(Module &M) {
 	capture_func_summaries(M);
 
 	simplify_constraints();
-#ifdef VERBOSE
-	errs() << "# of constraints = " << get_num_constraints() << "\n";
-#endif
+	DEBUG(dbgs() << "# of constraints = " << get_num_constraints() << "\n";);
 }
 
 void CaptureConstraints::simplify_constraints() {

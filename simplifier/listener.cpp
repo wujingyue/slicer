@@ -6,7 +6,6 @@
 #include "llvm/Support/Debug.h"
 using namespace llvm;
 
-#include "config.h"
 #include "listener.h"
 using namespace slicer;
 

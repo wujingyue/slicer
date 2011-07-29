@@ -53,15 +53,6 @@ bool Iterate::runOnModule(Module &M) {
 		SC.recalculate(M);
 	}
 
-	// FIXME: Move this step to Constantizer. 
-	Timer *timer_id = new Timer("Constant", tg);
-	timers.push_back(timer_id);
-	timer_id->startTimer();
-	dbgs() << "=== Start identifying fixed values... ===\n";
-	SC.identify_fixed_values();
-	dbgs() << "=== Finished ===\n"; 
-	timer_id->stopTimer();
-
 	for (size_t i = 0; i < timers.size(); ++i)
 		delete timers[i];
 

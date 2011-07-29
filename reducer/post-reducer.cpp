@@ -91,6 +91,7 @@ bool PostReducer::constantize(Module &M) {
 
 bool PostReducer::runOnModule(Module &M) {
 
+	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	/*
 	 * NOTE: Constantize the module before removing branches. 
 	 * The former does not change the CFG. 
@@ -98,8 +99,16 @@ bool PostReducer::runOnModule(Module &M) {
 	bool changed = false;
 	
 	TimerGroup tg("Post-reducer");
+	Timer tmr_identify("Identify", tg);
 	Timer tmr_remove_br("Remove branches", tg);
 	Timer tmr_constantize("Constantize", tg);
+
+	// Let SolveConstraints identify all constants. 
+	tmr_identify.startTimer();
+	dbgs() << "=== Start identifying fixed values... ===\n";
+	SC.identify_fixed_values();
+	dbgs() << "=== Finished ===\n";
+	tmr_identify.stopTimer();
 
 	// Replace variables with ConstantInts whenever possible.
 	tmr_constantize.startTimer();

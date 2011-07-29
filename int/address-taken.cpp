@@ -10,7 +10,6 @@
 #include "llvm/Analysis/DominatorInternals.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/Debug.h"
-#include "config.h"
 #include "idm/mbb.h"
 #include "common/callgraph-fp/callgraph-fp.h"
 #include "common/cfg/icfg.h"

@@ -39,7 +39,6 @@ using namespace llvm;
 #include <string>
 using namespace std;
 
-#include "config.h"
 #include "listener.h"
 using namespace slicer;
 

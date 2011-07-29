@@ -19,7 +19,6 @@ using namespace llvm;
 using namespace repair;
 
 #include "must-alias.h"
-#include "config.h"
 using namespace slicer;
 
 static RegisterPass<MustAlias> X(
@@ -86,9 +85,7 @@ void MustAlias::get_all_candidates(
 	// Get all pointers. 
 	ConstValueList pointers;
 	get_all_pointers(M, pointers);
-#ifdef VERBOSE
 	errs() << "# of pointers = " << pointers.size() << "\n";
-#endif
 	// Get all candidates.
 	candidates.clear();
 	forallconst(ConstValueList, it, pointers) {
@@ -97,9 +94,7 @@ void MustAlias::get_all_candidates(
 		if (get_single_pointee(NULL, *it, ptt, pt))
 			candidates.push_back(*it);
 	}
-#ifdef VERBOSE
 	errs() << "# of candidates = " << candidates.size() << "\n";
-#endif
 }
 
 void MustAlias::print(raw_ostream &O, const Module *M) const {
