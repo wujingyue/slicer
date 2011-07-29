@@ -7,7 +7,7 @@
 
 #include "llvm/Instruction.h"
 #include "llvm/Use.h"
-#include "idm/id.h"
+#include "common/id-manager/IDAssigner.h"
 using namespace llvm;
 
 #include <cstdio>
@@ -139,20 +139,20 @@ namespace slicer {
 
 	void print_opcode(raw_ostream &O, unsigned op);
 	void print_predicate(raw_ostream &O, CmpInst::Predicate p);
-	void print_expr(raw_ostream &O, const Expr *e, ObjectID &OI);
-	void print_bool_expr(raw_ostream &O, const BoolExpr *be, ObjectID &OI);
-	void print_clause(raw_ostream &O, const Clause *c, ObjectID &OI);
+	void print_expr(raw_ostream &O, const Expr *e, IDAssigner &IDA);
+	void print_bool_expr(raw_ostream &O, const BoolExpr *be, IDAssigner &IDA);
+	void print_clause(raw_ostream &O, const Clause *c, IDAssigner &IDA);
 
 	/*
 	 * Sort the clauses according to the alphabetic order
 	 */
 	struct CompareClause {
 
-		CompareClause(ObjectID &IDM): OI(IDM) {}
+		CompareClause(IDAssigner &ida): IDA(ida) {}
 		bool operator()(const Clause *a, const Clause *b);
 
 	private:
-		ObjectID &OI;
+		IDAssigner &IDA;
 	};
 }
 

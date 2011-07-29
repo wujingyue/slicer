@@ -13,7 +13,6 @@
 #include "llvm/Analysis/Dominators.h"
 #include "common/include/util.h"
 #include "common/cfg/intra-reach.h"
-#include "idm/id.h"
 using namespace llvm;
 
 #include <list>
@@ -247,7 +246,7 @@ void SolveConstraints::identify_fixed_values() {
 			++n_fixed;
 #if 0
 			Expr *e = new Expr(i->first);
-			print_expr(errs(), e, getAnalysis<ObjectID>());
+			print_expr(errs(), e, getAnalysis<IDAssigner>());
 			delete e;
 			errs() << " = " << i->second.first;
 			errs() << " is fixed: " << *(i->first) << "\n";
@@ -258,7 +257,7 @@ void SolveConstraints::identify_fixed_values() {
 			++n_not_fixed;
 #if 0
 			Expr *e = new Expr(i->first);
-			print_expr(errs(), e, getAnalysis<ObjectID>());
+			print_expr(errs(), e, getAnalysis<IDAssigner>());
 			delete e;
 			errs() << " is NOT fixed: " << *(i->first) << "\n";
 #endif
@@ -276,7 +275,7 @@ void SolveConstraints::identify_fixed_values() {
 #if 0
 					errs() << "optimized: ";
 					Expr *ex = new Expr(to_del->first);
-					print_expr(errs(), ex, getAnalysis<ObjectID>());
+					print_expr(errs(), ex, getAnalysis<IDAssigner>());
 					delete ex;
 					errs() << "\n";
 #endif
@@ -603,9 +602,9 @@ VCExpr SolveConstraints::translate_to_vc(const Value *v) {
 		// null == 0
 		return vc_zero(vc);
 	}
-	ObjectID &OI = getAnalysis<ObjectID>();
-	unsigned value_id = OI.getValueID(v);
-	assert(value_id != ObjectID::INVALID_ID);
+	IDAssigner &IDA = getAnalysis<IDAssigner>();
+	unsigned value_id = IDA.getValueID(v);
+	assert(value_id != IDAssigner::INVALID_ID);
 	ostringstream oss;
 	oss << "x" << value_id;
 	VCExpr &symbol = symbols[value_id];
@@ -629,7 +628,7 @@ void SolveConstraints::print(raw_ostream &O, const Module *M) const {
 
 void SolveConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
-	AU.addRequiredTransitive<ObjectID>();
+	AU.addRequiredTransitive<IDAssigner>();
 	AU.addRequiredTransitive<LoopInfo>();
 	AU.addRequiredTransitive<DominatorTree>();
 	AU.addRequiredTransitive<IntraReach>();
@@ -641,14 +640,14 @@ bool SolveConstraints::satisfiable(const Clause *c) {
 
 #if 0
 	dbgs() << "satisfiable: before replacing: ";
-	print_clause(dbgs(), c, getAnalysis<ObjectID>());
+	print_clause(dbgs(), c, getAnalysis<IDAssigner>());
 	dbgs() << "\n";
 #endif
 	Clause *c2 = c->clone();
 	replace_with_root(c2);
 #if 0
 	dbgs() << "satisfiable: after replacing: ";
-	print_clause(dbgs(), c2, getAnalysis<ObjectID>());
+	print_clause(dbgs(), c2, getAnalysis<IDAssigner>());
 	dbgs() << "\n";
 #endif
 	// OPT: if in the format of v0 == v0, then must be true. 
@@ -721,7 +720,7 @@ bool SolveConstraints::provable(const Clause *c) {
 	}
 
 	DEBUG(dbgs() << "Proving: ";
-			print_clause(dbgs(), c, getAnalysis<ObjectID>());
+			print_clause(dbgs(), c, getAnalysis<IDAssigner>());
 			dbgs() << "\n";);
 
 	vc_push(vc);
@@ -808,7 +807,7 @@ void SolveConstraints::realize(const Instruction *ins) {
 				const Clause *c = CC.get_avoid_branch(ti, i);
 				if (c) {
 					DEBUG(dbgs() << "[realize] ";
-							print_clause(dbgs(), c, getAnalysis<ObjectID>());
+							print_clause(dbgs(), c, getAnalysis<IDAssigner>());
 							dbgs() << "\n";);
 					Clause *c2 = c->clone();
 					replace_with_root(c2);
@@ -832,7 +831,7 @@ void SolveConstraints::realize(const Instruction *ins) {
 		const Clause *c = CC.get_loop_bound(l);
 		if (c) {
 			DEBUG(dbgs() << "[realize] ";
-					print_clause(dbgs(), c, getAnalysis<ObjectID>());
+					print_clause(dbgs(), c, getAnalysis<IDAssigner>());
 					dbgs() << "\n";);
 			Clause *c2 = c->clone();
 			replace_with_root(c2);

@@ -73,7 +73,6 @@ char IntTest::ID = 0;
 
 void IntTest::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
-	AU.addRequired<ObjectID>();
 	AU.addRequired<ExecOnce>();
 	AU.addRequired<RegionManager>();
 #ifndef IDENTIFY_ONLY
@@ -288,7 +287,6 @@ void IntTest::test_radix_nocrit_simple(const Module &M) {
 
 	// SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	AdvancedAlias &AA = getAnalysis<AdvancedAlias>();
-	// ObjectID &OI = getAnalysis<ObjectID>();
 	for (size_t i = 0; i < ranks.size(); ++i) {
 		for (size_t j = i + 1; j < ranks.size(); ++j) {
 			errs() << "Comparing ranks[" << i << "] and ranks[" << j << "]... ";

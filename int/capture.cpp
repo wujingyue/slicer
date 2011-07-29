@@ -13,7 +13,6 @@
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Target/TargetData.h"
-#include "idm/id.h"
 #include "common/include/util.h"
 #include "common/include/typedefs.h"
 #include "common/callgraph-fp/callgraph-fp.h"
@@ -53,7 +52,7 @@ void CaptureConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
 	AU.addRequiredTransitive<TargetData>();
 	AU.addRequiredTransitive<LoopInfo>();
-	AU.addRequiredTransitive<ObjectID>();
+	AU.addRequiredTransitive<IDAssigner>();
 	AU.addRequiredTransitive<DominatorTree>();
 	AU.addRequiredTransitive<IntraReach>();
 	AU.addRequired<BddAliasAnalysis>(); // Only used in <setup>. 
@@ -77,20 +76,20 @@ CaptureConstraints::~CaptureConstraints() {
 }
 
 void CaptureConstraints::print(raw_ostream &O, const Module *M) const {
-	ObjectID &OI = getAnalysis<ObjectID>();
+	IDAssigner &IDA = getAnalysis<IDAssigner>();
 	O << "\nIntegers:\n";
 	forallconst(ConstValueSet, it, integers) {
 		if (isa<ConstantInt>(*it))
 			continue;
-		unsigned value_id = OI.getValueID(*it);
-		if (value_id == ObjectID::INVALID_ID)
+		unsigned value_id = IDA.getValueID(*it);
+		if (value_id == IDAssigner::INVALID_ID)
 			O << **it << "\n";
-		assert(value_id != ObjectID::INVALID_ID);
+		assert(value_id != IDAssigner::INVALID_ID);
 		O << "  x" << value_id << "\n";
 	}
 	O << "\nConstraints:\n";
 	for (unsigned i = 0; i < get_num_constraints(); ++i) {
-		print_clause(O, get_constraint(i), getAnalysis<ObjectID>());
+		print_clause(O, get_constraint(i), getAnalysis<IDAssigner>());
 		O << "\n";
 	}
 }
@@ -214,7 +213,7 @@ void CaptureConstraints::simplify_constraints() {
 	 */
 	sort(
 			constraints.begin(), constraints.end(),
-			CompareClause(getAnalysis<ObjectID>()));
+			CompareClause(getAnalysis<IDAssigner>()));
 }
 
 unsigned CaptureConstraints::get_num_constraints() const {
@@ -224,13 +223,13 @@ unsigned CaptureConstraints::get_num_constraints() const {
 
 long CaptureConstraints::get_fingerprint() const {
 	long res = 0;
-	ObjectID &OI = getAnalysis<ObjectID>();
+	IDAssigner &IDA = getAnalysis<IDAssigner>();
 	locale loc;
 	const collate<char> &coll = use_facet<collate<char> >(loc);
 	for (size_t i = 0; i < constraints.size(); ++i) {
 		string str;
 		raw_string_ostream oss(str);
-		print_clause(oss, constraints[i], OI);
+		print_clause(oss, constraints[i], IDA);
 		res += coll.hash(oss.str().data(), oss.str().data() + oss.str().length());
 	}
 	return res;

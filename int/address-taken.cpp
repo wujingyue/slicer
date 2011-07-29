@@ -10,7 +10,6 @@
 #include "llvm/Analysis/DominatorInternals.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/Debug.h"
-#include "idm/mbb.h"
 #include "common/callgraph-fp/callgraph-fp.h"
 #include "common/cfg/icfg.h"
 #include "common/cfg/intra-reach.h"
@@ -393,7 +392,7 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 								new Expr(i2),
 								new Expr(ci)));
 					errs() << "From overwriting: ";
-					print_clause(errs(), c, getAnalysis<ObjectID>());
+					print_clause(errs(), c, getAnalysis<IDAssigner>());
 					errs() << "\n";
 					constraints.push_back(c);
 				}
@@ -410,7 +409,7 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 						new Expr(i2),
 						new Expr(get_value_operand(latest_overwriters[the_thr_idx]))));
 			DEBUG(dbgs() << "From overwriting: ";
-			print_clause(dbgs(), c, getAnalysis<ObjectID>());
+			print_clause(dbgs(), c, getAnalysis<IDAssigner>());
 			dbgs() << "\n";);
 			constraints.push_back(c);
 		}
