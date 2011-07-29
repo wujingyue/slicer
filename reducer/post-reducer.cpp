@@ -48,19 +48,26 @@ bool PostReducer::constantize(Module &M) {
 		if (isa<Constant>(*it))
 			continue;
 		assert(isa<Instruction>(*it) || isa<Argument>(*it));
+		// <v> may not be a ConstantInt, because the solver treats pointers as
+		// integers, and may put them in one equivalent class. 
+		if (!isa<IntegerType>((*it)->getType()))
+			continue;
 		if (ConstantInt *ci = SC.get_fixed_value(*it))
 			to_replace.push_back(make_pair(*it, ci));
 	}
 
 	bool changed = false;
 	for (size_t i = 0; i < to_replace.size(); ++i) {
+		
 		const Value *v = to_replace[i].first;
+		
 		vector<Use *> local;
 		// Don't replace uses while iterating. 
 		// Put them to a local list first. 
 		for (Value::use_const_iterator ui = v->use_begin();
 				ui != v->use_end(); ++ui)
 			local.push_back(&ui.getUse());
+		
 		// FIXME: Integer types in the solver may not be consistent with there
 		// real types. Therefore, we create new ConstantInt's with respect to
 		// the correct integer types. 
@@ -68,9 +75,12 @@ bool PostReducer::constantize(Module &M) {
 		for (size_t j = 0; j < local.size(); ++j) {
 			const IntegerType *int_type =
 				dyn_cast<IntegerType>(local[j]->get()->getType());
-			// FIXME: This is a quick hack to prevent the constantizer from
-			// replacing branch conditions so as to keep BranchInsts. 
-			// A better way should be annotating constants. 
+			assert(int_type);
+			/*
+			 * FIXME: This is a quick hack to prevent the constantizer from
+			 * replacing branch conditions so as to keep BranchInsts. 
+			 * A better way should be annotating constants. 
+			 */
 			if (int_type->getBitWidth() == 1)
 				continue;
 			// Signed values. 
@@ -78,6 +88,7 @@ bool PostReducer::constantize(Module &M) {
 			local[j]->set(ConstantInt::get(int_type, svalue, true));
 			locally_changed = true;
 		}
+		
 		if (locally_changed) {
 			++VariablesConstantized;
 			DEBUG(dbgs() << "=== replacing with a constant ===\n";);
