@@ -1,0 +1,9 @@
+#!/bin/bash
+
+if [ "$APPS_DIR" = "" ]; then
+	echo '$APPS_DIR not defined, do `export APPS_DIR=`'
+	exit 1
+fi
+
+$APPS_DIR/splash2-modified/setup
+patch -p1 < fix-RADIX.patch

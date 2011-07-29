@@ -1,0 +1,21 @@
+--- a/aget-0.4.1/Download.c	2009-05-12 01:30:23.000000000 -0400
++++ b/aget-0.4.1/Download.c	2011-06-14 19:24:49.000000000 -0400
+@@ -33,7 +33,7 @@
+ unsigned int bwritten = 0;
+ pthread_mutex_t bwritten_mutex = PTHREAD_MUTEX_INITIALIZER;
+ 
+-void * http_get(void *arg) {
++void * http_get(struct thread_data *arg) {
+ 	struct thread_data *td;
+ 	int sd;
+ 	char *rbuf, *s;
+--- a/aget-0.4.1/Download.h	2002-11-19 09:00:40.000000000 -0500
++++ b/aget-0.4.1/Download.h	2011-06-14 19:24:49.000000000 -0400
+@@ -3,6 +3,6 @@
+ 
+ #include <pthread.h>
+ 
+-void * http_get(void *);
++void * http_get(struct thread_data *);
+ 
+ #endif

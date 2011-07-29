@@ -1,0 +1,3 @@
+#!/bin/bash
+
+$APPS_DIR/splash2-modified/mk-llvm $*

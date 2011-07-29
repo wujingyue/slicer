@@ -1,0 +1,7 @@
+#!/bin/bash
+
+$APPS_DIR/aget/setup $*
+if [ $? -ne 0 ]; then
+	exit 1
+fi
+patch -p1 < structurize.patch
