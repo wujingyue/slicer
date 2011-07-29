@@ -13,7 +13,7 @@
 #include "common/callgraph-fp/callgraph-fp.h"
 using namespace llvm;
 
-#include "pre-reducer.h"
+#include "aggressive-promotion.h"
 #include "max-slicing/clone-info-manager.h"
 #include "trace/landmark-trace.h"
 using namespace slicer;
@@ -21,19 +21,19 @@ using namespace slicer;
 #include "bc2bdd/BddAliasAnalysis.h"
 using namespace repair;
 
-static RegisterPass<PreReducer> X(
-		"pre-reduce",
+static RegisterPass<AggressivePromotion> X(
+		"aggressive-promotion",
 		"A reducer running before the integer constraint solver");
 
-char PreReducer::ID = 0;
+char AggressivePromotion::ID = 0;
 
 /*
- * PreReducer requires LoopSimplify to insert pre-headers.
+ * AggressivePromotion requires LoopSimplify to insert pre-headers.
  * But strangely, I'm not able to addRequiredID(LoopSimplifyID)
  * in this function. 
  * Therefore, the simplifier have to add LoopSimplify. 
  */
-void PreReducer::getAnalysisUsage(AnalysisUsage &AU) const {
+void AggressivePromotion::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesCFG(); // Are you sure? 
 	AU.addRequired<LoopInfo>();
 	AU.addRequired<LandmarkTrace>();
@@ -43,7 +43,7 @@ void PreReducer::getAnalysisUsage(AnalysisUsage &AU) const {
 	LoopPass::getAnalysisUsage(AU);
 }
 
-bool PreReducer::runOnLoop(Loop *L, LPPassManager &LPM) {
+bool AggressivePromotion::runOnLoop(Loop *L, LPPassManager &LPM) {
 
 	LoopInfo &LI = getAnalysis<LoopInfo>();
 
@@ -78,7 +78,7 @@ bool PreReducer::runOnLoop(Loop *L, LPPassManager &LPM) {
 	return to_promote.size() > 0;
 }
 
-bool PreReducer::should_promote(LoadInst *li, Loop *L) {
+bool AggressivePromotion::should_promote(LoadInst *li, Loop *L) {
 
 	Value *p = li->getPointerOperand();
 	// TODO: For performance sake, we work on global variables only. 
@@ -93,7 +93,7 @@ bool PreReducer::should_promote(LoadInst *li, Loop *L) {
 	return true;
 }
 
-bool PreReducer::may_write(const Loop *L, const Value *p) {
+bool AggressivePromotion::may_write(const Loop *L, const Value *p) {
 	ConstFuncSet visited_funcs;
 	// Loops over all BBs in this loop and its subloops. 
 	for (Loop::block_iterator bi = L->block_begin(); bi != L->block_end(); ++bi) {
@@ -106,7 +106,7 @@ bool PreReducer::may_write(const Loop *L, const Value *p) {
 	return false;
 }
 
-bool PreReducer::may_write(
+bool AggressivePromotion::may_write(
 		const Instruction *i, const Value *q, ConstFuncSet &visited_funcs) {
 
 	BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
@@ -129,7 +129,7 @@ bool PreReducer::may_write(
 	return false;
 }
 
-bool PreReducer::may_write(
+bool AggressivePromotion::may_write(
 		const Function *f, const Value *q, ConstFuncSet &visited_funcs) {
 	if (visited_funcs.count(f))
 		return false;
@@ -147,7 +147,7 @@ bool PreReducer::may_write(
 	return false;
 }
 
-bool PreReducer::path_may_write(
+bool AggressivePromotion::path_may_write(
 		const Instruction *i1, const Instruction *i2, const Value *p) {
 	// TODO: To implement
 	return false;

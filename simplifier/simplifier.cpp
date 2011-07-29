@@ -250,7 +250,7 @@ int RunPassInfos(Module *M, const vector<const PassInfo *> &PIs) {
 	
 	for (size_t i = 0; i < PIs.size(); ++i) {
 		const PassInfo *PI = PIs[i];
-		// FIXME: Quick hacks. PreReducer and AggressiveLoopUnroll requires
+		// FIXME: Quick hacks. AggressivePromotion and AggressiveLoopUnroll requires
 		// some LLVM internal LoopPass's, but they cannot directly acquire them
 		// because they have acquired some other passes that these internal
 		// passes don't preserve (likely to be a bug in LLVM). 
@@ -259,7 +259,7 @@ int RunPassInfos(Module *M, const vector<const PassInfo *> &PIs) {
 			// TODO: explain why. 
 			AddPass(Passes, createLoopSimplifyPass());
 		}
-		if (PI == Listener.getPassInfo("pre-reduce"))
+		if (PI == Listener.getPassInfo("aggressive-promotion"))
 			AddPass(Passes, createLoopSimplifyPass());
 		if (!PI->getNormalCtor()) {
 			errs() << "Cannot create Pass " << PI->getPassName() << "\n";
@@ -332,12 +332,12 @@ int DoOneIteration(Module *M) {
 	 * has changed the module or not. 
 	 */
 
-	// Run the PreReducer to aggresively hoist LoadInst's. 
+	// Run the AggressivePromotion to aggresively hoist LoadInst's. 
 	vector<const PassInfo *> PIs;
-	if (const PassInfo *PI = Listener.getPassInfo("pre-reduce")) {
+	if (const PassInfo *PI = Listener.getPassInfo("aggressive-promotion")) {
 		PIs.push_back(PI);
 	} else {
-		errs() << "PreReducer hasn't been loaded.\n";
+		errs() << "AggressivePromotion hasn't been loaded.\n";
 		return -1;
 	}
 	if (RunPassInfos(M, PIs) == -1)

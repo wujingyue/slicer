@@ -4,8 +4,8 @@
  * More aggressive LoadInst promotion. 
  */
 
-#ifndef __SLICER_PRE_REDUCER_H
-#define __SLICER_PRE_REDUCER_H
+#ifndef __SLICER_AGGRESIVE_PROMOTION_H
+#define __SLICER_AGGRESIVE_PROMOTION_H
 
 #include "llvm/Analysis/LoopPass.h"
 #include "common/include/typedefs.h"
@@ -13,11 +13,11 @@ using namespace llvm;
 
 namespace slicer {
 
-	struct PreReducer: public LoopPass {
+	struct AggressivePromotion: public LoopPass {
 
 		static char ID;
 
-		PreReducer(): LoopPass(&ID) {}
+		AggressivePromotion(): LoopPass(&ID) {}
 		// The outmost loop will be processed last. 
 		virtual bool runOnLoop(Loop *L, LPPassManager &LPM);
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
