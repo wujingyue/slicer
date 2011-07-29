@@ -109,6 +109,11 @@ namespace slicer {
 		// If so, outputs <v1> and <v2> as well if they are not <NULL>. 
 		static bool is_simple_eq(
 				const Clause *c, const Value **v1, const Value **v2);
+		// Try to simplify this expression. 
+		// Returns 1 if it can be simplified as true. 
+		// Returns 0 if it can be simplified as false. 
+		// Returns -1 otherwise. 
+		int can_be_simplified(VCExpr e);
 		// Updates <root> to reflect simple eqs. 
 		void identify_eqs();
 		// Updates <root>. Make the identified fixed values the roots. 
@@ -132,6 +137,7 @@ namespace slicer {
 		static void vc_error_handler(const char *err_msg);
 		// Some construct functions. 
 		// Remember to call vc_DeleteExpr. 
+		static void delete_vcexpr(VCExpr e);
 		static VCExpr vc_zero(VC vc) {
 			return vc_bv32ConstExprFromInt(vc, 0);
 		}
@@ -177,6 +183,7 @@ namespace slicer {
 		ConstValueMapping root;
 		/* There can only be one instance of VC running. */
 		static VC vc;
+		static DenseMap<unsigned, VCExpr> symbols;
 		static sys::Mutex vc_mutex;
 	};
 }

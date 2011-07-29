@@ -1,6 +1,6 @@
 PROGS = test-thread test-path test-overwrite test-ctxt test-recursive \
 	test-branch test-loop test-reducer test-bound test-ret test-phi \
-	FFT-like aget-like
+	FFT-like aget-like test-array
 BCS = $(PROGS:=.bc)
 
 # Better not use -O here; otherwise difficult to construct examples.

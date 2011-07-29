@@ -164,34 +164,41 @@ Clause *CaptureConstraints::get_loop_bound(const Loop *L) const {
 	return NULL;
 }
 
-void CaptureConstraints::capture_from_argument(const Argument *arg) {
+void CaptureConstraints::capture_from_argument(const Argument *formal) {
 	
 	CallGraphFP &CG = getAnalysis<CallGraphFP>();
 	ExecOnce &EO = getAnalysis<ExecOnce>();
 
-	const Function *f = arg->getParent();
+	const Function *f = formal->getParent();
 	// Needn't handle function declarations.
 	if (f->isDeclaration())
 		return;
 	
-	InstList call_sites = CG.get_call_sites(arg->getParent());
-	Clause *disj = NULL;
+	InstList call_sites = CG.get_call_sites(f);
+	ConstValueSet actuals;
 	for (size_t j = 0; j < call_sites.size(); ++j) {
 		if (!EO.not_executed(call_sites[j])) {
 			CallSite cs(call_sites[j]);
 			// Matches the formal argument with the actual argument. 
-			const Value *param;
+			const Value *actual;
 			if (is_pthread_create(cs.getInstruction()))
-				param = get_pthread_create_arg(cs.getInstruction());
+				actual = get_pthread_create_arg(cs.getInstruction());
 			else
-				param = cs.getArgument(arg->getArgNo());
-			Clause *c = new Clause(new BoolExpr(
-						CmpInst::ICMP_EQ, new Expr(arg), new Expr(param)));
-			if (disj == NULL)
-				disj = c;
-			else
-				disj = new Clause(Instruction::Or, disj, c);
+				actual = cs.getArgument(formal->getArgNo());
+			actuals.insert(actual);
 		}
+	}
+
+
+	Clause *disj = NULL;
+	forall(ConstValueSet, it, actuals) {
+		const Value *actual = *it;
+		Clause *c = new Clause(new BoolExpr(
+					CmpInst::ICMP_EQ, new Expr(formal), new Expr(actual)));
+		if (disj == NULL)
+			disj = c;
+		else
+			disj = new Clause(Instruction::Or, disj, c);
 	}
 	if (disj)
 		constraints.push_back(disj);

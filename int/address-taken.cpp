@@ -51,10 +51,12 @@ void CaptureConstraints::capture_addr_taken(Module &M) {
 
 	TimerGroup tg("Capture constraints on address-taken variables");
 
+#if 1
 	Timer tmr_may_assign("may-assign", tg);
 	tmr_may_assign.startTimer();
 	capture_may_assign(M);
 	tmr_may_assign.stopTimer();
+#endif
 	
 	Timer tmr_must_assign("must-assign", tg);
 	tmr_must_assign.startTimer();
@@ -101,6 +103,7 @@ void CaptureConstraints::capture_may_assign(Module &M) {
 		if (!isa<IntegerType>(ele_type))
 			continue;
 		if (gi->hasInitializer()) {
+			// TODO: To handle ConstantAggregateZero
 			if (ConstantInt *ci = dyn_cast<ConstantInt>(gi->getInitializer()))
 				all_stores.push_back(make_pair(ci, gi));
 		}

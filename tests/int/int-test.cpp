@@ -6,6 +6,7 @@
  * Identify the variables only? 
  * Saves the solving time during debugging. 
  */
+// #define IDENTIFY_ONLY
 
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/DominatorInternals.h"
@@ -20,7 +21,8 @@ using namespace llvm;
 #include "int/capture.h"
 #include "int/solve.h"
 #include "int/adv-alias.h"
-#include "../include/test-utils.h"
+#include "max-slicing/region-manager.h"
+#include "tests/include/test-utils.h"
 using namespace slicer;
 
 #include <map>
@@ -51,6 +53,7 @@ namespace slicer {
 		void test_test_reducer_simple(const Module &M);
 		void test_test_bound_simple(const Module &M);
 		void test_test_thread_simple(const Module &M);
+		void test_test_array_simple(const Module &M);
 	};
 }
 
@@ -72,10 +75,13 @@ void IntTest::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
 	AU.addRequired<ObjectID>();
 	AU.addRequired<ExecOnce>();
+	AU.addRequired<RegionManager>();
+#ifndef IDENTIFY_ONLY
 	AU.addRequired<Iterate>();
 	AU.addRequired<SolveConstraints>();
 	AU.addRequired<CaptureConstraints>();
 	AU.addRequired<AdvancedAlias>();
+#endif
 	ModulePass::getAnalysisUsage(AU);
 }
 
@@ -104,11 +110,28 @@ bool IntTest::runOnModule(Module &M) {
 	test_test_reducer_simple(M);
 	test_test_bound_simple(M);
 	test_test_thread_simple(M);
+	test_test_array_simple(M);
 	return false;
 }
 
 static bool starts_with(const string &a, const string &b) {
 	return a.length() >= b.length() && a.compare(0, b.length(), b) == 0;
+}
+
+void IntTest::test_test_array_simple(const Module &M) {
+
+	if (Program != "test-array.simple")
+		return;
+	TestBanner X("test-array.simple");
+
+	for (Module::const_global_iterator gi = M.global_begin();
+			gi != M.global_end(); ++gi) {
+		if (gi->getName() == "global_arr") {
+			errs() << "Found global_arr\n";
+			assert(gi->hasInitializer());
+			assert(isa<ConstantAggregateZero>(gi->getInitializer()));
+		}
+	}
 }
 
 void IntTest::test_test_thread_simple(const Module &M) {
@@ -333,6 +356,40 @@ void IntTest::test_fft_nocrit_simple(const Module &M) {
 	test_fft_nocrit_common(M);
 }
 
+void IntTest::test_test_overwrite_simple(const Module &M) {
+	
+	if (Program != "test-overwrite.simple")
+		return;
+	TestBanner X("test-overwrite.simple");
+
+	const Value *v1 = NULL, *v2 = NULL;
+	forallconst(Module, f, M) {
+		forallconst(Function, bb, *f) {
+			if (f->getName() == "main.OLDMAIN")
+				continue;
+			forallconst(BasicBlock, ins, *bb) {
+				if (const LoadInst *li = dyn_cast<LoadInst>(ins)) {
+					if (li->isVolatile()) {
+						if (v1 == NULL)
+							v1 = li;
+						else if (v2 == NULL)
+							v2 = li;
+						else
+							assert(false && "There should be exactly 2 volatile loads.");
+					}
+				}
+			}
+		}
+	}
+	assert(v1 && v2 && "There should be exactly 2 volatile loads.");
+	
+	SolveConstraints &SC = getAnalysis<SolveConstraints>();
+	errs() << "v1:" << *v1 << "\n" << "v2:" << *v2 << "\n";
+	errs() << "v1 == v2? ...";
+	assert(SC.provable(CmpInst::ICMP_EQ, v1, v2));
+	print_pass(errs());
+}
+
 void IntTest::test_fft_like_simple(const Module &M) {
 
 	if (Program != "FFT-like.simple")
@@ -387,74 +444,48 @@ void IntTest::test_fft_nocrit_common(const Module &M) {
 			print_pass(errs());
 		}
 	}
-
-	// The ranges passed to function FFT1D are disjoint. 
-	vector<ConstValuePair> ranges;
-	forallconst(Module, f, M) {
-		if (starts_with(f->getName(), "FFT1D.SLICER")) {
-			const Value *first = NULL, *last = NULL;
-			for (Function::const_arg_iterator ai = f->arg_begin();
-					ai != f->arg_end(); ++ai) {
-				if (ai->getName() == "MyFirst")
-					first = ai;
-				if (ai->getName() == "MyLast")
-					last = ai;
-			}
-			assert(first && last && "Cannot find arguments called MyFirst and MyLast");
-			ranges.push_back(make_pair(first, last));
-		}
-	}
-	for (size_t i = 0; i < ranges.size(); ++i) {
-		for (size_t j = i + 1; j < ranges.size(); ++j) {
-			Clause *c1 = new Clause(new BoolExpr(
-						CmpInst::ICMP_SLE,
-						new Expr(ranges[i].second),
-						new Expr(ranges[j].first)));
-			Clause *c2 = new Clause(new BoolExpr(
-						CmpInst::ICMP_SLE,
-						new Expr(ranges[j].second),
-						new Expr(ranges[i].first)));
-			Clause *disjoint = new Clause(Instruction::Or, c1, c2);
-			errs() << "ranges[" << i << "] and ranges[" << j << "] are disjoint? ...";
-			assert(SC.provable(disjoint));
-			print_pass(errs());
-			delete disjoint;
-		}
-	}
-}
-
-void IntTest::test_test_overwrite_simple(const Module &M) {
 	
-	if (Program != "test-overwrite.simple")
-		return;
-	TestBanner X("test-overwrite.simple");
-
-	const Value *v1 = NULL, *v2 = NULL;
+	// The ranges passed to Transpose are disjoint. 
+	DenseMap<const Function *, vector<ConstValuePair> > function_ranges;
 	forallconst(Module, f, M) {
 		forallconst(Function, bb, *f) {
-			if (f->getName() == "main.OLDMAIN")
-				continue;
 			forallconst(BasicBlock, ins, *bb) {
-				if (const LoadInst *li = dyn_cast<LoadInst>(ins)) {
-					if (li->isVolatile()) {
-						if (v1 == NULL)
-							v1 = li;
-						else if (v2 == NULL)
-							v2 = li;
-						else
-							assert(false && "There should be exactly 2 volatile loads.");
-					}
+				CallSite cs = CallSite::get(
+						const_cast<Instruction *>((const Instruction *)ins));
+				if (!cs.getInstruction())
+					continue;
+				const Function *callee = cs.getCalledFunction();
+				if (callee && callee->getName() == "Transpose") {
+					assert(cs.arg_size() == 7);
+					dbgs() << f->getName() << ":" << *ins << "\n";
+					function_ranges[f].push_back(make_pair(
+								cs.getArgument(4), cs.getArgument(5)));
 				}
 			}
 		}
 	}
-	assert(v1 && v2 && "There should be exactly 2 volatile loads.");
-	
-	SolveConstraints &SC = getAnalysis<SolveConstraints>();
-	errs() << "v1:" << *v1 << "\n" << "v2:" << *v2 << "\n";
-	errs() << "v1 == v2? ...";
-	assert(SC.provable(CmpInst::ICMP_EQ, v1, v2));
-	print_pass(errs());
+
+	DenseMap<const Function *, vector<ConstValuePair> >::iterator i1, i2;
+	for (i1 = function_ranges.begin(); i1 != function_ranges.end(); ++i1) {
+		for (i2 = i1, ++i2; i2 != function_ranges.end(); ++i2) {
+			for (size_t j1 = 0; j1 < i1->second.size(); ++j1) {
+				for (size_t j2 = 0; j2 < i2->second.size(); ++j2) {
+					Clause *c1 = new Clause(new BoolExpr(CmpInst::ICMP_SLE,
+								new Expr(i1->second[j1].second),
+								new Expr(i2->second[j2].first)));
+					Clause *c2 = new Clause(new BoolExpr(CmpInst::ICMP_SLE,
+								new Expr(i2->second[j2].second),
+								new Expr(i1->second[j1].first)));
+					Clause *disjoint = new Clause(Instruction::Or, c1, c2);
+					errs() << "{" << i1->first->getName() << ":" << j1 << "} and {" <<
+						i2->first->getName() << ":" << j2 << "} are disjoint? ...";
+					assert(SC.provable(disjoint));
+					print_pass(errs());
+					delete disjoint;
+				}
+			}
+		}
+	}
 }
 
 void IntTest::test_aget_like_simple(const Module &M) {

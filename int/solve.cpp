@@ -17,6 +17,7 @@
 using namespace llvm;
 
 #include <list>
+#include <iostream>
 #include <sstream>
 using namespace std;
 
@@ -34,11 +35,15 @@ static RegisterPass<SolveConstraints> X(
 char SolveConstraints::ID = 0;
 
 VC SolveConstraints::vc = NULL;
-
 sys::Mutex SolveConstraints::vc_mutex(false); // not recursive
+DenseMap<unsigned, VCExpr> SolveConstraints::symbols;
 
 void SolveConstraints::destroy_vc() {
 	assert(vc && "create_vc and destroy_vc are not paired");
+	for (DenseMap<unsigned, VCExpr>::iterator it = symbols.begin();
+			it != symbols.end(); ++it)
+		vc_DeleteExpr(it->second);
+	symbols.clear();
 	vc_Destroy(vc);
 	vc = NULL;
 	vc_mutex.release();
@@ -52,6 +57,7 @@ void SolveConstraints::create_vc() {
 	// We are responsible to delete them. 
 	vc_setInterfaceFlags(vc, EXPRDELETE, 0);
 	vc_registerErrorHandler(vc_error_handler);
+	assert(symbols.empty());
 	assert(vc && "Failed to create a VC");
 }
 
@@ -120,6 +126,8 @@ void SolveConstraints::refine_candidates(list<const Value *> &candidates) {
 		to_be_removed = to_be_removed || (!isa<IntegerType>(v->getType()));
 		// Already fixed if it's a ConstantInt. 
 		to_be_removed = to_be_removed || isa<ConstantInt>(v);
+		// Don't even have a try if it's never used. 
+		to_be_removed = to_be_removed || (v->use_begin() == v->use_end());
 		if (!to_be_removed) {
 			++i;
 		} else {
@@ -149,8 +157,8 @@ void SolveConstraints::refine_candidates(list<const Value *> &candidates) {
 		// If can be proved by simplification, don't add it to the constraint set. 
 		if (ret == -1)
 			update_appeared(appeared, c);
-		vc_DeleteExpr(vce);
-		vc_DeleteExpr(simplified_vce);
+		delete_vcexpr(vce);
+		delete_vcexpr(simplified_vce);
 		vc_pop(vc);
 
 		delete c; // c is cloned
@@ -200,7 +208,7 @@ void SolveConstraints::identify_fixed_values() {
 	dbgs() << "Constructing a satisfying assignment... ";
 	VCExpr f = vc_falseExpr(vc);
 	assert(vc_query(vc, f) == 0);
-	vc_DeleteExpr(f);
+	delete_vcexpr(f);
 	dbgs() << "Done\n";
 	
 	forall(list<const Value *>, it, candidates) {
@@ -209,8 +217,8 @@ void SolveConstraints::identify_fixed_values() {
 		VCExpr ce = vc_getCounterExample(vc, vce);
 		fixed_values.push_back(make_pair(
 					v, make_pair(getBVUnsigned(ce), vc_getBVLength(vc, ce))));
-		vc_DeleteExpr(vce);
-		vc_DeleteExpr(ce);
+		delete_vcexpr(vce);
+		delete_vcexpr(ce);
 	}
 	vc_pop(vc);
 	
@@ -227,6 +235,7 @@ void SolveConstraints::identify_fixed_values() {
 		assert(fixed != 2);
 		if (fixed == 1) {
 			// <i>'s value must be fixed. Skip to the next candidate. 
+			// FIXME: dbgs() does not support colors? 
 			errs().changeColor(raw_ostream::GREEN) << "Y"; errs().resetColor();
 			++n_fixed;
 #if 0
@@ -266,8 +275,8 @@ void SolveConstraints::identify_fixed_values() {
 #endif
 					fixed_values.erase(to_del);
 				}
-				vc_DeleteExpr(vj);
-				vc_DeleteExpr(ce);
+				delete_vcexpr(vj);
+				delete_vcexpr(ce);
 			}
 			// <i> does not have a fixed value. 
 			to_del = i;
@@ -275,9 +284,9 @@ void SolveConstraints::identify_fixed_values() {
 			fixed_values.erase(to_del);
 		}
 
-		vc_DeleteExpr(guessed_value);
-		vc_DeleteExpr(vce);
-		vc_DeleteExpr(eq);
+		delete_vcexpr(guessed_value);
+		delete_vcexpr(vce);
+		delete_vcexpr(eq);
 		vc_pop(vc);
 	}
 	
@@ -335,19 +344,9 @@ void SolveConstraints::translate_captured(Module &M) {
 		replace_with_root(c);
 
 		VCExpr vce = translate_to_vc(c);
-		vc_push(vc);
-		VCExpr simplified_vce = vc_simplify(vc, vce);
-		int ret = vc_isBool(simplified_vce);
-		vc_DeleteExpr(simplified_vce);
-		assert(ret != 0);
-		vc_pop(vc);
-		if (ret == -1) {
-			// If can be proved by simplification, don't add it to the constraint set. 
-			// Need call <translate_to_vc> again because the previous call
-			// creates an expression in a different context. 
+		if (can_be_simplified(vce) == -1)
 			vc_assertFormula(vc, vce);
-		}
-		vc_DeleteExpr(vce);
+		delete_vcexpr(vce);
 		
 		delete c; // c is cloned
 	}
@@ -361,9 +360,18 @@ void SolveConstraints::translate_captured(Module &M) {
 		CC.print(errs(), &M);
 	}
 	assert(ret == 0 && "The captured constraints is inconsistent.");
-	vc_DeleteExpr(f);
+	delete_vcexpr(f);
 	dbgs() << "Done\n";
 	vc_pop(vc);
+}
+
+int SolveConstraints::can_be_simplified(VCExpr e) {
+	vc_push(vc);
+	VCExpr simplified = vc_simplify(vc, e);
+	int ret = vc_isBool(simplified);
+	delete_vcexpr(simplified);
+	vc_pop(vc);
+	return ret;
 }
 
 ConstantInt *SolveConstraints::get_fixed_value(const Value *v) {
@@ -447,8 +455,8 @@ VCExpr SolveConstraints::translate_to_vc(const Clause *c) {
 		res = vc_orExpr(vc, vce1, vce2);
 	else
 		res = vc_xorExpr(vc, vce1, vce2);
-	vc_DeleteExpr(vce1);
-	vc_DeleteExpr(vce2);
+	delete_vcexpr(vce1);
+	delete_vcexpr(vce2);
 	return res;
 }
 
@@ -466,7 +474,7 @@ VCExpr SolveConstraints::translate_to_vc(const BoolExpr *be) {
 			{
 				VCExpr eq = vc_eqExpr(vc, vce1, vce2);
 				res = vc_notExpr(vc, eq);
-				vc_DeleteExpr(eq);
+				delete_vcexpr(eq);
 			}
 			break;
 		case CmpInst::ICMP_UGT:
@@ -487,8 +495,8 @@ VCExpr SolveConstraints::translate_to_vc(const BoolExpr *be) {
 			break;
 		default: assert(false && "Invalid predicate");
 	}
-	vc_DeleteExpr(vce1);
-	vc_DeleteExpr(vce2);
+	delete_vcexpr(vce1);
+	delete_vcexpr(vce2);
 	return res;
 }
 
@@ -511,7 +519,7 @@ VCExpr SolveConstraints::translate_to_vc(const Expr *e) {
 					// STP does not have bvUnsignExtend
 					VCExpr zero_31 = vc_bvConstExprFromInt(vc, 31, 0);
 					res = vc_bvConcatExpr(vc, zero_31, child);
-					vc_DeleteExpr(zero_31);
+					delete_vcexpr(zero_31);
 				}
 				break;
 			case Instruction::Trunc:
@@ -520,7 +528,7 @@ VCExpr SolveConstraints::translate_to_vc(const Expr *e) {
 				break;
 			default: assert_not_supported();
 		}
-		vc_DeleteExpr(child);
+		delete_vcexpr(child);
 		return res;
 	}
 	if (e->type == Expr::Binary) {
@@ -566,8 +574,8 @@ VCExpr SolveConstraints::translate_to_vc(const Expr *e) {
 				break;
 			default: assert_not_supported();
 		}
-		vc_DeleteExpr(left);
-		vc_DeleteExpr(right);
+		delete_vcexpr(left);
+		delete_vcexpr(right);
 		return res;
 	}
 	assert(false && "Invalid expression type");
@@ -578,7 +586,7 @@ VCExpr SolveConstraints::translate_to_vc(const Value *v) {
 		if (ci->getType()->getBitWidth() == 1) {
 			VCExpr b = (ci->isOne() ? vc_trueExpr(vc) : vc_falseExpr(vc));
 			VCExpr res = vc_boolToBVExpr(vc, b);
-			vc_DeleteExpr(b);
+			delete_vcexpr(b);
 			return res;
 		} else {
 			return vc_bv32ConstExprFromInt(vc, ci->getSExtValue());
@@ -593,12 +601,15 @@ VCExpr SolveConstraints::translate_to_vc(const Value *v) {
 	assert(value_id != ObjectID::INVALID_ID);
 	ostringstream oss;
 	oss << "x" << value_id;
-	VCType vct = (v->getType()->isIntegerTy(1) ?
-			vc_bvType(vc, 1) :
-			vc_bv32Type(vc));
-	VCExpr res = vc_varExpr(vc, oss.str().c_str(), vct);
-	vc_DeleteExpr(vct);
-	return res;
+	VCExpr &symbol = symbols[value_id];
+	if (symbol == NULL) {
+		VCType vct = (v->getType()->isIntegerTy(1) ?
+				vc_bvType(vc, 1) :
+				vc_bv32Type(vc));
+		symbol = vc_varExpr(vc, oss.str().c_str(), vct);
+		delete_vcexpr(vct);
+	}
+	return symbol;
 }
 
 VCExpr SolveConstraints::translate_to_vc(const Use *u) {
@@ -621,8 +632,18 @@ void SolveConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
 
 bool SolveConstraints::satisfiable(const Clause *c) {
 
+#if 0
+	dbgs() << "satisfiable: before replacing: ";
+	print_clause(dbgs(), c, getAnalysis<ObjectID>());
+	dbgs() << "\n";
+#endif
 	Clause *c2 = c->clone();
 	replace_with_root(c2);
+#if 0
+	dbgs() << "satisfiable: after replacing: ";
+	print_clause(dbgs(), c2, getAnalysis<ObjectID>());
+	dbgs() << "\n";
+#endif
 	// OPT: if in the format of v0 == v0, then must be true. 
 	const Value *v1 = NULL, *v2 = NULL;
 	if (is_simple_eq(c2, &v1, &v2) && v1 == v2) {
@@ -634,10 +655,19 @@ bool SolveConstraints::satisfiable(const Clause *c) {
 	realize(c);
 	VCExpr vce = translate_to_vc(c2);
 	delete c2;
+#if 1
 	VCExpr not_vce = vc_notExpr(vc, vce);
-	vc_DeleteExpr(vce);
+	delete_vcexpr(vce);
 	int ret = vc_query(vc, not_vce);
-	vc_DeleteExpr(not_vce);
+	delete_vcexpr(not_vce);
+#endif
+#if 0
+	vc_assertFormula(vc, vce);
+	delete_vcexpr(vce);
+	VCExpr f = vc_falseExpr(vc);
+	int ret = vc_query(vc, f);
+	delete_vcexpr(f);
+#endif
 	vc_pop(vc);
 	
 	assert(ret != 2);
@@ -692,7 +722,7 @@ bool SolveConstraints::provable(const Clause *c) {
 	VCExpr vce = translate_to_vc(c2);
 	delete c2;
 	int ret = vc_query(vc, vce);
-	vc_DeleteExpr(vce);
+	delete_vcexpr(vce);
 	vc_pop(vc);
 
 	assert(ret != 2);
@@ -775,10 +805,12 @@ void SolveConstraints::realize(const Instruction *ins) {
 							dbgs() << "\n";);
 					Clause *c2 = c->clone();
 					replace_with_root(c2);
-					// TODO: Simplify c2
+
 					VCExpr vce = translate_to_vc(c2);
-					vc_assertFormula(vc, vce);
-					vc_DeleteExpr(vce);
+					if (can_be_simplified(vce) != 1)
+						vc_assertFormula(vc, vce);
+					delete_vcexpr(vce);
+
 					delete c2;
 					delete c;
 				}
@@ -797,10 +829,12 @@ void SolveConstraints::realize(const Instruction *ins) {
 					dbgs() << "\n";);
 			Clause *c2 = c->clone();
 			replace_with_root(c2);
-			// TODO: Simplify c2
+			
 			VCExpr vce = translate_to_vc(c2);
-			vc_assertFormula(vc, vce);
-			vc_DeleteExpr(vce);
+			if (can_be_simplified(vce) != 1)
+				vc_assertFormula(vc, vce);
+			delete_vcexpr(vce);
+
 			delete c2;
 			delete c;
 		}
@@ -816,8 +850,8 @@ void SolveConstraints::avoid_div_by_zero(VCExpr left, VCExpr right) {
 
 	vc_assertFormula(vc, right_gt_0);
 
-	vc_DeleteExpr(zero);
-	vc_DeleteExpr(right_gt_0);
+	delete_vcexpr(zero);
+	delete_vcexpr(right_gt_0);
 }
 
 void SolveConstraints::avoid_overflow_shl(VCExpr left, VCExpr right) {
@@ -834,17 +868,17 @@ void SolveConstraints::avoid_overflow_shl(VCExpr left, VCExpr right) {
 	vc_assertFormula(vc, left_ge_0);
 	vc_assertFormula(vc, left_le);
 
-	vc_DeleteExpr(int_max);
-	vc_DeleteExpr(left_ge_0);
-	vc_DeleteExpr(int_max_shr);
-	vc_DeleteExpr(left_le);
+	delete_vcexpr(int_max);
+	delete_vcexpr(left_ge_0);
+	delete_vcexpr(int_max_shr);
+	delete_vcexpr(left_le);
 }
 
 void SolveConstraints::avoid_overflow_sub(VCExpr left, VCExpr right) {
 	// -oo <= left + (-right) <= oo
 	VCExpr minus_right = vc_bvUMinusExpr(vc, right);
 	avoid_overflow_add(left, minus_right);
-	vc_DeleteExpr(minus_right);
+	delete_vcexpr(minus_right);
 }
 
 void SolveConstraints::avoid_overflow_add(VCExpr left, VCExpr right) {
@@ -863,13 +897,13 @@ void SolveConstraints::avoid_overflow_add(VCExpr left, VCExpr right) {
 
 	vc_assertFormula(vc, or_expr);
 	
-	vc_DeleteExpr(sum);
-	vc_DeleteExpr(h_left);
-	vc_DeleteExpr(h_right);
-	vc_DeleteExpr(h_sum);
-	vc_DeleteExpr(xor_expr);
-	vc_DeleteExpr(iff_expr);
-	vc_DeleteExpr(or_expr);
+	delete_vcexpr(sum);
+	delete_vcexpr(h_left);
+	delete_vcexpr(h_right);
+	delete_vcexpr(h_sum);
+	delete_vcexpr(xor_expr);
+	delete_vcexpr(iff_expr);
+	delete_vcexpr(or_expr);
 }
 
 void SolveConstraints::avoid_overflow_mul(VCExpr left, VCExpr right) {
@@ -952,4 +986,10 @@ void SolveConstraints::avoid_overflow(unsigned op, VCExpr left, VCExpr right) {
 void SolveConstraints::print_assertions() {
 	assert(vc);
 	vc_printAsserts(vc);
+}
+
+void SolveConstraints::delete_vcexpr(VCExpr e) {
+	if (getExprKind(e) == SYMBOL)
+		return;
+	vc_DeleteExpr(e);
 }

@@ -1,5 +1,5 @@
 PROG_NAMES = test-thread test-overwrite test-loop test-reducer \
-	     test-recursive test-bound FFT-like aget-like \
+	     test-recursive test-bound FFT-like aget-like test-array \
 	     aget-nocrit FFT-nocrit RADIX-nocrit \
 	     pbzip2-nocrit CHOLESKY-nocrit
 PROGS_DIR = ../progs
