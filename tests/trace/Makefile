@@ -1,4 +1,4 @@
-PROG_NAMES = test-thread test-overwrite test-loop test-reducer \
+PROG_NAMES = test-thread test-overwrite test-loop test-reducer test-pointer \
 	     test-recursive test-bound FFT-like aget-like test-array \
 	     aget-nocrit FFT-nocrit RADIX-nocrit \
 	     pbzip2-nocrit CHOLESKY-nocrit
