@@ -23,6 +23,7 @@ using namespace std;
 
 #include "capture.h"
 #include "solve.h"
+#include "config.h"
 using namespace slicer;
 
 static RegisterPass<SolveConstraints> X(
