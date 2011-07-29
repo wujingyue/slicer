@@ -115,19 +115,26 @@ void SolveConstraints::refine_candidates(list<const Value *> &candidates) {
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 
 	list<const Value *>::iterator i, j, to_del;
+	ConstValueSet tree_contains_consts;
+	const ConstValueSet &integers = CC.get_integers();
+	forallconst(ConstValueSet, it, integers) {
+		const Value *v = *it;
+		if (CC.is_constant_integer(v))
+			tree_contains_consts.insert(get_root(v));
+	}
+
 	for (i = candidates.begin(); i != candidates.end(); ) {
 		const Value *v = *i;
 		bool to_be_removed = false;
-		// Only try those integers defined only once. 
-		to_be_removed = to_be_removed || !CC.is_constant_integer(v);
-		// Only try fixing values for the roots of equivalent class. 
+		// Only try fixing the roots of equivalent classes. 
 		to_be_removed = to_be_removed || (get_root(v) != v);
-		// Not fixed if it's a pointer. 
+		// NOTE: <v> represents its equivalent class rather than just itself. 
+		// Only try those integers defined only once. 
+		to_be_removed = to_be_removed || !tree_contains_consts.count(v);
+		// Don't try fixing a pointer. TODO: ConstantPointerNULL. 
 		to_be_removed = to_be_removed || (!isa<IntegerType>(v->getType()));
-		// Already fixed if it's a ConstantInt. 
+		// Don't try fixing an alreayd fixed value. 
 		to_be_removed = to_be_removed || isa<ConstantInt>(v);
-		// Don't even have a try if it's never used. 
-		to_be_removed = to_be_removed || (v->use_begin() == v->use_end());
 		if (!to_be_removed) {
 			++i;
 		} else {
