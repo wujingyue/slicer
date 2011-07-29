@@ -340,11 +340,6 @@ int DoOneIteration(Module *M) {
 		errs() << "AggressivePromotion hasn't been loaded.\n";
 		return -1;
 	}
-	if (RunPassInfos(M, PIs) == -1)
-		return -1;
-
-	// Aggressively unroll loops even if it contains function calls. 
-	PIs.clear();
 	if (const PassInfo *PI = Listener.getPassInfo("aggressive-loop-unroll")) {
 		PIs.push_back(PI);
 	} else {
@@ -374,9 +369,7 @@ int DoOneIteration(Module *M) {
 	}
 
 	/*
-	 * Constantizer and BranchRemover require Iterate,
-	 * so don't worry about the Iterate. 
-	 * TODO: Order matters? 
+	 * PostReducer requires Iterate, so don't worry about the Iterate. 
 	 */
 	PIs.clear();
 	if (const PassInfo *PI = Listener.getPassInfo("post-reduce")) {
