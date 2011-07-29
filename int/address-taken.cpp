@@ -159,6 +159,10 @@ void CaptureConstraints::capture_may_assign(Module &M) {
 		if (disj)
 			constraints.push_back(disj);
 	}
+
+	// Finish the progress bar. 
+	print_progress(dbgs(), all_loads.size(), all_loads.size());
+	dbgs() << "\n";
 }
 
 void CaptureConstraints::capture_must_assign(Module &M) {
@@ -195,6 +199,10 @@ void CaptureConstraints::capture_must_assign(Module &M) {
 			}
 		}
 	}
+	
+	// Finish the progress bar. 
+	print_progress(dbgs(), n_loads, n_loads);
+	dbgs() << "\n";
 }
 
 Instruction *CaptureConstraints::find_nearest_common_dom(

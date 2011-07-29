@@ -1,9 +1,5 @@
 /**
  * Author: Jingyue
- *
- * If a conditional branch is guaranteed to be true/false, we redirect its
- * false/true branch to an unreachable BB. This simplification may make
- * some BBs unreachable, and thus eliminate them later. 
  */
 
 #define DEBUG_TYPE "reducer"
@@ -15,31 +11,31 @@
 #include "common/include/util.h"
 using namespace llvm;
 
-#include "reducer.h"
+#include "post-reducer.h"
 #include "int/iterate.h"
 #include "int/capture.h"
 #include "int/solve.h"
 #include "max-slicing/max-slicing.h"
 using namespace slicer;
 
-static RegisterPass<Reducer> X(
-		"reduce",
+static RegisterPass<PostReducer> X(
+		"post-reduce",
 		"Replace variables with constants whenever possible and "
 		"remove unreachable branches according to int-constraints");
 
 STATISTIC(BranchesRemoved, "Number of branches removed");
 STATISTIC(VariablesConstantized, "Number of variables constantized");
 
-char Reducer::ID = 0;
+char PostReducer::ID = 0;
 
-void Reducer::getAnalysisUsage(AnalysisUsage &AU) const {
+void PostReducer::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<Iterate>();
 	AU.addRequired<CaptureConstraints>();
 	AU.addRequired<SolveConstraints>();
 	ModulePass::getAnalysisUsage(AU);
 }
 
-bool Reducer::constantize(Module &M) {
+bool PostReducer::constantize(Module &M) {
 
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
@@ -93,7 +89,7 @@ bool Reducer::constantize(Module &M) {
 	return changed;
 }
 
-bool Reducer::runOnModule(Module &M) {
+bool PostReducer::runOnModule(Module &M) {
 
 	/*
 	 * NOTE: Constantize the module before removing branches. 
@@ -101,7 +97,7 @@ bool Reducer::runOnModule(Module &M) {
 	 */
 	bool changed = false;
 	
-	TimerGroup tg("Reducer");
+	TimerGroup tg("Post-reducer");
 	Timer tmr_remove_br("Remove branches", tg);
 	Timer tmr_constantize("Constantize", tg);
 
@@ -118,7 +114,7 @@ bool Reducer::runOnModule(Module &M) {
 	return changed;
 }
 
-bool Reducer::remove_branches(Module &M) {
+bool PostReducer::remove_branches(Module &M) {
 
 	dbgs() << "Try removing branches... ";
 	// TODO: We could do the same thing for SwitchInsts too. 
@@ -160,7 +156,7 @@ bool Reducer::remove_branches(Module &M) {
 	return changed;
 }
 
-bool Reducer::remove_branch(
+bool PostReducer::remove_branch(
 		TerminatorInst *ti, unsigned i, BasicBlock *&unreachable_bb) {
 
 	assert(i < ti->getNumSuccessors());
@@ -194,7 +190,7 @@ bool Reducer::remove_branch(
 	return true;
 }
 
-void Reducer::prepare_remove_branch(
+void PostReducer::prepare_remove_branch(
 		BranchInst *bi, vector<pair<BranchInst *, unsigned> > &to_remove) {
 
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();

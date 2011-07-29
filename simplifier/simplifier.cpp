@@ -254,12 +254,12 @@ int RunPassInfos(Module *M, const vector<const PassInfo *> &PIs) {
 		// some LLVM internal LoopPass's, but they cannot directly acquire them
 		// because they have acquired some other passes that these internal
 		// passes don't preserve (likely to be a bug in LLVM). 
-		if (PI == Listener.getAggressiveLoopUnroll()) {
+		if (PI == Listener.getPassInfo("aggressive-loop-unroll")) {
 			AddPass(Passes, createLCSSAPass());
 			// TODO: explain why. 
 			AddPass(Passes, createLoopSimplifyPass());
 		}
-		if (PI == Listener.getPreReducer())
+		if (PI == Listener.getPassInfo("pre-reduce"))
 			AddPass(Passes, createLoopSimplifyPass());
 		if (!PI->getNormalCtor()) {
 			errs() << "Cannot create Pass " << PI->getPassName() << "\n";
@@ -334,7 +334,7 @@ int DoOneIteration(Module *M) {
 
 	// Run the PreReducer to aggresively hoist LoadInst's. 
 	vector<const PassInfo *> PIs;
-	if (const PassInfo *PI = Listener.getPreReducer()) {
+	if (const PassInfo *PI = Listener.getPassInfo("pre-reduce")) {
 		PIs.push_back(PI);
 	} else {
 		errs() << "PreReducer hasn't been loaded.\n";
@@ -345,7 +345,7 @@ int DoOneIteration(Module *M) {
 
 	// Aggressively unroll loops even if it contains function calls. 
 	PIs.clear();
-	if (const PassInfo *PI = Listener.getAggressiveLoopUnroll()) {
+	if (const PassInfo *PI = Listener.getPassInfo("aggressive-loop-unroll")) {
 		PIs.push_back(PI);
 	} else {
 		errs() << "AggressiveLoopUnroll hasn't been loaded.\n";
@@ -379,10 +379,10 @@ int DoOneIteration(Module *M) {
 	 * TODO: Order matters? 
 	 */
 	PIs.clear();
-	if (const PassInfo *PI = Listener.getReducer()) {
+	if (const PassInfo *PI = Listener.getPassInfo("post-reduce")) {
 		PIs.push_back(PI);
 	} else {
-		errs() << "Reducer hasn't been loaded.\n";
+		errs() << "PostReducer hasn't been loaded.\n";
 		return -1;
 	}
 	return RunPassInfos(M, PIs);

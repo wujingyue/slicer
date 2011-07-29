@@ -1,9 +1,16 @@
 /**
  * Author: Jingyue
+ *
+ * If a conditional branch is guaranteed to be true/false, we redirect its
+ * false/true branch to an unreachable BB. This simplification may make
+ * some BBs unreachable, and thus eliminate them later. 
+ *
+ * We also replace variables with constants if their values are know by
+ * querying the solver. 
  */
 
-#ifndef __SLICER_REDUCER_H
-#define __SLICER_REDUCER_H
+#ifndef __SLICER_POST_REDUCER_H
+#define __SLICER_POST_REDUCER_H
 
 #include "llvm/Pass.h"
 #include "llvm/Instructions.h"
@@ -14,11 +21,11 @@ using namespace std;
 
 namespace slicer {
 
-	struct Reducer: public ModulePass {
+	struct PostReducer: public ModulePass {
 
 		static char ID;
 
-		Reducer(): ModulePass(&ID) {}
+		PostReducer(): ModulePass(&ID) {}
 		virtual bool runOnModule(Module &M);
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 

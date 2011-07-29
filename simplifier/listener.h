@@ -1,8 +1,16 @@
+/**
+ * Author: Jingyue
+ */
+
 #ifndef __SLICER_LISTENER_H
 #define __SLICER_LISTENER_H
 
 #include "llvm/PassSupport.h"
 using namespace llvm;
+
+#include <string>
+#include <map>
+using namespace std;
 
 namespace slicer {
 
@@ -15,24 +23,14 @@ namespace slicer {
 	 */
 	struct SimplifierListener: public PassRegistrationListener {
 
-		SimplifierListener():
-			Iterator(NULL), Reducer(NULL), PreReducer(NULL),
-			AggressiveLoopUnroll(NULL) {}
+		SimplifierListener() {}
 		virtual void passRegistered(const PassInfo *P);
 		virtual void passEnumerate(const PassInfo *P) { passRegistered(P); }
 
-		const PassInfo *getIterator() const { return Iterator; }
-		const PassInfo *getReducer() const { return Reducer; }
-		const PassInfo *getPreReducer() const { return PreReducer; }
-		const PassInfo *getAggressiveLoopUnroll() const {
-			return AggressiveLoopUnroll;
-		}
+		const PassInfo *getPassInfo(const string &Name) const;
 
 	private:
-		const PassInfo *Iterator;
-		const PassInfo *Reducer;
-		const PassInfo *PreReducer;
-		const PassInfo *AggressiveLoopUnroll;
+		map<string, const PassInfo *> NameToPassInfo;
 	};
 }
 

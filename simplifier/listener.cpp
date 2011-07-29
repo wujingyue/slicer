@@ -1,3 +1,7 @@
+/**
+ * Author: Jingyue
+ */
+
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Debug.h"
 using namespace llvm;
@@ -8,12 +12,10 @@ using namespace slicer;
 
 void SimplifierListener::passRegistered(const PassInfo *P) {
 	DEBUG(dbgs() << "Pass " << P->getPassArgument() << " registered\n";);
-	if (strcmp(P->getPassArgument(), "pre-reduce") == 0)
-		PreReducer = P;
-	if (strcmp(P->getPassArgument(), "reduce") == 0)
-		Reducer = P;
-	if (strcmp(P->getPassArgument(), "iterate") == 0)
-		Iterator = P;
-	if (strcmp(P->getPassArgument(), "aggressive-loop-unroll") == 0)
-		AggressiveLoopUnroll = P;
+	NameToPassInfo[P->getPassArgument()] = P;
+}
+
+const PassInfo *SimplifierListener::getPassInfo(const string &Name) const {
+	map<string, const PassInfo *>::const_iterator I = NameToPassInfo.find(Name);
+	return (I == NameToPassInfo.end() ? NULL : I->second);
 }
