@@ -555,7 +555,7 @@ bool CaptureConstraints::must_alias(const Value *v1, const Value *v2) {
 	if (AdvancedAlias *AAA = getAnalysisIfAvailable<AdvancedAlias>()) {
 		return AAA->must_alias(v1, v2);
 	} else {
-		return false;
+		return v1 == v2;
 	}
 }
 
