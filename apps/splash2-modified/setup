@@ -6,4 +6,6 @@ if [ "$APPS_DIR" = "" ]; then
 fi
 
 $APPS_DIR/splash2-modified/setup
-patch -p1 < fix-RADIX.patch
+cd splash2
+patch -p1 < ../fix-RADIX.patch
+cd ..

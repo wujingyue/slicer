@@ -484,18 +484,26 @@ VCExpr SolveConstraints::translate_to_vc(const BoolExpr *be) {
 			}
 			break;
 		case CmpInst::ICMP_UGT:
+			res = vc_bvGtExpr(vc, vce1, vce2);
+			break;
 		case CmpInst::ICMP_SGT:
 			res = vc_sbvGtExpr(vc, vce1, vce2);
 			break;
 		case CmpInst::ICMP_UGE:
+			res = vc_bvGeExpr(vc, vce1, vce2);
+			break;
 		case CmpInst::ICMP_SGE:
 			res = vc_sbvGeExpr(vc, vce1, vce2);
 			break;
 		case CmpInst::ICMP_ULT:
+			res = vc_bvLtExpr(vc, vce1, vce2);
+			break;
 		case CmpInst::ICMP_SLT:
 			res = vc_sbvLtExpr(vc, vce1, vce2);
 			break;
 		case CmpInst::ICMP_ULE:
+			res = vc_bvLeExpr(vc, vce1, vce2);
+			break;
 		case CmpInst::ICMP_SLE:
 			res = vc_sbvLeExpr(vc, vce1, vce2);
 			break;
@@ -661,19 +669,12 @@ bool SolveConstraints::satisfiable(const Clause *c) {
 	realize(c);
 	VCExpr vce = translate_to_vc(c2);
 	delete c2;
-#if 1
 	VCExpr not_vce = vc_notExpr(vc, vce);
 	delete_vcexpr(vce);
 	int ret = vc_query(vc, not_vce);
 	delete_vcexpr(not_vce);
-#endif
-#if 0
-	vc_assertFormula(vc, vce);
-	delete_vcexpr(vce);
-	VCExpr f = vc_falseExpr(vc);
-	int ret = vc_query(vc, f);
-	delete_vcexpr(f);
-#endif
+	if (print_counterexample && ret == 0)
+		vc_printCounterExample(vc);
 	vc_pop(vc);
 	
 	assert(ret != 2);
@@ -729,6 +730,8 @@ bool SolveConstraints::provable(const Clause *c) {
 	delete c2;
 	int ret = vc_query(vc, vce);
 	delete_vcexpr(vce);
+	if (print_counterexample && ret == 0)
+		vc_printCounterExample(vc);
 	vc_pop(vc);
 
 	assert(ret != 2);

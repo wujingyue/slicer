@@ -44,6 +44,7 @@ namespace slicer {
 		void test_aget_nocrit_simple(const Module &M);
 		void test_aget_like_simple(const Module &M);
 		void test_test_overwrite_simple(const Module &M);
+		void test_test_overwrite_2_simple(const Module &M);
 		void test_fft_nocrit_simple(const Module &M);
 		void test_fft_like_simple(const Module &M);
 		void test_fft_nocrit_common(const Module &M);
@@ -102,6 +103,7 @@ bool IntTest::runOnModule(Module &M) {
 	test_aget_nocrit_simple(M);
 	test_aget_like_simple(M);
 	test_test_overwrite_simple(M);
+	test_test_overwrite_2_simple(M);
 	test_fft_nocrit_simple(M);
 	test_fft_like_simple(M);
 	test_radix_nocrit_simple(M);
@@ -269,29 +271,44 @@ void IntTest::test_radix_nocrit_simple(const Module &M) {
 
 	// rank_me_mynum and rank_ff_mynum
 	vector<const Value *> ranks;
+	vector<const Value *> arr_accesses;
 	forallconst(Module, f, M) {
 		forallconst(Function, bb, *f) {
 			forallconst(BasicBlock, ins, *bb) {
 				if (ins->getOpcode() == Instruction::AShr) {
 					BasicBlock::const_iterator next = ins;
 					++next;
-					assert(isa<GetElementPtrInst>(next));
-					const GetElementPtrInst *gep = cast<GetElementPtrInst>(next);
-					ranks.push_back(gep->getOperand(0));
+					if (const GetElementPtrInst *gep = dyn_cast<GetElementPtrInst>(next)) {
+						arr_accesses.push_back(gep);
+						ranks.push_back(gep->getOperand(0));
+					}
 				}
 			}
 		}
 	}
 	for (size_t i = 0; i < ranks.size(); ++i)
-		errs() << "rank " << i << ":" << *ranks[i] << "\n";
+		dbgs() << "Rank " << i << ":" << *ranks[i] << "\n";
+	for (size_t i = 0; i < arr_accesses.size(); ++i)
+		dbgs() << "Array access " << i << ":" << *arr_accesses[i] << "\n";
 
 	// SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	AdvancedAlias &AA = getAnalysis<AdvancedAlias>();
+	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	for (size_t i = 0; i < ranks.size(); ++i) {
 		for (size_t j = i + 1; j < ranks.size(); ++j) {
-			errs() << "Comparing ranks[" << i << "] and ranks[" << j << "]... ";
+			errs() << "Comparing rank " << i << "  and rank " << j << " ... ";
 			assert(AA.alias(ranks[i], 0, ranks[j], 0) == AliasAnalysis::NoAlias);
 			print_pass(errs());
+
+			if (i == 0 && j == 2)
+				SC.set_print_counterexample(true);
+			errs() << "Comparing array access " << i << " and array access " <<
+				j << "...";
+			assert(AA.alias(arr_accesses[i], 0, arr_accesses[j], 0) ==
+					AliasAnalysis::NoAlias);
+			print_pass(errs());
+			if (i == 0 && j == 2)
+				SC.set_print_counterexample(false);
 		}
 	}
 }
@@ -354,6 +371,37 @@ void IntTest::test_fft_nocrit_simple(const Module &M) {
 	test_fft_nocrit_common(M);
 }
 
+void IntTest::test_test_overwrite_2_simple(const Module &M) {
+
+	if (Program != "test-overwrite-2.simple")
+		return;
+	TestBanner X("test-overwrite-2.simple");
+
+	ExecOnce &EO = getAnalysis<ExecOnce>();
+	SolveConstraints &SC = getAnalysis<SolveConstraints>();
+
+	vector<const LoadInst *> loads;
+	forallconst(Module, f, M) {
+		if (EO.not_executed(f))
+			continue;
+		forallconst(Function, bb, *f) {
+			forallconst(BasicBlock, ins, *bb) {
+				if (const LoadInst *li = dyn_cast<LoadInst>(ins)) {
+					const Value *p = li->getPointerOperand();
+					if (p->getName() == "n")
+						loads.push_back(li);
+				}
+			}
+		}
+	}
+
+	for (size_t i = 0; i + 1 < loads.size(); ++i) {
+		errs() << "loads[" << i << "] == loads[" << (i + 1) << "]? ...";
+		assert(SC.provable(CmpInst::ICMP_EQ, loads[i], loads[i + 1]));
+		print_pass(errs());
+	}
+}
+
 void IntTest::test_test_overwrite_simple(const Module &M) {
 	
 	if (Program != "test-overwrite.simple")
@@ -362,9 +410,9 @@ void IntTest::test_test_overwrite_simple(const Module &M) {
 
 	const Value *v1 = NULL, *v2 = NULL;
 	forallconst(Module, f, M) {
+		if (f->getName() == "main.OLDMAIN")
+			continue;
 		forallconst(Function, bb, *f) {
-			if (f->getName() == "main.OLDMAIN")
-				continue;
 			forallconst(BasicBlock, ins, *bb) {
 				if (const LoadInst *li = dyn_cast<LoadInst>(ins)) {
 					if (li->isVolatile()) {

@@ -1,3 +1,7 @@
+/**
+ * Author: Jingyue
+ */
+
 #ifndef __SLICER_TRACE_H
 #define __SLICER_TRACE_H
 

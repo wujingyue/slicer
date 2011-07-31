@@ -14,6 +14,9 @@ all: $(SIMPLE_BCS)
 $(PROGS_DIR)/test-overwrite.simple.bc: $(PROGS_DIR)/test-overwrite.slice.bc
 	opt -lcssa -loopsimplify -o $@ < $<
 
+$(PROGS_DIR)/test-overwrite-2.simple.bc: $(PROGS_DIR)/test-overwrite-2.slice.bc
+	opt -O3 -lcssa -loopsimplify -o $@ < $<
+
 $(PROGS_DIR)/test-bound.simple.bc: $(PROGS_DIR)/test-bound.slice.bc
 	opt -O3 -lcssa -loopsimplify -o $@ < $<
 

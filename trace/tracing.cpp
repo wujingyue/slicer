@@ -17,6 +17,12 @@ static void append_to_trace(const TraceRecord &record) {
 	pthread_mutex_unlock(&trace_mutex);
 }
 
+extern "C" void init_trace() {
+	pthread_mutex_lock(&trace_mutex);
+	ofstream fout("/tmp/fulltrace");
+	pthread_mutex_unlock(&trace_mutex);
+}
+
 /*
  * Injected to the traced program
  * Need restore <errno> at the end. 

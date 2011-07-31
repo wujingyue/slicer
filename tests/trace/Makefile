@@ -1,5 +1,6 @@
 PROG_NAMES = test-thread test-overwrite test-loop test-reducer test-pointer \
 	     test-recursive test-bound FFT-like aget-like test-array \
+	     test-overwrite-2 \
 	     aget-nocrit FFT-nocrit RADIX-nocrit \
 	     pbzip2-nocrit CHOLESKY-nocrit
 PROGS_DIR = ../progs
@@ -37,6 +38,9 @@ landmark-trace: $(LANDMARK_TRACES)
 
 pbzip2%: pbzip2%.s
 	$(CXX) $< -o $@ -pthread -lbz2
+
+# ./RADIX-nocrit -p2 -r1024
+# ./FFT-nocrit -p4 -m10
 
 %.lt: %.ft
 	opt -disable-output \

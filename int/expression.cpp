@@ -131,18 +131,26 @@ void slicer::print_predicate(raw_ostream &O, CmpInst::Predicate p) {
 			O << "!=";
 			break;
 		case CmpInst::ICMP_UGT:
+			O << "u>";
+			break;
 		case CmpInst::ICMP_SGT:
 			O << ">";
 			break;
 		case CmpInst::ICMP_UGE:
+			O << "u>=";
+			break;
 		case CmpInst::ICMP_SGE:
 			O << ">=";
 			break;
 		case CmpInst::ICMP_ULT:
+			O << "u<";
+			break;
 		case CmpInst::ICMP_SLT:
 			O << "<";
 			break;
 		case CmpInst::ICMP_ULE:
+			O << "u<=";
+			break;
 		case CmpInst::ICMP_SLE:
 			O << "<=";
 			break;

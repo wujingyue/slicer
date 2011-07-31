@@ -1,5 +1,5 @@
---- a/splash2/codes/kernels/radix/radix.C	2010-05-05 00:36:21.000000000 -0400
-+++ b/splash2/codes/kernels/radix/radix.C	2011-07-29 17:59:19.000000000 -0400
+--- splash2-orig/codes/kernels/radix/radix.C	2010-05-05 00:36:21.000000000 -0400
++++ splash2-bounded/codes/kernels/radix/radix.C	2011-07-30 19:13:38.000000000 -0400
 @@ -150,6 +150,10 @@
                    printerr("Radix must be a power of 2 greater than 0\n");
                    exit(-1);
@@ -11,3 +11,39 @@
                  log2_radix = log_2(radix);
                  if (log2_radix == -1) {
                    printerr("Radix must be a power of 2\n");
+@@ -167,6 +171,10 @@
+                   printerr("Maximum key must be >= 1\n");
+                   exit(-1);
+                 }
++                if (max_key > DEFAULT_M) {
++                  printerr("max_key shouldn't exceed DEFAULT_M\n");
++                  exit(-1);
++                }
+                 break;
+       case 's': dostats = !dostats;
+                 break;
+@@ -193,6 +201,11 @@
+    MAIN_INITENV(,80000000)
+ 
+    log2_radix = log_2(radix); 
++   // Added by Jingyue
++   if (radix != (1 << log2_radix)) {
++     fprintf(stderr, "%ld %ld\n", radix, log2_radix);
++     exit(-1);
++   }
+    log2_keys = log_2(num_keys);
+    global = (struct global_memory *) G_MALLOC(sizeof(struct global_memory));
+    if (global == NULL) {
+@@ -237,6 +250,12 @@
+ 
+    global->Index = 0;
+    max_num_digits = get_max_digits(max_key);
++   // Added by Jingyue
++   long rem = (max_key >> ((max_num_digits - 1) * log2_radix));
++   if (max_num_digits <= 0 || max_num_digits >= 32 || rem <= 0 || rem >= radix) {
++     fprintf(stderr, "%ld %ld %ld\n", max_key, max_num_digits, log2_radix);
++     exit(-1);
++   }
+    printf("\n");
+    printf("Integer Radix Sort\n");
+    printf("     %ld Keys\n",num_keys);
