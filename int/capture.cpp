@@ -85,7 +85,7 @@ void CaptureConstraints::print(raw_ostream &O, const Module *M) const {
 		if (value_id == IDAssigner::INVALID_ID)
 			O << **it << "\n";
 		assert(value_id != IDAssigner::INVALID_ID);
-		O << "  x" << value_id << "\n";
+		O << "  x" << value_id << ":" << **it << "\n";
 	}
 	O << "\nConstraints:\n";
 	for (unsigned i = 0; i < get_num_constraints(); ++i) {

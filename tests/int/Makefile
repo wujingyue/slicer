@@ -10,7 +10,7 @@ include $(LEVEL)/Makefile.common
 
 PROG_NAMES = test-overwrite.simple test-loop.simple test-reducer.simple \
 	     test-bound.simple FFT-like.simple test-thread.simple \
-	     test-array.simple \
+	     test-array.simple aget-like.simple test-overwrite-2.simple \
 	     aget-nocrit.simple FFT-nocrit.simple \
 	     RADIX-nocrit.simple CHOLESKY-nocrit.simple
 PROGS_DIR = ../progs
@@ -21,7 +21,7 @@ run:: $(PROG_NAMES)
 landmark_trace_name = $(subst .simple,,$(subst .slice,,$(1))).lt
 
 %: $(PROGS_DIR)/%.bc
-	opt -debug-only=int -disable-output \
+	opt -disable-output \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \

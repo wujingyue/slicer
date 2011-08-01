@@ -287,25 +287,7 @@ int OutputModule(Module *M, const string &FileName) {
 		}
 	}
 
-	PassManager Passes;
-
-	// Add an appropriate TargetData instance for this module...
-	TargetData *TD = 0;
-	const string &ModuleDataLayout = M->getDataLayout();
-	if (!ModuleDataLayout.empty())
-		TD = new TargetData(ModuleDataLayout);
-	if (TD)
-		Passes.add(TD);
-	
-	// Write bitcode or assembly out to disk or outs() as the last step...
-	if (!Out) {
-		errs() << "The output stream is not created.\n";
-		return -1;
-	}
-	AddPass(Passes, createBitcodeWriterPass(*Out));
-	
-	// Now that we have all of the passes ready, run them.
-	Passes.run(*M);
+	WriteBitcodeToFile(M, *Out);
 
 	// Delete the raw_fd_ostream. 
 	if (Out != &outs()) {
@@ -359,7 +341,7 @@ int DoOneIteration(Module *M) {
 	Passes.push_back(createLoopSimplifyPass());
 	if (RunPasses(M, Passes) == -1)
 		return -1;
-	
+
 	// As a side effect of PrintAfterEachIteration, print the module before
 	// the integer constraint solving. 
 	if (PrintAfterEachIteration) {
@@ -377,6 +359,7 @@ int DoOneIteration(Module *M) {
 		errs() << "PostReducer hasn't been loaded.\n";
 		return -1;
 	}
+
 	return RunPassInfos(M, PIs);
 }
 

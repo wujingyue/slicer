@@ -349,8 +349,8 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 		if (!latest_overwriters[k1])
 			continue;
 		bool before = false;
-		for (size_t k2 = k1 + 1; k2 < thr_ids.size(); ++k2) {
-			if (!latest_overwriters[k2])
+		for (size_t k2 = 0; k2 < thr_ids.size(); ++k2) {
+			if (!latest_overwriters[k2] || k1 == k2)
 				continue;
 			// If latest_overwriters[k1] must happen before latest_overwriters[k2], 
 			// remove latest_overwriters[k1]. 
@@ -371,15 +371,28 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 	}
 
 	unsigned n_overwriters = 0;
+#if 0
 	int the_thr_idx = -1; // Used later. 
+#endif
 	for (size_t k = 0; k < thr_ids.size(); ++k) {
 		if (latest_overwriters[k]) {
-			n_overwriters++;
-			the_thr_idx = k;
+			assert(latest_doms[k]);
+			if (!path_may_write(latest_overwriters[k], latest_doms[k], q)) {
+				Clause *c = new Clause(new BoolExpr(
+							CmpInst::ICMP_EQ,
+							new Expr(i2),
+							new Expr(get_value_operand(latest_overwriters[k]))));
+				DEBUG(dbgs() << "From overwriting: ";
+						print_clause(dbgs(), c, getAnalysis<IDAssigner>());
+						dbgs() << "\n";);
+				constraints.push_back(c);
+				n_overwriters++;
+			}
 		}
 	}
-
 	DEBUG(dbgs() << "# of overwriters = " << n_overwriters << "\n";);
+
+#if 0
 	if (n_overwriters == 0) {
 		// TODO: Check whether the value may be overwritten by any trunk from
 		// the program start to the current trunk. 
@@ -414,6 +427,7 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 			constraints.push_back(c);
 		}
 	}
+#endif
 }
 
 bool CaptureConstraints::may_write(
