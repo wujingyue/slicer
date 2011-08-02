@@ -360,6 +360,10 @@ void SolveConstraints::translate_captured(Module &M) {
 	// The captured constraints should be consistent. 
 	vc_push(vc);
 	dbgs() << "Checking consistency... ";
+	if (print_asserts) {
+		vc_printVarDecls(vc);
+		vc_printAsserts(vc);
+	}
 	VCExpr f = vc_falseExpr(vc);
 	bool ret = vc_query(vc, f);
 	if (ret != 0) {
@@ -570,12 +574,18 @@ VCExpr SolveConstraints::translate_to_vc(const Expr *e) {
 				break;
 			case Instruction::Shl:
 				// left << right
-				res = vc_bvVar32LeftShiftExpr(vc, right, left);
+				if (getExprKind(right) == BVCONST)
+					res = vc_bv32LeftShiftExpr(vc, getBVUnsigned(right), left);
+				else
+					res = vc_bvVar32LeftShiftExpr(vc, right, left);
 				break;
 			case Instruction::LShr:
 			case Instruction::AShr:
 				// left >> right
-				res = vc_bvVar32RightShiftExpr(vc, right, left);
+				if (getExprKind(right) == BVCONST)
+					res = vc_bv32RightShiftExpr(vc, getBVUnsigned(right), left);
+				else
+					res = vc_bvVar32RightShiftExpr(vc, right, left);
 				break;
 			case Instruction::And:
 				res = vc_bvAndExpr(vc, left, right);
@@ -646,18 +656,12 @@ void SolveConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
 
 bool SolveConstraints::satisfiable(const Clause *c) {
 
-#if 0
-	dbgs() << "satisfiable: before replacing: ";
-	print_clause(dbgs(), c, getAnalysis<IDAssigner>());
-	dbgs() << "\n";
-#endif
+	DEBUG(dbgs() << "Satisfiable?: ";
+			print_clause(dbgs(), c, getAnalysis<IDAssigner>());
+			dbgs() << "\n";);
+
 	Clause *c2 = c->clone();
 	replace_with_root(c2);
-#if 0
-	dbgs() << "satisfiable: after replacing: ";
-	print_clause(dbgs(), c2, getAnalysis<IDAssigner>());
-	dbgs() << "\n";
-#endif
 	// OPT: if in the format of v0 == v0, then must be true. 
 	const Value *v1 = NULL, *v2 = NULL;
 	if (is_simple_eq(c2, &v1, &v2) && v1 == v2) {
@@ -671,6 +675,12 @@ bool SolveConstraints::satisfiable(const Clause *c) {
 	delete c2;
 	VCExpr not_vce = vc_notExpr(vc, vce);
 	delete_vcexpr(vce);
+
+	if (print_asserts) {
+		vc_printVarDecls(vc);
+		vc_printAsserts(vc);
+	}
+
 	int ret = vc_query(vc, not_vce);
 	delete_vcexpr(not_vce);
 	if (print_counterexample && ret == 0)
@@ -706,6 +716,10 @@ bool SolveConstraints::contains_only_ints(const Expr *e) {
 
 bool SolveConstraints::provable(const Clause *c) {
 	
+	DEBUG(dbgs() << "Provable?: ";
+			print_clause(dbgs(), c, getAnalysis<IDAssigner>());
+			dbgs() << "\n";);
+
 	if (!contains_only_ints(c))
 		return false;
 	
@@ -719,10 +733,6 @@ bool SolveConstraints::provable(const Clause *c) {
 		delete c2;
 		return true;
 	}
-
-	DEBUG(dbgs() << "Proving: ";
-			print_clause(dbgs(), c, getAnalysis<IDAssigner>());
-			dbgs() << "\n";);
 
 	vc_push(vc);
 	realize(c);

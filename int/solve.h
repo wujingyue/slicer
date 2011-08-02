@@ -32,7 +32,8 @@ namespace slicer {
 
 		static char ID;
 
-		SolveConstraints(): ModulePass(&ID), print_counterexample(false) {}
+		SolveConstraints():
+			ModulePass(&ID), print_counterexample(false), print_asserts(false) {}
 		virtual bool runOnModule(Module &M);
 		virtual void print(raw_ostream &O, const Module *M) const;
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
@@ -53,6 +54,10 @@ namespace slicer {
 		void set_print_counterexample(bool value) {
 			print_counterexample = value;
 		}
+		/**
+		 * Enable or disable the print_asserts flag. 
+		 */
+		void set_print_asserts(bool value) { print_asserts = value; }
 
 		/**
 		 * The caller is responsible to delete this clause.
@@ -188,6 +193,7 @@ namespace slicer {
 		/* NOTE: <root> may contain some constants that don't appeared in CC. */
 		ConstValueMapping root;
 		bool print_counterexample;
+		bool print_asserts;
 		/* There can only be one instance of VC running. */
 		static VC vc;
 		static DenseMap<unsigned, VCExpr> symbols;

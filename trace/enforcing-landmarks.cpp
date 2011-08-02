@@ -3,8 +3,11 @@
  */
 
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/CFG.h"
 #include "common/include/util.h"
+#include "common/cfg/identify-thread-funcs.h"
 using namespace llvm;
+
 #include "enforcing-landmarks.h"
 using namespace slicer;
 
@@ -85,6 +88,7 @@ bool EnforcingLandmarks::runOnModule(Module &M) {
 			enforcing_landmark_funcs.insert(func);
 	}
 
+	// Mark any function call to landmark functions as enforcing landmarks. 
 	forallinst(M, ii) {
 		CallSite cs = CallSite::get(ii);
 		if (cs.getInstruction()) {

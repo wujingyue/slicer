@@ -400,9 +400,9 @@ int main(int argc, char *argv[]) {
 		dbgs() << "=== Iteration " << IterNo << " finished === ";
 
 		if (Changed == 1)
-			dbgs() << "Changed";
+			dbgs() << "[Changed]";
 		else if (Changed == 0)
-			dbgs() << "Unchanged";
+			dbgs() << "[Unchanged]";
 		dbgs() << "\n";
 		TmrIter->stopTimer();
 		

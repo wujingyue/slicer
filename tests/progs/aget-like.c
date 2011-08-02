@@ -33,9 +33,14 @@ long long fake_write(char *buffer, size_t size, size_t offset) {
 }
 
 void *http_get(struct thread_data *td) {
-	long long foffset = td->foffset;
-	char *rbuf = (char *)calloc(GETRECVSIZ, sizeof(char));
+	long long foffset;
+	char *rbuf;
+	pthread_t tid;
 
+	tid = pthread_self();
+
+	rbuf = (char *)calloc(GETRECVSIZ, sizeof(char));
+	foffset = td->foffset;
 	td->offset = td->soffset;
 	while (td->offset < foffset) {
 		long long dr, dw;

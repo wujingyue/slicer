@@ -49,7 +49,7 @@ void CaptureConstraints::capture_addr_taken(Module &M) {
 
 	TimerGroup tg("Capture constraints on address-taken variables");
 
-#if 1
+#if 0
 	Timer tmr_may_assign("may-assign", tg);
 	tmr_may_assign.startTimer();
 	capture_may_assign(M);

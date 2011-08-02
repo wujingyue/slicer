@@ -87,7 +87,10 @@ void MaxSlicing::read_trace_and_cut(
 		for (unsigned j = 0; j < LT.get_n_trunks(thr_id); ++j) {
 			const LandmarkTraceRecord &record = LT.get_landmark(i, j);
 			Instruction *ins = IDM.getInstruction(record.ins_id);
-			assert(ins);
+			if (!ins) {
+				errs() << "ins_id = " << record.ins_id << "\n";
+			}
+			assert(ins && "Cannot find an instruction with this instruction ID");
 			trace[thr_id].push_back(ins);
 			if (record.child_tid != -1 && record.child_tid != thr_id) {
 				thr_cr_records.push_back(

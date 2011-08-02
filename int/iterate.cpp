@@ -42,7 +42,7 @@ bool Iterate::runOnModule(Module &M) {
 		Timer *timer = new Timer(oss.str(), tg);
 		timers.push_back(timer);
 		timer->startTimer();
-		dbgs() << "=== Running iteration " << iter_no << "... ===\n";
+		dbgs() << "=== Iterator is running iteration " << iter_no << "... ===\n";
 		fingerprint = CC.get_fingerprint();
 		AAA.recalculate(M); // Essentially clear the cache. 
 		CC.recalculate(M);

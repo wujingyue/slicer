@@ -49,6 +49,7 @@ namespace slicer {
 		void test_fft_like_simple(const Module &M);
 		void test_fft_nocrit_common(const Module &M);
 		void test_radix_nocrit_simple(const Module &M);
+		void test_radix_like_simple(const Module &M);
 		void test_radix_nocrit_common(const Module &M);
 		void test_test_loop_simple(const Module &M);
 		void test_test_reducer_simple(const Module &M);
@@ -107,6 +108,7 @@ bool IntTest::runOnModule(Module &M) {
 	test_fft_nocrit_simple(M);
 	test_fft_like_simple(M);
 	test_radix_nocrit_simple(M);
+	test_radix_like_simple(M);
 	test_test_loop_simple(M);
 	test_test_reducer_simple(M);
 	test_test_bound_simple(M);
@@ -261,6 +263,78 @@ void IntTest::test_test_loop_simple(const Module &M) {
 	print_pass(errs());
 }
 
+void IntTest::test_radix_like_simple(const Module &M) {
+	
+	if (Program != "RADIX-like.simple")
+		return;
+	TestBanner X("RADIX-like.simple");
+
+	test_radix_nocrit_common(M);
+
+	DenseMap<const Function *, vector<const Value *> > accesses_to_me;
+	ExecOnce &EO = getAnalysis<ExecOnce>();
+	forallconst(Module, f, M) {
+
+		if (EO.not_executed(f))
+			continue;
+
+		forallconst(Function, bb, *f) {
+			forallconst(BasicBlock, ins, *bb) {
+				CallSite cs = CallSite::get(
+						const_cast<Instruction *>((const Instruction *)ins));
+				if (cs.getInstruction()) {
+					const Function *callee = cs.getCalledFunction();
+					if (callee && callee->getName() == "printf") {
+						assert(cs.arg_size() > 0);
+						const Value *my_key = cs.getArgument(cs.arg_size() - 1);
+						const User *sext = NULL;
+						for (Value::use_const_iterator ui = my_key->use_begin();
+								ui != my_key->use_end(); ++ui) {
+							if (*ui == ins)
+								continue;
+							assert(!sext);
+							sext = *ui;
+						}
+						assert(sext);
+						for (Value::use_const_iterator ui = sext->use_begin();
+								ui != sext->use_end(); ++ui) {
+							if (const GetElementPtrInst *gep =
+									dyn_cast<GetElementPtrInst>(*ui)) {
+								accesses_to_me[f].push_back(gep);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	for (DenseMap<const Function *, vector<const Value *> >::iterator
+			i = accesses_to_me.begin(); i != accesses_to_me.end(); ++i) {
+		errs() << "=== Function " << i->first->getName() << " ===\n";
+		for (size_t j = 0; j < i->second.size(); ++j)
+			errs() << *i->second[j] << "\n";
+	}
+
+	SolveConstraints &SC = getAnalysis<SolveConstraints>();
+	for (DenseMap<const Function *, vector<const Value *> >::iterator
+			i1 = accesses_to_me.begin(); i1 != accesses_to_me.end(); ++i1) {
+		DenseMap<const Function *, vector<const Value *> >::iterator i2;
+		for (i2 = i1, ++i2; i2 != accesses_to_me.end(); ++i2) {
+			for (size_t j1 = 0; j1 < i1->second.size(); ++j1) {
+				for (size_t j2 = 0; j2 < i2->second.size(); ++j2) {
+					errs() << "{" << i1->first->getName() << ":" << j1 << "} != {" <<
+						i2->first->getName() << ":" << j2 << "}? ...";
+					SC.set_print_counterexample(true);
+					assert(SC.provable(CmpInst::ICMP_NE, i1->second[j1], i2->second[j2]));
+					SC.set_print_counterexample(false);
+					print_pass(errs());
+				}
+			}
+		}
+	}
+}
+
 void IntTest::test_radix_nocrit_simple(const Module &M) {
 	
 	if (Program != "RADIX-nocrit.simple")
@@ -296,7 +370,7 @@ void IntTest::test_radix_nocrit_simple(const Module &M) {
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	for (size_t i = 0; i < ranks.size(); ++i) {
 		for (size_t j = i + 1; j < ranks.size(); ++j) {
-			errs() << "Comparing rank " << i << "  and rank " << j << " ... ";
+			errs() << "Comparing rank " << i << " and rank " << j << " ... ";
 			assert(AA.alias(ranks[i], 0, ranks[j], 0) == AliasAnalysis::NoAlias);
 			print_pass(errs());
 
@@ -580,7 +654,9 @@ void IntTest::test_aget_like_simple(const Module &M) {
 								end2, new Expr(ranges[i1][j1].first)));
 					errs() << "{" << i1 << ", " << j1 << "} and {" << i2 << ", " << j2 <<
 						"} are disjoint? ...";
+					SC.set_print_counterexample(true);
 					assert(SC.provable(new Clause(Instruction::Or, c1, c2)));
+					SC.set_print_counterexample(false);
 					print_pass(errs());
 				}
 			}

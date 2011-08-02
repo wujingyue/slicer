@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 
-const int MAX_P = 1024;
+#define MAX_P (1024)
 
 struct GlobalMemory {
 	long id;
