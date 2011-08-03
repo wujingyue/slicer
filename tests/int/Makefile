@@ -11,8 +11,7 @@ include $(LEVEL)/Makefile.common
 PROG_NAMES = test-overwrite.simple test-loop.simple test-reducer.simple \
 	     test-bound.simple FFT-like.simple test-thread.simple \
 	     test-array.simple aget-like.simple test-overwrite-2.simple \
-	     test-thread-2.simple \
-	     RADIX-like.simple \
+	     test-thread-2.simple RADIX-like.simple test-malloc.simple \
 	     aget-nocrit.simple FFT-nocrit.simple \
 	     RADIX-nocrit.simple CHOLESKY-nocrit.simple
 PROGS_DIR = ../progs

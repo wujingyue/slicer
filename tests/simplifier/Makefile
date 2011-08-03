@@ -2,7 +2,7 @@
 
 PROG_NAMES = test-loop test-reducer test-overwrite test-bound FFT-like \
 	     aget-like test-array test-thread RADIX-like test-thread-2 \
-	     test-overwrite-2 \
+	     test-overwrite-2 test-malloc \
 	     aget-nocrit FFT-nocrit RADIX-nocrit CHOLESKY-nocrit
 PROGS_DIR = ../progs
 PROGS = $(addprefix $(PROGS_DIR)/, $(PROG_NAMES))
@@ -25,6 +25,9 @@ $(PROGS_DIR)/test-thread.simple.bc: $(PROGS_DIR)/test-thread.slice.bc
 	opt -O3 -lcssa -loopsimplify -o $@ < $<
 
 $(PROGS_DIR)/test-array.simple.bc: $(PROGS_DIR)/test-array.slice.bc
+	opt -O3 -lcssa -loopsimplify -o $@ < $<
+
+$(PROGS_DIR)/test-malloc.simple.bc: $(PROGS_DIR)/test-malloc.slice.bc
 	opt -O3 -lcssa -loopsimplify -o $@ < $<
 
 # We use -o whenever possible, because <simplifier> will remove the output

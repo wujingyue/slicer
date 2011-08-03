@@ -56,6 +56,7 @@ namespace slicer {
 		void test_test_bound_simple(const Module &M);
 		void test_test_thread_simple(const Module &M);
 		void test_test_array_simple(const Module &M);
+		void test_test_malloc_simple(const Module &M);
 	};
 }
 
@@ -114,11 +115,48 @@ bool IntTest::runOnModule(Module &M) {
 	test_test_bound_simple(M);
 	test_test_thread_simple(M);
 	test_test_array_simple(M);
+	test_test_malloc_simple(M);
 	return false;
 }
 
 static bool starts_with(const string &a, const string &b) {
 	return a.length() >= b.length() && a.compare(0, b.length(), b) == 0;
+}
+
+void IntTest::test_test_malloc_simple(const Module &M) {
+
+	if (Program != "test-malloc.simple")
+		return;
+	TestBanner X("test-malloc.simple");
+
+	ExecOnce &EO = getAnalysis<ExecOnce>();
+	vector<const Value *> accesses;
+	forallconst(Module, f, M) {
+		if (EO.not_executed(f))
+			continue;
+		forallconst(Function, bb, *f) {
+			forallconst(BasicBlock, ins, *bb) {
+				if (const StoreInst *si = dyn_cast<StoreInst>(ins)) {
+					if (const ConstantInt *ci = dyn_cast<ConstantInt>(si->getOperand(0))) {
+						if (ci->equalsInt(5))
+							accesses.push_back(si->getPointerOperand());
+					}
+				}
+			}
+		}
+	}
+
+	for (size_t i = 0; i < accesses.size(); ++i)
+		dbgs() << "Access " << i << ":" << *accesses[i] << "\n";
+
+	AdvancedAlias &AA = getAnalysis<AdvancedAlias>();
+	for (size_t i = 0; i < accesses.size(); ++i) {
+		for (size_t j = i + 1; j < accesses.size(); ++j) {
+			errs() << "Access " << i << " and access " << j << " don't alias? ...";
+			assert(AA.alias(accesses[i], 0, accesses[j], 0) == AliasAnalysis::NoAlias);
+			print_pass(errs());
+		}
+	}
 }
 
 void IntTest::test_test_array_simple(const Module &M) {
@@ -272,12 +310,14 @@ void IntTest::test_radix_like_simple(const Module &M) {
 	test_radix_nocrit_common(M);
 
 	DenseMap<const Function *, vector<const Value *> > accesses_to_me;
+	vector<const Value *> accesses_to_ff;
 	ExecOnce &EO = getAnalysis<ExecOnce>();
 	forallconst(Module, f, M) {
 
 		if (EO.not_executed(f))
 			continue;
 
+		// Identify accesses to <rank_me>. 
 		forallconst(Function, bb, *f) {
 			forallconst(BasicBlock, ins, *bb) {
 				CallSite cs = CallSite::get(
@@ -307,16 +347,39 @@ void IntTest::test_radix_like_simple(const Module &M) {
 				}
 			}
 		}
+
+		// Identify accesses to <rank_ff>. 
+		// Look at all "store 0". Not all of them are accesses to <rank_ff>,
+		// but doesn't affect the result. 
+		forallconst(Function, bb, *f) {
+			forallconst(BasicBlock, ins, *bb) {
+				if (const StoreInst *si = dyn_cast<StoreInst>(ins)) {
+					if (const ConstantInt *ci = dyn_cast<ConstantInt>(si->getOperand(0))) {
+						if (ci->isZero()) {
+							const GetElementPtrInst *gep =
+								dyn_cast<GetElementPtrInst>(si->getPointerOperand());
+							accesses_to_ff.push_back(gep->getOperand(0));
+						}
+					}
+				}
+			}
+		}
 	}
 
+	errs() << "=== Accesses to rank_me ===\n";
 	for (DenseMap<const Function *, vector<const Value *> >::iterator
 			i = accesses_to_me.begin(); i != accesses_to_me.end(); ++i) {
-		errs() << "=== Function " << i->first->getName() << " ===\n";
+		errs() << "Function " << i->first->getName() << ":\n";
 		for (size_t j = 0; j < i->second.size(); ++j)
 			errs() << *i->second[j] << "\n";
 	}
 
-	SolveConstraints &SC = getAnalysis<SolveConstraints>();
+	errs() << "=== Accesses to rank_ff ===\n";
+	for (size_t i = 0; i < accesses_to_ff.size(); ++i)
+		errs() << *accesses_to_ff[i] << "\n";
+
+	AdvancedAlias &AA = getAnalysis<AdvancedAlias>();
+	// SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	for (DenseMap<const Function *, vector<const Value *> >::iterator
 			i1 = accesses_to_me.begin(); i1 != accesses_to_me.end(); ++i1) {
 		DenseMap<const Function *, vector<const Value *> >::iterator i2;
@@ -325,12 +388,20 @@ void IntTest::test_radix_like_simple(const Module &M) {
 				for (size_t j2 = 0; j2 < i2->second.size(); ++j2) {
 					errs() << "{" << i1->first->getName() << ":" << j1 << "} != {" <<
 						i2->first->getName() << ":" << j2 << "}? ...";
-					SC.set_print_counterexample(true);
-					assert(SC.provable(CmpInst::ICMP_NE, i1->second[j1], i2->second[j2]));
-					SC.set_print_counterexample(false);
+					assert(AA.alias(i1->second[j1], 0, i2->second[j2], 0) ==
+							AliasAnalysis::NoAlias);
 					print_pass(errs());
 				}
 			}
+		}
+	}
+	for (size_t i1 = 0; i1 < accesses_to_ff.size(); ++i1) {
+		for (size_t i2 = i1 + 1; i2 < accesses_to_ff.size(); ++i2) {
+			errs() << "accesses_to_ff[" << i1 << "] != accesses_to_ff[" <<
+				i2 << "]? ...";
+			assert(AA.alias(accesses_to_ff[i1], 0, accesses_to_ff[i2], 0) ==
+					AliasAnalysis::NoAlias);
+			print_pass(errs());
 		}
 	}
 }
@@ -365,24 +436,18 @@ void IntTest::test_radix_nocrit_simple(const Module &M) {
 	for (size_t i = 0; i < arr_accesses.size(); ++i)
 		dbgs() << "Array access " << i << ":" << *arr_accesses[i] << "\n";
 
-	// SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	AdvancedAlias &AA = getAnalysis<AdvancedAlias>();
-	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	for (size_t i = 0; i < ranks.size(); ++i) {
 		for (size_t j = i + 1; j < ranks.size(); ++j) {
 			errs() << "Comparing rank " << i << " and rank " << j << " ... ";
 			assert(AA.alias(ranks[i], 0, ranks[j], 0) == AliasAnalysis::NoAlias);
 			print_pass(errs());
 
-			if (i == 0 && j == 2)
-				SC.set_print_counterexample(true);
 			errs() << "Comparing array access " << i << " and array access " <<
 				j << "...";
 			assert(AA.alias(arr_accesses[i], 0, arr_accesses[j], 0) ==
 					AliasAnalysis::NoAlias);
 			print_pass(errs());
-			if (i == 0 && j == 2)
-				SC.set_print_counterexample(false);
 		}
 	}
 }
@@ -654,9 +719,7 @@ void IntTest::test_aget_like_simple(const Module &M) {
 								end2, new Expr(ranges[i1][j1].first)));
 					errs() << "{" << i1 << ", " << j1 << "} and {" << i2 << ", " << j2 <<
 						"} are disjoint? ...";
-					SC.set_print_counterexample(true);
 					assert(SC.provable(new Clause(Instruction::Or, c1, c2)));
-					SC.set_print_counterexample(false);
 					print_pass(errs());
 				}
 			}

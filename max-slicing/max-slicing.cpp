@@ -164,16 +164,17 @@ void MaxSlicing::volatile_landmarks(Module &M, const Trace &trace) {
 				assert(clone_map.count(i));
 				assert(j < clone_map.find(i)->second.size());
 				Instruction *new_inst = clone_map.find(i)->second[j].lookup(old_inst);
-				CallInst *ci = dyn_cast<CallInst>(new_inst);
-				assert(ci);
+				CallSite cs = CallSite::get(new_inst);
+				assert(cs.getInstruction() &&
+						"Enforcing landmarks must be CallInst/InvokeInst");
 				// We claim that these enforcing landmarks may write to memory,
 				// so that the optimizer will not remove them. 
-				ci->setDoesNotAccessMemory(false);
-				ci->setOnlyReadsMemory(false);
+				cs.setDoesNotAccessMemory(false);
+				cs.setOnlyReadsMemory(false);
 				// Marking the CallInst as volatile is not enough. 
 				// We have to mark the function itself as volatile. 
 				// Otherwise, LLVM would smartly tag those CallInst's back. 
-				Function *callee = ci->getCalledFunction();
+				Function *callee = cs.getCalledFunction();
 				if (callee) {
 					callee->setDoesNotAccessMemory(false);
 					callee->setOnlyReadsMemory(false);
