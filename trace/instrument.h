@@ -19,7 +19,7 @@ namespace slicer {
 		static bool blocks(Instruction *ins);
 
 		const Type *uint_type;
-		Function *trace, *pth_create_wrapper;
+		Function *init_trace, *trace_inst, *pth_create_wrapper;
 	};
 }
 

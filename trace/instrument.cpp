@@ -19,9 +19,7 @@ using namespace slicer;
 static RegisterPass<slicer::Instrument> X(
 		"instrument",
 		"Instrument the program so that it will generate a trace"
-		" when being executed",
-		false,
-		false);
+		" when being executed");
 
 const static char *BLOCKING_FUNCS[] = {
 	"pthread_mutex_lock",
@@ -75,6 +73,7 @@ bool Instrument::runOnModule(Module &M) {
 
 	setup(M);
 	
+	// Insert <trace_inst> for each instruction. 
 	forallbb(M, bi) {
 		for (BasicBlock::iterator ii = bi->begin(); ii != bi->end(); ++ii) {
 			// Instruments landmarks (including derived ones) only. 
@@ -106,16 +105,17 @@ bool Instrument::runOnModule(Module &M) {
 			}
 			// Before the instruction if non-blocking. 
 			// After the instruction if blocking. 
-			if (!blocks(ii))
-				CallInst::Create(trace, ConstantInt::get(uint_type, ins_id), "", ii);
-			else {
+			if (!blocks(ii)) {
+				CallInst::Create(
+						trace_inst, ConstantInt::get(uint_type, ins_id), "", ii);
+			} else {
 				if (InvokeInst *inv = dyn_cast<InvokeInst>(ii)) {
 					// TODO: We don't instrument the unwind BB currently. 
 					BasicBlock *dest = inv->getNormalDest();
 					assert(dest->getSinglePredecessor() == bi &&
-							"Did you run nocrit before?");
+							"Did you run nocrit?");
 					CallInst::Create(
-							trace, ConstantInt::get(uint_type, ins_id), "",
+							trace_inst, ConstantInt::get(uint_type, ins_id), "",
 							dest->getFirstNonPHI());
 				} else {
 					assert(bi->getTerminator() != ii &&
@@ -129,7 +129,8 @@ bool Instrument::runOnModule(Module &M) {
 					// ii -> inst 1
 					++ii;
 					// ii -> inst 2
-					CallInst::Create(trace, ConstantInt::get(uint_type, ins_id), "", ii);
+					CallInst::Create(
+							trace_inst, ConstantInt::get(uint_type, ins_id), "", ii);
 					// ii -> inst 2
 					--ii;
 					// ii -> trace
@@ -137,19 +138,35 @@ bool Instrument::runOnModule(Module &M) {
 			}
 		}
 	}
+
+	// Insert <init_trace> at the main entry. 
+	forallfunc(M, f) {
+		if (is_main(f)) {
+			CallInst::Create(init_trace, "", f->begin()->begin());
+		}
+	}
+
 	return true;
 }
 
 void Instrument::setup(Module &M) {
+	
 	// sizeof(unsigned) == 4
 	uint_type = IntegerType::get(M.getContext(), 32);
-	FunctionType *trace_type = FunctionType::get(
+	FunctionType *trace_inst_fty = FunctionType::get(
 			Type::getVoidTy(M.getContext()),
 			vector<const Type *>(1, uint_type),
 			false);
-	trace = dyn_cast<Function>(M.getOrInsertFunction("trace_inst", trace_type));
+	FunctionType *init_trace_fty = FunctionType::get(
+			Type::getVoidTy(M.getContext()), false);
+	
+	trace_inst = dyn_cast<Function>(
+			M.getOrInsertFunction("trace_inst", trace_inst_fty));
+	init_trace = dyn_cast<Function>(
+			M.getOrInsertFunction("init_trace", init_trace_fty));
 	Function *pth_create = M.getFunction("pthread_create");
 	if (!pth_create) {
+		// Not every programs use pthread library. 
 		pth_create_wrapper = NULL;
 	} else {
 		vector<const Type *> params;
