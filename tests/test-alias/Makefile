@@ -17,10 +17,10 @@ CXXFLAGS += -I$(LLVM_ROOT)
 
 test::
 	opt -disable-output \
-		-load $(LLVM_ROOT)/install/lib/libidm.so \
+		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libtest-alias.so \
 		-test-alias \
-		< ../progs/a.bc
+		< ../progs/test-array-2.bc
 
 .PHONY: test

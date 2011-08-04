@@ -1,3 +1,7 @@
+/**
+ * Author: Jingyue
+ */
+
 #ifndef __SLICER_CAPTURE_H
 #define __SLICER_CAPTURE_H
 
@@ -169,6 +173,8 @@ namespace slicer {
 		/* Function summaries. */
 		void capture_func_summaries(Module &M);
 		void capture_libcall(const CallSite &cs);
+		bool capture_memory_allocation(
+				const CallSite &cs, Expr *&start, Expr *&size);
 
 		// Data members. 
 		vector<Clause *> constraints;

@@ -5,7 +5,7 @@
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/DominatorInternals.h"
 #include "common/include/util.h"
-#include "idm/id.h"
+#include "common/id-manager/IDAssigner.h"
 using namespace llvm;
 
 #include "bc2bdd/BddAliasAnalysis.h"
@@ -28,7 +28,7 @@ namespace slicer {
 
 	void TestAlias::getAnalysisUsage(AnalysisUsage &AU) const {
 		AU.setPreservesAll();
-		AU.addRequired<ObjectID>();
+		AU.addRequired<IDAssigner>();
 		AU.addRequired<AliasAnalysis>();
 		AU.addRequired<BddAliasAnalysis>();
 		ModulePass::getAnalysisUsage(AU);
@@ -36,11 +36,23 @@ namespace slicer {
 
 	bool TestAlias::runOnModule(Module &M) {
 		errs() << "===== test =====\n";
-		ObjectID &OI = getAnalysis<ObjectID>();
+		IDAssigner &IDA = getAnalysis<IDAssigner>();
 		BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
-		// AliasAnalysis &BAA = getAnalysis<AliasAnalysis>();
-		const Value *v1 = OI.getValue(1665);
-		const Value *v2 = OI.getValue(3599);
+#if 0
+		// test-malloc
+		const Value *v1 = IDA.getValue(13);
+		const Value *v2 = IDA.getValue(38);
+#endif
+#if 0
+		// test-array-3
+		const Value *v1 = IDA.getValue(12);
+		const Value *v2 = IDA.getValue(19);
+#endif
+#if 1
+		// test-array-2
+		const Value *v1 = IDA.getValue(8);
+		const Value *v2 = IDA.getValue(13);
+#endif
 		assert(v1 && v2);
 		errs() << *v1 << "\n" << *v2 << "\n";
 		errs() << BAA.alias(v1, 0, v2, 0) << "\n";
