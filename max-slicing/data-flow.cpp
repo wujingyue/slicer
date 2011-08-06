@@ -178,7 +178,6 @@ void MaxSlicing::fix_def_use(Module &M, const Trace &trace) {
 	// of unresolved operands. 
 	dbgs() << "\nFixing def-use...\n";
 	fix_def_use_bb(M);
-	M.dump();
 	fix_def_use_insts(M, trace);
 	fix_def_use_func_param(M);
 	fix_def_use_func_call(M);
