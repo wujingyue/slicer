@@ -13,6 +13,7 @@
 #include "llvm/Analysis/Verifier.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/ADT/Statistic.h"
 #include "common/id-manager/IDManager.h"
 #include "common/callgraph-fp/callgraph-fp.h"
 #include "common/cfg/may-exec.h"
@@ -31,9 +32,11 @@ using namespace slicer;
 
 static RegisterPass<MaxSlicing> X(
 		"max-slicing",
-		"Slice and unroll the program according to the trace",
-		false,
-		false); // max-slicing is a pure transform pass. 
+		"Slice and unroll the program according to the trace");
+
+STATISTIC(NumOrigInstructions, "Number of original instructions");
+STATISTIC(NumOrigInstructionsLeft,
+		"Number of original instructions left after slicing");
 
 void MaxSlicing::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<IDManager>();
@@ -105,9 +108,13 @@ void MaxSlicing::read_trace_and_cut(
 
 bool MaxSlicing::runOnModule(Module &M) {
 	
+	IDManager &IDM = getAnalysis<IDManager>();
+	MayExec &ME = getAnalysis<MayExec>();
+	EnforcingLandmarks &EL = getAnalysis<EnforcingLandmarks>();
+
 	// Make sure the original program has required ID information. 
-	assert(getAnalysis<IDManager>().size() > 0 &&
-			"The program does not have ID information.");
+	assert(IDM.size() > 0 && "The program does not have ID information.");
+	NumOrigInstructions = IDM.size();
 	
 	// Read the trace and the cut. 
 	Trace trace;
@@ -116,8 +123,6 @@ bool MaxSlicing::runOnModule(Module &M) {
 	read_trace_and_cut(trace, thr_cr_records, cut);
 	
 	// Which functions may execute a landmark? 
-	MayExec &ME = getAnalysis<MayExec>();
-	EnforcingLandmarks &EL = getAnalysis<EnforcingLandmarks>();
 	ME.setup_landmarks(EL.get_enforcing_landmarks());
 	ME.run();
 	
@@ -127,9 +132,6 @@ bool MaxSlicing::runOnModule(Module &M) {
 	
 	// Fix the def-use graph. 
 	fix_def_use(M, trace);
-	
-	// Statistic. 
-	stat(M);
 	
 	// Link thread functions. 
 	link_thr_funcs(M, trace, thr_cr_records);
@@ -154,6 +156,14 @@ bool MaxSlicing::runOnModule(Module &M) {
 	check_dominance(M);
 	verifyModule(M);
 
+	// Calculate the number of original instructions left. 
+	InstSet cloned_orig_insts;
+	forallinst(M, ins) {
+		if (Instruction *orig_ins = clone_map_r.lookup(ins))
+			cloned_orig_insts.insert(orig_ins);
+	}
+	NumOrigInstructionsLeft = cloned_orig_insts.size();
+	
 	return true;
 }
 
@@ -219,20 +229,6 @@ void MaxSlicing::volatile_landmarks(Module &M, const Trace &trace) {
 			}
 		}
 	}
-}
-
-void MaxSlicing::stat(Module &M) {
-	errs() << "Stat...\n";
-	unsigned n_orig_insts = 0;
-	InstSet cloned_orig_insts;
-	forallinst(M, ii) {
-		if (Instruction *orig = clone_map_r.lookup(ii))
-			cloned_orig_insts.insert(orig);
-		else
-			n_orig_insts++;
-	}
-	errs() << cloned_orig_insts.size() << " out of " << n_orig_insts
-		<< " instructions are still in the sliced program.\n";
 }
 
 char MaxSlicing::ID = 0;

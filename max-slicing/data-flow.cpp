@@ -185,7 +185,9 @@ void MaxSlicing::fix_def_use(Module &M, const Trace &trace) {
 }
 
 void MaxSlicing::fix_def_use_func_call(Module &M) {
+
 	dbgs() << "Fixing function calls in def-use graph...\n";
+	
 	forall(InstMapping, it, clone_map_r) {
 		Instruction *ins = it->first;
 		if (is_call(ins) && !is_intrinsic_call(ins)) {
@@ -214,7 +216,9 @@ void MaxSlicing::fix_def_use_func_call(Module &M) {
 }
 
 void MaxSlicing::fix_def_use_func_param(Module &M) {
+
 	dbgs() << "Fixing function parameters in def-use graph...\n";
+
 	forall(InstMapping, it, clone_map_r) {
 		Instruction *ins = it->first;
 		Instruction *orig_ins = it->second;
@@ -238,8 +242,11 @@ void MaxSlicing::fix_def_use_func_param(Module &M) {
 
 void MaxSlicing::fix_def_use_insts(Module &M, const Trace &trace) {
 	dbgs() << "Fixing instructions in def-use graph...\n";
-	forallfunc(M, f)
+	forallfunc(M, f) {
+		if (f->isDeclaration())
+			continue;
 		fix_def_use_insts_in_func(f);
+	}
 }
 
 void MaxSlicing::fix_def_use_insts_in_func(Function *f) {

@@ -226,7 +226,6 @@ namespace slicer {
 		void redirect_program_entry(Instruction *old_start, Instruction *new_start);
 
 		/* Misc */
-		void stat(Module &M);
 		void volatile_landmarks(Module &M, const Trace &trace);
 		void check_dominance(Module &M);
 

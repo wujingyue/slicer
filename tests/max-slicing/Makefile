@@ -14,7 +14,7 @@ region: $(addsuffix .region, $(PROG_NAMES))
 
 # max-slicing requires ID information. 
 $(PROGS_DIR)/%.slice.bc: $(PROGS_DIR)/%-id.bc ../trace/%.lt
-	opt -o $@ \
+	opt -stats -o $@ \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
