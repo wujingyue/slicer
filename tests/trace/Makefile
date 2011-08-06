@@ -1,6 +1,7 @@
 PROG_NAMES = test-thread test-overwrite test-loop test-reducer test-pointer \
 	     test-recursive test-bound FFT-like aget-like test-array \
 	     test-overwrite-2 RADIX-like test-thread-2 test-malloc \
+	     test-switch \
 	     aget-nocrit FFT-nocrit RADIX-nocrit \
 	     pbzip2-nocrit CHOLESKY-nocrit
 PROGS_DIR = ../progs
@@ -45,6 +46,7 @@ pbzip2%: pbzip2%.s
 # ./FFT-like 4
 # ./aget-like 16 4
 # ./pbzip2 -p8 -dkvf test.bz2
+# ./CHOLESKY -p2 < lshp.O
 
 %.lt: %.ft
 	opt -disable-output \

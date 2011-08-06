@@ -9,6 +9,8 @@
 
 #include "llvm/Module.h"
 #include "llvm/LLVMContext.h"
+#include "llvm/Analysis/Dominators.h"
+#include "llvm/Analysis/Verifier.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "common/id-manager/IDManager.h"
@@ -41,6 +43,7 @@ void MaxSlicing::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<MarkLandmarks>();
 	AU.addRequired<EnforcingLandmarks>();
 	AU.addRequired<LandmarkTrace>();
+	AU.addRequired<DominatorTree>();
 	ModulePass::getAnalysisUsage(AU);
 }
 
@@ -144,10 +147,44 @@ bool MaxSlicing::runOnModule(Module &M) {
 	// to remove them. 
 	volatile_landmarks(M, trace);
 
-	DEBUG(dbgs() << "Dumping module...\n";
-	M.dump(););
-	
+#if 0
+	dbgs() << "Dumping module...\n";
+	M.dump();
+#endif
+	check_dominance(M);
+	verifyModule(M);
+
 	return true;
+}
+
+void MaxSlicing::check_dominance(Module &M) {
+	forallfunc(M, f) {
+		if (f->isDeclaration())
+			continue;
+		DominatorTree &DT = getAnalysis<DominatorTree>(*f);
+		forall(Function, bb, *f) {
+			forall(BasicBlock, ins, *bb) {
+				// LLVM has a bug with dominance check for InvokeInsts. 
+				if (isa<InvokeInst>(ins))
+					continue;
+				for (Value::use_iterator ui = ins->use_begin(); ui != ins->use_end();
+						++ui) {
+					if (Instruction *user = dyn_cast<Instruction>(*ui)) {
+						if (isa<PHINode>(user))
+							continue;
+						if (!DT.dominates(ins, user)) {
+							errs() << "Does not dominate:\n";
+							errs() << ins->getParent()->getParent()->getName() << "." <<
+								ins->getParent()->getName() << ":" << *ins << "\n";
+							errs() << user->getParent()->getParent()->getName() << "." <<
+								user->getParent()->getName() << ":" << *user << "\n";
+						}
+						assert(DT.dominates(ins, user));
+					}
+				}
+			}
+		}
+	}
 }
 
 void MaxSlicing::volatile_landmarks(Module &M, const Trace &trace) {
@@ -189,11 +226,10 @@ void MaxSlicing::stat(Module &M) {
 	unsigned n_orig_insts = 0;
 	InstSet cloned_orig_insts;
 	forallinst(M, ii) {
-		Instruction *orig = clone_map_r.lookup(ii);
-		if (!orig)
-			n_orig_insts++;
-		else
+		if (Instruction *orig = clone_map_r.lookup(ii))
 			cloned_orig_insts.insert(orig);
+		else
+			n_orig_insts++;
 	}
 	errs() << cloned_orig_insts.size() << " out of " << n_orig_insts
 		<< " instructions are still in the sliced program.\n";

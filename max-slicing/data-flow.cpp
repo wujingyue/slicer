@@ -8,6 +8,8 @@
 #include "llvm/LLVMContext.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/CFG.h"
+#include "llvm/Transforms/Utils/SSAUpdater.h"
 #include "common/callgraph-fp/callgraph-fp.h"
 #include "common/cfg/may-exec.h"
 using namespace llvm;
@@ -140,34 +142,27 @@ void MaxSlicing::fix_def_use_bb(Module &M) {
 		} // for bb
 	} // for func
 	
-	forallbb(M, bi) {
+	forallbb(M, bb) {
 		unsigned n_terminators = 0;
-		forall(BasicBlock, ii, *bi) {
-			if (ii->isTerminator())
+		forall(BasicBlock, ins, *bb) {
+			if (ins->isTerminator())
 				n_terminators++;
 		}
 		if (n_terminators != 1) {
-			errs() << bi->getParent()->getName() << "." << bi->getName() <<
+			errs() << bb->getParent()->getName() << "." << bb->getName() <<
 				" has 0 or multiple terminators.\n";
 		}
 		assert(n_terminators == 1);
 	}
-}
 
-Instruction *MaxSlicing::find_op_in_cloned(
-		Instruction *op,
-		Instruction *user,
-		const InstMapping &parent) {
-	// <op'> must dominate <user>, therefore we trace back via <parent>.
-	Instruction *op2 = user;
-	do {
-		Instruction *old_op2 = op2;
-		op2 = parent.lookup(op2);
-		assert(op2);
-		assert(op2 != old_op2 && "Cannot find the corresponding operand");
-		assert(clone_map_r.count(op2));
-	} while (clone_map_r.lookup(op2) != op);
-	return op2;
+	forallbb(M, bb) {
+		for (succ_iterator si = succ_begin(bb); si != succ_end(bb); ++si) {
+			assert(bb->getParent() == (*si)->getParent());
+		}
+		for (pred_iterator pi = pred_begin(bb); pi != pred_end(bb); ++pi) {
+			assert(bb->getParent() == (*pi)->getParent());
+		}
+	}
 }
 
 void MaxSlicing::fix_def_use(Module &M, const Trace &trace) {
@@ -183,6 +178,7 @@ void MaxSlicing::fix_def_use(Module &M, const Trace &trace) {
 	// of unresolved operands. 
 	dbgs() << "\nFixing def-use...\n";
 	fix_def_use_bb(M);
+	M.dump();
 	fix_def_use_insts(M, trace);
 	fix_def_use_func_param(M);
 	fix_def_use_func_call(M);
@@ -241,65 +237,79 @@ void MaxSlicing::fix_def_use_func_param(Module &M) {
 	}
 }
 
-void MaxSlicing::fix_def_use_insts(
-		Module &M,
-		const Trace &trace) {
+void MaxSlicing::fix_def_use_insts(Module &M, const Trace &trace) {
 	dbgs() << "Fixing instructions in def-use graph...\n";
-	// Construct the DFS tree. 
-	InstMapping parent;
-	// We borrow assign_level to calculate <parent>. 
-	// <level> is actually unused.
-	DenseMap<Instruction *, int> level;
-	forallconst(Trace, it, trace) {
-		// There can be incomplete functions, due to not exiting normally. 
-		// In that case, we skip this thread. 
-		if (clone_map[it->first].empty())
-			continue;
-		Instruction *start = clone_map[it->first][0].lookup(it->second[0]);
-		assert(start);
-		parent[start] = start;
-		assign_level(start, level, parent);
-	}
-	// In SSA, a definition dominates all its uses. Therefore, if we trace
-	// back from a use via the DFS tree, we should always be able to find
-	// its definition. 
-	forall(InstMapping, it, clone_map_r) {
-		Instruction *user = it->first;
-		assert(user);
-		if (!isa<PHINode>(user)) {
-			for (unsigned j = 0; j < user->getNumOperands(); ++j) {
-				Instruction *op = dyn_cast<Instruction>(user->getOperand(j));
-				// Only fix instructions at this stage. 
-				if (op == NULL)
-					continue;
-				// <op> is still in the original CFG.
-				// Need to find its latest countepart <op'>. 
-				user->setOperand(j, find_op_in_cloned(op, user, parent));
+	forallfunc(M, f)
+		fix_def_use_insts_in_func(f);
+}
+
+void MaxSlicing::fix_def_use_insts_in_func(Function *f) {
+	
+	dbgs() << "Fixing instructions in Function " << f->getName() << "...\n";
+
+	// An old instruction may correspond to multiple new instructions.
+	DenseMap<Instruction *, InstSet> old_insts_to_new;
+	DenseMap<Instruction *, vector<Use *> > uses_of_old_insts;
+	
+	// Collect all def-use chains in this function. 
+	forall(Function, bb, *f) {
+		forall(BasicBlock, new_ins, *bb) {
+			if (Instruction *old_ins = clone_map_r.lookup(new_ins)) {
+				old_insts_to_new[old_ins].insert(new_ins);
+				for (unsigned i = 0; i < new_ins->getNumOperands(); ++i) {
+					Value *op = new_ins->getOperand(i);
+					// Needn't consider ConstantExprs, because they are constant. 
+					if (Instruction *used = dyn_cast<Instruction>(op)) {
+						assert(!clone_map_r.count(used));
+						uses_of_old_insts[used].push_back(&new_ins->getOperandUse(i));
+					}
+				}
 			}
-		} else {
-			// PHINode. Similar to non-PHINode case. 
-			// Start tracing back from the tail of each incoming edge. 
-			PHINode *phi = dyn_cast<PHINode>(user);
-			for (unsigned j = 0; j < phi->getNumIncomingValues(); ++j) {
-				Instruction *op = dyn_cast<Instruction>(phi->getIncomingValue(j));
-				if (op == NULL)
-					continue;
-				Instruction *op2 = find_op_in_cloned(
-						op,
-						phi->getIncomingBlock(j)->getTerminator(),
-						parent);
-				phi->setIncomingValue(j, op2);
+		}
+	}
+
+	// Resolve them using SSAUpdater. 
+	for (DenseMap<Instruction *, InstSet>::iterator
+			i = old_insts_to_new.begin(); i != old_insts_to_new.end(); ++i) {
+		// old_ins => {new_ins, new_ins, ..., new_ins}
+		Instruction *old_ins = i->first;
+		SSAUpdater su;
+		// <old_ins> is used as a prototype value. Only its name and type
+		// are used by SSAUpdater. 
+		// TODO: Interface changed in LLVM 2.9. 
+		su.Initialize(old_ins);
+		const InstSet &avail_values = i->second;
+		forallconst(InstSet, j, avail_values) {
+			Instruction *new_ins = *j;
+			su.AddAvailableValue(new_ins->getParent(), new_ins);
+		}
+		DenseMap<Instruction *, vector<Use *> >::iterator k =
+			uses_of_old_insts.find(old_ins);
+		if (k != uses_of_old_insts.end()) {
+			for (size_t j = 0; j < k->second.size(); ++j) {
+				Use *use = k->second[j];
+				Instruction *user = dyn_cast<Instruction>(use->getUser());
+				assert(user && "The user of an instruction must be an instruction");
+				BasicBlock::iterator prev = user;
+				bool found = false;
+				while (prev != prev->getParent()->begin()) {
+					--prev;
+					if (avail_values.count(prev)) {
+						found = true;
+						break;
+					}
+				}
+				if (found)
+					use->set(prev);
+				else
+					su.RewriteUse(*k->second[j]);
 			}
 		}
 	}
 }
 
-void MaxSlicing::link_thr_func(
-		Module &M,
-		const Trace &trace,
-		int parent_tid,
-		size_t trunk_id,
-		int child_tid) {
+void MaxSlicing::link_thr_func(Module &M, const Trace &trace,
+		int parent_tid, size_t trunk_id, int child_tid) {
 	
 	// <orig_site> is the pthread_create site in the original program. 
 	Trace::const_iterator it = trace.find(parent_tid);

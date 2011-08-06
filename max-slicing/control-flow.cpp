@@ -20,7 +20,7 @@ using namespace llvm;
 using namespace std;
 
 #include "max-slicing.h"
-#include "../trace/landmark-trace.h"
+#include "trace/landmark-trace.h"
 using namespace slicer;
 
 void MaxSlicing::add_cfg_edge(Instruction *x, Instruction *y) {
@@ -188,7 +188,7 @@ void MaxSlicing::assign_container(
 			Instruction *p = find_parent_at_same_level(x, level, parent);
 			func = p->getParent()->getParent();
 		}
-		bb = BasicBlock::Create(getGlobalContext(), "bb", func);
+		bb = BasicBlock::Create(getGlobalContext(), old_bb->getName(), func);
 	} else {
 		Instruction *p = find_parent_at_same_level(x, level, parent);
 		bb = p->getParent();
