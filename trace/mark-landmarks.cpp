@@ -16,10 +16,8 @@ using namespace llvm;
 using namespace slicer;
 
 static RegisterPass<MarkLandmarks> X(
-		"mark-landmarks",
-		"Mark landmarks",
-		false,
-		true); // is analysis
+		"mark-landmarks", "Mark landmarks",
+		false, true); // is analysis
 
 char MarkLandmarks::ID = 0;
 
@@ -28,9 +26,25 @@ bool MarkLandmarks::runOnModule(Module &M) {
 	landmarks.clear();
 	mark_enforcing_landmarks(M);
 	mark_branch_succs(M);
+	mark_thread_exits(M);
 	mark_recursive_rets(M);
-	mark_thread(M);
 	return false;
+}
+
+void MarkLandmarks::mark_thread_exits(Module &M) {
+
+	IdentifyThreadFuncs &ITF = getAnalysis<IdentifyThreadFuncs>();
+	
+	forallfunc(M, fi) {
+		if (fi->isDeclaration())
+			continue;
+		if (ITF.is_thread_func(fi) || is_main(fi)) {
+			forall(Function, bi, *fi) {
+				if (succ_begin(bi) == succ_end(bi))
+					landmarks.insert(bi->getTerminator());
+			}
+		}
+	}
 }
 
 void MarkLandmarks::mark_recursive_rets(Module &M) {
@@ -67,22 +81,6 @@ void MarkLandmarks::mark_enforcing_landmarks(Module &M) {
 	EnforcingLandmarks &EL = getAnalysis<EnforcingLandmarks>();
 	const InstSet &enforcing_landmarks = EL.get_enforcing_landmarks();
 	landmarks.insert(enforcing_landmarks.begin(), enforcing_landmarks.end());
-}
-
-void MarkLandmarks::mark_thread(Module &M) {
-	IdentifyThreadFuncs &ITF = getAnalysis<IdentifyThreadFuncs>();
-	forallfunc(M, fi) {
-		if (fi->isDeclaration())
-			continue;
-		if (ITF.is_thread_func(fi) || is_main(fi)) {
-			Instruction *first = fi->getEntryBlock().getFirstNonPHI();
-			landmarks.insert(first);
-			forall(Function, bi, *fi) {
-				if (succ_begin(bi) == succ_end(bi))
-					landmarks.insert(bi->getTerminator());
-			}
-		}
-	}
 }
 
 void MarkLandmarks::mark_branch_succs(Module &M) {

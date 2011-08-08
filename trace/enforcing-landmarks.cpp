@@ -56,10 +56,8 @@ static const char *DEFAULT_ENFORCING_LANDMARK_FUNCS[] = {
 };
 
 static RegisterPass<EnforcingLandmarks> X(
-		"enforcing-landmarks",
-		"Identify enforcing landmarks",
-		false,
-		true); // is analysis
+		"enforcing-landmarks", "Identify enforcing landmarks",
+		false, true); // is analysis
 
 static cl::opt<string> EnforcingLandmarksFile(
 		"input-landmarks",
@@ -89,12 +87,16 @@ bool EnforcingLandmarks::runOnModule(Module &M) {
 	}
 
 	// Mark any function call to landmark functions as enforcing landmarks. 
-	forallinst(M, ii) {
-		CallSite cs = CallSite::get(ii);
-		if (cs.getInstruction()) {
-			Function *callee = cs.getCalledFunction();
-			if (callee && enforcing_landmark_funcs.count(callee->getName()))
-				enforcing_landmarks.insert(ii);
+	forallfunc(M, f) {
+		forall(Function, bb, *f) {
+			forall(BasicBlock, ins, *bb) {
+				CallSite cs = CallSite::get(ins);
+				if (cs.getInstruction()) {
+					Function *callee = cs.getCalledFunction();
+					if (callee && enforcing_landmark_funcs.count(callee->getName()))
+						enforcing_landmarks.insert(ins);
+				}
+			}
 		}
 	}
 

@@ -6,6 +6,7 @@
 
 #include "llvm/Module.h"
 #include "llvm/LLVMContext.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/CFG.h"
@@ -21,6 +22,8 @@ using namespace std;
 
 #include "max-slicing.h"
 using namespace slicer;
+
+STATISTIC(NumPHINodesInserted, "Number of PHINodes inserted");
 
 void MaxSlicing::redirect_program_entry(
 		Instruction *old_start,
@@ -279,7 +282,8 @@ void MaxSlicing::fix_def_use_insts_in_func(Function *f) {
 			i = old_insts_to_new.begin(); i != old_insts_to_new.end(); ++i) {
 		// old_ins => {new_ins, new_ins, ..., new_ins}
 		Instruction *old_ins = i->first;
-		SSAUpdater su;
+		SmallVector<PHINode *, 8> inserted_phis;
+		SSAUpdater su(&inserted_phis);
 		// <old_ins> is used as a prototype value. Only its name and type
 		// are used by SSAUpdater. 
 		// TODO: Interface changed in LLVM 2.9. 
@@ -296,6 +300,8 @@ void MaxSlicing::fix_def_use_insts_in_func(Function *f) {
 				Use *use = k->second[j];
 				Instruction *user = dyn_cast<Instruction>(use->getUser());
 				assert(user && "The user of an instruction must be an instruction");
+				// If there's a definition in the same BB and in front of <user>,
+				// just use it. Otherwise, use SSAUpdater. 
 				BasicBlock::iterator prev = user;
 				bool found = false;
 				while (prev != prev->getParent()->begin()) {
@@ -311,6 +317,7 @@ void MaxSlicing::fix_def_use_insts_in_func(Function *f) {
 					su.RewriteUse(*k->second[j]);
 			}
 		}
+		NumPHINodesInserted += inserted_phis.size();
 	}
 }
 

@@ -54,7 +54,7 @@ all: $(BCS)
 # Instruction ID <==> File: Line
 %.loc: %.bc
 	opt -disable-output \
-		-load $(LLVM_ROOT)/install/lib/libidm.so \
+		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
 		-load $(LLVM_ROOT)/install/lib/libsrc-locator.so \
 		-src-locator \
 		-input $(ARG) \

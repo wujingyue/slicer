@@ -10,13 +10,11 @@ struct GlobalPrivate {
 } gp[MAX_P];
 
 void *foo0(void *arg) {
-	fprintf(stderr, "tid = %lu\n", pthread_self());
 	gp[0].rank_ff[0] = 5;
 	return NULL;
 }
 
 void *foo1(void *arg) {
-	fprintf(stderr, "tid = %lu\n", pthread_self());
 	gp[1].rank_ff[0] = 5;
 	return NULL;
 }

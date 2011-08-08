@@ -30,9 +30,8 @@ namespace slicer {
 		void mark_enforcing_landmarks(Module &M);
 		// Mark the successors of each important branch. 
 		void mark_branch_succs(Module &M);
-		// Mark the entry and the exits of each thread function. 
-		// Function main is considered as a thread function as well. 
-		void mark_thread(Module &M);
+		// Mark exits of thread functions as derived landmarks. 
+		void mark_thread_exits(Module &M);
 		/**
 		 * Mark the return sites of recursive functions that may execute
 		 * enforcing landmarks. 

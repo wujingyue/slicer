@@ -1,7 +1,7 @@
 PROG_NAMES = test-thread test-overwrite test-loop test-reducer test-pointer \
 	     test-recursive test-bound FFT-like aget-like test-array \
 	     test-overwrite-2 RADIX-like test-thread-2 test-malloc \
-	     test-switch \
+	     test-switch test-ctxt-nocrit \
 	     aget-nocrit FFT-nocrit RADIX-nocrit \
 	     pbzip2-nocrit CHOLESKY-nocrit
 PROGS_DIR = ../progs
@@ -62,10 +62,10 @@ pbzip2%: pbzip2%.s
 		< $(PROGS_DIR)/$(<:.ft=-id.bc)
 
 %.display-ft: %.ft
-	trace-display full < $<
+	display-trace full < $<
 
 %.display-lt: %.lt
-	trace-display landmark < $<
+	display-trace landmark < $<
 
 %.landmarks: $(PROGS_DIR)/%-id.bc
 	opt -analyze \

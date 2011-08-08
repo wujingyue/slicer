@@ -37,6 +37,8 @@ static RegisterPass<MaxSlicing> X(
 STATISTIC(NumOrigInstructions, "Number of original instructions");
 STATISTIC(NumOrigInstructionsLeft,
 		"Number of original instructions left after slicing");
+STATISTIC(NumInstructionsInSliced,
+		"Number of all instructions in the sliced program");
 
 void MaxSlicing::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<IDManager>();
@@ -159,6 +161,7 @@ bool MaxSlicing::runOnModule(Module &M) {
 	// Calculate the number of original instructions left. 
 	InstSet cloned_orig_insts;
 	forallinst(M, ins) {
+		++NumInstructionsInSliced;
 		if (Instruction *orig_ins = clone_map_r.lookup(ins))
 			cloned_orig_insts.insert(orig_ins);
 	}
