@@ -8,10 +8,14 @@ CXXFLAGS += -I$(LLVM_ROOT) -I$(SLICER_ROOT) -I$(SLICER_ROOT)/stp/install/include
 
 include $(LEVEL)/Makefile.common
 
-PROG_NAMES = test-overwrite.simple test-loop.simple test-reducer.simple \
-	     test-bound.simple FFT-like.simple test-thread.simple \
-	     test-array.simple aget-like.simple test-overwrite-2.simple \
-	     test-thread-2.simple RADIX-like.simple test-malloc.simple \
+PROG_NAMES = test-overwrite-nocrit.simple test-loop-nocrit.simple \
+	     test-reducer-nocrit.simple \
+	     test-bound-nocrit.simple FFT-like-nocrit.simple \
+	     test-thread-nocrit.simple \
+	     test-array-nocrit.simple aget-like-nocrit.simple \
+	     test-overwrite-2-nocrit.simple \
+	     test-thread-2-nocrit.simple RADIX-like-nocrit.simple \
+	     test-malloc-nocrit.simple \
 	     aget-nocrit.simple FFT-nocrit.simple \
 	     RADIX-nocrit.simple CHOLESKY-nocrit.simple
 PROGS_DIR = ../progs

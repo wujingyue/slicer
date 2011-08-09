@@ -43,6 +43,7 @@ pbzip2%: pbzip2%.s
 	$(CXX) $< -o $@ -pthread -lbz2
 
 # ./test-reducer-nocrit 1 2 3
+# ./test-loop-nocrit 3
 # ./test-bound-nocrit 5 10 15
 # ./RADIX-nocrit -p2 -r1024
 # ./FFT-nocrit -p4 -m10

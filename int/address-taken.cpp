@@ -217,8 +217,13 @@ Instruction *CaptureConstraints::find_nearest_common_dom(
 	assert(m1 && m2);
 
 	ICFG &PIB = getAnalysis<PartialICFGBuilder>();
+	// Due to function inlining, some instructions with clone_info are 
+	// actually unreachable. 
 	ICFGNode *n1 = PIB[m1], *n2 = PIB[m2];
-	assert(n1 && n2);
+	if (n1 == NULL)
+		return i2;
+	if (n2 == NULL)
+		return i1;
 
 	ICFGNode *n = IDT.findNearestCommonDominator(n1, n2);
 	assert(n);

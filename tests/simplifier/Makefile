@@ -1,8 +1,10 @@
 # simplifier only works on sliced programs 
 
-PROG_NAMES = test-loop test-reducer test-overwrite test-bound FFT-like \
-	     aget-like test-array test-thread RADIX-like test-thread-2 \
-	     test-overwrite-2 test-malloc \
+PROG_NAMES = test-loop-nocrit test-reducer-nocrit test-overwrite-nocrit \
+	     test-bound-nocrit FFT-like-nocrit \
+	     aget-like-nocrit test-array-nocrit test-thread-nocrit \
+	     RADIX-like-nocrit test-thread-2-nocrit \
+	     test-overwrite-2-nocrit test-malloc-nocrit \
 	     aget-nocrit RADIX-nocrit FFT-nocrit CHOLESKY-nocrit
 PROGS_DIR = ../progs
 PROGS = $(addprefix $(PROGS_DIR)/, $(PROG_NAMES))
