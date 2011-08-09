@@ -30,7 +30,12 @@ namespace slicer {
 		void mark_enforcing_landmarks(Module &M);
 		// Mark the successors of each important branch. 
 		void mark_branch_succs(Module &M);
-		// Mark exits of thread functions as derived landmarks. 
+		/**
+		 * Mark exits of thread functions as derived landmarks. 
+		 * The preparer has already inserted enforcing landmarks at
+		 * thread function exits. So marking function exits as derived landmarks
+		 * is safe. 
+		 */
 		void mark_thread_exits(Module &M);
 		/**
 		 * Mark the return sites of recursive functions that may execute

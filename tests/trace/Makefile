@@ -1,7 +1,9 @@
-PROG_NAMES = test-thread test-overwrite test-loop test-reducer test-pointer \
-	     test-recursive test-bound FFT-like aget-like test-array \
-	     test-overwrite-2 RADIX-like test-thread-2 test-malloc \
-	     test-switch test-ctxt-nocrit \
+PROG_NAMES = test-thread-nocrit test-overwrite-nocrit test-loop-nocrit \
+	     test-reducer-nocrit test-pointer-nocrit \
+	     test-recursive-nocrit test-bound-nocrit FFT-like-nocrit \
+	     aget-like-nocrit test-array-nocrit \
+	     test-overwrite-2-nocrit RADIX-like-nocrit test-thread-2-nocrit \
+	     test-malloc-nocrit test-ctxt-nocrit \
 	     aget-nocrit FFT-nocrit RADIX-nocrit \
 	     pbzip2-nocrit CHOLESKY-nocrit
 PROGS_DIR = ../progs
@@ -40,12 +42,15 @@ landmark-trace: $(LANDMARK_TRACES)
 pbzip2%: pbzip2%.s
 	$(CXX) $< -o $@ -pthread -lbz2
 
+# ./test-reducer-nocrit 1 2 3
+# ./test-bound-nocrit 5 10 15
 # ./RADIX-nocrit -p2 -r1024
 # ./FFT-nocrit -p4 -m10
 # ./RADIX-like 4 1024 524288
 # ./FFT-like 4
 # ./aget-like 16 4
-# ./pbzip2 -p8 -dkvf test.bz2
+# ./aget-nocrit -n2 -f http://www.cs.columbia.edu/~jingyue/index.html
+# ./pbzip2-nocrit -p8 -dkvf test.bz2
 # ./CHOLESKY -p2 < lshp.O
 
 %.lt: %.ft

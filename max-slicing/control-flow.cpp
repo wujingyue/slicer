@@ -89,6 +89,14 @@ Instruction *MaxSlicing::find_parent_at_same_level(
 		Instruction *x,
 		const DenseMap<Instruction *, int> &level,
 		const InstMapping &parent) {
+#if 0
+	Instruction *old_x = clone_map_r.lookup(x);
+	assert(old_x);
+	errs() << "find_parent_at_same_level: " <<
+		old_x->getParent()->getParent()->getName() <<
+		"." << old_x->getParent()->getName() << "\n";
+	errs() << *old_x << "\n";
+#endif
 	/*
 	 * This piece of code can be simplified using only one for-loop.
 	 * But we don't do that because we need those assertions.

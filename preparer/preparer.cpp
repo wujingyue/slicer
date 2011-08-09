@@ -50,6 +50,8 @@ bool Preparer::runOnModule(Module &M) {
 	forallfunc(M, fi) {
 		if (fi->isDeclaration())
 			continue;
+		// Needn't instrument entries and exits of function main,
+		// because nobody calls main and thus no ambiguity. 
 		if (ITF.is_thread_func(fi) || is_main(fi)) {
 			Instruction *first = fi->getEntryBlock().getFirstNonPHI();
 			CallInst::Create(pth_self, "", first);

@@ -88,6 +88,12 @@ bool EnforcingLandmarks::runOnModule(Module &M) {
 
 	// Mark any function call to landmark functions as enforcing landmarks. 
 	forallfunc(M, f) {
+		if (f->getName() == "MyMalloc")
+			continue;
+		if (f->getName() == "MyFree")
+			continue;
+		if (f->getName() == "MyFreeNow")
+			continue;
 		forall(Function, bb, *f) {
 			forall(BasicBlock, ins, *bb) {
 				CallSite cs = CallSite::get(ins);

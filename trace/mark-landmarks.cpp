@@ -39,6 +39,7 @@ void MarkLandmarks::mark_thread_exits(Module &M) {
 		if (fi->isDeclaration())
 			continue;
 		if (ITF.is_thread_func(fi) || is_main(fi)) {
+			landmarks.insert(fi->begin()->getFirstNonPHI());
 			forall(Function, bi, *fi) {
 				if (succ_begin(bi) == succ_end(bi))
 					landmarks.insert(bi->getTerminator());
