@@ -96,19 +96,22 @@ Clause *CaptureConstraints::construct_bound_constraint(const Value *v,
 	return new Clause(Instruction::And, c_lb, c_ub);
 }
 
-Clause *CaptureConstraints::get_loop_bound(const Loop *L) const {
+void CaptureConstraints::get_loop_bound(
+		const Loop *L, vector<Clause *> &constraints) const {
 	
 	const PHINode *IV = L->getCanonicalInductionVariable();
 	// Give up if we cannot find the loop index. 
 	if (!IV)
-		return NULL;
+		return;
 	if (IV->getNumIncomingValues() != 2)
-		return NULL;
+		return;
 
 	// Best case: Already optimized as a loop with a trip count. 
 	if (Value *Trip = L->getTripCount()) {
-		return construct_bound_constraint(
+		Clause *c = construct_bound_constraint(
 				IV, ConstantInt::get(int_type, 0), true, Trip, false);
+		constraints.push_back(c);
+		return;
 	}
 
 #if 0
@@ -136,7 +139,6 @@ Clause *CaptureConstraints::get_loop_bound(const Loop *L) const {
 			}
 		}
 #endif
-	return NULL;
 }
 
 Clause *CaptureConstraints::get_in_argument(const Argument *formal) {

@@ -74,7 +74,7 @@ namespace slicer {
 		 * Get the constraints on the loop index of loop <L>. 
 		 * Returns NULL if we are unable to infer the bounds. 
 		 */
-		Clause *get_loop_bound(const Loop *L) const;
+		void get_loop_bound(const Loop *L, vector<Clause *> &constraints) const;
 
 	private:
 		// Utility functions. 

@@ -934,8 +934,10 @@ void SolveConstraints::realize(const Instruction *ins) {
 	// Realize each containing loop. 
 	Loop *l = LI.getLoopFor(bb);
 	while (l) {
-		const Clause *c = CC.get_loop_bound(l);
-		if (c) {
+		vector<Clause *> constraints_from_l;
+		CC.get_loop_bound(l, constraints_from_l);
+		for (size_t i = 0; i < constraints_from_l.size(); ++i) {
+			Clause *c = constraints_from_l[i];
 			DEBUG(dbgs() << "[realize] ";
 					print_clause(dbgs(), c, getAnalysis<IDAssigner>());
 					dbgs() << "\n";);
@@ -948,8 +950,10 @@ void SolveConstraints::realize(const Instruction *ins) {
 			delete_vcexpr(vce);
 
 			delete c2;
-			delete c;
 		}
+		for (size_t i = 0; i < constraints_from_l.size(); ++i)
+			delete constraints_from_l[i];
+
 		l = l->getParentLoop();
 	}
 }
