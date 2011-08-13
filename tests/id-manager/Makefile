@@ -1,9 +1,9 @@
 PROG_NAMES = test-thread-nocrit test-overwrite-nocrit test-loop-nocrit \
 	     test-reducer-nocrit test-recursive-nocrit test-ret-nocrit \
-	     test-phi-nocrit test-bound-nocrit FFT-like-nocrit \
+	     test-phi-nocrit test-bound-nocrit FFT-like-nocrit test-dep-nocrit \
 	     aget-like-nocrit test-array-nocrit test-pointer-nocrit \
 	     test-overwrite-2-nocrit RADIX-like-nocrit test-thread-2-nocrit \
-	     test-malloc-nocrit test-ctxt-nocrit \
+	     test-malloc-nocrit test-ctxt-nocrit test-range-nocrit \
 	     aget-nocrit FFT-nocrit RADIX-nocrit \
 	     pbzip2-nocrit CHOLESKY-nocrit
 PROGS_DIR = ../progs

@@ -23,6 +23,8 @@ using namespace llvm;
 using namespace std;
 
 #include "expression.h"
+// FIXME: forward declaration is enough
+#include "max-slicing/region-manager.h"
 
 namespace slicer {
 
@@ -95,7 +97,7 @@ namespace slicer {
 		 * Think about a <= i1 <= b - 1 and b <= i2 <= c
 		 * a = 0, b = 0, c = 1, i1 = 0, i2 = 0 is actually a satisfying assignment. 
 		 */
-		static Clause *create_bound_constraint(const Value *v,
+		static Clause *construct_bound_constraint(const Value *v,
 				const Value *lb, bool lb_inclusive,
 				const Value *ub, bool ub_inclusive);
 		
@@ -123,6 +125,14 @@ namespace slicer {
 		// exclusive region (i1, i2). 
 		bool path_may_write(
 				const Instruction *i1, const Instruction *i2, const Value *q);
+		bool path_may_write(int thr_id, size_t trunk_id,
+				const Instruction *i2, const Value *q);
+		bool path_may_write(const Instruction *i1,
+				int thr_id, size_t trunk_id, const Value *q);
+		bool blocks_may_write(
+				const DenseSet<const ICFGNode *> &blocks,
+				const InstList &starts, const InstList &ends, const Value *q);
+		bool region_may_write(const Region &r, const Value *q);
 		// Check if instruction <i> may write to <q>. 
 		bool may_write(
 				const Instruction *i, const Value *q, ConstFuncSet &visited_funcs);
@@ -145,21 +155,20 @@ namespace slicer {
 		 * recursively.
 		 */
 		void extract_from_consts(Constant *c);
-		void add_eq_constraint(const Value *v1, const Value *v2);
 		// TODO: We care about Instructions and ConstantExprs only. We could use
 		// Operator as the argument. 
-		void capture_from_user(const User *user);
-		void capture_from_argument(const Argument *arg);
+		Clause *get_in_user(const User *user);
+		Clause *get_in_argument(const Argument *arg);
 		/*
-		 * These capture_* functions need to check whether their operands
+		 * These get_* functions need to check whether their operands
 		 * are integers. 
 		 */
-		void capture_in_icmp(const ICmpInst *icmp);
-		void capture_in_select(const SelectInst *si);
-		void capture_in_unary(const User *user);
-		void capture_in_binary(const User *user, unsigned opcode);
-		void capture_in_gep(const User *user);
-		void capture_in_phi(const PHINode *phi);
+		Clause *get_in_icmp(const ICmpInst *icmp);
+		Clause *get_in_select(const SelectInst *si);
+		Clause *get_in_unary(const User *user);
+		Clause *get_in_binary(const User *user, unsigned opcode);
+		Clause *get_in_gep(const User *user);
+		Clause *get_in_phi(const PHINode *phi);
 		/**
 		 * Returns true if
 		 * 1. x is shallower than y OR
@@ -169,7 +178,7 @@ namespace slicer {
 		bool comes_from_shallow(const BasicBlock *x, const BasicBlock *y);
 		/* Constraints from unreachable blocks. */
 		void capture_unreachable(Module &M);
-		void capture_unreachable_in_func(Function *f);
+		void capture_unreachable(Function &F);
 		/* Function summaries. */
 		void capture_func_summaries(Module &M);
 		void capture_libcall(const CallSite &cs);

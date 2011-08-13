@@ -9,9 +9,10 @@ using namespace llvm;
 using namespace slicer;
 
 void CaptureConstraints::capture_unreachable(Module &M) {
+	// TODO: inter-procedural 
 	forallfunc(M, fi) {
 		if (!fi->isDeclaration())
-			capture_unreachable_in_func(fi);
+			capture_unreachable(*fi);
 	}
 }
 
@@ -82,7 +83,7 @@ Clause *CaptureConstraints::get_avoid_branch(
 	}
 }
 
-void CaptureConstraints::capture_unreachable_in_func(Function *f) {
+void CaptureConstraints::capture_unreachable(Function &F) {
 	/*
 	 * If <bb> post-dominates <f> and one of its branches points to an
 	 * unreachable BB, the branch condition must be false. 
@@ -99,20 +100,20 @@ void CaptureConstraints::capture_unreachable_in_func(Function *f) {
 	 */
 	// TODO: We could make it faster. For now, we use an O(n^2) approach. 
 	ConstBBSet sink;
-	forall(Function, bi, *f) {
+	forall(Function, bi, F) {
 		if (MaxSlicing::is_unreachable(bi))
 			sink.insert(bi);
 	}
-	forall(Function, bi, *f) {
+	forall(Function, bi, F) {
 		bool already_in_sink = sink.count(bi);
 		if (!already_in_sink)
 			sink.insert(bi);
 		ConstBBSet visited;
-		IntraReach &IR = getAnalysis<IntraReach>(*f);
-		IR.floodfill(&f->getEntryBlock(), sink, visited);
+		IntraReach &IR = getAnalysis<IntraReach>(F);
+		IR.floodfill(F.begin(), sink, visited);
 		// Assume <bi> post-dominates the function entry. 
 		bool post_doms = true;
-		forall(Function, bj, *f) {
+		forall(Function, bj, F) {
 			if (visited.count(bj) && !sink.count(bj) && is_ret(bj->getTerminator())) {
 				// Erase it from the set <post_doms> if it doesn't really
 				// post-dominate the function entry. 

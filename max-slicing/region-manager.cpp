@@ -22,8 +22,7 @@ static RegisterPass<RegionManager> X(
 		"manage-region",
 		"Mark each cloned instruction with its previous enforcing landmark "
 		"and next enforcing landmark",
-		false,
-		true);
+		false, true);
 
 char RegionManager::ID = 0;
 
@@ -140,9 +139,8 @@ void RegionManager::mark_region(
 			errs() << "[Warning] Cannot find any instruction from thread "
 				<< thr_id << "\n";
 		} else {
-			MicroBasicBlock *mbb = MBBB.parent(ins);
-			ICFGNode *node = PIB[mbb];
-			assert(node);
+			MicroBasicBlock *mbb = MBBB.parent(ins); assert(mbb);
+			ICFGNode *node = PIB[mbb]; assert(node);
 
 			DenseSet<const ICFGNode *> sink, visited_backwards;
 			sink.insert(fake_root);
@@ -231,16 +229,14 @@ void RegionManager::mark_region(
 			// They don't belong to any region. 
 			if (MaxSlicing::is_unreachable(i->getParent()))
 				continue;
-			Region r;
-			r.thr_id = thr_id;
-			r.prev_enforcing_landmark = s_tr;
-			r.next_enforcing_landmark = e_tr;
 			if (ins_region.count(i)) {
 				errs() << *i << "\n";
-				errs() << "already appeared in " << ins_region[i] << "\n";
+				errs() << "already appeared in " << ins_region.find(i)->second << "\n";
 			}
 			assert(!ins_region.count(i));
-			ins_region[i] = r;
+			Region r(thr_id, s_tr, e_tr);
+			ins_region.insert(make_pair(i, r));
+			region_insts[r].push_back(i);
 		}
 	}
 }
@@ -251,12 +247,11 @@ void RegionManager::get_containing_regions(
 	ConstInstSet visited;
 	search_containing_regions(ins, visited, regions);
 	sort(regions.begin(), regions.end());
-	regions.resize(unique(regions.begin(), regions.end()) - regions.begin());
+	regions.erase(unique(regions.begin(), regions.end()), regions.end());
 }
 
 void RegionManager::search_containing_regions(
-		const Instruction *ins,
-		ConstInstSet &visited,
+		const Instruction *ins, ConstInstSet &visited,
 		vector<Region> &regions) const {
 	
 	if (visited.count(ins))
@@ -268,7 +263,7 @@ void RegionManager::search_containing_regions(
 	 * Otherwise, we trace back to the caller(s) of the containing function. 
 	 */
 	if (ins_region.count(ins)) {
-		regions.push_back(ins_region.lookup(ins));
+		regions.push_back(ins_region.find(ins)->second);
 		return;
 	}
 	
@@ -278,6 +273,142 @@ void RegionManager::search_containing_regions(
 	InstList call_sites = CG.get_call_sites(f);
 	forall(InstList, it, call_sites)
 		search_containing_regions(*it, visited, regions);
+}
+
+bool RegionManager::happens_before(const Region &a, const Region &b) const {
+	
+	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
+
+	unsigned a2 = (a.next_enforcing_landmark == (size_t)-1 ? -1 :
+			LT.get_landmark_timestamp(a.thr_id, a.next_enforcing_landmark));
+	unsigned b1 = (b.prev_enforcing_landmark == (size_t)-1 ? -1 :
+			LT.get_landmark_timestamp(b.thr_id, b.prev_enforcing_landmark));
+	return (a2 != (unsigned)-1 && b1 != (unsigned)-1 && a2 < b1);
+}
+
+bool RegionManager::concurrent(const Region &a, const Region &b) const {
+	
+	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
+
+	if (a.thr_id == b.thr_id)
+		return false;
+
+	unsigned a1 = (a.prev_enforcing_landmark == (size_t)-1 ? -1 :
+			LT.get_landmark_timestamp(a.thr_id, a.prev_enforcing_landmark));
+	unsigned a2 = (a.next_enforcing_landmark == (size_t)-1 ? -1 :
+			LT.get_landmark_timestamp(a.thr_id, a.next_enforcing_landmark));
+	unsigned b1 = (b.prev_enforcing_landmark == (size_t)-1 ? -1 :
+			LT.get_landmark_timestamp(b.thr_id, b.prev_enforcing_landmark));
+	unsigned b2 = (b.next_enforcing_landmark == (size_t)-1 ? -1 :
+			LT.get_landmark_timestamp(b.thr_id, b.next_enforcing_landmark));
+
+	// [a1, a2] [b1, b2]
+	return (a1 == (unsigned)-1 || b2 == (unsigned)-1 || a1 < b2) &&
+		(b1 == (unsigned)-1 || a2 == (unsigned)-1 || b1 < a2);
+}
+
+void RegionManager::get_concurrent_regions(
+		const Region &r, vector<Region> &regions) const {
+	
+	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
+
+	// TODO: This step can be faster by using binary searching. 
+	vector<int> thr_ids = LT.get_thr_ids();
+	for (size_t i = 0; i < thr_ids.size(); ++i) {
+		int thr_id = thr_ids[i];
+		if (thr_id == r.thr_id)
+			continue;
+		const vector<LandmarkTraceRecord> &thr_trunks = LT.get_thr_trunks(thr_id);
+		size_t prev_trunk_id = (size_t)-1;
+		for (size_t j = 0; j < thr_trunks.size(); ++j) {
+			if (LT.is_enforcing_landmark(i, j)) {
+				Region cur(thr_id, prev_trunk_id, j);
+				if (concurrent(r, cur))
+					regions.push_back(cur);
+				prev_trunk_id = j;
+			}
+		}
+		Region last(thr_id, prev_trunk_id, (size_t)-1);
+		if (concurrent(r, last))
+			regions.push_back(last);
+	}
+}
+
+Region RegionManager::prev_region(const Region &r) const {
+
+	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
+
+	const vector<LandmarkTraceRecord> &thr_trunks = LT.get_thr_trunks(r.thr_id);
+
+	assert(r.prev_enforcing_landmark != (size_t)-1);
+
+	size_t prev_trunk_id = (size_t)-1;
+	for (size_t j = 0; j < thr_trunks.size(); ++j) {
+		if (LT.is_enforcing_landmark(r.thr_id, j)) {
+			if (j == r.prev_enforcing_landmark)
+				return Region(r.thr_id, prev_trunk_id, j);
+			prev_trunk_id = j;
+		}
+	}
+	assert(false && "Cannot find this trunk");
+}
+
+Region RegionManager::next_region_in_thread(
+		const Region &r, int thr_id) const {
+
+	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
+
+	assert(r.next_enforcing_landmark != (size_t)-1);
+	unsigned end_timestamp = LT.get_landmark_timestamp(
+			r.thr_id, r.next_enforcing_landmark);
+
+	const vector<LandmarkTraceRecord> &thr_trunks = LT.get_thr_trunks(thr_id);
+
+	size_t prev_trunk_id = (size_t)-1;
+	for (size_t j = 0; j < thr_trunks.size(); ++j) {
+		if (LT.is_enforcing_landmark(thr_id, j)) {
+			if (prev_trunk_id != (size_t)-1 &&
+					thr_trunks[prev_trunk_id].idx > end_timestamp)
+				return Region(thr_id, prev_trunk_id, j);
+			prev_trunk_id = j;
+		}
+	}
+	if (prev_trunk_id != (size_t)-1 &&
+			thr_trunks[prev_trunk_id].idx > end_timestamp)
+		return Region(thr_id, prev_trunk_id, (size_t)-1);
+	assert(false && "Cannot find this trunk");
+}
+
+Region RegionManager::next_region(const Region &r) const {
+
+	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
+
+	const vector<LandmarkTraceRecord> &thr_trunks = LT.get_thr_trunks(r.thr_id);
+
+	if (r.next_enforcing_landmark == (size_t)-1)
+		errs() << r << "\n";
+	assert(r.next_enforcing_landmark != (size_t)-1);
+
+	size_t prev_trunk_id = (size_t)-1;
+	for (size_t j = 0; j < thr_trunks.size(); ++j) {
+		if (LT.is_enforcing_landmark(r.thr_id, j)) {
+			if (prev_trunk_id == r.next_enforcing_landmark)
+				return Region(r.thr_id, prev_trunk_id, j);
+			prev_trunk_id = j;
+		}
+	}
+	if (prev_trunk_id == r.next_enforcing_landmark)
+		return Region(r.thr_id, prev_trunk_id, (size_t)-1);
+	assert(false && "Cannot find this trunk");
+}
+
+bool RegionManager::region_has_insts(const Region &r) const {
+	return region_insts.count(r);
+}
+
+const ConstInstList &RegionManager::get_insts_in_region(const Region &r) const {
+	assert(region_has_insts(r));
+	return region_insts.find(r)->second;
 }
 
 void RegionManager::print(raw_ostream &O, const Module *M) const {

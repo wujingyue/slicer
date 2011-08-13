@@ -153,12 +153,21 @@ void SolveConstraints::refine_candidates(list<const Value *> &candidates) {
 	for (unsigned k = 0; k < CC.get_num_constraints(); ++k) {
 
 		Clause *c = CC.get_constraint(k)->clone();
+#if 0
+		print_clause(errs(), c, getAnalysis<IDAssigner>());
+		errs() << "\n";
+#endif
 		replace_with_root(c);
 
 		vc_push(vc);
 		VCExpr vce = translate_to_vc(c);
 		VCExpr simplified_vce = vc_simplify(vc, vce);
 		int ret = vc_isBool(simplified_vce);
+		if (ret == 0) {
+			errs() << "After replace: ";
+			print_clause(errs(), c, getAnalysis<IDAssigner>());
+			errs() << "\n";
+		}
 		assert(ret != 0);
 		// If can be proved by simplification, don't add it to the constraint set. 
 		if (ret == -1)
@@ -213,7 +222,9 @@ void SolveConstraints::identify_fixed_values() {
 	vc_push(vc);
 	dbgs() << "Constructing a satisfying assignment... ";
 	VCExpr f = vc_falseExpr(vc);
-	assert(vc_query(vc, f) == 0);
+	int ret = vc_query(vc, f);
+	// TODO: diagnose if ret != 0. 
+	assert(ret == 0);
 	delete_vcexpr(f);
 	dbgs() << "Done\n";
 	
@@ -337,6 +348,48 @@ void SolveConstraints::update_appeared(
 		assert_not_supported();
 }
 
+void SolveConstraints::diagnose(Module &M) {
+
+	dbgs() << "Detected inconsistency. Enter diagnose mode...\n";
+
+	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
+	unsigned n_constraints = CC.get_num_constraints();
+	DenseSet<unsigned> does_not_matter;
+	for (unsigned j = 0; j < n_constraints; ++j) {
+		// Decide if <j> matters. 
+		does_not_matter.insert(j);
+		destroy_vc();
+		create_vc();
+		for (unsigned i = 0; i < n_constraints; ++i) {
+			if (does_not_matter.count(i))
+				continue;
+			const Clause *c = CC.get_constraint(i);
+			VCExpr vce = translate_to_vc(c);
+			if (can_be_simplified(vce) == -1)
+				vc_assertFormula(vc, vce);
+			delete_vcexpr(vce);
+		}
+		VCExpr f = vc_falseExpr(vc);
+		int ret = vc_query(vc, f);
+		delete_vcexpr(f);
+		if (ret == 0) {
+			dbgs() << "Constraint " << j << " matters.\n";
+			does_not_matter.erase(j);
+		} else {
+			dbgs() << "Constraint " << j << " does not matter.\n";
+		}
+	}
+
+	dbgs() << "Start printing a minimal set...\n";
+	for (unsigned i = 0; i < n_constraints; ++i) {
+		if (!does_not_matter.count(i)) {
+			print_clause(dbgs(), CC.get_constraint(i), getAnalysis<IDAssigner>());
+			dbgs() << "\n";
+		}
+	}
+	dbgs() << "Finished printing a minimal set\n";
+}
+
 void SolveConstraints::translate_captured(Module &M) {
 
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
@@ -359,20 +412,55 @@ void SolveConstraints::translate_captured(Module &M) {
 	
 	// The captured constraints should be consistent. 
 	vc_push(vc);
+#if 0
+	vc_assertFormula(vc, vc_sbvGtExpr(vc,
+				vc_varExpr(vc, "x2293", vc_bv32Type(vc)),
+				vc_zero(vc)));
+#endif
+#if 0
+	Clause *c = CC.get_constraint(788)->clone();
+	print_clause(errs(), c, getAnalysis<IDAssigner>());
+	replace_with_root(c);
+	vc_assertFormula(vc, translate_to_vc(c));
+	delete c;
+#endif
+#if 0
+	vc_assertFormula(vc, vc_eqExpr(vc,
+				vc_varExpr(vc, "x2298", vc_bv32Type(vc)),
+				vc_bv32PlusExpr(vc,
+					vc_varExpr(vc, "x2265", vc_bv32Type(vc)),
+					vc_varExpr(vc, "x2288", vc_bv32Type(vc)))));
+#endif
+#if 0
+	vc_assertFormula(vc, vc_sbvGtExpr(vc,
+				vc_varExpr(vc, "x2293", vc_bv32Type(vc)),
+				vc_varExpr(vc, "x2032", vc_bv32Type(vc))));
+#endif
+#if 0
+	vc_assertFormula(vc, vc_xorExpr(vc,
+				vc_eqExpr(vc,
+					vc_varExpr(vc, "x2307", vc_bvType(vc, 1)),
+					vc_bvConstExprFromInt(vc, 1, 0)),
+				vc_sbvLtExpr(vc,
+					vc_varExpr(vc, "x2293", vc_bv32Type(vc)),
+					vc_varExpr(vc, "x1939", vc_bv32Type(vc)))));
+#endif
 	dbgs() << "Checking consistency... ";
 	if (print_asserts) {
 		vc_printVarDecls(vc);
 		vc_printAsserts(vc);
 	}
 	VCExpr f = vc_falseExpr(vc);
-	bool ret = vc_query(vc, f);
+	int ret = vc_query(vc, f);
+	delete_vcexpr(f);
+	vc_pop(vc);
+
 	if (ret != 0) {
-		CC.print(errs(), &M);
+		diagnose(M);
+		// CC.print(errs(), &M);
 	}
 	assert(ret == 0 && "The captured constraints is inconsistent.");
-	delete_vcexpr(f);
 	dbgs() << "Done\n";
-	vc_pop(vc);
 }
 
 int SolveConstraints::can_be_simplified(VCExpr e) {
@@ -385,10 +473,14 @@ int SolveConstraints::can_be_simplified(VCExpr e) {
 }
 
 ConstantInt *SolveConstraints::get_fixed_value(const Value *v) {
-	if (const ConstantInt *ci = dyn_cast<ConstantInt>(get_root(v)))
+	const Value *root = get_root(v);
+	if (const ConstantInt *ci = dyn_cast<ConstantInt>(root))
 		return ConstantInt::get(ci->getContext(), ci->getValue());
-	else
+	else if (isa<ConstantPointerNull>(root)) {
+		return ConstantInt::get(IntegerType::get(root->getContext(), 32), 0);
+	} else {
 		return NULL;
+	}
 }
 
 void SolveConstraints::replace_with_root(Clause *c) {
@@ -613,6 +705,7 @@ VCExpr SolveConstraints::translate_to_vc(const Value *v) {
 			delete_vcexpr(b);
 			return res;
 		} else {
+			// TODO: Add warnings on very large constants.
 			return vc_bv32ConstExprFromInt(vc, ci->getSExtValue());
 		}
 	}

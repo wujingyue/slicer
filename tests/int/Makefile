@@ -55,7 +55,7 @@ landmark_trace_name = $(subst .simple,,$(subst .slice,,$(1))).lt
 		< $<
 
 %.ic: $(PROGS_DIR)/%.bc
-	opt -disable-output \
+	opt -debug-only=int -disable-output \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \

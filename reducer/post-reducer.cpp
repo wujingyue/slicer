@@ -50,8 +50,10 @@ bool PostReducer::constantize(Module &M) {
 		assert(isa<Instruction>(*it) || isa<Argument>(*it));
 		// <v> may not be a ConstantInt, because the solver treats pointers as
 		// integers, and may put them in one equivalent class. 
+#if 0
 		if (!isa<IntegerType>((*it)->getType()))
 			continue;
+#endif
 		if (ConstantInt *ci = SC.get_fixed_value(*it))
 			to_replace.push_back(make_pair(*it, ci));
 	}
@@ -67,32 +69,51 @@ bool PostReducer::constantize(Module &M) {
 		for (Value::use_const_iterator ui = v->use_begin();
 				ui != v->use_end(); ++ui)
 			local.push_back(&ui.getUse());
-		
+
+		DEBUG(dbgs() << "=== replacing with a constant ===\n";);
+		DEBUG(dbgs() << "Constant = " << *to_replace[i].second << "\n";);
+		if (const Instruction *ins = dyn_cast<Instruction>(v)) {
+			DEBUG(dbgs() << ins->getParent()->getParent()->getName() << ":" <<
+					*ins << "\n";);
+		} else if (const Argument *arg = dyn_cast<Argument>(v)) {
+			DEBUG(dbgs() << arg->getParent()->getName() << ":" << *arg << "\n";);
+		} else {
+			DEBUG(dbgs() << *v << "\n";);
+		}
+	
+		DEBUG(dbgs() << "Uses:\n";);
 		// FIXME: Integer types in the solver may not be consistent with there
 		// real types. Therefore, we create new ConstantInt's with respect to
 		// the correct integer types. 
 		bool locally_changed = false;
 		for (size_t j = 0; j < local.size(); ++j) {
-			const IntegerType *int_type =
-				dyn_cast<IntegerType>(local[j]->get()->getType());
-			assert(int_type);
-			/*
-			 * FIXME: This is a quick hack to prevent the constantizer from
-			 * replacing branch conditions so as to keep BranchInsts. 
-			 * A better way should be annotating constants. 
-			 */
-			if (int_type->getBitWidth() == 1)
-				continue;
-			// Signed values. 
-			int64_t svalue = to_replace[i].second->getSExtValue();
-			local[j]->set(ConstantInt::get(int_type, svalue, true));
-			locally_changed = true;
+			const Type *type = local[j]->get()->getType();
+			if (const IntegerType *int_type = dyn_cast<IntegerType>(type)) {
+				/*
+				 * FIXME: This is a quick hack to prevent the constantizer from
+				 * replacing branch conditions so as to keep BranchInsts. 
+				 * A better way should be annotating constants. 
+				 */
+				if (int_type->getBitWidth() == 1)
+					continue;
+				// Signed values. 
+				int64_t svalue = to_replace[i].second->getSExtValue();
+				DEBUG(dbgs() << *local[j]->getUser() << "\n";);
+				local[j]->set(ConstantInt::get(int_type, svalue, true));
+				locally_changed = true;
+			} else if (const PointerType *ptr_type = dyn_cast<PointerType>(type)) {
+				if (to_replace[i].second->isZero()) {
+					DEBUG(dbgs() << *local[j]->getUser() << "\n";);
+					local[j]->set(ConstantPointerNull::get(ptr_type));
+					locally_changed = true;
+				}
+			} else {
+				assert(false && "This value is neither an integer or a pointer");
+			}
 		}
 		
 		if (locally_changed) {
 			++VariablesConstantized;
-			DEBUG(dbgs() << "=== replacing with a constant ===\n";);
-			DEBUG(dbgs() << *v << "\n";);
 		}
 		changed |= locally_changed;
 	}

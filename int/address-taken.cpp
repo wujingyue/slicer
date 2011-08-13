@@ -262,6 +262,27 @@ Instruction *CaptureConstraints::find_latest_overwriter(
 	return i1;
 }
 
+bool CaptureConstraints::region_may_write(const Region &r, const Value *q) {
+	
+	RegionManager &RM = getAnalysis<RegionManager>();
+
+	if (!RM.region_has_insts(r))
+		return false;
+
+	const ConstInstList &insts_in_r = RM.get_insts_in_region(r);
+	for (size_t i = 0; i < insts_in_r.size(); ++i) {
+		// TODO: Trace into functions. 
+		if (const StoreInst *si = dyn_cast<StoreInst>(insts_in_r[i])) {
+			if (may_alias(si->getPointerOperand(), q)) {
+				DEBUG(dbgs() << *si << "\n";);
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 
 	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
@@ -269,6 +290,7 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 	RegionManager &RM = getAnalysis<RegionManager>();
 	ExecOnce &EO = getAnalysis<ExecOnce>();
 
+	Value *q = i2->getPointerOperand();
 	// We only handle the case that <i2> is executed once for now. 
 	if (!EO.executed_once(i2))
 		return;
@@ -277,79 +299,101 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 	RM.get_containing_regions(i2, cur_regions);
 	if (cur_regions.size() != 1)
 		return;
+#if 0
+	errs() << "cur_region = " << cur_regions[0] << "\n";
+#endif
 	int cur_thr_id = cur_regions[0].thr_id;
 	size_t prev_enforcing = cur_regions[0].prev_enforcing_landmark;
+	// The preparer instruments the entry of each thread function
+	// (including main). Therefore, we can always find a previous enforcing
+	// landmark. 
+	assert(prev_enforcing != (size_t)-1);
+	
+	DEBUG(dbgs() << "capture_overwriting_to (vid = " <<
+			getAnalysis<IDAssigner>().getValueID(i2) << "): " << cur_thr_id <<
+			' ' << prev_enforcing << ":" << *i2 << "\n";);
 
-	DEBUG(dbgs() << "capture_overwriting_to: " << cur_thr_id << ' ' <<
-			prev_enforcing << ":" << *i2 << "\n";);
+	// If any store is concurrent with cur_regions[0], return
+	vector<Region> concurrent_regions;
+	RM.get_concurrent_regions(cur_regions[0], concurrent_regions);
+	for (size_t i = 0; i < concurrent_regions.size(); ++i) {
+		if (region_may_write(concurrent_regions[i], q)) {
+			DEBUG(dbgs() << concurrent_regions[i] <<
+					" may write to this pointer\n";);
+			return;
+		}
+	}
 
 	// Compute the latest dominator in each thread. 
 	vector<int> thr_ids = LT.get_thr_ids();
-	vector<Instruction *> latest_doms(thr_ids.size(), NULL);
+	vector<Instruction *> latest_doms;
+	vector<size_t> latest_preceeding_enforcing_landmarks;
 	for (size_t k = 0; k < thr_ids.size(); ++k) {
 		
 		int i = thr_ids[k];
 		if (i == cur_thr_id) {
-			latest_doms[k] = i2;
+			latest_preceeding_enforcing_landmarks.push_back(prev_enforcing);
+			latest_doms.push_back(i2);
 			continue;
 		}
 		
-		if (prev_enforcing == (size_t)-1)
-			continue;
+		assert(prev_enforcing != (size_t)-1);
 		size_t j = LT.get_latest_happens_before(cur_thr_id, prev_enforcing, i);
-		if (j == (size_t)-1)
+		latest_preceeding_enforcing_landmarks.push_back(j);
+		if (j == (size_t)-1) {
+			latest_doms.push_back(NULL);
 			continue;
+		}
 		
 		// TraceManager is still looking at the trace for the original program.
 		// But, we should use the cloned instruction.
 		unsigned orig_ins_id = LT.get_landmark(i, j).ins_id;
 		const InstList &landmarks = CIM.get_instructions(i, j, orig_ins_id);
 		assert(landmarks.size() > 0);
-		latest_doms[k] = NULL;
-		for (size_t t = 0; t < landmarks.size(); ++t)
-			latest_doms[k] = find_nearest_common_dom(latest_doms[k], landmarks[t]);
-		if (!latest_doms[k]) {
+		Instruction *latest_dom = NULL;
+		for (size_t t = 0; t < landmarks.size(); ++t) {
+			if (EO.not_executed(landmarks[t]))
+				continue;
+			latest_dom = find_nearest_common_dom(latest_dom, landmarks[t]);
+		}
+		if (!latest_dom) {
 			errs() << "get_landmark: " << i << ' ' << j <<
 				' ' << orig_ins_id << "\n";
 		}
-		assert(latest_doms[k] && "Cannot find the cloned landmark");
+		assert(latest_dom && "Cannot find the cloned landmark");
+		latest_doms.push_back(latest_dom);
 	}
 
+	assert(latest_doms.size() == thr_ids.size());
+	assert(latest_preceeding_enforcing_landmarks.size() == thr_ids.size());
+
 	// Compute the latest overwriter of the latest dominator in each thread. 
-	Value *q = i2->getPointerOperand();
-	vector<Instruction *> latest_overwriters(thr_ids.size(), NULL);
+	vector<Instruction *> latest_overwriters;
+	vector<Region> overwriter_regions;
 	for (size_t k = 0; k < thr_ids.size(); ++k) {
-		if (latest_doms[k])
-			latest_overwriters[k] = find_latest_overwriter(latest_doms[k], q);
+		if (!latest_doms[k]) {
+			latest_overwriters.push_back(NULL);
+			overwriter_regions.push_back(DenseMapInfo<Region>::getTombstoneKey());
+			continue;
+		}
+		Instruction *latest_overwriter = find_latest_overwriter(latest_doms[k], q);
+		vector<Region> regions;
+		if (latest_overwriter)
+			RM.get_containing_regions(latest_overwriter, regions);
+		if (regions.size() != 1) {
+			latest_overwriters.push_back(NULL);
+			overwriter_regions.push_back(DenseMapInfo<Region>::getTombstoneKey());
+		} else {
+			latest_overwriters.push_back(latest_overwriter);
+			overwriter_regions.push_back(regions[0]);
+		}
 	}
+	assert(latest_overwriters.size() == thr_ids.size());
+	assert(overwriter_regions.size() == thr_ids.size());
 
 	// These latest overwriters may not all be the valid sources of
 	// this LoadInst. Compare their containing regions, and prune out
 	// those which cannot. 
-	vector<pair<size_t, size_t> > overwriter_regions;
-	overwriter_regions.resize(thr_ids.size());
-	for (size_t k = 0; k < thr_ids.size(); ++k) {
-		Instruction *i1 = latest_overwriters[k];
-		if (!i1) {
-			// An invalid trunk range. 
-			overwriter_regions[k] = make_pair((size_t)-1, (size_t)-1);
-			continue;
-		}
-		vector<Region> regions;
-		RM.get_containing_regions(i1, regions);
-		assert(regions.size() > 0);
-		size_t s = (size_t)-1, e = (size_t)-1;
-		for (size_t t = 0; t < regions.size(); ++t) {
-			if (regions[t].thr_id == thr_ids[k]) {
-				if (s == (size_t)-1 || regions[t].prev_enforcing_landmark < s)
-					s = regions[t].prev_enforcing_landmark;
-				if (e == (size_t)-1 || regions[t].next_enforcing_landmark > e)
-					e = regions[t].next_enforcing_landmark;
-			}
-		}
-		overwriter_regions[k] = make_pair(s, e);
-	}
-
 	for (size_t k1 = 0; k1 < thr_ids.size(); ++k1) {
 		if (!latest_overwriters[k1])
 			continue;
@@ -359,14 +403,7 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 				continue;
 			// If latest_overwriters[k1] must happen before latest_overwriters[k2], 
 			// remove latest_overwriters[k1]. 
-			size_t t1 = overwriter_regions[k1].second;
-			size_t t2 = overwriter_regions[k2].first;
-			if (t1 == (size_t)-1 || t2 == (size_t)-1)
-				continue;
-			assert(LT.is_enforcing_landmark(thr_ids[k1], t1));
-			assert(LT.is_enforcing_landmark(thr_ids[k2], t2));
-			if (LT.get_landmark_timestamp(thr_ids[k1], t1) <
-					LT.get_landmark_timestamp(thr_ids[k2], t2)) {
+			if (RM.happens_before(overwriter_regions[k1], overwriter_regions[k2])) {
 				before = true;
 				break;
 			}
@@ -376,63 +413,75 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 	}
 
 	unsigned n_overwriters = 0;
-#if 0
-	int the_thr_idx = -1; // Used later. 
-#endif
 	for (size_t k = 0; k < thr_ids.size(); ++k) {
-		if (latest_overwriters[k]) {
-			assert(latest_doms[k]);
-			if (!path_may_write(latest_overwriters[k], latest_doms[k], q)) {
-				Clause *c = new Clause(new BoolExpr(
-							CmpInst::ICMP_EQ,
-							new Expr(i2),
-							new Expr(get_value_operand(latest_overwriters[k]))));
-				DEBUG(dbgs() << "From overwriting: ";
-						print_clause(dbgs(), c, getAnalysis<IDAssigner>());
-						dbgs() << "\n";);
-				constraints.push_back(c);
-				n_overwriters++;
+		if (!latest_overwriters[k])
+			continue; // ignore this overwriter
+		/*
+		 * If the path from latest_overwriters[k] to
+		 * latest_preceeding_enforcing_landmarks[k] may write to <q>, 
+		 * it may not be a valid overwriter. 
+		 */
+		if (thr_ids[k] == cur_thr_id) {
+			if (path_may_write(latest_overwriters[k], i2, q))
+				continue;
+		} else {
+			if (path_may_write(latest_overwriters[k], thr_ids[k],
+						latest_preceeding_enforcing_landmarks[k], q))
+				continue; // ignore this overwriter
+		}
+		/*
+		 * If any store is concurrent with regions containing the path
+		 * from latest_overwriters[k] to <prev_enforcing>,
+		 * it may not be a valid overwriter. 
+		 */
+		DenseSet<Region> concurrent_regions;
+		Region r = overwriter_regions[k];
+		while (r.prev_enforcing_landmark !=
+				latest_preceeding_enforcing_landmarks[k]) {
+			vector<Region> concurrent_regions_of_r;
+			RM.get_concurrent_regions(r, concurrent_regions_of_r);
+			concurrent_regions.insert(concurrent_regions_of_r.begin(),
+					concurrent_regions_of_r.end());
+			r = RM.next_region(r);
+		}
+		if (r.thr_id != cur_thr_id) {
+			r = RM.prev_region(r);
+			r = RM.next_region_in_thread(r, cur_thr_id);
+			while (r.prev_enforcing_landmark != prev_enforcing) {
+				vector<Region> concurrent_regions_of_r;
+				RM.get_concurrent_regions(r, concurrent_regions_of_r);
+				concurrent_regions.insert(concurrent_regions_of_r.begin(),
+						concurrent_regions_of_r.end());
+				r = RM.next_region(r);
 			}
 		}
+		
+		// TODO: Cache the region_may_write results. 
+		bool overwritten_by_concurrent_regions = false;
+		forall(DenseSet<Region>, it, concurrent_regions) {
+			if (region_may_write(*it, q)) {
+				overwritten_by_concurrent_regions = true;
+				break;
+			}
+		}
+		if (overwritten_by_concurrent_regions)
+			continue; // ignore this overwriter
+
+		Clause *c = new Clause(new BoolExpr(
+					CmpInst::ICMP_EQ,
+					new Expr(i2),
+					new Expr(get_value_operand(latest_overwriters[k]))));
+#if 0
+		errs() << *latest_doms[k] << "\n";
+#endif
+		DEBUG(dbgs() << "Valid overwriter:" << *latest_overwriters[k] << "\n";);
+		DEBUG(dbgs() << "From overwriting: ";
+				print_clause(dbgs(), c, getAnalysis<IDAssigner>());
+				dbgs() << "\n";);
+		constraints.push_back(c);
+		n_overwriters++;
 	}
 	DEBUG(dbgs() << "# of overwriters = " << n_overwriters << "\n";);
-
-#if 0
-	if (n_overwriters == 0) {
-		// TODO: Check whether the value may be overwritten by any trunk from
-		// the program start to the current trunk. 
-#if 0
-		if (GlobalVariable *gv = dyn_cast<GlobalVariable>(q)) {
-			if (gv->hasInitializer()) {
-				if (ConstantInt *ci = dyn_cast<ConstantInt>(gv->getInitializer())) {
-					Clause *c = new Clause(new BoolExpr(
-								CmpInst::ICMP_EQ,
-								new Expr(i2),
-								new Expr(ci)));
-					errs() << "From overwriting: ";
-					print_clause(errs(), c, getAnalysis<IDAssigner>());
-					errs() << "\n";
-					constraints.push_back(c);
-				}
-			}
-		}
-#endif
-	} else if (n_overwriters == 1) {
-		// TODO: path_may_write only checks the current thread. Need check
-		// other threads as well. 
-		if (!path_may_write(
-					latest_overwriters[the_thr_idx], latest_doms[the_thr_idx], q)) {
-			Clause *c = new Clause(new BoolExpr(
-						CmpInst::ICMP_EQ,
-						new Expr(i2),
-						new Expr(get_value_operand(latest_overwriters[the_thr_idx]))));
-			DEBUG(dbgs() << "From overwriting: ";
-			print_clause(dbgs(), c, getAnalysis<IDAssigner>());
-			dbgs() << "\n";);
-			constraints.push_back(c);
-		}
-	}
-#endif
 }
 
 bool CaptureConstraints::may_write(
@@ -471,12 +520,134 @@ bool CaptureConstraints::may_write(
 	return false;
 }
 
+bool CaptureConstraints::path_may_write(int thr_id, size_t trunk_id,
+		const Instruction *i2, const Value *q) {
+	
+	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
+	MicroBasicBlockBuilder &MBBB = getAnalysis<MicroBasicBlockBuilder>();
+	CloneInfoManager &CIM = getAnalysis<CloneInfoManager>();
+	ICFG &PIB = getAnalysis<PartialICFGBuilder>();
+	ExecOnce &EO = getAnalysis<ExecOnce>();
+
+	assert(trunk_id != (size_t)-1);
+	assert(LT.is_enforcing_landmark(thr_id, trunk_id));
+
+	unsigned orig_ins_id = LT.get_landmark(thr_id, trunk_id).ins_id;
+	const InstList &landmarks = CIM.get_instructions(
+			thr_id, trunk_id, orig_ins_id);
+	DenseSet<const ICFGNode *> sink;
+	for (size_t i = 0; i < landmarks.size(); ++i) {
+		if (EO.not_executed(landmarks[i]))
+			continue;
+		MicroBasicBlock *m1 = MBBB.parent(landmarks[i]); assert(m1);
+		ICFGNode *n1 = PIB[m1]; assert(n1);
+		sink.insert(n1);
+	}
+
+	MicroBasicBlock *m2 = MBBB.parent(i2); assert(m2);
+	ICFGNode *n2 = PIB[m2]; assert(n2);
+	
+	Reach<ICFGNode> IR;
+	DenseSet<const ICFGNode *> visited;
+	IR.floodfill_r(n2, sink, visited);
+	bool reached_sink = false;
+	forall(DenseSet<const ICFGNode *>, it, sink) {
+		if (visited.count(*it)) {
+			reached_sink = true;
+			break;
+		}
+	}
+	assert(reached_sink && "<i1> should dominate <i2>");
+
+	return blocks_may_write(visited, landmarks,
+			InstList(1, const_cast<Instruction *>(i2)), q);
+}
+
+bool CaptureConstraints::path_may_write(const Instruction *i1,
+		int thr_id, size_t trunk_id, const Value *q) {
+
+#if 0
+	errs() << "path_may_write:" << *i1 << "\n";
+	errs() << thr_id << " " << trunk_id << "\n";
+#endif
+
+	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
+	MicroBasicBlockBuilder &MBBB = getAnalysis<MicroBasicBlockBuilder>();
+	CloneInfoManager &CIM = getAnalysis<CloneInfoManager>();
+	ICFG &PIB = getAnalysis<PartialICFGBuilder>();
+	ExecOnce &EO = getAnalysis<ExecOnce>();
+
+	assert(trunk_id != (size_t)-1);
+	assert(LT.is_enforcing_landmark(thr_id, trunk_id));
+
+	unsigned orig_ins_id = LT.get_landmark(thr_id, trunk_id).ins_id;
+	const InstList &landmarks = CIM.get_instructions(
+			thr_id, trunk_id, orig_ins_id);
+	DenseSet<const ICFGNode *> sink;
+	for (size_t i = 0; i < landmarks.size(); ++i) {
+		if (EO.not_executed(landmarks[i]))
+			continue;
+		MicroBasicBlock *m2 = MBBB.parent(landmarks[i]); assert(m2);
+		ICFGNode *n2 = PIB[m2]; assert(n2);
+		sink.insert(n2);
+	}
+
+	MicroBasicBlock *m1 = MBBB.parent(i1); assert(m1);
+	ICFGNode *n1 = PIB[m1]; assert(n1);
+	
+	Reach<ICFGNode> IR;
+	DenseSet<const ICFGNode *> visited;
+	IR.floodfill(n1, sink, visited);
+	bool reached_sink = false;
+	forall(DenseSet<const ICFGNode *>, it, sink) {
+		if (visited.count(*it)) {
+			reached_sink = true;
+			break;
+		}
+	}
+	assert(reached_sink && "<i2> should post-dominate <i1>");
+
+	return blocks_may_write(visited,
+			InstList(1, const_cast<Instruction *>(i1)),
+			landmarks, q);
+}
+
+bool CaptureConstraints::blocks_may_write(
+		const DenseSet<const ICFGNode *> &blocks,
+		const InstList &starts, const InstList &ends, const Value *q) {
+
+	// Functions visited in <may_write>s. 
+	// In order to handle recursive functions. 
+	// FIXME: Trace into functions that don't appear in the ICFG. 
+	forallconst(DenseSet<const ICFGNode *>, it, blocks) {
+		const MicroBasicBlock *mbb = (*it)->getMBB();
+		BasicBlock::const_iterator s = mbb->end();
+		while (s != mbb->begin()) {
+			--s;
+			if (find(starts.begin(), starts.end(), s) != starts.end()) {
+				++s;
+				break;
+			}
+		}
+		BasicBlock::const_iterator e = mbb->begin();
+		while (e != mbb->end()) {
+			if (find(ends.begin(), ends.end(), e) != ends.end())
+				break;
+			++e;
+		}
+		for (BasicBlock::const_iterator i = s; i != e; ++i) {
+			if (const StoreInst *si = dyn_cast<StoreInst>(i)) {
+				if (may_alias(si->getPointerOperand(), q))
+					return true;
+			}
+		}
+	}
+ 	return false;
+}
+
 bool CaptureConstraints::path_may_write(
 		const Instruction *i1, const Instruction *i2, const Value *q) {
-#if 0
-	errs() << "path_may_write:\n";
-	errs() << "\t" << *i1 << "\n" << "\t" << *i2 << "\n";
-#endif
+
 	MicroBasicBlockBuilder &MBBB = getAnalysis<MicroBasicBlockBuilder>();
 	MicroBasicBlock *m1 = MBBB.parent(i1), *m2 = MBBB.parent(i2);
 

@@ -68,19 +68,23 @@ void CaptureConstraints::capture_top_level(Module &M) {
 	// Users: Instructions or ConstantExprs
 	forall(ConstValueSet, it, integers) {
 		if (const User *user = dyn_cast<User>(*it)) {
-			capture_from_user(user);
+			Clause *c = get_in_user(user);
+			if (c)
+				constraints.push_back(c);
 		}
 	}
 	
 	// Function parameters: formal = actual
 	forall(ConstValueSet, it, integers) {
 		if (const Argument *arg = dyn_cast<Argument>(*it)) {
-			capture_from_argument(arg);
+			Clause *c = get_in_argument(arg);
+			if (c)
+				constraints.push_back(c);
 		}
 	}
 }
 
-Clause *CaptureConstraints::create_bound_constraint(const Value *v,
+Clause *CaptureConstraints::construct_bound_constraint(const Value *v,
 		const Value *lb, bool lb_inclusive,
 		const Value *ub, bool ub_inclusive) {
 	Clause *c_lb = new Clause(new BoolExpr(
@@ -103,67 +107,39 @@ Clause *CaptureConstraints::get_loop_bound(const Loop *L) const {
 
 	// Best case: Already optimized as a loop with a trip count. 
 	if (Value *Trip = L->getTripCount()) {
-		return create_bound_constraint(
+		return construct_bound_constraint(
 				IV, ConstantInt::get(int_type, 0), true, Trip, false);
 	}
 
+#if 0
 	// Borrowed from LLVM.
 	bool P0InLoop = L->contains(IV->getIncomingBlock(0));
-	Value *Init = IV->getIncomingValue(P0InLoop);
 	Value *Inc = IV->getIncomingValue(!P0InLoop);
 	BasicBlock *BackedgeBlock = IV->getIncomingBlock(!P0InLoop);
 
+	// IV >= 0
+	Clause *LB = new Clause(new BoolExpr(CmpInst::ICMP_SGE,
+				new Expr(IV), new Expr(ConstantInt::get(int_type, 0))));
+
+	// IV <= UB
 	if (BranchInst *BI = dyn_cast<BranchInst>(BackedgeBlock->getTerminator()))
 		if (BI->isConditional()) {
-			if (ICmpInst *ICI = dyn_cast<ICmpInst>(BI->getCondition())) {
-				if (ICI->getOperand(0) == Inc || ICI->getOperand(1) == Inc) {
-					CmpInst::Predicate Pred = ICI->getPredicate();
-					Value *Op0 = ICI->getOperand(0);
-					Value *Op1 = ICI->getOperand(1);
-					// If BI's true branch returns to the loop header,
-					// ICI holds for the loop; otherwise (not ICI) holds for
-					// the loop. 
-					if (BI->getSuccessor(0) != L->getHeader())
-						Pred = CmpInst::getInversePredicate(Pred);
-					// Canonicalize the condition to make Inc as the 0-th operand. 
-					if (Op0 != Inc) {
-						Pred = CmpInst::getSwappedPredicate(Pred);
-						swap(Op0, Op1);
-					}
-					assert(Op0 == Inc);
-					Clause *c;
-					switch (Pred) {
-						case CmpInst::ICMP_SLT:
-						case CmpInst::ICMP_ULT:
-							// Init <= IV < Op1
-							c = create_bound_constraint(IV, Init, true, Op1, false);
-							break;
-						case CmpInst::ICMP_SLE:
-						case CmpInst::ICMP_ULE:
-							// Init <= IV <= Op1
-							c = create_bound_constraint(IV, Init, true, Op1, true);
-							break;
-						case CmpInst::ICMP_SGT:
-						case CmpInst::ICMP_UGT:
-							// Init >= IV > Op1
-							c = create_bound_constraint(IV, Op1, false, Init, true);
-							break;
-						case CmpInst::ICMP_SGE:
-						case CmpInst::ICMP_UGE:
-							// Init >= IV >= Op1
-							c = create_bound_constraint(IV, Op1, true, Init, true);
-							break;
-						default:
-							c = NULL;
-					}
-					return c;
-				}
+			Value *Condition = BI->getCondition();
+			if (BI->getSuccessor(0) == L->getHeader()) {
+				// If the true branch returns to the loop header, 
+				// IV < UB <==> Condition == 1
+				// IV < UB xor Condition == 0
+			} else {
+				// If the false branch returns to the loop header,
+				// IV < UB <==> Condition == 0
+				// IV < UB xor Condition == 1
 			}
 		}
+#endif
 	return NULL;
 }
 
-void CaptureConstraints::capture_from_argument(const Argument *formal) {
+Clause *CaptureConstraints::get_in_argument(const Argument *formal) {
 	
 	CallGraphFP &CG = getAnalysis<CallGraphFP>();
 	ExecOnce &EO = getAnalysis<ExecOnce>();
@@ -171,7 +147,7 @@ void CaptureConstraints::capture_from_argument(const Argument *formal) {
 	const Function *f = formal->getParent();
 	// Needn't handle function declarations.
 	if (f->isDeclaration())
-		return;
+		return NULL;
 	
 	InstList call_sites = CG.get_call_sites(f);
 	ConstValueSet actuals;
@@ -188,7 +164,6 @@ void CaptureConstraints::capture_from_argument(const Argument *formal) {
 		}
 	}
 
-
 	Clause *disj = NULL;
 	forall(ConstValueSet, it, actuals) {
 		const Value *actual = *it;
@@ -199,15 +174,14 @@ void CaptureConstraints::capture_from_argument(const Argument *formal) {
 		else
 			disj = new Clause(Instruction::Or, disj, c);
 	}
-	if (disj)
-		constraints.push_back(disj);
+	return disj;
 }
 
-void CaptureConstraints::capture_from_user(const User *user) {
+Clause *CaptureConstraints::get_in_user(const User *user) {
 	assert(is_integer(user));
 	unsigned opcode = Operator::getOpcode(user);
 	if (opcode == Instruction::UserOp1)
-		return;
+		return NULL;
 	switch (opcode) {
 		// Binary instructions
 		case Instruction::Add:
@@ -223,13 +197,11 @@ void CaptureConstraints::capture_from_user(const User *user) {
 		case Instruction::And:
 		case Instruction::Or:
 		case Instruction::Xor:
-			capture_in_binary(user, opcode);
-			break;
+			return get_in_binary(user, opcode);
 			// ICmpInst
 		case Instruction::ICmp:
 			assert(isa<ICmpInst>(user));
-			capture_in_icmp(cast<ICmpInst>(user));
-			break;
+			return get_in_icmp(cast<ICmpInst>(user));
 			// Unary Instructions
 		case Instruction::Trunc:
 		case Instruction::ZExt:
@@ -237,22 +209,20 @@ void CaptureConstraints::capture_from_user(const User *user) {
 		case Instruction::PtrToInt:
 		case Instruction::IntToPtr:
 		case Instruction::BitCast:
-			capture_in_unary(user);
-			break;
+			return get_in_unary(user);
 		case Instruction::GetElementPtr:
-			capture_in_gep(user);
-			break;
+			return get_in_gep(user);
 		case Instruction::Select:
 			assert(isa<SelectInst>(user));
-			capture_in_select(cast<SelectInst>(user));
-			break;
+			return get_in_select(cast<SelectInst>(user));
 		case Instruction::PHI:
-			capture_in_phi(dyn_cast<PHINode>(user));
-			break;
+			return get_in_phi(dyn_cast<PHINode>(user));
+		default:
+			return NULL;
 	}
 }
 
-void CaptureConstraints::capture_in_select(const SelectInst *si) {
+Clause *CaptureConstraints::get_in_select(const SelectInst *si) {
 
 	// TODO: Handle the case where the condition is a vector of i1. 
 	// FIXME: We are assuming the true value and the false value are
@@ -261,25 +231,25 @@ void CaptureConstraints::capture_in_select(const SelectInst *si) {
 	const Value *true_value = si->getTrueValue();
 	const Value *false_value = si->getFalseValue();
 	if (!is_integer(cond) || !is_integer(true_value) || !is_integer(false_value))
-		return;
+		return NULL;
 	if (!cond->getType()->isIntegerTy(1))
-		return;
+		return NULL;
 
 	// cond == 1 <==> si == true value
 	// ==>
 	// (cond == 0) ^ (si == true value) == 1
-	constraints.push_back(new Clause(Instruction::Xor,
+	return new Clause(Instruction::Xor,
 			new Clause(new BoolExpr(CmpInst::ICMP_EQ,
 					new Expr(cond), new Expr(ConstantInt::getFalse(si->getContext())))),
 			new Clause(new BoolExpr(CmpInst::ICMP_EQ,
-					new Expr(si), new Expr(true_value)))));
+					new Expr(si), new Expr(true_value))));
 }
 
-void CaptureConstraints::capture_in_unary(const User *u) {
+Clause *CaptureConstraints::get_in_unary(const User *u) {
 	assert(u->getNumOperands() == 1);
 	const Value *v = u->getOperand(0);
 	if (!integers.count(v))
-		return;
+		return NULL;
 	// u == v, but they may have different bit widths. 
 	unsigned opcode = Operator::getOpcode(u);
 	assert(opcode != Instruction::UserOp1);
@@ -294,10 +264,10 @@ void CaptureConstraints::capture_in_unary(const User *u) {
 		ev = new Expr(opcode, ev);
 	}
 	assert(eu->get_width() == ev->get_width());
-	constraints.push_back(new Clause(new BoolExpr(CmpInst::ICMP_EQ, eu, ev)));
+	return new Clause(new BoolExpr(CmpInst::ICMP_EQ, eu, ev));
 }
 
-void CaptureConstraints::capture_in_icmp(const ICmpInst *icmp) {
+Clause *CaptureConstraints::get_in_icmp(const ICmpInst *icmp) {
 	/*
 	 * FIXME: We are assuming the true value and the false value are
 	 * exclusive. Not always true. 
@@ -309,14 +279,14 @@ void CaptureConstraints::capture_in_icmp(const ICmpInst *icmp) {
 	const Value *op0 = icmp->getOperand(0);
 	const Value *op1 = icmp->getOperand(1);
 	if (!is_integer(op0) || !is_integer(op1))
-		return;
+		return NULL;
 	Clause *branch = new Clause(new BoolExpr(
 				icmp->getPredicate(), new Expr(op0), new Expr(op1)));
 	ConstantInt *f = ConstantInt::getFalse(icmp->getContext());
 	assert(icmp->getType() == f->getType());
-	constraints.push_back(new Clause(Instruction::Xor,
-				new Clause(new BoolExpr(CmpInst::ICMP_EQ, new Expr(icmp), new Expr(f))),
-				branch));
+	return new Clause(Instruction::Xor,
+			new Clause(new BoolExpr(CmpInst::ICMP_EQ, new Expr(icmp), new Expr(f))),
+			branch);
 }
 
 bool CaptureConstraints::comes_from_shallow(
@@ -337,14 +307,14 @@ bool CaptureConstraints::comes_from_shallow(
 	return true;
 }
 
-void CaptureConstraints::capture_in_phi(const PHINode *phi) {
+Clause *CaptureConstraints::get_in_phi(const PHINode *phi) {
 
 	// Check the loop depths. 
 	// Each incoming edge must be from a shallower loop or a loop from
 	// the same depth but not a backedge. 
 	for (unsigned i = 0; i < phi->getNumIncomingValues(); ++i) {
 		if (!comes_from_shallow(phi->getIncomingBlock(i), phi->getParent()))
-			return;
+			return NULL;
 	}
 
 	Clause *disj = NULL;
@@ -359,33 +329,47 @@ void CaptureConstraints::capture_in_phi(const PHINode *phi) {
 			disj = new Clause(Instruction::Or, disj, c);
 	}
 	assert(disj && "Empty PHINode");
-	constraints.push_back(disj);
+	return disj;
 }
 
-void CaptureConstraints::capture_in_binary(const User *user, unsigned opcode) {
+Clause *CaptureConstraints::get_in_binary(const User *user, unsigned opcode) {
 	assert(user->getNumOperands() == 2);
 	if (!integers.count(user->getOperand(0)))
-		return;
+		return NULL;
 	if (!integers.count(user->getOperand(1)))
-		return;
+		return NULL;
 	Expr *e1 = new Expr(user);
 	Expr *e2 = new Expr(
 			opcode,
 			new Expr(user->getOperand(0)),
 			new Expr(user->getOperand(1)));
 	// FIXME: Dirty hack. 
-	// If it's a shift by 32, treat it as shift by 0. 
-	if ((opcode == Instruction::Shl || opcode == Instruction::LShr ||
-				opcode == Instruction::AShr)) {
+	// Module the shift width by 32. 
+	if (opcode == Instruction::Shl || opcode == Instruction::LShr ||
+				opcode == Instruction::AShr) {
 		if (ConstantInt *ci = dyn_cast<ConstantInt>(user->getOperand(1))) {
-			if (ci->getSExtValue() == 32) {
-				delete e2->e2;
-				e2->e2 = new Expr(ConstantInt::get(int_type, 0));
+			uint64_t shift_width = ci->getZExtValue();
+			shift_width %= 32;
+			delete e2->e2;
+			e2->e2 = new Expr(ConstantInt::get(int_type, shift_width));
+		}
+	}
+	// FIXME: Dirty hack. 
+	// Treat any operand in a Mul instruction like n * 2 ^ 32 as n.
+	if (opcode == Instruction::Mul) {
+		for (unsigned i = 0; i < user->getNumOperands(); ++i) {
+			if (ConstantInt *ci = dyn_cast<ConstantInt>(user->getOperand(i))) {
+				int64_t v = ci->getSExtValue();
+				if (v % (1LL << 32) == 0)
+					v /= (1LL << 32);
+				Expr *&the_e = (i == 0 ? e2->e1 : e2->e2);
+				delete the_e;
+				the_e = new Expr(ConstantInt::get(int_type, v));
 			}
 		}
 	}
-	BoolExpr *be = new BoolExpr(CmpInst::ICMP_EQ, e1, e2);
-	constraints.push_back(new Clause(be));
+
+	return new Clause(new BoolExpr(CmpInst::ICMP_EQ, e1, e2));
 }
 
 bool CaptureConstraints::is_power_of_two(uint64_t a, uint64_t &e) {
@@ -399,10 +383,10 @@ bool CaptureConstraints::is_power_of_two(uint64_t a, uint64_t &e) {
 	return a == 1;
 }
 
-void CaptureConstraints::capture_in_gep(const User *user) {
+Clause *CaptureConstraints::get_in_gep(const User *user) {
 	for (unsigned i = 0; i < user->getNumOperands(); ++i) {
 		if (!integers.count(user->getOperand(i)))
-			return;
+			return NULL;
 	}
 	const Value *base = user->getOperand(0);
 	Expr *cur = new Expr(base);
@@ -442,13 +426,8 @@ void CaptureConstraints::capture_in_gep(const User *user) {
 			assert(false && "Not supported");
 		}
 	}
-	constraints.push_back(new Clause(new BoolExpr(
-					CmpInst::ICMP_EQ, new Expr(user), cur)));
-}
-
-void CaptureConstraints::add_eq_constraint(const Value *v1, const Value *v2) {
-	BoolExpr *be = new BoolExpr(CmpInst::ICMP_EQ, new Expr(v1), new Expr(v2));
-	constraints.push_back(new Clause(be));
+	return new Clause(new BoolExpr(
+				CmpInst::ICMP_EQ, new Expr(user), cur));
 }
 
 bool CaptureConstraints::is_constant_integer(const Value *v) const {

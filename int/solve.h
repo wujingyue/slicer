@@ -95,6 +95,7 @@ namespace slicer {
 		 * General functions. 
 		 */
 		void calculate(Module &M);
+		void diagnose(Module &M);
 		/*
 		 * Translates and simplifies captured constraints, and
 		 * inserts them to <vc>.
