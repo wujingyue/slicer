@@ -1,5 +1,7 @@
+# TODO: Generate ft
+
 PROG_NAMES = test-thread-nocrit test-overwrite-nocrit test-loop-nocrit \
-	     test-reducer-nocrit test-pointer-nocrit \
+	     test-reducer-nocrit test-pointer-nocrit test-range-2-nocrit \
 	     test-recursive-nocrit test-bound-nocrit FFT-like-nocrit \
 	     aget-like-nocrit test-array-nocrit test-dep-nocrit \
 	     test-overwrite-2-nocrit RADIX-like-nocrit test-thread-2-nocrit \

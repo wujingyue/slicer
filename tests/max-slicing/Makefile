@@ -1,7 +1,7 @@
 PROG_NAMES = test-loop-nocrit test-reducer-nocrit test-thread-nocrit \
 	     test-overwrite-nocrit test-recursive-nocrit test-dep-nocrit \
 	     test-bound-nocrit FFT-like-nocrit aget-like-nocrit \
-	     test-array-nocrit test-pointer-nocrit \
+	     test-array-nocrit test-pointer-nocrit test-range-2-nocrit \
 	     test-overwrite-2-nocrit RADIX-like-nocrit test-thread-2-nocrit \
 	     test-malloc-nocrit test-ctxt-nocrit test-range-nocrit \
 	     FFT-nocrit RADIX-nocrit aget-nocrit pbzip2-nocrit CHOLESKY-nocrit

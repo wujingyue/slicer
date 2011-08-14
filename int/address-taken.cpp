@@ -154,8 +154,7 @@ void CaptureConstraints::capture_may_assign(Module &M) {
 			disj = NULL;
 		}
 #endif
-		if (disj)
-			constraints.push_back(disj);
+		add_constraint(disj);
 	}
 
 	// Finish the progress bar. 
@@ -478,7 +477,7 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 		DEBUG(dbgs() << "From overwriting: ";
 				print_clause(dbgs(), c, getAnalysis<IDAssigner>());
 				dbgs() << "\n";);
-		constraints.push_back(c);
+		add_constraint(c);
 		n_overwriters++;
 	}
 	DEBUG(dbgs() << "# of overwriters = " << n_overwriters << "\n";);

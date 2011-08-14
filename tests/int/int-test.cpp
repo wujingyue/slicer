@@ -58,6 +58,7 @@ namespace slicer {
 		void test_test_array_nocrit_simple(const Module &M);
 		void test_test_malloc_nocrit_simple(const Module &M);
 		void test_test_range_nocrit_simple(const Module &M);
+		void test_test_range_2_nocrit_simple(const Module &M);
 		void test_test_dep_nocrit_simple(const Module &M);
 	};
 }
@@ -117,11 +118,53 @@ bool IntTest::runOnModule(Module &M) {
 	test_test_array_nocrit_simple(M);
 	test_test_malloc_nocrit_simple(M);
 	test_test_range_nocrit_simple(M);
+	test_test_range_2_nocrit_simple(M);
 	return false;
 }
 
 static bool starts_with(const string &a, const string &b) {
 	return a.length() >= b.length() && a.compare(0, b.length(), b) == 0;
+}
+
+void IntTest::test_test_range_2_nocrit_simple(const Module &M) {
+	
+	if (Program != "test-range-2-nocrit.simple")
+		return;
+	TestBanner X("test-range-2-nocrit.simple");
+
+	ExecOnce &EO = getAnalysis<ExecOnce>();
+	vector<const Value *> accesses;
+	forallconst(Module, f, M) {
+		if (EO.not_executed(f))
+			continue;
+		if (is_main(f))
+			continue;
+		forallconst(Function, bb, *f) {
+			forallconst(BasicBlock, ins, *bb) {
+				if (const StoreInst *si = dyn_cast<StoreInst>(ins)) {
+					if (si->getOperand(0)->getType()->isDoubleTy()) {
+						errs() << f->getName() << "." << bb->getName() << ":" <<
+							*ins << "\n";
+						accesses.push_back(si->getPointerOperand());
+					}
+				}
+			}
+		}
+	}
+	assert(accesses.size() == 8);
+
+	for (size_t i = 0; i < accesses.size(); ++i) {
+		for (size_t j = i + 1; j < accesses.size(); ++j) {
+			AdvancedAlias &AA = getAnalysis<AdvancedAlias>();
+			SolveConstraints &SC = getAnalysis<SolveConstraints>();
+			SC.set_print_counterexample(true);
+			errs() << "accesses[" << i << "] and accesses[" << j <<
+				"] don't alias? ...";
+			assert(AA.alias(accesses[i], 0, accesses[j], 0) == AliasAnalysis::NoAlias);
+			SC.set_print_counterexample(false);
+			print_pass(errs());
+		}
+	}
 }
 
 void IntTest::test_test_range_nocrit_simple(const Module &M) {

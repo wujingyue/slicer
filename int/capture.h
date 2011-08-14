@@ -187,6 +187,7 @@ namespace slicer {
 		void capture_libcall(const CallSite &cs);
 		bool capture_memory_allocation(
 				const CallSite &cs, Expr *&start, Expr *&size);
+		void add_constraint(Clause *c);
 
 		// Data members. 
 		vector<Clause *> constraints;

@@ -28,7 +28,7 @@ void CaptureConstraints::capture_func_summaries(Module &M) {
 
 	// Handle memory allocations. 
 	for (size_t i = 0; i < blocks.size(); ++i) {
-		constraints.push_back(new Clause(new BoolExpr(CmpInst::ICMP_SLE,
+		add_constraint(new Clause(new BoolExpr(CmpInst::ICMP_SLE,
 						blocks[i].first,
 						new Expr(Instruction::Sub,
 							new Expr(ConstantInt::get(int_type, INT_MAX)),
@@ -36,7 +36,7 @@ void CaptureConstraints::capture_func_summaries(Module &M) {
 	}
 	for (size_t i = 0; i + 1 < blocks.size(); ++i) {
 		// start[i] + size[i] <= start[i + 1]
-		constraints.push_back(new Clause(new BoolExpr(CmpInst::ICMP_SLE,
+		add_constraint(new Clause(new BoolExpr(CmpInst::ICMP_SLE,
 						new Expr(Instruction::Add, blocks[i].first, blocks[i].second),
 						blocks[i + 1].first)));
 	}
@@ -86,7 +86,7 @@ void CaptureConstraints::capture_libcall(const CallSite &cs) {
 		// FIXME: >= -1. But aget has a bug no checking its return value. 
 		const Instruction *ret = cs.getInstruction();
 		if (is_integer(ret)) {
-			constraints.push_back(new Clause(new BoolExpr(CmpInst::ICMP_SGE,
+			add_constraint(new Clause(new BoolExpr(CmpInst::ICMP_SGE,
 							new Expr(ret), new Expr(ConstantInt::get(int_type, 0)))));
 		}
 	}

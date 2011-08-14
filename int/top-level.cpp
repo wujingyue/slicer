@@ -75,20 +75,14 @@ void CaptureConstraints::capture_top_level(Module &M) {
 
 	// Users: Instructions or ConstantExprs
 	forall(ConstValueSet, it, integers) {
-		if (const User *user = dyn_cast<User>(*it)) {
-			Clause *c = get_in_user(user);
-			if (c)
-				constraints.push_back(c);
-		}
+		if (const User *user = dyn_cast<User>(*it))
+			add_constraint(get_in_user(user));
 	}
 	
 	// Function parameters: formal = actual
 	forall(ConstValueSet, it, integers) {
-		if (const Argument *arg = dyn_cast<Argument>(*it)) {
-			Clause *c = get_in_argument(arg);
-			if (c)
-				constraints.push_back(c);
-		}
+		if (const Argument *arg = dyn_cast<Argument>(*it))
+			add_constraint(get_in_argument(arg));
 	}
 }
 
@@ -189,13 +183,21 @@ Clause *CaptureConstraints::get_in_select(const SelectInst *si) {
 		return NULL;
 
 	// cond == 1 <==> si == true value
+	// cond == 0 <==> si == false value
 	// ==>
-	// (cond == 0) ^ (si == true value) == 1
-	return new Clause(Instruction::Xor,
+	// (cond == 0) ^ (si == true value)
+	// (cond == 1) ^ (si == false value)
+	Clause *c_true = new Clause(Instruction::Xor,
 			new Clause(new BoolExpr(CmpInst::ICMP_EQ,
 					new Expr(cond), new Expr(ConstantInt::getFalse(si->getContext())))),
 			new Clause(new BoolExpr(CmpInst::ICMP_EQ,
 					new Expr(si), new Expr(true_value))));
+	Clause *c_false = new Clause(Instruction::Xor,
+			new Clause(new BoolExpr(CmpInst::ICMP_EQ,
+					new Expr(cond), new Expr(ConstantInt::getTrue(si->getContext())))),
+			new Clause(new BoolExpr(CmpInst::ICMP_EQ,
+					new Expr(si), new Expr(false_value))));
+	return new Clause(Instruction::And, c_true, c_false);
 }
 
 Clause *CaptureConstraints::get_in_unary(const User *u) {

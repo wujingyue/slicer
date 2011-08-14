@@ -2,7 +2,7 @@ PROG_NAMES = test-thread test-path test-overwrite test-ctxt test-recursive \
 	     test-branch test-loop test-reducer test-bound test-ret test-phi \
 	     FFT-like aget-like test-array test-pointer test-overwrite-2 \
 	     RADIX-like test-thread-2 test-malloc test-array-2 test-array-3 \
-	     test-range test-dep \
+	     test-range test-dep test-range-2 \
 	     aget FFT RADIX pbzip2 CHOLESKY
 PROGS_DIR = ../progs
 

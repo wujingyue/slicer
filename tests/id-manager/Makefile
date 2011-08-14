@@ -4,6 +4,7 @@ PROG_NAMES = test-thread-nocrit test-overwrite-nocrit test-loop-nocrit \
 	     aget-like-nocrit test-array-nocrit test-pointer-nocrit \
 	     test-overwrite-2-nocrit RADIX-like-nocrit test-thread-2-nocrit \
 	     test-malloc-nocrit test-ctxt-nocrit test-range-nocrit \
+	     test-range-2-nocrit \
 	     aget-nocrit FFT-nocrit RADIX-nocrit \
 	     pbzip2-nocrit CHOLESKY-nocrit
 PROGS_DIR = ../progs

@@ -192,8 +192,7 @@ void CaptureConstraints::simplify_constraints() {
 	 * so that get_fingerprint will return the same value deterministically
 	 * for the same set of constraints. 
 	 */
-	sort(
-			constraints.begin(), constraints.end(),
+	sort(constraints.begin(), constraints.end(),
 			CompareClause(getAnalysis<IDAssigner>()));
 }
 
@@ -229,4 +228,11 @@ bool CaptureConstraints::print_progress(
 		}
 	}
 	return printed;
+}
+
+void CaptureConstraints::add_constraint(Clause *c) {
+	// TODO: Simplify the clause. 
+	// e.g. Split the conjuction. 
+	if (c)
+		constraints.push_back(c);
 }

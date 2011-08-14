@@ -126,11 +126,8 @@ void CaptureConstraints::capture_unreachable(Function &F) {
 		TerminatorInst *ti = bi->getTerminator();
 		if (post_doms && ti->getNumSuccessors() > 1) {
 			for (unsigned i = 0; i < ti->getNumSuccessors(); ++i) {
-				if (MaxSlicing::is_unreachable(ti->getSuccessor(i))) {
-					Clause *c = get_avoid_branch(ti, i);
-					if (c)
-						constraints.push_back(c);
-				}
+				if (MaxSlicing::is_unreachable(ti->getSuccessor(i)))
+					add_constraint(get_avoid_branch(ti, i));
 			}
 		}
 		if (!already_in_sink)
