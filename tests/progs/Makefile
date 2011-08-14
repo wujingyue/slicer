@@ -2,7 +2,7 @@ PROGS = test-thread test-path test-overwrite test-ctxt test-recursive \
 	test-branch test-loop test-reducer test-bound test-ret test-phi \
 	FFT-like aget-like test-array test-pointer test-overwrite-2 \
 	RADIX-like test-thread-2 test-malloc test-array-2 test-array-3 \
-	test-switch test-range test-dep test-range-2
+	test-switch test-range test-dep test-range-2 test-range-3 
 BCS = $(PROGS:=.bc)
 
 # Better not use -O here; otherwise difficult to construct examples.

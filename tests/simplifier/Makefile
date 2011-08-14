@@ -5,6 +5,7 @@ PROG_NAMES = test-loop-nocrit test-reducer-nocrit test-overwrite-nocrit \
 	     aget-like-nocrit test-array-nocrit test-thread-nocrit \
 	     RADIX-like-nocrit test-thread-2-nocrit test-range-2-nocrit \
 	     test-overwrite-2-nocrit test-malloc-nocrit test-range-nocrit \
+	     test-range-3-nocrit \
 	     aget-nocrit RADIX-nocrit FFT-nocrit CHOLESKY-nocrit
 PROGS_DIR = ../progs
 PROGS = $(addprefix $(PROGS_DIR)/, $(PROG_NAMES))
