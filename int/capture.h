@@ -72,9 +72,9 @@ namespace slicer {
 		/**
 		 * Used by the solver. 
 		 * Get the constraints on the loop index of loop <L>. 
-		 * Returns NULL if we are unable to infer the bounds. 
+		 * NOTE: <constraints> will be cleared at the beginning. 
 		 */
-		void get_loop_bound(const Loop *L, vector<Clause *> &constraints) const;
+		void get_loop_bound(const Loop *L, vector<Clause *> &constraints);
 
 	private:
 		// Utility functions. 
@@ -100,6 +100,9 @@ namespace slicer {
 		static Clause *construct_bound_constraint(const Value *v,
 				const Value *lb, bool lb_inclusive,
 				const Value *ub, bool ub_inclusive);
+		void replace_with_loop_bound_version(Clause *c, const Loop *l);
+		void replace_with_loop_bound_version(BoolExpr *c, const Loop *l);
+		void replace_with_loop_bound_version(Expr *c, const Loop *l);
 		
 		// Address taken variables. 
 		void capture_addr_taken(Module &M);

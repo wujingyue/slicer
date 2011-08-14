@@ -25,6 +25,7 @@ namespace slicer {
 		enum Type {
 			SingleDef,
 			SingleUse,
+			LoopBound,
 			Unary,
 			Binary
 		} type;
@@ -41,7 +42,9 @@ namespace slicer {
 
 		Expr(const Use *use): type(SingleUse), e1(NULL), e2(NULL), u(use) {}
 		
-		Expr(const Value *value): type(SingleDef), e1(NULL), e2(NULL), v(value) {}
+		// <t> can be LoopBound as well, although seldom used. 
+		Expr(const Value *value, enum Type t = SingleDef):
+			type(t), e1(NULL), e2(NULL), v(value) {}
 
 		Expr(unsigned opcode, Expr *expr)
 			: type(Unary), op(opcode), e1(expr), e2(NULL), v(NULL)
@@ -52,16 +55,7 @@ namespace slicer {
 
 		Expr(unsigned opcode, Expr *expr1, Expr *expr2);
 
-		~Expr() {
-			if (e1) {
-				delete e1;
-				e1 = NULL;
-			}
-			if (e2) {
-				delete e2;
-				e2 = NULL;
-			}
-		}
+		~Expr();
 	};
 
 	// Expressions connected with predicates. 

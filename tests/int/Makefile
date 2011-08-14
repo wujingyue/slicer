@@ -15,7 +15,7 @@ PROG_NAMES = test-overwrite-nocrit.simple test-loop-nocrit.simple \
 	     test-array-nocrit.simple aget-like-nocrit.simple \
 	     test-overwrite-2-nocrit.simple \
 	     test-thread-2-nocrit.simple RADIX-like-nocrit.simple \
-	     test-malloc-nocrit.simple \
+	     test-malloc-nocrit.simple test-range-nocrit.simple \
 	     aget-nocrit.simple FFT-nocrit.simple \
 	     RADIX-nocrit.simple CHOLESKY-nocrit.simple
 PROGS_DIR = ../progs

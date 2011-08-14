@@ -1,3 +1,11 @@
+/**
+ * Author: Jingyue
+ *
+ * Handle top-level variables. 
+ */
+
+#define DEBUG_TYPE "int"
+
 #include "llvm/Support/Debug.h"
 #include "llvm/Target/TargetData.h"
 #include "common/callgraph-fp/callgraph-fp.h"
@@ -82,63 +90,6 @@ void CaptureConstraints::capture_top_level(Module &M) {
 				constraints.push_back(c);
 		}
 	}
-}
-
-Clause *CaptureConstraints::construct_bound_constraint(const Value *v,
-		const Value *lb, bool lb_inclusive,
-		const Value *ub, bool ub_inclusive) {
-	Clause *c_lb = new Clause(new BoolExpr(
-				(lb_inclusive ? CmpInst::ICMP_SGE : CmpInst::ICMP_SGT),
-				new Expr(v), new Expr(lb)));
-	Clause *c_ub = new Clause(new BoolExpr(
-				(ub_inclusive ? CmpInst::ICMP_SLE : CmpInst::ICMP_SLT),
-				new Expr(v), new Expr(ub)));
-	return new Clause(Instruction::And, c_lb, c_ub);
-}
-
-void CaptureConstraints::get_loop_bound(
-		const Loop *L, vector<Clause *> &constraints) const {
-	
-	const PHINode *IV = L->getCanonicalInductionVariable();
-	// Give up if we cannot find the loop index. 
-	if (!IV)
-		return;
-	if (IV->getNumIncomingValues() != 2)
-		return;
-
-	// Best case: Already optimized as a loop with a trip count. 
-	if (Value *Trip = L->getTripCount()) {
-		Clause *c = construct_bound_constraint(
-				IV, ConstantInt::get(int_type, 0), true, Trip, false);
-		constraints.push_back(c);
-		return;
-	}
-
-#if 0
-	// Borrowed from LLVM.
-	bool P0InLoop = L->contains(IV->getIncomingBlock(0));
-	Value *Inc = IV->getIncomingValue(!P0InLoop);
-	BasicBlock *BackedgeBlock = IV->getIncomingBlock(!P0InLoop);
-
-	// IV >= 0
-	Clause *LB = new Clause(new BoolExpr(CmpInst::ICMP_SGE,
-				new Expr(IV), new Expr(ConstantInt::get(int_type, 0))));
-
-	// IV <= UB
-	if (BranchInst *BI = dyn_cast<BranchInst>(BackedgeBlock->getTerminator()))
-		if (BI->isConditional()) {
-			Value *Condition = BI->getCondition();
-			if (BI->getSuccessor(0) == L->getHeader()) {
-				// If the true branch returns to the loop header, 
-				// IV < UB <==> Condition == 1
-				// IV < UB xor Condition == 0
-			} else {
-				// If the false branch returns to the loop header,
-				// IV < UB <==> Condition == 0
-				// IV < UB xor Condition == 1
-			}
-		}
-#endif
 }
 
 Clause *CaptureConstraints::get_in_argument(const Argument *formal) {
@@ -289,24 +240,6 @@ Clause *CaptureConstraints::get_in_icmp(const ICmpInst *icmp) {
 	return new Clause(Instruction::Xor,
 			new Clause(new BoolExpr(CmpInst::ICMP_EQ, new Expr(icmp), new Expr(f))),
 			branch);
-}
-
-bool CaptureConstraints::comes_from_shallow(
-		const BasicBlock *x, const BasicBlock *y) {
-	assert(x->getParent() == y->getParent());
-	const Function *f = x->getParent();
-	LoopInfo &LI = getAnalysis<LoopInfo>(*const_cast<Function *>(f));
-	if (LI.getLoopDepth(x) < LI.getLoopDepth(y))
-		return true;
-	if (LI.getLoopDepth(x) > LI.getLoopDepth(y))
-		return false;
-	if (LI.isLoopHeader(const_cast<BasicBlock *>(y))) {
-		const Loop *ly = LI.getLoopFor(y);
-		assert(ly);
-		if (ly->contains(x))
-			return false;
-	}
-	return true;
 }
 
 Clause *CaptureConstraints::get_in_phi(const PHINode *phi) {

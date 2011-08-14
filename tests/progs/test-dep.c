@@ -9,12 +9,12 @@ long size = 1024;
 void *slave_sort(void *arg) {
 	long i = (long)arg;
 	long j;
+	long *rank_me_mynum;
 
 	sleep(1);
-	for (j = 0; j < size; ++j) {
-		long *rank_me_mynum = (long *)rank_me[i];
+	rank_me_mynum = (long *)rank_me[i];
+	for (j = 0; j < size; ++j)
 		rank_me_mynum[j] = 0;
-	}
 
 	return NULL;
 }

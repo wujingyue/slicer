@@ -150,25 +150,6 @@ bool CaptureConstraints::runOnModule(Module &M) {
 	return false;
 }
 
-void CaptureConstraints::check_loop(Loop *l) {
-	assert(l->isLCSSAForm());
-	assert(l->isLoopSimplifyForm());
-	for (Loop::iterator li = l->begin(); li != l->end(); ++li)
-		check_loop(*li);
-}
-
-void CaptureConstraints::check_loops(Module &M) {
-	forallfunc(M, f) {
-		if (f->isDeclaration())
-			continue;
-		LoopInfo &LI = getAnalysis<LoopInfo>(*f);
-		for (LoopInfo::iterator lii = LI.begin(); lii != LI.end(); ++lii) {
-			Loop *l = *lii;
-			check_loop(l);
-		}
-	}
-}
-
 void CaptureConstraints::recalculate(Module &M) {
 	assert(is_using_advanced_alias());
 	calculate(M);

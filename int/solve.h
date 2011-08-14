@@ -104,7 +104,7 @@ namespace slicer {
 		VCExpr translate_to_vc(const Clause *c);
 		VCExpr translate_to_vc(const BoolExpr *be);
 		VCExpr translate_to_vc(const Expr *e);
-		VCExpr translate_to_vc(const Value *v);
+		VCExpr translate_to_vc(const Value *v, bool is_loop_bound = false);
 		VCExpr translate_to_vc(const Use *u);
 		/**
 		 * Used by translate_to_vc. 
@@ -197,7 +197,7 @@ namespace slicer {
 		bool print_asserts;
 		/* There can only be one instance of VC running. */
 		static VC vc;
-		static DenseMap<unsigned, VCExpr> symbols;
+		static DenseMap<string, VCExpr> symbols;
 		static sys::Mutex vc_mutex;
 	};
 }

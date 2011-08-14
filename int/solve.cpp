@@ -35,11 +35,11 @@ char SolveConstraints::ID = 0;
 
 VC SolveConstraints::vc = NULL;
 sys::Mutex SolveConstraints::vc_mutex(false); // not recursive
-DenseMap<unsigned, VCExpr> SolveConstraints::symbols;
+DenseMap<string, VCExpr> SolveConstraints::symbols;
 
 void SolveConstraints::destroy_vc() {
 	assert(vc && "create_vc and destroy_vc are not paired");
-	for (DenseMap<unsigned, VCExpr>::iterator it = symbols.begin();
+	for (DenseMap<string, VCExpr>::iterator it = symbols.begin();
 			it != symbols.end(); ++it)
 		vc_DeleteExpr(it->second);
 	symbols.clear();
@@ -498,7 +498,7 @@ void SolveConstraints::replace_with_root(BoolExpr *be) {
 }
 
 void SolveConstraints::replace_with_root(Expr *e) {
-	if (e->type == Expr::SingleDef) {
+	if (e->type == Expr::SingleDef || e->type == Expr::LoopBound) {
 		e->v = get_root(e->v);
 	} else if (e->type == Expr::SingleUse) {
 		e->type = Expr::SingleDef;
@@ -531,6 +531,7 @@ bool SolveConstraints::is_simple_eq(
 		return false;
 	if (c->be->p != CmpInst::ICMP_EQ)
 		return false;
+	// <is_simple_eq> ignores Expr::LoopBound. 
 	if (c->be->e1->type != Expr::SingleDef || c->be->e2->type != Expr::SingleDef)
 		return false;
 	if (v1)
@@ -613,6 +614,8 @@ VCExpr SolveConstraints::translate_to_vc(const BoolExpr *be) {
 VCExpr SolveConstraints::translate_to_vc(const Expr *e) {
 	if (e->type == Expr::SingleDef)
 		return translate_to_vc(e->v);
+	if (e->type == Expr::LoopBound)
+		return translate_to_vc(e->v, true);
 	if (e->type == Expr::SingleUse)
 		return translate_to_vc(e->u);
 	if (e->type == Expr::Unary) {
@@ -697,7 +700,7 @@ VCExpr SolveConstraints::translate_to_vc(const Expr *e) {
 	assert(false && "Invalid expression type");
 }
 
-VCExpr SolveConstraints::translate_to_vc(const Value *v) {
+VCExpr SolveConstraints::translate_to_vc(const Value *v, bool is_loop_bound) {
 	if (const ConstantInt *ci = dyn_cast<ConstantInt>(v)) {
 		if (ci->getType()->getBitWidth() == 1) {
 			VCExpr b = (ci->isOne() ? vc_trueExpr(vc) : vc_falseExpr(vc));
@@ -713,19 +716,23 @@ VCExpr SolveConstraints::translate_to_vc(const Value *v) {
 		// null == 0
 		return vc_zero(vc);
 	}
+
 	IDAssigner &IDA = getAnalysis<IDAssigner>();
 	unsigned value_id = IDA.getValueID(v);
 	assert(value_id != IDAssigner::INVALID_ID);
+
 	ostringstream oss;
-	oss << "x" << value_id;
-	VCExpr &symbol = symbols[value_id];
+	oss << (is_loop_bound ? "lb": "x") << value_id;
+	string name = oss.str();
+	VCExpr &symbol = symbols[name];
 	if (symbol == NULL) {
 		VCType vct = (v->getType()->isIntegerTy(1) ?
 				vc_bvType(vc, 1) :
 				vc_bv32Type(vc));
-		symbol = vc_varExpr(vc, oss.str().c_str(), vct);
+		symbol = vc_varExpr(vc, name.c_str(), vct);
 		delete_vcexpr(vct);
 	}
+
 	return symbol;
 }
 
@@ -796,7 +803,7 @@ bool SolveConstraints::contains_only_ints(const BoolExpr *be) {
 
 bool SolveConstraints::contains_only_ints(const Expr *e) {
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
-	if (e->type == Expr::SingleDef)
+	if (e->type == Expr::SingleDef || e->type == Expr::LoopBound)
 		return CC.is_integer(e->v) || isa<Constant>(e->v);
 	if (e->type == Expr::SingleUse)
 		return CC.is_integer(e->u->get()) || isa<Constant>(e->u->get());
