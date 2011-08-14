@@ -1,4 +1,8 @@
-all: build
+all:
+	make -C int
+
+install:
+	make -C int install # int-test.cpp
 
 build:
 	make -C nocrit
@@ -7,10 +11,6 @@ build:
 	make -C trace landmark-trace
 	make -C max-slicing
 	make -C simplifier
-	make -C int
-
-install: build
-	make -C int install # int-test.cpp
 
 run:
 	make -C int run

@@ -58,14 +58,13 @@ namespace slicer {
 		void test_test_array_nocrit_simple(const Module &M);
 		void test_test_malloc_nocrit_simple(const Module &M);
 		void test_test_range_nocrit_simple(const Module &M);
+		void test_test_dep_nocrit_simple(const Module &M);
 	};
 }
 
 static RegisterPass<IntTest> X(
-		"int-test",
-		"Test the integer constraint solver",
-		false,
-		false);
+		"int-test", "Test the integer constraint solver");
+
 // If Program == "", we dump all the integer constraints. 
 static cl::opt<string> Program(
 		"prog",

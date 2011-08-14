@@ -6,6 +6,7 @@ all:
 	make -C int
 	make -C reducer
 	make -C simplifier
+	make -C tests
 
 install:
 	make -C stp install
@@ -15,6 +16,7 @@ install:
 	make -C int install
 	make -C reducer install
 	make -C simplifier install
+	make -C tests install
 
 clean:
 	make -C stp clean
