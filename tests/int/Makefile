@@ -8,24 +8,20 @@ CXXFLAGS += -I$(LLVM_ROOT) -I$(SLICER_ROOT) -I$(SLICER_ROOT)/stp/install/include
 
 include $(LEVEL)/Makefile.common
 
-PROG_NAMES = test-overwrite-nocrit.simple test-loop-nocrit.simple \
-	     test-reducer-nocrit.simple \
-	     test-bound-nocrit.simple FFT-like-nocrit.simple \
-	     test-thread-nocrit.simple \
-	     test-array-nocrit.simple aget-like-nocrit.simple \
-	     test-overwrite-2-nocrit.simple \
-	     test-thread-2-nocrit.simple RADIX-like-nocrit.simple \
-	     test-malloc-nocrit.simple test-range-nocrit.simple \
-	     aget-nocrit.simple FFT-nocrit.simple \
-	     RADIX-nocrit.simple CHOLESKY-nocrit.simple
+PROG_NAMES = test-overwrite test-loop \
+	     test-reducer \
+	     test-bound FFT-like \
+	     test-thread \
+	     test-array aget-like \
+	     test-overwrite-2 \
+	     test-thread-2 RADIX-like \
+	     test-malloc test-range \
+	     aget FFT \
 PROGS_DIR = ../progs
 
 run:: $(PROG_NAMES)
 
-# Remove .simple/.slice
-landmark_trace_name = $(subst .simple,,$(subst .slice,,$(1))).lt
-
-%: $(PROGS_DIR)/%.bc
+%: $(PROGS_DIR)/%.simple.bc
 	opt -disable-output \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
@@ -38,10 +34,10 @@ landmark_trace_name = $(subst .simple,,$(subst .slice,,$(1))).lt
 		-load $(LLVM_ROOT)/install/lib/libint-test.so \
 		-int-test \
 		-prog $@ \
-		-input-landmark-trace ../trace/$(call landmark_trace_name,$@) \
+		-input-landmark-trace ../trace/$@.lt \
 		< $<
 
-%.ctxt: $(PROGS_DIR)/%.bc
+%.ctxt: $(PROGS_DIR)/%.simple.bc
 	opt -analyze \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
@@ -54,7 +50,7 @@ landmark_trace_name = $(subst .simple,,$(subst .slice,,$(1))).lt
 		-count-ctxts \
 		< $<
 
-%.ic: $(PROGS_DIR)/%.bc
+%.ic: $(PROGS_DIR)/%.simple.bc
 	opt -disable-output \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
@@ -66,11 +62,10 @@ landmark_trace_name = $(subst .simple,,$(subst .slice,,$(1))).lt
 		-load $(LLVM_ROOT)/install/lib/libint.so \
 		-load $(LLVM_ROOT)/install/lib/libint-test.so \
 		-int-test \
-		-input-landmark-trace \
-		../trace/$(call landmark_trace_name,$(@:.ic=)) \
+		-input-landmark-trace ../trace/$@.ic \
 		< $< 2> $@
 
 clean::
-	rm -f *.ic
+	rm -f *.ic *.ctxt
 
 .PHONY: run clean

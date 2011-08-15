@@ -41,26 +41,26 @@ namespace slicer {
 
 	private:
 		/* These test functions give assertion failures on incorrect results. */
-		void test_aget_nocrit_simple(const Module &M);
-		void test_aget_like_nocrit_simple(const Module &M);
-		void test_test_overwrite_nocrit_simple(const Module &M);
-		void test_test_overwrite_2_nocrit_simple(const Module &M);
-		void test_fft_nocrit_simple(const Module &M);
-		void test_fft_like_nocrit_simple(const Module &M);
-		void test_fft_nocrit_common(const Module &M);
-		void test_radix_nocrit_simple(const Module &M);
-		void test_radix_like_nocrit_simple(const Module &M);
-		void test_radix_nocrit_common(const Module &M);
-		void test_test_loop_nocrit_simple(const Module &M);
-		void test_test_reducer_nocrit_simple(const Module &M);
-		void test_test_bound_nocrit_simple(const Module &M);
-		void test_test_thread_nocrit_simple(const Module &M);
-		void test_test_array_nocrit_simple(const Module &M);
-		void test_test_malloc_nocrit_simple(const Module &M);
-		void test_test_range_nocrit_simple(const Module &M);
-		void test_test_range_2_nocrit_simple(const Module &M);
-		void test_test_range_3_nocrit_simple(const Module &M);
-		void test_test_dep_nocrit_simple(const Module &M);
+		void test_aget(const Module &M);
+		void test_aget_like(const Module &M);
+		void test_test_overwrite(const Module &M);
+		void test_test_overwrite_2(const Module &M);
+		void test_fft(const Module &M);
+		void test_fft_like(const Module &M);
+		void test_fft_common(const Module &M);
+		void test_radix(const Module &M);
+		void test_radix_like(const Module &M);
+		void test_radix_common(const Module &M);
+		void test_test_loop(const Module &M);
+		void test_test_reducer(const Module &M);
+		void test_test_bound(const Module &M);
+		void test_test_thread(const Module &M);
+		void test_test_array(const Module &M);
+		void test_test_malloc(const Module &M);
+		void test_test_range(const Module &M);
+		void test_test_range_2(const Module &M);
+		void test_test_range_3(const Module &M);
+		void test_test_dep(const Module &M);
 	};
 }
 
@@ -104,23 +104,23 @@ bool IntTest::runOnModule(Module &M) {
 	 * Each test case will check whether it should be run according
 	 * to the program name. 
 	 */
-	test_aget_nocrit_simple(M);
-	test_aget_like_nocrit_simple(M);
-	test_test_overwrite_nocrit_simple(M);
-	test_test_overwrite_2_nocrit_simple(M);
-	test_fft_nocrit_simple(M);
-	test_fft_like_nocrit_simple(M);
-	test_radix_nocrit_simple(M);
-	test_radix_like_nocrit_simple(M);
-	test_test_loop_nocrit_simple(M);
-	test_test_reducer_nocrit_simple(M);
-	test_test_bound_nocrit_simple(M);
-	test_test_thread_nocrit_simple(M);
-	test_test_array_nocrit_simple(M);
-	test_test_malloc_nocrit_simple(M);
-	test_test_range_nocrit_simple(M);
-	test_test_range_2_nocrit_simple(M);
-	test_test_range_3_nocrit_simple(M);
+	test_aget(M);
+	test_aget_like(M);
+	test_test_overwrite(M);
+	test_test_overwrite_2(M);
+	test_fft(M);
+	test_fft_like(M);
+	test_radix(M);
+	test_radix_like(M);
+	test_test_loop(M);
+	test_test_reducer(M);
+	test_test_bound(M);
+	test_test_thread(M);
+	test_test_array(M);
+	test_test_malloc(M);
+	test_test_range(M);
+	test_test_range_2(M);
+	test_test_range_3(M);
 	return false;
 }
 
@@ -128,11 +128,11 @@ static bool starts_with(const string &a, const string &b) {
 	return a.length() >= b.length() && a.compare(0, b.length(), b) == 0;
 }
 
-void IntTest::test_test_range_3_nocrit_simple(const Module &M) {
+void IntTest::test_test_range_3(const Module &M) {
 	
-	if (Program != "test-range-3-nocrit.simple")
+	if (Program != "test-range-3")
 		return;
-	TestBanner X("test-range-3-nocrit.simple");
+	TestBanner X("test-range-3");
 
 	ExecOnce &EO = getAnalysis<ExecOnce>();
 	DenseMap<const Function *, ConstValueList> accesses;
@@ -171,11 +171,11 @@ void IntTest::test_test_range_3_nocrit_simple(const Module &M) {
 	}
 }
 
-void IntTest::test_test_range_2_nocrit_simple(const Module &M) {
+void IntTest::test_test_range_2(const Module &M) {
 	
-	if (Program != "test-range-2-nocrit.simple")
+	if (Program != "test-range-2")
 		return;
-	TestBanner X("test-range-2-nocrit.simple");
+	TestBanner X("test-range-2");
 
 	ExecOnce &EO = getAnalysis<ExecOnce>();
 	vector<const Value *> accesses;
@@ -209,11 +209,11 @@ void IntTest::test_test_range_2_nocrit_simple(const Module &M) {
 	}
 }
 
-void IntTest::test_test_range_nocrit_simple(const Module &M) {
+void IntTest::test_test_range(const Module &M) {
 	
-	if (Program != "test-range-nocrit.simple")
+	if (Program != "test-range")
 		return;
-	TestBanner X("test-range-nocrit.simple");
+	TestBanner X("test-range");
 
 	ExecOnce &EO = getAnalysis<ExecOnce>();
 	vector<const Value *> accesses;
@@ -247,11 +247,11 @@ void IntTest::test_test_range_nocrit_simple(const Module &M) {
 	}
 }
 
-void IntTest::test_test_malloc_nocrit_simple(const Module &M) {
+void IntTest::test_test_malloc(const Module &M) {
 
-	if (Program != "test-malloc-nocrit.simple")
+	if (Program != "test-malloc")
 		return;
-	TestBanner X("test-malloc-nocrit.simple");
+	TestBanner X("test-malloc");
 
 	ExecOnce &EO = getAnalysis<ExecOnce>();
 	vector<const Value *> accesses;
@@ -283,11 +283,11 @@ void IntTest::test_test_malloc_nocrit_simple(const Module &M) {
 	}
 }
 
-void IntTest::test_test_array_nocrit_simple(const Module &M) {
+void IntTest::test_test_array(const Module &M) {
 
-	if (Program != "test-array-nocrit.simple")
+	if (Program != "test-array")
 		return;
-	TestBanner X("test-array-nocrit.simple");
+	TestBanner X("test-array");
 
 	for (Module::const_global_iterator gi = M.global_begin();
 			gi != M.global_end(); ++gi) {
@@ -299,11 +299,11 @@ void IntTest::test_test_array_nocrit_simple(const Module &M) {
 	}
 }
 
-void IntTest::test_test_thread_nocrit_simple(const Module &M) {
+void IntTest::test_test_thread(const Module &M) {
 
-	if (Program != "test-thread-nocrit.simple")
+	if (Program != "test-thread")
 		return;
-	TestBanner X("test-thread-nocrit.simple");
+	TestBanner X("test-thread");
 
 	vector<const Value *> local_ids;
 	forallconst(Module, f, M) {
@@ -323,11 +323,11 @@ void IntTest::test_test_thread_nocrit_simple(const Module &M) {
 	}
 }
 
-void IntTest::test_test_bound_nocrit_simple(const Module &M) {
+void IntTest::test_test_bound(const Module &M) {
 
-	if (Program != "test-bound-nocrit.simple")
+	if (Program != "test-bound")
 		return;
-	TestBanner X("test-bound-nocrit.simple");
+	TestBanner X("test-bound");
 
 	forallconst(Module, f, M) {
 		if (f->getName() != "main")
@@ -365,11 +365,11 @@ void IntTest::test_test_bound_nocrit_simple(const Module &M) {
 	}
 }
 
-void IntTest::test_test_reducer_nocrit_simple(const Module &M) {
+void IntTest::test_test_reducer(const Module &M) {
 
-	if (Program != "test-reducer-nocrit.simple")
+	if (Program != "test-reducer")
 		return;
-	TestBanner X("test-reducer-nocrit.simple");
+	TestBanner X("test-reducer");
 
 	forallconst(Module, f, M) {
 		if (f->getName() != "main")
@@ -402,11 +402,11 @@ void IntTest::test_test_reducer_nocrit_simple(const Module &M) {
 	}
 }
 
-void IntTest::test_test_loop_nocrit_simple(const Module &M) {
+void IntTest::test_test_loop(const Module &M) {
 	
-	if (Program != "test-loop-nocrit.simple")
+	if (Program != "test-loop")
 		return;
-	TestBanner X("test-loop-nocrit.simple");
+	TestBanner X("test-loop");
 
 	ExecOnce &EO = getAnalysis<ExecOnce>();
 
@@ -429,13 +429,13 @@ void IntTest::test_test_loop_nocrit_simple(const Module &M) {
 	print_pass(errs());
 }
 
-void IntTest::test_radix_like_nocrit_simple(const Module &M) {
+void IntTest::test_radix_like(const Module &M) {
 	
-	if (Program != "RADIX-like-nocrit.simple")
+	if (Program != "RADIX-like")
 		return;
-	TestBanner X("RADIX-like-nocrit.simple");
+	TestBanner X("RADIX-like");
 
-	test_radix_nocrit_common(M);
+	test_radix_common(M);
 
 	DenseMap<const Function *, vector<const Value *> > accesses_to_me;
 	vector<const Value *> accesses_to_ff;
@@ -534,13 +534,13 @@ void IntTest::test_radix_like_nocrit_simple(const Module &M) {
 	}
 }
 
-void IntTest::test_radix_nocrit_simple(const Module &M) {
+void IntTest::test_radix(const Module &M) {
 	
-	if (Program != "RADIX-nocrit.simple")
+	if (Program != "RADIX")
 		return;
-	TestBanner X("RADIX-nocrit.simple");
+	TestBanner X("RADIX");
 
-	test_radix_nocrit_common(M);
+	test_radix_common(M);
 
 	// rank_me_mynum and rank_ff_mynum
 	vector<const Value *> ranks;
@@ -580,7 +580,7 @@ void IntTest::test_radix_nocrit_simple(const Module &M) {
 	}
 }
 
-void IntTest::test_radix_nocrit_common(const Module &M) {
+void IntTest::test_radix_common(const Module &M) {
 
 	// MyNum's are distinct. 
 	vector<const Value *> local_ids;
@@ -629,20 +629,20 @@ void IntTest::test_radix_nocrit_common(const Module &M) {
 
 }
 
-void IntTest::test_fft_nocrit_simple(const Module &M) {
+void IntTest::test_fft(const Module &M) {
 	
-	if (Program != "FFT-nocrit.simple")
+	if (Program != "FFT")
 		return;
-	TestBanner X("FFT-nocrit.simple");
+	TestBanner X("FFT");
 
-	test_fft_nocrit_common(M);
+	test_fft_common(M);
 }
 
-void IntTest::test_test_overwrite_2_nocrit_simple(const Module &M) {
+void IntTest::test_test_overwrite_2(const Module &M) {
 
-	if (Program != "test-overwrite-2-nocrit.simple")
+	if (Program != "test-overwrite-2")
 		return;
-	TestBanner X("test-overwrite-2-nocrit.simple");
+	TestBanner X("test-overwrite-2");
 
 	ExecOnce &EO = getAnalysis<ExecOnce>();
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
@@ -669,11 +669,11 @@ void IntTest::test_test_overwrite_2_nocrit_simple(const Module &M) {
 	}
 }
 
-void IntTest::test_test_overwrite_nocrit_simple(const Module &M) {
+void IntTest::test_test_overwrite(const Module &M) {
 	
-	if (Program != "test-overwrite-nocrit.simple")
+	if (Program != "test-overwrite")
 		return;
-	TestBanner X("test-overwrite-nocrit.simple");
+	TestBanner X("test-overwrite");
 
 	ExecOnce &EO = getAnalysis<ExecOnce>();
 
@@ -705,16 +705,16 @@ void IntTest::test_test_overwrite_nocrit_simple(const Module &M) {
 	print_pass(errs());
 }
 
-void IntTest::test_fft_like_nocrit_simple(const Module &M) {
+void IntTest::test_fft_like(const Module &M) {
 
-	if (Program != "FFT-like-nocrit.simple")
+	if (Program != "FFT-like")
 		return;
-	TestBanner X("FFT-like-nocrit.simple");
+	TestBanner X("FFT-like");
 
-	test_fft_nocrit_common(M);
+	test_fft_common(M);
 }
 
-void IntTest::test_fft_nocrit_common(const Module &M) {
+void IntTest::test_fft_common(const Module &M) {
 
 	// MyNum's are distinct. 
 	vector<const Value *> local_ids;
@@ -803,11 +803,11 @@ void IntTest::test_fft_nocrit_common(const Module &M) {
 	}
 }
 
-void IntTest::test_aget_like_nocrit_simple(const Module &M) {
+void IntTest::test_aget_like(const Module &M) {
 
-	if (Program != "aget-like-nocrit.simple")
+	if (Program != "aget-like")
 		return;
-	TestBanner X("aget-like-nocrit.simple");
+	TestBanner X("aget-like");
 
 	vector<vector<ConstUsePair> > ranges;
 	forallconst(Module, f, M) {
@@ -857,11 +857,11 @@ void IntTest::test_aget_like_nocrit_simple(const Module &M) {
 	}
 }
 
-void IntTest::test_aget_nocrit_simple(const Module &M) {
+void IntTest::test_aget(const Module &M) {
 
-	if (Program != "aget-nocrit.simple")
+	if (Program != "aget")
 		return;
-	TestBanner X("aget-nocrit.simple");
+	TestBanner X("aget");
 
 	vector<const Function *> thr_funcs;
 	forallconst(Module, f, M) {
