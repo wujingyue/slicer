@@ -16,12 +16,12 @@ PROG_NAMES = test-overwrite test-loop \
 	     test-overwrite-2 \
 	     test-thread-2 RADIX-like \
 	     test-malloc test-range \
-	     aget FFT \
+	     aget FFT
 PROGS_DIR = ../progs
 
 run:: $(PROG_NAMES)
 
-%: $(PROGS_DIR)/%.simple.bc
+%: $(PROGS_DIR)/%.simple.bc ../trace/%.lt
 	opt -disable-output \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
@@ -34,7 +34,7 @@ run:: $(PROG_NAMES)
 		-load $(LLVM_ROOT)/install/lib/libint-test.so \
 		-int-test \
 		-prog $@ \
-		-input-landmark-trace ../trace/$@.lt \
+		-input-landmark-trace $(word 2, $^) \
 		< $<
 
 %.ctxt: $(PROGS_DIR)/%.simple.bc
@@ -50,7 +50,7 @@ run:: $(PROG_NAMES)
 		-count-ctxts \
 		< $<
 
-%.ic: $(PROGS_DIR)/%.simple.bc
+%.ic: $(PROGS_DIR)/%.simple.bc ../trace/%.lt
 	opt -disable-output \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
@@ -62,7 +62,7 @@ run:: $(PROG_NAMES)
 		-load $(LLVM_ROOT)/install/lib/libint.so \
 		-load $(LLVM_ROOT)/install/lib/libint-test.so \
 		-int-test \
-		-input-landmark-trace ../trace/$@.ic \
+		-input-landmark-trace $(word 2, $^) \
 		< $< 2> $@
 
 clean::

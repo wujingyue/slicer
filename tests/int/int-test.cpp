@@ -61,6 +61,7 @@ namespace slicer {
 		void test_test_range_2(const Module &M);
 		void test_test_range_3(const Module &M);
 		void test_test_dep(const Module &M);
+		void test_test_dep_common(const Module &M);
 	};
 }
 
@@ -121,11 +122,64 @@ bool IntTest::runOnModule(Module &M) {
 	test_test_range(M);
 	test_test_range_2(M);
 	test_test_range_3(M);
+	test_test_dep(M);
 	return false;
 }
 
 static bool starts_with(const string &a, const string &b) {
 	return a.length() >= b.length() && a.compare(0, b.length(), b) == 0;
+}
+
+void IntTest::test_test_dep(const Module &M) {
+	
+	if (Program != "test-dep")
+		return;
+	TestBanner X("test-dep");
+
+	test_test_dep_common(M);
+}
+
+void IntTest::test_test_dep_common(const Module &M) {
+
+	ExecOnce &EO = getAnalysis<ExecOnce>();
+
+	DenseMap<const Function *, ConstValueList> accesses;
+	forallconst(Module, f, M) {
+		if (EO.not_executed(f))
+			continue;
+		if (!starts_with(f->getName(), "slave_sort.SLICER"))
+			continue;
+		forallconst(Function, bb, *f) {
+			forallconst(BasicBlock, ins, *bb) {
+				if (const StoreInst *si = dyn_cast<StoreInst>(ins)) {
+					if (const ConstantInt *ci =
+							dyn_cast<ConstantInt>(si->getOperand(0))) {
+						if (ci->isZero()) {
+							errs() << f->getName() << "." << bb->getName() << ":" <<
+								*ins << "\n";
+							accesses[f].push_back(si->getPointerOperand());
+						}
+					}
+				}
+			}
+		}
+	}
+	assert(accesses.size() == 2);
+
+	DenseMap<const Function *, ConstValueList>::iterator i1, i2;
+	i1 = accesses.begin();
+	i2 = i1; ++i2;
+
+	for (size_t j1 = 0; j1 < i1->second.size(); ++j1) {
+		for (size_t j2 = 0; j2 < i2->second.size(); ++j2) {
+			AdvancedAlias &AA = getAnalysis<AdvancedAlias>();
+			errs() << "{" << i1->first->getName() << ":" << j1<< "} and {" <<
+				i2->first->getName() << ":" << j2 << "} don't alias? ...";
+			assert(AA.alias(i1->second[j1], 0, i2->second[j2], 0) ==
+					AliasAnalysis::NoAlias);
+			print_pass(errs());
+		}
+	}
 }
 
 void IntTest::test_test_range_3(const Module &M) {

@@ -128,12 +128,6 @@ void MaxSlicing::fix_def_use_bb(Module &M, const Trace &trace) {
 				else
 					actual_succ_insts = cfg.lookup(ti);
 
-				IDManager &IDM = getAnalysis<IDManager>();
-				Instruction *old_ti = clone_map_r.lookup(ti);
-				if (IDM.getInstructionID(old_ti) == 3423) {
-					errs() << "actual_succ_insts.size() = " <<
-						actual_succ_insts.size() << "\n";
-				}
 				for (size_t j = 0; j < actual_succ_insts.size(); ++j) {
 					Instruction *orig_succ_inst =
 						clone_map_r.lookup(actual_succ_insts[j]);
@@ -142,19 +136,12 @@ void MaxSlicing::fix_def_use_bb(Module &M, const Trace &trace) {
 					actual_succ_bbs[orig_succ_inst->getParent()] =
 						actual_succ_insts[j]->getParent();
 				}
-				if (IDM.getInstructionID(old_ti) == 3423) {
-					errs() << "actual_succ_bbs.size() = " <<
-						actual_succ_bbs.size() << "\n";
-					errs() << *actual_succ_bbs.begin()->first << "\n";
-				}
 				for (unsigned j = 0; j < ti->getNumSuccessors(); ++j) {
 					// If an outgoing block does not appear in the cloned CFG, 
 					// we redirect the outgoing edge to the unreachable BB in
 					// the function;
 					// otherwise, redirect the outgoing edge to the cloned CFG. 
 					BasicBlock *outgoing_bb = ti->getSuccessor(j);
-					if (IDM.getInstructionID(old_ti) == 3423)
-						errs() << "outgoing_bb = " << *outgoing_bb << "\n";
 					if (!actual_succ_bbs.count(outgoing_bb)) {
 						// NOTE: This refers to a slot in the hash map. 
 						BasicBlock *&unreachable_bb = unreach_bbs[fi];
@@ -165,8 +152,6 @@ void MaxSlicing::fix_def_use_bb(Module &M, const Trace &trace) {
 							// linked list.
 							unreachable_bb = create_unreachable(fi);
 						}
-						if (IDM.getInstructionID(old_ti) == 3423)
-							errs() << "Set a successor to the unreachable BB\n";
 						ti->setSuccessor(j, unreachable_bb);
 					} else {
 						ti->setSuccessor(j, actual_succ_bbs[outgoing_bb]);
