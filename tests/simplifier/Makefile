@@ -6,7 +6,7 @@ PROG_NAMES = test-loop test-reducer test-overwrite \
 	     RADIX-like test-thread-2 test-range-2 \
 	     test-overwrite-2 test-malloc test-range \
 	     test-range-3 \
-	     aget RADIX FFT pbzip2
+	     aget RADIX FFT
 PROGS_DIR = ../progs
 PROGS = $(addprefix $(PROGS_DIR)/, $(PROG_NAMES))
 SIMPLE_PROGS = $(PROGS:=.simple)
