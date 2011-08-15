@@ -5,6 +5,7 @@ install:
 	make -C int install # int-test.cpp
 
 build:
+	make -C progs
 	make -C preparer
 	make -C id-manager
 	make -C trace
