@@ -84,6 +84,7 @@ bool Instrument::runOnModule(Module &M) {
 			unsigned ins_id = IDM.getInstructionID(ii);
 			assert(ins_id != IDManager::INVALID_ID);
 			// pthread_create needs a special wrapper. 
+			// FIXME: Can be invoke pthread_create
 			if (CallInst *ci = dyn_cast<CallInst>(ii)) {
 				if (Function *callee = ci->getCalledFunction()) {
 					if (callee->getNameStr() == "pthread_create") {
@@ -106,8 +107,8 @@ bool Instrument::runOnModule(Module &M) {
 			// Before the instruction if non-blocking. 
 			// After the instruction if blocking. 
 			if (!blocks(ii)) {
-				CallInst::Create(
-						trace_inst, ConstantInt::get(uint_type, ins_id), "", ii);
+				CallInst::Create(trace_inst,
+						ConstantInt::get(uint_type, ins_id), "", ii);
 			} else {
 				if (InvokeInst *inv = dyn_cast<InvokeInst>(ii)) {
 					// TODO: We don't instrument the unwind BB currently. 

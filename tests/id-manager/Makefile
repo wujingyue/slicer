@@ -1,20 +1,19 @@
-PROG_NAMES = test-thread-nocrit test-overwrite-nocrit test-loop-nocrit \
-	     test-reducer-nocrit test-recursive-nocrit test-ret-nocrit \
-	     test-phi-nocrit test-bound-nocrit FFT-like-nocrit test-dep-nocrit \
-	     aget-like-nocrit test-array-nocrit test-pointer-nocrit \
-	     test-overwrite-2-nocrit RADIX-like-nocrit test-thread-2-nocrit \
-	     test-malloc-nocrit test-ctxt-nocrit test-range-nocrit \
-	     test-range-2-nocrit test-range-3-nocrit \
-	     aget-nocrit FFT-nocrit RADIX-nocrit \
-	     pbzip2-nocrit CHOLESKY-nocrit
+PROG_NAMES = test-thread test-overwrite test-loop \
+	     test-reducer test-recursive test-ret \
+	     test-phi test-bound FFT-like test-dep \
+	     aget-like test-array test-pointer \
+	     test-overwrite-2 RADIX-like test-thread-2 \
+	     test-malloc test-ctxt test-range \
+	     test-range-2 test-range-3 \
+	     aget FFT RADIX pbzip2 CHOLESKY
 PROGS_DIR = ../progs
 PROGS = $(addprefix $(PROGS_DIR)/, $(PROG_NAMES))
 BCS = $(addsuffix .bc, $(PROGS))
-TAGGED_BCS = $(addsuffix -id.bc, $(PROGS))
+TAGGED_BCS = $(addsuffix .id.bc, $(PROGS))
 
 all: $(TAGGED_BCS)
 
-%-id.bc: %.bc
+%.id.bc: %.prep.bc
 	opt -o $@ \
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
 		-tag-id \

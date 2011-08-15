@@ -1,12 +1,12 @@
 # simplifier only works on sliced programs 
 
-PROG_NAMES = test-loop-nocrit test-reducer-nocrit test-overwrite-nocrit \
-	     test-bound-nocrit FFT-like-nocrit test-dep-nocrit \
-	     aget-like-nocrit test-array-nocrit test-thread-nocrit \
-	     RADIX-like-nocrit test-thread-2-nocrit test-range-2-nocrit \
-	     test-overwrite-2-nocrit test-malloc-nocrit test-range-nocrit \
-	     test-range-3-nocrit \
-	     aget-nocrit RADIX-nocrit FFT-nocrit CHOLESKY-nocrit
+PROG_NAMES = test-loop test-reducer test-overwrite \
+	     test-bound FFT-like test-dep \
+	     aget-like test-array test-thread \
+	     RADIX-like test-thread-2 test-range-2 \
+	     test-overwrite-2 test-malloc test-range \
+	     test-range-3 \
+	     aget RADIX FFT pbzip2
 PROGS_DIR = ../progs
 PROGS = $(addprefix $(PROGS_DIR)/, $(PROG_NAMES))
 SIMPLE_PROGS = $(PROGS:=.simple)
@@ -36,7 +36,7 @@ $(PROGS_DIR)/test-malloc.simple.bc: $(PROGS_DIR)/test-malloc.slice.bc
 # We use -o whenever possible, because <simplifier> will remove the output
 # file on failure. 
 # For aget, need turn on flag unit-at-a-time to disable some annoying LLVM opts. 
-$(PROGS_DIR)/aget-nocrit.simple.bc: $(PROGS_DIR)/aget-nocrit.slice.bc ../trace/aget-nocrit.lt
+$(PROGS_DIR)/aget.simple.bc: $(PROGS_DIR)/aget.slice.bc ../trace/aget.lt
 	simplifier -o $@ -input-landmark-trace $(word 2, $^) -p -funit-at-a-time=false < $<
 
 $(PROGS_DIR)/%.simple.bc: $(PROGS_DIR)/%.slice.bc ../trace/%.lt

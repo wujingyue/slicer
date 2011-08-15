@@ -12,6 +12,7 @@
 #include "llvm/Support/CFG.h"
 #include "llvm/Transforms/Utils/SSAUpdater.h"
 #include "common/callgraph-fp/callgraph-fp.h"
+#include "common/id-manager/IDManager.h"
 #include "common/cfg/may-exec.h"
 using namespace llvm;
 
@@ -37,9 +38,14 @@ void MaxSlicing::redirect_program_entry(
 	new_main->setName(old_main_name);
 }
 
-void MaxSlicing::fix_def_use_bb(Module &M) {
+void MaxSlicing::fix_def_use_bb(Module &M, const Trace &trace) {
 
 	dbgs() << "Fixing BBs in def-use graph...\n";
+
+	// An InvokeInst's successors may not be its successors in <cfg>. 
+	// Need an extra pass of DFS to resolve them. 
+	find_invoke_successors(M, trace);
+
 	DenseMap<Function *, BasicBlock *> unreach_bbs;
 	forallfunc(M, fi) {
 		forall(Function, bi, *fi) {
@@ -52,6 +58,10 @@ void MaxSlicing::fix_def_use_bb(Module &M) {
 				BBMapping actual_pred_bbs;
 				const InstList &actual_pred_insts = cfg_r.lookup(bi->begin());
 				for (size_t j = 0; j < actual_pred_insts.size(); ++j) {
+					EdgeType et = get_edge_type(actual_pred_insts[j], bi->begin());
+					// FIXME: Are you sure? Successors of InvokeInsts never
+					// have PHINodes? 
+					assert(et == EDGE_INTRA_BB || et == EDGE_INTER_BB);
 					Instruction *orig_pred_inst =
 						clone_map_r.lookup(actual_pred_insts[j]);
 					assert(orig_pred_inst);
@@ -112,21 +122,40 @@ void MaxSlicing::fix_def_use_bb(Module &M) {
 				}
 			} else {
 				BBMapping actual_succ_bbs; // Map to the cloned CFG. 
-				const InstList &actual_succ_insts = cfg.lookup(ti);
+				InstList actual_succ_insts;
+				if (invoke_successors.count(ti))
+					actual_succ_insts = invoke_successors.lookup(ti);
+				else
+					actual_succ_insts = cfg.lookup(ti);
+
+				IDManager &IDM = getAnalysis<IDManager>();
+				Instruction *old_ti = clone_map_r.lookup(ti);
+				if (IDM.getInstructionID(old_ti) == 3423) {
+					errs() << "actual_succ_insts.size() = " <<
+						actual_succ_insts.size() << "\n";
+				}
 				for (size_t j = 0; j < actual_succ_insts.size(); ++j) {
 					Instruction *orig_succ_inst =
 						clone_map_r.lookup(actual_succ_insts[j]);
 					assert(orig_succ_inst);
+					assert(orig_succ_inst->getParent());
 					actual_succ_bbs[orig_succ_inst->getParent()] =
 						actual_succ_insts[j]->getParent();
 				}
+				if (IDM.getInstructionID(old_ti) == 3423) {
+					errs() << "actual_succ_bbs.size() = " <<
+						actual_succ_bbs.size() << "\n";
+					errs() << *actual_succ_bbs.begin()->first << "\n";
+				}
 				for (unsigned j = 0; j < ti->getNumSuccessors(); ++j) {
-					// If an outcoming block does not appear in the cloned CFG, 
-					// we redirect the outcoming edge to the unreachable BB in
+					// If an outgoing block does not appear in the cloned CFG, 
+					// we redirect the outgoing edge to the unreachable BB in
 					// the function;
-					// otherwise, redirect the outcoming edge to the cloned CFG. 
-					BasicBlock *outcoming_bb = ti->getSuccessor(j);;
-					if (!actual_succ_bbs.count(outcoming_bb)) {
+					// otherwise, redirect the outgoing edge to the cloned CFG. 
+					BasicBlock *outgoing_bb = ti->getSuccessor(j);
+					if (IDM.getInstructionID(old_ti) == 3423)
+						errs() << "outgoing_bb = " << *outgoing_bb << "\n";
+					if (!actual_succ_bbs.count(outgoing_bb)) {
 						// NOTE: This refers to a slot in the hash map. 
 						BasicBlock *&unreachable_bb = unreach_bbs[fi];
 						if (!unreachable_bb) {
@@ -136,9 +165,11 @@ void MaxSlicing::fix_def_use_bb(Module &M) {
 							// linked list.
 							unreachable_bb = create_unreachable(fi);
 						}
+						if (IDM.getInstructionID(old_ti) == 3423)
+							errs() << "Set a successor to the unreachable BB\n";
 						ti->setSuccessor(j, unreachable_bb);
 					} else {
-						ti->setSuccessor(j, actual_succ_bbs[outcoming_bb]);
+						ti->setSuccessor(j, actual_succ_bbs[outgoing_bb]);
 					}
 				}
 			} // if (ti == NULL)
@@ -180,7 +211,7 @@ void MaxSlicing::fix_def_use(Module &M, const Trace &trace) {
 	// instructions for now. Could make it faster by maintaining a list
 	// of unresolved operands. 
 	dbgs() << "\nFixing def-use...\n";
-	fix_def_use_bb(M);
+	fix_def_use_bb(M, trace);
 	fix_def_use_insts(M, trace);
 	fix_def_use_func_param(M);
 	fix_def_use_func_call(M);
@@ -248,20 +279,20 @@ void MaxSlicing::fix_def_use_insts(Module &M, const Trace &trace) {
 	forallfunc(M, f) {
 		if (f->isDeclaration())
 			continue;
-		fix_def_use_insts_in_func(f);
+		fix_def_use_insts(*f);
 	}
 }
 
-void MaxSlicing::fix_def_use_insts_in_func(Function *f) {
+void MaxSlicing::fix_def_use_insts(Function &F) {
 	
-	dbgs() << "Fixing instructions in Function " << f->getName() << "...\n";
+	dbgs() << "Fixing instructions in Function " << F.getName() << "...\n";
 
 	// An old instruction may correspond to multiple new instructions.
 	DenseMap<Instruction *, InstSet> old_insts_to_new;
 	DenseMap<Instruction *, vector<Use *> > uses_of_old_insts;
 	
 	// Collect all def-use chains in this function. 
-	forall(Function, bb, *f) {
+	forall(Function, bb, F) {
 		forall(BasicBlock, new_ins, *bb) {
 			if (Instruction *old_ins = clone_map_r.lookup(new_ins)) {
 				old_insts_to_new[old_ins].insert(new_ins);
@@ -401,7 +432,6 @@ bool MaxSlicing::is_unreachable(const BasicBlock *bb) {
 }
 
 BasicBlock *MaxSlicing::create_unreachable(Function *f) {
-
 	BasicBlock *unreachable_bb = BasicBlock::Create(
 			f->getContext(), "unreachable" + SLICER_SUFFIX, f);
 	// Insert an llvm.trap in the unreachable BB. 

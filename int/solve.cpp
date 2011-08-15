@@ -350,7 +350,7 @@ void SolveConstraints::update_appeared(
 
 void SolveConstraints::diagnose(Module &M) {
 
-	dbgs() << "Detected inconsistency. Enter diagnose mode...\n";
+	errs() << "Detected inconsistency. Enter diagnose mode...\n";
 
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 	unsigned n_constraints = CC.get_num_constraints();
@@ -373,21 +373,21 @@ void SolveConstraints::diagnose(Module &M) {
 		int ret = vc_query(vc, f);
 		delete_vcexpr(f);
 		if (ret == 0) {
-			dbgs() << "Constraint " << j << " matters.\n";
+			errs().changeColor(raw_ostream::GREEN) << "Y"; errs().resetColor();
 			does_not_matter.erase(j);
 		} else {
-			dbgs() << "Constraint " << j << " does not matter.\n";
+			errs().changeColor(raw_ostream::RED) << "N"; errs().resetColor();
 		}
 	}
 
-	dbgs() << "Start printing a minimal set...\n";
+	errs() << "Start printing a minimal set...\n";
 	for (unsigned i = 0; i < n_constraints; ++i) {
 		if (!does_not_matter.count(i)) {
 			print_clause(dbgs(), CC.get_constraint(i), getAnalysis<IDAssigner>());
-			dbgs() << "\n";
+			errs() << "\n";
 		}
 	}
-	dbgs() << "Finished printing a minimal set\n";
+	errs() << "Finished printing a minimal set\n";
 }
 
 void SolveConstraints::translate_captured(Module &M) {

@@ -182,17 +182,20 @@ Clause *CaptureConstraints::get_in_select(const SelectInst *si) {
 	if (!cond->getType()->isIntegerTy(1))
 		return NULL;
 
-	// cond == 1 <==> si == true value
-	// cond == 0 <==> si == false value
-	// ==>
-	// (cond == 0) ^ (si == true value)
-	// (cond == 1) ^ (si == false value)
-	Clause *c_true = new Clause(Instruction::Xor,
+	// cond == 1 ==> si == true value
+	// cond == 0 ==> si == false value
+	// i.e.
+	// not (cond == 1) or (si == true value)
+	// not (cond == 0) or (si == false value)
+	// i.e.
+	// (cond == 0) or (si == true value)
+	// (cond == 1) or (si == false value)
+	Clause *c_true = new Clause(Instruction::Or,
 			new Clause(new BoolExpr(CmpInst::ICMP_EQ,
 					new Expr(cond), new Expr(ConstantInt::getFalse(si->getContext())))),
 			new Clause(new BoolExpr(CmpInst::ICMP_EQ,
 					new Expr(si), new Expr(true_value))));
-	Clause *c_false = new Clause(Instruction::Xor,
+	Clause *c_false = new Clause(Instruction::Or,
 			new Clause(new BoolExpr(CmpInst::ICMP_EQ,
 					new Expr(cond), new Expr(ConstantInt::getTrue(si->getContext())))),
 			new Clause(new BoolExpr(CmpInst::ICMP_EQ,

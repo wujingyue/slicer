@@ -8,11 +8,11 @@ PROGS_DIR = ../progs
 
 PROGS = $(addprefix $(PROGS_DIR)/, $(PROG_NAMES))
 
-all: $(PROGS:=-nocrit.bc)
+all: $(PROGS:=.prep.bc)
 
 # Use -o when possible
 # <opt> will remove the output file on failure.
-%-nocrit.bc: %.bc
+%.prep.bc: %.bc
 	opt -o $@ \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
@@ -24,6 +24,6 @@ all: $(PROGS:=-nocrit.bc)
 		< $<
 
 clean:
-	rm -f $(PROGS:=-nocrit.bc)
+	rm -f $(PROGS:=.prep.bc)
 
 .PHONY: clean

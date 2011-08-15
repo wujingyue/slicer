@@ -201,7 +201,9 @@ void MaxSlicing::check_dominance(Module &M) {
 }
 
 void MaxSlicing::volatile_landmarks(Module &M, const Trace &trace) {
+	
 	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
+
 	vector<int> thr_ids = LT.get_thr_ids();
 	for (size_t k = 0; k < thr_ids.size(); ++k) {
 		int i = thr_ids[k];

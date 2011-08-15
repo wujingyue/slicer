@@ -6,9 +6,9 @@
  * TODO: redirect_program_entry does not remove any instructions now. 
  * Therefore, we can print the clone mapping in an much easier way. 
  *
- * Rename to be max-slicing
+ * TODO: <trace> should really be global. 
  *
- * CFG in the MBB-level. 
+ * TODO: CFG in the MBB-level. 
  */
 
 #ifndef __SLICER_MAX_SLICING_H
@@ -203,24 +203,28 @@ namespace slicer {
 		void dfs_cfg(
 				const CFG &cfg, Instruction *x, const InstSet &cut,
 				InstSet &visited_nodes, EdgeSet &visited_edges);
-		/*
+		/**
 		 * Traces back through <parent> and finds the latest ancestor with
 		 * the same level. 
 		 */
-		Instruction *find_parent_at_same_level(
-				Instruction *x,
+		Instruction *find_parent_at_same_level(Instruction *x,
 				const DenseMap<Instruction *, int> &level,
 				const InstMapping &parent);
-		/*
+		/**
+		 * An InvokeInst's successors may not be its successors in <cfg>. 
+		 * Need an extra pass of DFS to resolve them. 
+		 */
+		void find_invoke_successors(Module &M, const Trace &trace);
+		void find_invoke_successors_from(Module &M, Instruction *start);
+		void compute_invoke_successor(Instruction *x, InstSet &visited,
+				InstList &call_stack);
+		/**
 		 * Fix the def-use graph. 
 		 */
-		void fix_def_use(
-				Module &M,
-				const Trace &trace);
-		void fix_def_use_bb(
-				Module &M);
+		void fix_def_use(Module &M, const Trace &trace);
+		void fix_def_use_bb(Module &M, const Trace &trace);
 		void fix_def_use_insts(Module &M, const Trace &trace);
-		void fix_def_use_insts_in_func(Function *f);
+		void fix_def_use_insts(Function &F);
 		void fix_def_use_func_param(Module &M);
 		void fix_def_use_func_call(Module &M);
 		void redirect_program_entry(Instruction *old_start, Instruction *new_start);
@@ -240,6 +244,10 @@ namespace slicer {
 		map<int, vector<InstMapping> > clone_map;
 		// CFG and reversed CFG
 		CFG cfg, cfg_r;
+		// The real successors of an InvokeInst, which are at the same level.
+		// Does not include InvokeInsts whose successors in <cfg> are already
+		// real successors. 
+		CFG invoke_successors;
 	};
 }
 

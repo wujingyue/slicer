@@ -1,23 +1,24 @@
-# TODO: Generate ft
+# Author: Jingyue
 
-PROG_NAMES = test-thread-nocrit test-overwrite-nocrit test-loop-nocrit \
-	     test-reducer-nocrit test-pointer-nocrit test-range-2-nocrit \
-	     test-recursive-nocrit test-bound-nocrit FFT-like-nocrit \
-	     aget-like-nocrit test-array-nocrit test-dep-nocrit \
-	     test-overwrite-2-nocrit RADIX-like-nocrit test-thread-2-nocrit \
-	     test-malloc-nocrit test-ctxt-nocrit test-range-nocrit \
-	     test-range-3-nocrit \
-	     aget-nocrit FFT-nocrit RADIX-nocrit \
-	     pbzip2-nocrit CHOLESKY-nocrit
+PROG_NAMES = test-thread test-overwrite test-loop \
+	     test-reducer test-pointer test-range-2 \
+	     test-recursive test-bound FFT-like \
+	     aget-like test-array test-dep \
+	     test-overwrite-2 RADIX-like test-thread-2 \
+	     test-malloc test-ctxt test-range test-range-3 \
+	     aget FFT RADIX pbzip2 CHOLESKY
 PROGS_DIR = ../progs
 TRACED_PROGS = $(PROG_NAMES:=.trace)
 LANDMARK_TRACES = $(PROG_NAMES:=.lt)
+FULL_TRACES = $(PROG_NAMES:=.ft)
 
 all: $(TRACED_PROGS)
 
 landmark-trace: $(LANDMARK_TRACES)
 
-%.bc1: $(PROGS_DIR)/%-id.bc
+full-trace: $(FULL_TRACES)
+
+%.bc1: $(PROGS_DIR)/%.id.bc
 	opt -o $@ \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
@@ -45,17 +46,71 @@ landmark-trace: $(LANDMARK_TRACES)
 pbzip2%: pbzip2%.s
 	$(CXX) $< -o $@ -pthread -lbz2
 
-# ./test-reducer-nocrit 1 2 3
-# ./test-loop-nocrit 3
-# ./test-bound-nocrit 5 10 15
-# ./RADIX-nocrit -p2 -r1024
-# ./FFT-nocrit -p4 -m10
-# ./RADIX-like 4 1024 524288
-# ./FFT-like 4
-# ./aget-like 16 4
-# ./aget-nocrit -n2 -f http://www.cs.columbia.edu/~jingyue/index.html
-# ./pbzip2-nocrit -p8 -dkvf test.bz2
-# ./CHOLESKY -p2 < lshp.O
+# Command lines to generate full traces
+test-range.ft: test-range.trace
+	./$< 2 10
+	mv /tmp/fulltrace $@
+
+test-range-2.ft: test-range-2.trace
+	./$< 2 10
+	mv /tmp/fulltrace $@
+
+test-range-3.ft: test-range-3.trace
+	./$< 2 10
+	mv /tmp/fulltrace $@
+
+test-dep.ft: test-dep.trace
+	./$< 100
+	mv /tmp/fulltrace $@
+
+test-reducer.ft: test-reducer.trace
+	./$< 1 2 3
+	mv /tmp/fulltrace $@
+
+test-loop.ft: test-loop.trace
+	./$< 3
+	mv /tmp/fulltrace $@
+
+test-bound.ft: test-bound.trace
+	./$< 5 10 15
+	mv /tmp/fulltrace $@
+
+RADIX-like.ft: RADIX-like.trace
+	./$< 4 1024 524288
+	mv /tmp/fulltrace $@
+
+FFT-like.ft: FFT-like.trace
+	./$< 4
+	mv /tmp/fulltrace $@
+
+aget-like.ft: aget-like.trace
+	./$< 16 4
+	mv /tmp/fulltrace $@
+
+aget.ft: aget.trace
+	./$< -n2 -f http://www.cs.columbia.edu/~jingyue/index.html
+	mv /tmp/fulltrace $@
+
+pbzip2.ft: pbzip2.trace
+	./$< -p8 -dkvf ../progs/inputs/pbzip2-test.bz2
+	mv /tmp/fulltrace $@
+
+CHOLESKY.ft: CHOLESKY.trace
+	./$< -p2 < ../progs/inputs/CHOLESKY-lshp.O
+	mv /tmp/fulltrace $@
+
+RADIX.ft: RADIX.trace
+	./$< -p2 -r1024
+	mv /tmp/fulltrace $@
+
+FFT.ft: FFT.trace
+	./$< -p4 -m10
+	mv /tmp/fulltrace $@
+
+# Most programs don't need any special command line. 
+%.ft: %.trace
+	./$<
+	mv /tmp/fulltrace $@
 
 %.lt: %.ft
 	opt -disable-output \
@@ -68,15 +123,9 @@ pbzip2%: pbzip2%.s
 		-build-landmark-trace \
 		-fulltrace $< \
 		-output-landmark-trace $@ \
-		< $(PROGS_DIR)/$(<:.ft=-id.bc)
+		< $(PROGS_DIR)/$(<:.ft=.id.bc)
 
-%.display-ft: %.ft
-	display-trace full < $<
-
-%.display-lt: %.lt
-	display-trace landmark < $<
-
-%.landmarks: $(PROGS_DIR)/%-id.bc
+%.landmarks: $(PROGS_DIR)/%.id.bc
 	opt -analyze \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
@@ -88,6 +137,6 @@ pbzip2%: pbzip2%.s
 		< $<
 
 clean:
-	rm -f *.trace *.trace.bc *.trace.s *.bc1 *.lt
+	rm -f *.trace *.trace.bc *.trace.s *.bc1 *.ft *.lt
 
-.PHONY: clean landmark-trace *.display-lt *.display-ft *.landmarks
+.PHONY: clean full-trace landmark-trace *.landmarks

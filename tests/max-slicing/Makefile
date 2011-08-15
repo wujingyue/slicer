@@ -1,11 +1,11 @@
-PROG_NAMES = test-loop-nocrit test-reducer-nocrit test-thread-nocrit \
-	     test-overwrite-nocrit test-recursive-nocrit test-dep-nocrit \
-	     test-bound-nocrit FFT-like-nocrit aget-like-nocrit \
-	     test-array-nocrit test-pointer-nocrit test-range-2-nocrit \
-	     test-overwrite-2-nocrit RADIX-like-nocrit test-thread-2-nocrit \
-	     test-malloc-nocrit test-ctxt-nocrit test-range-nocrit \
-	     test-range-3-nocrit \
-	     FFT-nocrit RADIX-nocrit aget-nocrit pbzip2-nocrit CHOLESKY-nocrit
+PROG_NAMES = test-loop test-reducer test-thread \
+	     test-overwrite test-recursive test-dep \
+	     test-bound FFT-like aget-like \
+	     test-array test-pointer test-range-2 \
+	     test-overwrite-2 RADIX-like test-thread-2 \
+	     test-malloc test-ctxt test-range \
+	     test-range-3 \
+	     FFT RADIX aget pbzip2 CHOLESKY
 PROGS_DIR = ../progs
 PROGS = $(addprefix $(PROGS_DIR)/, $(PROG_NAMES))
 SLICED_PROGS = $(addsuffix .slice, $(PROGS))
@@ -17,7 +17,7 @@ all: $(SLICED_BCS)
 region: $(addsuffix .region, $(PROG_NAMES))
 
 # max-slicing requires ID information. 
-$(PROGS_DIR)/%.slice.bc: $(PROGS_DIR)/%-id.bc ../trace/%.lt
+$(PROGS_DIR)/%.slice.bc: $(PROGS_DIR)/%.id.bc ../trace/%.lt
 	opt -stats -o $@ \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \

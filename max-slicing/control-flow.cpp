@@ -44,11 +44,7 @@ void MaxSlicing::build_cfg(Module &M, const Trace &trace, const InstSet &cut) {
 	forallconst(Trace, it, trace) {
 		// it->first: thread ID
 		// it->second: thread trace
-		build_cfg_of_thread(
-				M,
-				it->second,
-				cut,
-				it->first);
+		build_cfg_of_thread(M, it->second, cut, it->first);
 	}
 	// Every instructions in the cloned program should have parent BBs and
 	// parent functions.
@@ -215,9 +211,7 @@ void MaxSlicing::assign_container(
 	}
 }
 
-MaxSlicing::EdgeType MaxSlicing::get_edge_type(
-		Instruction *x,
-		Instruction *y) {
+MaxSlicing::EdgeType MaxSlicing::get_edge_type(Instruction *x, Instruction *y) {
 
 	assert(x && y && "<x> and <y> cannot be NULL");
 	x = clone_map_r.lookup(x);
@@ -272,12 +266,11 @@ Instruction *MaxSlicing::clone_inst(
 	return y;
 }
 
-void MaxSlicing::build_cfg_of_thread(
-		Module &M,
-		const InstList &thr_trace,
-		const InstSet &cut,
-		int thr_id) {
+void MaxSlicing::build_cfg_of_thread(Module &M, const InstList &thr_trace,
+		const InstSet &cut, int thr_id) {
+
 	dbgs() << "Building CFG of Thread " << thr_id << "...\n";
+	
 	clone_map[thr_id].clear();
 	vector<Instruction *> call_stack;
 	assert(thr_trace.size() > 0);
@@ -297,13 +290,9 @@ void MaxSlicing::build_cfg_of_thread(
 			DEBUG(dbgs() << "  " << *thr_trace[i] << "\n";
 			dbgs() << "  " << *thr_trace[i + 1] << "\n";
 			print_call_stack(dbgs(), call_stack););
-			build_cfg_of_trunk(
-					thr_trace[i],
-					thr_trace[i + 1],
-					cut,
-					thr_id,
-					i,
-					call_stack);
+			// <i> is the trunk ID. 
+			build_cfg_of_trunk(thr_trace[i], thr_trace[i + 1],
+					cut, thr_id, i, call_stack);
 		}
 	}
 
@@ -368,8 +357,8 @@ void MaxSlicing::build_cfg_of_trunk(
 	// <end> belongs to the next trunk. 
 	create_and_link_cloned_inst(thr_id, trunk_id + 1, end);
 
-	DEBUG(print_inst_set(dbgs(), visited_nodes);
-	print_edge_set(dbgs(), visited_edges););
+	DEBUG(print_inst_set(dbgs(), visited_nodes););
+	DEBUG(print_edge_set(dbgs(), visited_edges););
 	
 	// Add this trunk to the CFG. 
 	forall(EdgeSet, it, visited_edges) {
@@ -463,8 +452,8 @@ void MaxSlicing::dfs(
 	assert(x && "<x> cannot be NULL");
 	assert(visited_nodes.count(x));
 
-	DEBUG(dbgs() << "dfs:" << *x << "\n";
-	print_call_stack(dbgs(), call_stack););
+	DEBUG(dbgs() << "dfs:" << *x << "\n";);
+	DEBUG(print_call_stack(dbgs(), call_stack););
 
 	// We are performing intra-thread analysis now. 
 	// Don't go to the thread function. 
@@ -567,4 +556,55 @@ bool MaxSlicing::is_sliced(const Function *f) {
 	if (is_main(f))
 		return true;
 	return f->getNameStr().find(SLICER_SUFFIX) != string::npos;
+}
+
+void MaxSlicing::find_invoke_successors(Module &M, const Trace &trace) {
+	invoke_successors.clear();
+	forallconst(Trace, it, trace) {
+		assert(!it->second.empty());
+		Instruction *old_start = it->second[0];
+		if (clone_map[it->first].empty())
+			continue;
+		Instruction *new_start = clone_map[it->first][0].lookup(old_start);
+		assert(new_start);
+		find_invoke_successors_from(M, new_start);
+	}
+}
+
+void MaxSlicing::find_invoke_successors_from(Module &M, Instruction *start) {
+	InstList call_stack;
+	InstSet visited;
+	compute_invoke_successor(start, visited, call_stack);
+}
+
+void MaxSlicing::compute_invoke_successor(Instruction *x,
+		InstSet &visited, InstList &call_stack) {
+
+	assert(x);
+	if (visited.count(x))
+		return;
+	visited.insert(x);
+	
+	const InstList &next_insts = cfg.lookup(x);
+	for (size_t j = 0, E = next_insts.size(); j < E; ++j) {
+		Instruction *y = next_insts[j];
+		if (get_edge_type(x, y) == EDGE_CALL) {
+			call_stack.push_back(x);
+			compute_invoke_successor(y, visited, call_stack);
+			call_stack.pop_back();
+		} else if (get_edge_type(x, y) == EDGE_RET) {
+			assert(call_stack.size() > 0 && "The call stack is empty");
+			Instruction *ret_addr = call_stack.back();
+			if (isa<InvokeInst>(ret_addr)) {
+				DEBUG(dbgs() << "Invoke successor:\n";);
+				DEBUG(dbgs() << *ret_addr << "\n" << *y << "\n";);
+				invoke_successors[ret_addr].push_back(y);
+			}
+			call_stack.pop_back();
+			compute_invoke_successor(y, visited, call_stack);
+			call_stack.push_back(ret_addr);
+		} else {
+			compute_invoke_successor(y, visited, call_stack);
+		}
+	}
 }
