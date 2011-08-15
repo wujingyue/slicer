@@ -17,6 +17,7 @@ using namespace llvm;
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <queue>
 using namespace std;
 
 #include "max-slicing.h"
@@ -111,54 +112,65 @@ Instruction *MaxSlicing::find_parent_at_same_level(
 	return p;
 }
 
-void MaxSlicing::assign_level(
-		Instruction *x,
-		DenseMap<Instruction *, int> &level,
-		InstMapping &parent) {
-	
-	assert(x && "<x> cannot be NULL");
-	
-	DEBUG(IDManager &IDM = getAnalysis<IDManager>();
-	dbgs() << "level of {" << cloned_to_trunk.lookup(x) << ":" <<
-		IDM.getInstructionID(clone_map_r.lookup(x)) << "} = " <<
-		level.lookup(x) << "\n";);
-	
-	const InstList &next_insts = cfg.lookup(x);
-	for (size_t j = 0, E = next_insts.size(); j < E; ++j) {
-		Instruction *y = next_insts[j];
-		if (!level.count(y)) {
-			EdgeType t = get_edge_type(x, y);
-			if (t == EDGE_CALL)
-				level[y] = level[x] + 1;
-			else if (t == EDGE_RET)
-				level[y] = level[x] - 1;
-			else
-				level[y] = level[x];
-			parent[y] = x;
-			assign_level(y, level, parent);
-		}
-	}
+void MaxSlicing::assign_level(Instruction *y, Instruction *x,
+		DenseMap<Instruction *, int> &level) {
+	EdgeType t = get_edge_type(x, y);
+	if (t == EDGE_CALL)
+		level[y] = level[x] + 1;
+	else if (t == EDGE_RET)
+		level[y] = level[x] - 1;
+	else
+		level[y] = level[x];
 }
 
 void MaxSlicing::assign_containers(Module &M, Instruction *start) {
 	// <start> is a cloned instruction. 
 	DenseMap<Instruction *, int> level;
-	level[start] = 0;
 	InstMapping parent;
+	level[start] = 0;
 	parent[start] = start;
-	assign_level(start, level, parent);
+
+	// Assign each instruction a call-level and a parent. 
+	queue<Instruction *> q;
+	q.push(start);
+	while (!q.empty()) {
+		Instruction *x = q.front();
+		CFG::iterator it = cfg.find(x);
+		if (it != cfg.end()) {
+			const InstList &next_insts = it->second;
+			for (size_t j = 0, E = next_insts.size(); j < E; ++j) {
+				Instruction *y = next_insts[j];
+				if (!level.count(y)) {
+					assign_level(y, x, level);
+					parent[y] = x;
+					q.push(y);
+				}
+			}
+		}
+		q.pop();
+	}
+
 	// DFS from the start. Will traverse all instructions in the CFG. 
-	assign_container(M, start, level, parent);
+	assert(q.empty());
+	q.push(start);
+	while (!q.empty()) {
+		Instruction *x = q.front();
+		if (!x->getParent()) {
+			assign_container(M, x, level, parent);
+			// Continue BFSing.
+			const InstList &next_insts = cfg.lookup(x);
+			for (size_t j = 0, E = next_insts.size(); j < E; ++j)
+				q.push(next_insts[j]);
+		}
+		q.pop();
+	}
 }
 
-void MaxSlicing::assign_container(
-		Module &M,
-		Instruction *x,
-		const DenseMap<Instruction *, int> &level,
-		const InstMapping &parent) {
+void MaxSlicing::assign_container(Module &M, Instruction *x,
+		const DenseMap<Instruction *, int> &level, const InstMapping &parent) {
+
 	assert(x && "<x> cannot be NULL");
-	if (x->getParent())
-		return;
+	assert(!x->getParent() && "<x> has a container already");
 
 	Instruction *old_x = clone_map_r.lookup(x);
 	assert(old_x && "<x> must appear in the reverse clone map");
@@ -202,13 +214,6 @@ void MaxSlicing::assign_container(
 	bb->getInstList().push_back(x);
 	assert(x->getParent());
 	assert(x->getParent()->getParent());
-
-	// Continue DFSing.
-	const InstList &next_insts = cfg.lookup(x);
-	for (size_t j = 0, E = next_insts.size(); j < E; ++j) {
-		Instruction *y = next_insts[j];
-		assign_container(M, y, level, parent);
-	}
 }
 
 MaxSlicing::EdgeType MaxSlicing::get_edge_type(Instruction *x, Instruction *y) {
@@ -572,39 +577,37 @@ void MaxSlicing::find_invoke_successors(Module &M, const Trace &trace) {
 }
 
 void MaxSlicing::find_invoke_successors_from(Module &M, Instruction *start) {
-	InstList call_stack;
 	InstSet visited;
-	compute_invoke_successor(start, visited, call_stack);
-}
-
-void MaxSlicing::compute_invoke_successor(Instruction *x,
-		InstSet &visited, InstList &call_stack) {
-
-	assert(x);
-	if (visited.count(x))
-		return;
-	visited.insert(x);
-	
-	const InstList &next_insts = cfg.lookup(x);
-	for (size_t j = 0, E = next_insts.size(); j < E; ++j) {
-		Instruction *y = next_insts[j];
-		if (get_edge_type(x, y) == EDGE_CALL) {
-			call_stack.push_back(x);
-			compute_invoke_successor(y, visited, call_stack);
-			call_stack.pop_back();
-		} else if (get_edge_type(x, y) == EDGE_RET) {
-			assert(call_stack.size() > 0 && "The call stack is empty");
-			Instruction *ret_addr = call_stack.back();
-			if (isa<InvokeInst>(ret_addr)) {
-				DEBUG(dbgs() << "Invoke successor:\n";);
-				DEBUG(dbgs() << *ret_addr << "\n" << *y << "\n";);
-				invoke_successors[ret_addr].push_back(y);
+	// TODO: Call stacks are too expensive in a BFS queue. 
+	queue<pair<Instruction *, InstList> > q;
+	q.push(make_pair(start, InstList()));
+	visited.insert(start);
+	while (!q.empty()) {
+		Instruction *x = q.front().first;
+		const InstList &call_stack = q.front().second;
+		const InstList &next_insts = cfg.lookup(x);
+		for (size_t j = 0, E = next_insts.size(); j < E; ++j) {
+			Instruction *y = next_insts[j];
+			if (visited.count(y))
+				continue;
+			visited.insert(y);
+			if (get_edge_type(x, y) == EDGE_CALL) {
+				q.push(make_pair(y, call_stack));
+				q.back().second.push_back(x);
+			} else if (get_edge_type(x, y) == EDGE_RET) {
+				assert(call_stack.size() > 0 && "The call stack is empty");
+				Instruction *ret_addr = call_stack.back();
+				if (isa<InvokeInst>(ret_addr)) {
+					DEBUG(dbgs() << "Invoke successor:\n";);
+					DEBUG(dbgs() << *ret_addr << "\n" << *y << "\n";);
+					invoke_successors[ret_addr].push_back(y);
+				}
+				q.push(make_pair(y, call_stack));
+				q.back().second.pop_back();
+			} else {
+				q.push(make_pair(y, call_stack));
 			}
-			call_stack.pop_back();
-			compute_invoke_successor(y, visited, call_stack);
-			call_stack.push_back(ret_addr);
-		} else {
-			compute_invoke_successor(y, visited, call_stack);
 		}
+		q.pop();
 	}
 }

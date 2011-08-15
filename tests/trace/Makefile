@@ -6,7 +6,7 @@ PROG_NAMES = test-thread test-overwrite test-loop \
 	     aget-like test-array test-dep \
 	     test-overwrite-2 RADIX-like test-thread-2 \
 	     test-malloc test-ctxt test-range test-range-3 \
-	     aget FFT RADIX pbzip2 CHOLESKY
+	     aget FFT RADIX pbzip2 CHOLESKY pfscan
 PROGS_DIR = ../progs
 TRACED_PROGS = $(PROG_NAMES:=.trace)
 LANDMARK_TRACES = $(PROG_NAMES:=.lt)
@@ -105,6 +105,10 @@ RADIX.ft: RADIX.trace
 
 FFT.ft: FFT.trace
 	./$< -p4 -m10
+	mv /tmp/fulltrace $@
+
+pfscan.ft: pfscan.trace
+	./$< -n2 -v -d pthread ../progs
 	mv /tmp/fulltrace $@
 
 # Most programs don't need any special command line. 

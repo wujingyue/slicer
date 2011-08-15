@@ -143,19 +143,13 @@ namespace slicer {
 		 * the entry to a thread function.
 		 */
 		void assign_containers(Module &M, Instruction *x);
-		void assign_container(
-				Module &M, Instruction *x,
-				const DenseMap<Instruction *, int> &level,
-				const InstMapping &parent);
-		/*
-		 * Assign call-levels to instructions in the CFG. 
-		 * As a side-effect, calculate the parent of each instruction
-		 * in the DFS tree. 
+		void assign_container(Module &M, Instruction *x,
+				const DenseMap<Instruction *, int> &level, const InstMapping &parent);
+		/**
+		 * Compute <y>'s call-level according to its parent <x>.
 		 */
-		void assign_level(
-				Instruction *x,
-				DenseMap<Instruction *, int> &level,
-				InstMapping &parent);
+		void assign_level(Instruction *y, Instruction *x,
+				DenseMap<Instruction *, int> &level);
 		/*
 		 * Get the type of the edge from <x> to <y>. 
 		 * <x> and <y> must be in the cloned CFG. 
@@ -216,8 +210,6 @@ namespace slicer {
 		 */
 		void find_invoke_successors(Module &M, const Trace &trace);
 		void find_invoke_successors_from(Module &M, Instruction *start);
-		void compute_invoke_successor(Instruction *x, InstSet &visited,
-				InstList &call_stack);
 		/**
 		 * Fix the def-use graph. 
 		 */

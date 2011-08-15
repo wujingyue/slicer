@@ -60,7 +60,7 @@ void display_landmark_trace() {
 	sort(sorted_ins_freq.begin(), sorted_ins_freq.end(),
 			greater<pair<unsigned, unsigned> >());
 	static const unsigned limit = 10;
-	printf("Top %u exected landmarks:\n", limit);
+	printf("Top %u executed landmarks:\n", limit);
 	for (unsigned i = 0; i < limit; ++i) {
 		if (i >= sorted_ins_freq.size())
 			break;

@@ -48,6 +48,17 @@ all: $(BCS)
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
 		-assign-id -print-values \
 		< $< > $@
+
+# Call graph
+%.cg: %.bc
+	opt -analyze \
+		-load $(LLVM_ROOT)/install/lib/libidm.so \
+		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
+		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
+		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
+		-callgraph-fp \
+		< $<
+
 # LLVM disassembly
 %.ll: %.bc
 	llvm-dis $<
