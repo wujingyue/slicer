@@ -17,19 +17,6 @@ all: $(SLICED_BCS)
 region: $(addsuffix .region, $(PROG_NAMES))
 
 # max-slicing requires ID information. 
-$(PROGS_DIR)/pfscan.slice.bc: $(PROGS_DIR)/pfscan.sum.bc ../trace/pfscan.lt
-	opt -debug-only=max-slicing -stats -o $@ \
-		-load $(LLVM_ROOT)/install/lib/libidm.so \
-		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
-		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
-		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
-		-load $(LLVM_ROOT)/install/lib/libcfg.so \
-		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
-		-load $(LLVM_ROOT)/install/lib/libmax-slicing.so \
-		-max-slicing \
-		-input-landmark-trace $(word 2, $^) \
-		< $<
-
 $(PROGS_DIR)/%.slice.bc: $(PROGS_DIR)/%.id.bc ../trace/%.lt
 	opt -stats -o $@ \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \

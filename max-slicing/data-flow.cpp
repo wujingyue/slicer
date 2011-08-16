@@ -225,10 +225,15 @@ void MaxSlicing::fix_def_use_func_call(Module &M) {
 			// function; otherwise, we replace the target with <callee>. 
 			if (callee) {
 				CallSite cs(ins);
-				// I guess this function works for both function pointers and
-				// function definitions. 
-				assert(callee->getType() == cs.getCalledValue()->getType());
-				cs.setCalledFunction(callee);
+				if (callee->getType() == cs.getCalledValue()->getType()) {
+					cs.setCalledFunction(callee);
+				} else {
+					// <callee> may not have the same signature as required by the
+					// the call site, because our alias analysis catches bitcast.
+					Value *wrapped_callee = new BitCastInst(
+							callee, cs.getCalledValue()->getType(), "", ins);
+					cs.setCalledFunction(wrapped_callee);
+				}
 			}
 		}
 	}
@@ -372,14 +377,14 @@ void MaxSlicing::link_thr_func(Module &M, const Trace &trace,
 	
 	// Replace the target function in pthread_create to <thr_func>.
 	assert(is_pthread_create(new_site));
-	const Value *thr_func_arg = get_pthread_create_callee(new_site);
-	if (thr_func_arg->getType() == thr_func->getType())
+	const Value *pth_create_callee = get_pthread_create_callee(new_site);
+	if (pth_create_callee->getType() == thr_func->getType())
 		set_pthread_create_callee(new_site, thr_func);
 	else {
 		// <thr_func> may not have the same signature as required by the
 		// pthread_create, because our alias analysis catches bitcast.
 		Value *wrapped_thr_func = new BitCastInst(
-				thr_func, thr_func_arg->getType(), "", new_site);
+				thr_func, pth_create_callee->getType(), "", new_site);
 		set_pthread_create_callee(new_site, wrapped_thr_func);
 	}
 }
