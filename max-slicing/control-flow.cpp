@@ -338,9 +338,12 @@ void MaxSlicing::build_cfg_of_trunk(
 	// NOTE: Be careful. <call_stack> already gets changed. 
 	if (!visited_nodes.count(end)) {
 		IDManager &IDM = getAnalysis<IDManager>();
-		errs() << "=== Cannot reach ===\n";
+		errs() << "=== Cannot reach from <start> to <end> ===\n";
 		errs() << IDM.getInstructionID(start) << ":" << *start << "\n";
 		errs() << IDM.getInstructionID(end) << ":" << *end << "\n";
+		errs() << "Nodes and edges reachable from <start>:\n";
+		print_inst_set(errs(), visited_nodes);
+		print_edge_set(errs(), visited_edges);
 	}
 	assert(visited_nodes.count(end) &&
 			"Unable to reach from <start> to <end>");

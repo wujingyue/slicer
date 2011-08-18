@@ -3,7 +3,6 @@
 LEVEL = $(shell $(LLVM_ROOT)/scripts/level-to-llvm-root)/llvm-obj
 LIBRARYNAME = int-test
 LOADABLE_MODULE = 1
-SOURCES = int-test.cpp
 CXXFLAGS += -I$(LLVM_ROOT) -I$(SLICER_ROOT) -I$(SLICER_ROOT)/stp/install/include
 
 include $(LEVEL)/Makefile.common
@@ -22,7 +21,7 @@ PROGS_DIR = ../progs
 run:: $(PROG_NAMES)
 
 %: $(PROGS_DIR)/%.simple.bc ../trace/%.lt
-	opt -debug-only=int -disable-output \
+	opt -disable-output \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \

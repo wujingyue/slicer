@@ -65,9 +65,25 @@ void AdvancedAlias::print_average_query_time(raw_ostream &O) const {
 }
 
 void AdvancedAlias::recalculate(Module &M) {
-	// Clear the cache. 
+	DenseMap<ConstValuePair, bool> old_may_cache(may_cache);
+	DenseMap<ConstValuePair, bool> old_must_cache(must_cache);
 	may_cache.clear();
 	must_cache.clear();
+
+	// OPT: Retain not-may and must results. 
+	// Retain not-may results. 
+	for (DenseMap<ConstValuePair, bool>::iterator it = old_may_cache.begin();
+			it != old_may_cache.end(); ++it) {
+		if (it->second == false)
+			may_cache.insert(*it);
+	}
+	// Retain must results. 
+	for (DenseMap<ConstValuePair, bool>::iterator it = old_must_cache.begin();
+			it != old_must_cache.end(); ++it) {
+		if (it->second == true)
+			must_cache.insert(*it);
+	}
+	// Clear <query_times> which is for statistics. 
 	query_times.clear();
 }
 
@@ -85,25 +101,41 @@ void AdvancedAlias::getAnalysisUsage(AnalysisUsage &AU) const {
 	ModulePass::getAnalysisUsage(AU);
 }
 
-bool AdvancedAlias::must_alias(const Value *V1, const Value *V2) {
-
+bool AdvancedAlias::must_alias(const Use *u1, const Use *u2) {
 	BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 
-	if (BAA.alias(V1, 0, V2, 0) == NoAlias)
+	const Value *v1 = u1->get(), *v2 = u2->get();
+	if (BAA.alias(v1, 0, v2, 0) == NoAlias)
 		return false;
 
-	if (V1 > V2)
-		swap(V1, V2);
-	ConstValuePair p(V1, V2);
+	if (v1 > v2)
+		swap(v1, v2);
+	ConstValuePair p(v1, v2);
+	if (must_cache.count(p) && must_cache.lookup(p))
+		return true;
+
+	return SC.provable(CmpInst::ICMP_EQ, u1, u2);
+}
+
+bool AdvancedAlias::must_alias(const Value *v1, const Value *v2) {
+	BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
+	SolveConstraints &SC = getAnalysis<SolveConstraints>();
+
+	if (BAA.alias(v1, 0, v2, 0) == NoAlias)
+		return false;
+
+	if (v1 > v2)
+		swap(v1, v2);
+	ConstValuePair p(v1, v2);
 
 	bool pro;
 	if (must_cache.count(p)) {
 		pro = must_cache.lookup(p);
 	} else {
 		clock_t start = clock();
-		pro = SC.provable(CmpInst::ICMP_EQ, V1, V2);
-		query_times.push_back(make_pair(clock() - start, QueryInfo(false, V1, V2)));
+		pro = SC.provable(CmpInst::ICMP_EQ, v1, v2);
+		query_times.push_back(make_pair(clock() - start, QueryInfo(false, v1, v2)));
 		must_cache[p] = pro;
 		if (pro) {
 			// OPT: If we find they must equal, then they also may equal. 
@@ -114,25 +146,41 @@ bool AdvancedAlias::must_alias(const Value *V1, const Value *V2) {
 	return pro;
 }
 
-bool AdvancedAlias::may_alias(const Value *V1, const Value *V2) {
-
+bool AdvancedAlias::may_alias(const Use *u1, const Use *u2) {
 	BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 
-	if (BAA.alias(V1, 0, V2, 0) == NoAlias)
+	const Value *v1 = u1->get(), *v2 = u2->get();
+	if (BAA.alias(v1, 0, v2, 0) == NoAlias)
 		return false;
 
-	if (V1 > V2)
-		swap(V1, V2);
-	ConstValuePair p(V1, V2);
+	if (v1 > v2)
+		swap(v1, v2);
+	ConstValuePair p(v1, v2);
+	if (may_cache.count(p) && may_cache.lookup(p) == false)
+		return false;
+
+	return SC.satisfiable(CmpInst::ICMP_EQ, u1, u2);
+}
+
+bool AdvancedAlias::may_alias(const Value *v1, const Value *v2) {
+	BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
+	SolveConstraints &SC = getAnalysis<SolveConstraints>();
+
+	if (BAA.alias(v1, 0, v2, 0) == NoAlias)
+		return false;
+
+	if (v1 > v2)
+		swap(v1, v2);
+	ConstValuePair p(v1, v2);
 
 	bool sat;
 	if (may_cache.count(p)) {
 		sat = may_cache.lookup(p);
 	} else {
 		clock_t start = clock();
-		sat = SC.satisfiable(CmpInst::ICMP_EQ, V1, V2);
-		query_times.push_back(make_pair(clock() - start, QueryInfo(true, V1, V2)));
+		sat = SC.satisfiable(CmpInst::ICMP_EQ, v1, v2);
+		query_times.push_back(make_pair(clock() - start, QueryInfo(true, v1, v2)));
 		may_cache[p] = sat;
 	}
 
@@ -140,26 +188,26 @@ bool AdvancedAlias::may_alias(const Value *V1, const Value *V2) {
 }
 
 AliasAnalysis::AliasResult AdvancedAlias::alias(
-		const Value *V1, unsigned V1Size,
-		const Value *V2, unsigned V2Size) {
+		const Value *v1, unsigned v1_size,
+		const Value *v2, unsigned v2_size) {
 
 	BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 
-	if (BAA.alias(V1, V1Size, V2, V2Size) == NoAlias)
+	if (BAA.alias(v1, v1_size, v2, v2_size) == NoAlias)
 		return NoAlias;
 
-	if (V1 > V2)
-		swap(V1, V2);
-	ConstValuePair p(V1, V2);
+	if (v1 > v2)
+		swap(v1, v2);
+	ConstValuePair p(v1, v2);
 
 	bool sat;
 	if (may_cache.count(p)) {
 		sat = may_cache.lookup(p);
 	} else {
 		clock_t start = clock();
-		sat = SC.satisfiable(CmpInst::ICMP_EQ, V1, V2);
-		query_times.push_back(make_pair(clock() - start, QueryInfo(true, V1, V2)));
+		sat = SC.satisfiable(CmpInst::ICMP_EQ, v1, v2);
+		query_times.push_back(make_pair(clock() - start, QueryInfo(true, v1, v2)));
 		may_cache[p] = sat;
 	}
 	
@@ -171,8 +219,8 @@ AliasAnalysis::AliasResult AdvancedAlias::alias(
 		pro = must_cache.lookup(p);
 	} else {
 		clock_t start = clock();
-		pro = SC.provable(CmpInst::ICMP_EQ, V1, V2);
-		query_times.push_back(make_pair(clock() - start, QueryInfo(false, V1, V2)));
+		pro = SC.provable(CmpInst::ICMP_EQ, v1, v2);
+		query_times.push_back(make_pair(clock() - start, QueryInfo(false, v1, v2)));
 		must_cache[p] = pro;
 	}
 

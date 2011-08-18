@@ -185,7 +185,15 @@ void slicer::print_expr(raw_ostream &O, const Expr *e, IDAssigner &IDA) {
 		} else {
 			unsigned value_id = IDA.getValueID(v);
 			assert(value_id != IDAssigner::INVALID_ID);
-			O << (e->type == Expr::LoopBound ? "lb" : "x") << value_id;
+			if (e->type == Expr::SingleDef)
+				O << "x";
+			else if (e->type == Expr::SingleUse)
+				O << "u";
+			else if (e->type == Expr::LoopBound)
+				O << "lb";
+			else
+				assert_unreachable();
+			O << value_id;
 		}
 	} else if (e->type == Expr::Unary) {
 		O << "(";

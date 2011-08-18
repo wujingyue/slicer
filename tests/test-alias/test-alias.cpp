@@ -48,10 +48,15 @@ namespace slicer {
 		const Value *v1 = IDA.getValue(12);
 		const Value *v2 = IDA.getValue(19);
 #endif
-#if 1
+#if 0
 		// test-array-2
 		const Value *v1 = IDA.getValue(8);
 		const Value *v2 = IDA.getValue(13);
+#endif
+#if 1
+		// test-dep
+		const Value *v1 = IDA.getValue(113);
+		const Value *v2 = IDA.getValue(143);
 #endif
 		assert(v1 && v2);
 		errs() << *v1 << "\n" << *v2 << "\n";

@@ -33,7 +33,8 @@ namespace slicer {
 		static char ID;
 
 		SolveConstraints():
-			ModulePass(&ID), print_counterexample(false), print_asserts(false) {}
+			ModulePass(&ID), print_counterexample_on_failure(false),
+			print_asserts(false) {}
 		virtual bool runOnModule(Module &M);
 		virtual void print(raw_ostream &O, const Module *M) const;
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
@@ -49,10 +50,14 @@ namespace slicer {
 		 */
 		ConstantInt *get_fixed_value(const Value *v);
 		/**
+		 * Get the representitive of <x>'s containing equivalent class.
+		 */
+		const Value *get_root(const Value *x);
+		/**
 		 * Enable or disable the print_counterexample flag. 
 		 */
 		void set_print_counterexample(bool value) {
-			print_counterexample = value;
+			print_counterexample_on_failure = value;
 		}
 		/**
 		 * Enable or disable the print_asserts flag. 
@@ -63,29 +68,20 @@ namespace slicer {
 		 * The caller is responsible to delete this clause.
 		 */
 		bool satisfiable(const Clause *c);
-
+		/**
+		 * A quick way to issue satisfiable-queries. 
+		 */
 		template <typename T1, typename T2>
-		bool satisfiable(CmpInst::Predicate p, const T1 *v1, const T2 *v2) {
-			const Clause *c = new Clause(new BoolExpr(
-						p, new Expr(v1), new Expr(v2)));
-			bool ret = satisfiable(c);
-			delete c;
-			return ret;
-		}
-
+		bool satisfiable(CmpInst::Predicate p, const T1 *v1, const T2 *v2);
 		/**
 		 * The caller is responsible to delete this clause.
 		 */
 		bool provable(const Clause *c);
-
+		/**
+		 * A quick way to issue provable-queries. 
+		 */
 		template <typename T1, typename T2>
-		bool provable(CmpInst::Predicate p, const T1 *v1, const T2 *v2) {
-			const Clause *c = new Clause(new BoolExpr(
-						p, new Expr(v1), new Expr(v2)));
-			bool ret = provable(c);
-			delete c;
-			return ret;
-		}
+		bool provable(CmpInst::Predicate p, const T1 *v1, const T2 *v2);
 
 		// Debugging functions. 
 		void print_assertions();
@@ -96,6 +92,7 @@ namespace slicer {
 		 */
 		void calculate(Module &M);
 		void diagnose(Module &M);
+		void print_counterexample();
 		/*
 		 * Translates and simplifies captured constraints, and
 		 * inserts them to <vc>.
@@ -130,7 +127,6 @@ namespace slicer {
 		void identify_eqs();
 		// Updates <root>. Make the identified fixed values the roots. 
 		void refine_candidates(list<const Value *> &candidates);
-		const Value *get_root(const Value *x);
 		void replace_with_root(Clause *c);
 		void replace_with_root(BoolExpr *be);
 		/**
@@ -193,7 +189,8 @@ namespace slicer {
 
 		/* NOTE: <root> may contain some constants that don't appeared in CC. */
 		ConstValueMapping root;
-		bool print_counterexample;
+		DenseMap<ConstValuePair, bool> may_eq_cache, must_eq_cache;
+		bool print_counterexample_on_failure;
 		bool print_asserts;
 		/* There can only be one instance of VC running. */
 		static VC vc;

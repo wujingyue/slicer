@@ -57,11 +57,13 @@ namespace slicer {
 		 * Therefore, we provide this interface to perform fast must-aliasing
 		 * queries. 
 		 */
-		bool must_alias(const Value *V1, const Value *V2);
+		bool must_alias(const Value *v1, const Value *v2);
+		bool must_alias(const Use *u1, const Use *u2);
 		/**
 		 * Separate interface for may-aliasing queries. 
 		 */
-		bool may_alias(const Value *V1, const Value *V2);
+		bool may_alias(const Value *v1, const Value *v2);
+		bool may_alias(const Use *u1, const Use *u2);
 
 	private:
 		void print_average_query_time(raw_ostream &O) const;

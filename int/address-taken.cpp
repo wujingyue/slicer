@@ -272,8 +272,9 @@ bool CaptureConstraints::region_may_write(const Region &r, const Value *q) {
 	for (size_t i = 0; i < insts_in_r.size(); ++i) {
 		// TODO: Trace into functions. 
 		if (const StoreInst *si = dyn_cast<StoreInst>(insts_in_r[i])) {
+			DEBUG(dbgs() << "region_may_write?" << *si << "\n";);
 			if (may_alias(si->getPointerOperand(), q)) {
-				DEBUG(dbgs() << *si << "\n";);
+				DEBUG(dbgs() << "region_may_write:" << *si << "\n";);
 				return true;
 			}
 		}
@@ -315,6 +316,8 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 	// If any store is concurrent with cur_regions[0], return
 	vector<Region> concurrent_regions;
 	RM.get_concurrent_regions(cur_regions[0], concurrent_regions);
+	DEBUG(dbgs() << "# of concurrent regions = " <<
+			concurrent_regions.size() << "\n");
 	for (size_t i = 0; i < concurrent_regions.size(); ++i) {
 		if (region_may_write(concurrent_regions[i], q)) {
 			DEBUG(dbgs() << concurrent_regions[i] <<

@@ -23,47 +23,12 @@ using namespace llvm;
 #include "int/adv-alias.h"
 #include "max-slicing/region-manager.h"
 #include "tests/include/test-utils.h"
+#include "int-test.h"
 using namespace slicer;
 
 #include <map>
 #include <vector>
 using namespace std;
-
-namespace slicer {
-
-	struct IntTest: public ModulePass {
-
-		static char ID;
-
-		IntTest(): ModulePass(&ID) {}
-		virtual bool runOnModule(Module &M);
-		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
-
-	private:
-		/* These test functions give assertion failures on incorrect results. */
-		void test_aget(const Module &M);
-		void test_aget_like(const Module &M);
-		void test_test_overwrite(const Module &M);
-		void test_test_overwrite_2(const Module &M);
-		void test_fft(const Module &M);
-		void test_fft_like(const Module &M);
-		void test_fft_common(const Module &M);
-		void test_radix(const Module &M);
-		void test_radix_like(const Module &M);
-		void test_radix_common(const Module &M);
-		void test_test_loop(const Module &M);
-		void test_test_reducer(const Module &M);
-		void test_test_bound(const Module &M);
-		void test_test_thread(const Module &M);
-		void test_test_array(const Module &M);
-		void test_test_malloc(const Module &M);
-		void test_test_range(const Module &M);
-		void test_test_range_2(const Module &M);
-		void test_test_range_3(const Module &M);
-		void test_test_dep(const Module &M);
-		void test_test_dep_common(const Module &M);
-	};
-}
 
 static RegisterPass<IntTest> X(
 		"int-test", "Test the integer constraint solver");
@@ -81,6 +46,7 @@ void IntTest::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
 	AU.addRequired<ExecOnce>();
 	AU.addRequired<RegionManager>();
+	AU.addRequired<IDAssigner>();
 #ifndef IDENTIFY_ONLY
 	AU.addRequired<Iterate>();
 	AU.addRequired<SolveConstraints>();
@@ -111,6 +77,8 @@ bool IntTest::runOnModule(Module &M) {
 	test_test_overwrite_2(M);
 	test_fft(M);
 	test_fft_like(M);
+	test_fft_tern(M);
+	test_fft_tern_2(M);
 	test_radix(M);
 	test_radix_like(M);
 	test_test_loop(M);
@@ -420,7 +388,6 @@ void IntTest::test_test_bound(const Module &M) {
 }
 
 void IntTest::test_test_reducer(const Module &M) {
-
 	if (Program != "test-reducer")
 		return;
 	TestBanner X("test-reducer");
@@ -444,10 +411,9 @@ void IntTest::test_test_reducer(const Module &M) {
 						errs() << "GEP:" << *gep << "\n";
 						const IntegerType *int_type = IntegerType::get(M.getContext(), 32);
 						errs() << "argc - 1 >= 0? ...";
-						assert(SC.provable(
-									CmpInst::ICMP_SGT,
+						assert(SC.provable(CmpInst::ICMP_SGT,
 									&gep->getOperandUse(1),
-									ConstantInt::get(int_type, 0)));
+									dyn_cast<Value>(ConstantInt::get(int_type, 0))));
 						print_pass(errs());
 					}
 				}
@@ -635,7 +601,6 @@ void IntTest::test_radix(const Module &M) {
 }
 
 void IntTest::test_radix_common(const Module &M) {
-
 	// MyNum's are distinct. 
 	vector<const Value *> local_ids;
 	forallconst(Module, f, M) {
@@ -684,7 +649,6 @@ void IntTest::test_radix_common(const Module &M) {
 }
 
 void IntTest::test_fft(const Module &M) {
-	
 	if (Program != "FFT")
 		return;
 	TestBanner X("FFT");
@@ -693,7 +657,6 @@ void IntTest::test_fft(const Module &M) {
 }
 
 void IntTest::test_test_overwrite_2(const Module &M) {
-
 	if (Program != "test-overwrite-2")
 		return;
 	TestBanner X("test-overwrite-2");
@@ -718,13 +681,14 @@ void IntTest::test_test_overwrite_2(const Module &M) {
 
 	for (size_t i = 0; i + 1 < loads.size(); ++i) {
 		errs() << "loads[" << i << "] == loads[" << (i + 1) << "]? ...";
-		assert(SC.provable(CmpInst::ICMP_EQ, loads[i], loads[i + 1]));
+		assert(SC.provable(CmpInst::ICMP_EQ,
+					dyn_cast<Value>(loads[i]),
+					dyn_cast<Value>(loads[i + 1])));
 		print_pass(errs());
 	}
 }
 
 void IntTest::test_test_overwrite(const Module &M) {
-	
 	if (Program != "test-overwrite")
 		return;
 	TestBanner X("test-overwrite");
@@ -760,7 +724,6 @@ void IntTest::test_test_overwrite(const Module &M) {
 }
 
 void IntTest::test_fft_like(const Module &M) {
-
 	if (Program != "FFT-like")
 		return;
 	TestBanner X("FFT-like");
@@ -768,8 +731,77 @@ void IntTest::test_fft_like(const Module &M) {
 	test_fft_common(M);
 }
 
-void IntTest::test_fft_common(const Module &M) {
+void IntTest::test_fft_tern_2(const Module &M) {
+	if (Program != "FFT-tern-2")
+		return;
+	TestBanner X("FFT-tern-2");
 
+	AdvancedAlias &AA = getAnalysis<AdvancedAlias>();
+	IDAssigner &IDA = getAnalysis<IDAssigner>();
+	SolveConstraints &SC = getAnalysis<SolveConstraints>();
+
+	const Value *v1 = IDA.getValue(1103);
+	const Value *v2 = IDA.getValue(1987);
+	assert(v1 && v2);
+
+	errs() << "v1 and v2 don't alias? ...";
+	SC.set_print_counterexample(true);
+	assert(AA.alias(v1, 0, v2, 0) == AliasAnalysis::NoAlias);
+	SC.set_print_counterexample(false);
+	print_pass(errs());
+}
+
+void IntTest::test_fft_tern(const Module &M) {
+	if (Program != "FFT-tern")
+		return;
+	TestBanner X("FFT-tern");
+
+	DenseMap<const Function *, vector<const Use *> > accesses;
+	forallconst(Module, f, M) {
+		forallconst(Function, bb, *f) {
+			forallconst(BasicBlock, ins, *bb) {
+				if (const CallInst *ci = dyn_cast<CallInst>(ins)) {
+					const Function *callee = ci->getCalledFunction();
+					if (callee && callee->getName() == "fprintf") {
+						BasicBlock::const_iterator ii = ins;
+						bool found = false;
+						while (ii != bb->begin()) {
+							--ii;
+							if (const StoreInst *si = dyn_cast<StoreInst>(ii)) {
+								found = true;
+								errs() << f->getName() << ":" << *si << "\n";
+								accesses[f].push_back(&si->getOperandUse(1));
+								break;
+							}
+						}
+						assert(found);
+					}
+				}
+			}
+		}
+	}
+	assert(accesses.size() == 2);
+
+	DenseMap<const Function *, vector<const Use *> >::iterator i1, i2;
+	i1 = accesses.begin();
+	i2 = i1; ++i2;
+	for (size_t j1 = 0; j1 < i1->second.size(); ++j1) {
+		for (size_t j2 = 0; j2 < i2->second.size(); ++j2) {
+			AdvancedAlias &AA = getAnalysis<AdvancedAlias>();
+			SolveConstraints &SC = getAnalysis<SolveConstraints>();
+			SC.set_print_counterexample(true);
+			errs() << "{" << i1->first->getName() << ":" << j1<< "} and {" <<
+				i2->first->getName() << ":" << j2 << "} don't alias? ...";
+			if (AA.may_alias(i1->second[j1], i2->second[j2]))
+				print_fail(errs());
+			else
+				print_pass(errs());
+			SC.set_print_counterexample(false);
+		}
+	}
+}
+
+void IntTest::test_fft_common(const Module &M) {
 	// MyNum's are distinct. 
 	vector<const Value *> local_ids;
 	forallconst(Module, f, M) {

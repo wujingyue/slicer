@@ -26,17 +26,16 @@ Clause *CaptureConstraints::construct_bound_constraint(const Value *v,
 
 void CaptureConstraints::get_loop_bound(
 		const Loop *L, vector<Clause *> &constraints) {
-	
 	LoopInfo &LI = getAnalysis<LoopInfo>(*L->getHeader()->getParent());
 
 	constraints.clear();
 
 	const PHINode *IV = L->getCanonicalInductionVariable();
 	// Give up if we cannot find the loop index. 
-	if (!IV)
+	if (!IV || IV->getNumIncomingValues() != 2) {
+		DEBUG(dbgs() << "Unable to compute the bound of" << *IV << "\n";);
 		return;
-	if (IV->getNumIncomingValues() != 2)
-		return;
+	}
 
 	// Best case: Already optimized as a loop with a trip count. 
 	Constant *zero = ConstantInt::get(int_type, 0);

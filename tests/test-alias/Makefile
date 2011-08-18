@@ -21,6 +21,6 @@ test::
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libtest-alias.so \
 		-test-alias \
-		< ../progs/test-array-2.bc
+		< ../progs/test-dep.simple.bc
 
 .PHONY: test
