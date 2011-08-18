@@ -68,6 +68,14 @@ namespace slicer {
 	private:
 		void print_average_query_time(raw_ostream &O) const;
 
+		bool check_may_cache(const Value *v1, const Value *v2, bool &res);
+		bool check_must_cache(const Value *v1, const Value *v2, bool &res);
+		void add_to_may_cache(const Value *v1, const Value *v2, bool res);
+		void add_to_must_cache(const Value *v1, const Value *v2, bool res);
+
+		static ConstValuePair make_ordered_value_pair(
+				const Value *v1, const Value *v2);
+
 		DenseMap<ConstValuePair, bool> may_cache; // Cache satisfiable() results. 
 		DenseMap<ConstValuePair, bool> must_cache; // Cache provable() results.
 		vector<pair<clock_t, QueryInfo> > query_times;

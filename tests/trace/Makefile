@@ -28,6 +28,7 @@ full-trace: $(FULL_TRACES)
 		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
 		-instrument \
 		< $<
+
 # llvm-ld doesn't generate executables if -link-as-library is specified. 
 # We don't really need a highly-optimized recorder, so we disable the opts
 # to save the compiling time. 
@@ -89,6 +90,7 @@ aget-like.ft: aget-like.trace
 
 aget.ft: aget.trace
 	./$< -n2 -f http://www.cs.columbia.edu/~jingyue/index.html
+	# ./$< -n8 -f http://www.cs.columbia.edu/~heming/unlink/dragonegg-2.7-bak0.tgz
 	mv /tmp/fulltrace $@
 
 pbzip2.ft: pbzip2.trace

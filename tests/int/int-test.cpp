@@ -1064,7 +1064,9 @@ void IntTest::test_aget(const Module &M) {
 			errs() << "Range {" << i << ", " << j << "}\n";
 			if (soffsets[i]) {
 				errs() << "  soffsets <= offset? ...";
+				SC.set_print_counterexample(true);
 				assert(SC.provable(CmpInst::ICMP_SLE, soffsets[i], ranges[i][j].first));
+				SC.set_print_counterexample(false);
 				print_pass(errs());
 			}
 			if (foffsets[i]) {
@@ -1074,7 +1076,8 @@ void IntTest::test_aget(const Module &M) {
 				errs() << "  offset + len <= foffset? ...";
 				assert(SC.provable(new Clause(new BoolExpr(CmpInst::ICMP_SLE,
 									new Expr(Instruction::Add,
-										new Expr(ranges[i][j].first), new Expr(ranges[i][j].second)),
+										new Expr(ranges[i][j].first),
+										new Expr(ranges[i][j].second)),
 									new Expr(foffsets[i])))));
 				print_pass(errs());
 			}
