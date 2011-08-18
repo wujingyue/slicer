@@ -50,10 +50,6 @@ namespace slicer {
 		 */
 		ConstantInt *get_fixed_value(const Value *v);
 		/**
-		 * Get the representitive of <x>'s containing equivalent class.
-		 */
-		const Value *get_root(const Value *x);
-		/**
 		 * Enable or disable the print_counterexample flag. 
 		 */
 		void set_print_counterexample(bool value) {
@@ -135,6 +131,10 @@ namespace slicer {
 		 * Therefore, if you want to call realize, call it beforehand. 
 		 */
 		void replace_with_root(Expr *e);
+		/**
+		 * Get the representitive of <x>'s containing equivalent class.
+		 */
+		const Value *get_root(const Value *x);
 		void update_appeared(ConstValueSet &appeared, const Clause *c);
 		void update_appeared(ConstValueSet &appeared, const BoolExpr *be);
 		void update_appeared(ConstValueSet &appeared, const Expr *e);
