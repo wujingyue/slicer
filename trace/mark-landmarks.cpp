@@ -2,8 +2,11 @@
  * Author: Jingyue
  */
 
+#define DEBUG_TYPE "trace"
+
 #include "llvm/Support/CFG.h"
 #include "llvm/ADT/SCCIterator.h"
+#include "llvm/ADT/Statistic.h"
 #include "common/cfg/identify-thread-funcs.h"
 #include "common/cfg/may-exec.h"
 #include "common/callgraph-fp/callgraph-fp.h"
@@ -19,10 +22,12 @@ static RegisterPass<MarkLandmarks> X(
 		"mark-landmarks", "Mark landmarks",
 		false, true); // is analysis
 
+STATISTIC(NumOmittedBranches, "Number of omitted branches");
+STATISTIC(NumRemainingBranches, "Number of remaining branches");
+
 char MarkLandmarks::ID = 0;
 
 bool MarkLandmarks::runOnModule(Module &M) {
-
 	landmarks.clear();
 	mark_enforcing_landmarks(M);
 	mark_branch_succs(M);
@@ -32,7 +37,6 @@ bool MarkLandmarks::runOnModule(Module &M) {
 }
 
 void MarkLandmarks::mark_thread_exits(Module &M) {
-
 	IdentifyThreadFuncs &ITF = getAnalysis<IdentifyThreadFuncs>();
 	
 	forallfunc(M, fi) {
@@ -78,7 +82,6 @@ void MarkLandmarks::mark_rets(Function *f) {
 }
 
 void MarkLandmarks::mark_enforcing_landmarks(Module &M) {
-
 	EnforcingLandmarks &EL = getAnalysis<EnforcingLandmarks>();
 	const InstSet &enforcing_landmarks = EL.get_enforcing_landmarks();
 	landmarks.insert(enforcing_landmarks.begin(), enforcing_landmarks.end());
@@ -88,10 +91,15 @@ void MarkLandmarks::mark_branch_succs(Module &M) {
 	OmitBranch &OB = getAnalysis<OmitBranch>();
 	forallinst(M, ii) {
 		BranchInst *bi = dyn_cast<BranchInst>(ii);
-		if (bi && !OB.omit(bi)) {
-			for (unsigned i = 0; i < bi->getNumSuccessors(); ++i) {
-				BasicBlock *succ = bi->getSuccessor(i);
-				landmarks.insert(succ->getFirstNonPHI());
+		if (bi) {
+			if (OB.omit(bi)) {
+				++NumOmittedBranches;
+			} else {
+				++NumRemainingBranches;
+				for (unsigned i = 0; i < bi->getNumSuccessors(); ++i) {
+					BasicBlock *succ = bi->getSuccessor(i);
+					landmarks.insert(succ->getFirstNonPHI());
+				}
 			}
 		}
 	}

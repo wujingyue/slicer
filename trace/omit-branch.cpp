@@ -2,6 +2,11 @@
  * Author: Jingyue
  */
 
+#include <set>
+#include <map>
+#include <fstream>
+using namespace std;
+
 #include "llvm/Module.h"
 #include "llvm/Analysis/PostDominators.h"
 #include "common/callgraph-fp/callgraph-fp.h"
@@ -9,14 +14,16 @@
 #include "idm/id.h"
 using namespace llvm;
 
-#include <set>
-#include <map>
-#include <fstream>
-using namespace std;
-
 #include "omit-branch.h"
 #include "enforcing-landmarks.h"
 using namespace slicer;
+
+static RegisterPass<slicer::OmitBranch> X(
+		"omit-branch",
+		"Determine whether a branch affects the trace of sync event",
+		false, true); // is analysis
+
+char OmitBranch::ID = 0;
 
 void OmitBranch::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
@@ -86,7 +93,6 @@ BasicBlock *find_nearest_common_post_dominator(
 }
 
 bool OmitBranch::omit(BranchInst *branch) {
-
 	BasicBlock *bb = branch->getParent();
 	assert(branch->getNumSuccessors() > 0 && "The branch has no successor.");
 	Function *func = bb->getParent();
@@ -140,11 +146,3 @@ bool OmitBranch::omit(BranchInst *branch) {
 	}
 	return true;
 }
-
-char OmitBranch::ID = 0;
-
-static RegisterPass<slicer::OmitBranch> X(
-		"omit-branch",
-		"Determine whether a branch affects the trace of sync event",
-		false,
-		true); // is analysis
