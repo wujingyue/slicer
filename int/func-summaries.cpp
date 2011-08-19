@@ -8,7 +8,7 @@ using namespace llvm;
 #include "capture.h"
 using namespace slicer;
 
-void CaptureConstraints::capture_func_summaries(Module &M) {
+void CaptureConstraints::capture_function_summaries(Module &M) {
 	
 	// Capture all memory allocations along the way. 
 	vector<pair<Expr *, Expr *> > blocks;
@@ -75,19 +75,51 @@ bool CaptureConstraints::capture_memory_allocation(
 }
 
 void CaptureConstraints::capture_libcall(const CallSite &cs) {
-
 	const Function *callee = cs.getCalledFunction();
 	if (!callee)
 		return;
-	
 	const string &name = callee->getNameStr();
+	
+	Constant *zero = ConstantInt::get(int_type, 0);
+	Constant *minus_one = ConstantInt::getSigned(int_type, -1);
 	if (name == "pwrite") {
-		// The return value >= 0.
+		// ret = pwrite(???, ???, len, offset)
+		// ret >= 0
+		// if len >= 0, ret <= len
 		// FIXME: >= -1. But aget has a bug no checking its return value. 
 		const Instruction *ret = cs.getInstruction();
 		if (is_integer(ret)) {
 			add_constraint(new Clause(new BoolExpr(CmpInst::ICMP_SGE,
-							new Expr(ret), new Expr(ConstantInt::get(int_type, 0)))));
+							new Expr(ret), new Expr(minus_one))));
+			const Value *len = cs.getArgument(2);
+			if (is_integer(len)) {
+				// len >= 0 ==> ret <= len
+				// i.e
+				// len < 0 or ret <= len
+				add_constraint(new Clause(Instruction::Or,
+							new Clause(new BoolExpr(CmpInst::ICMP_SLT,
+									new Expr(len), new Expr(zero))),
+							new Clause(new BoolExpr(CmpInst::ICMP_SLE,
+									new Expr(ret), new Expr(len)))));
+			}
+		}
+	}
+	if (name == "recv") {
+		// ret = recv(???, ???, len, ???)
+		// ret >= -1
+		// len >= 0 ==> ret <= len i.e. len < 0 or ret <= len
+		const Value *ret = cs.getInstruction();
+		if (is_integer(ret)) {
+			const Value *len = cs.getArgument(2);
+			add_constraint(new Clause(new BoolExpr(CmpInst::ICMP_SGE,
+							new Expr(ret), new Expr(minus_one))));
+			if (is_integer(len)) {
+				add_constraint(new Clause(Instruction::Or,
+							new Clause(new BoolExpr(CmpInst::ICMP_SLT,
+									new Expr(len), new Expr(zero))),
+							new Clause(new BoolExpr(CmpInst::ICMP_SLE,
+									new Expr(ret), new Expr(len)))));
+			}
 		}
 	}
 }

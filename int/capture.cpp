@@ -180,7 +180,7 @@ void CaptureConstraints::calculate(Module &M) {
 	// Function summaries.
 	// TODO: We'd better have a generic module for all function summaries
 	// instead of writing it for each project. 
-	capture_func_summaries(M);
+	capture_function_summaries(M);
 
 	simplify_constraints();
 	DEBUG(dbgs() << "# of constraints = " << get_num_constraints() << "\n";);

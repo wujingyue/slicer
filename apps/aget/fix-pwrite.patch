@@ -1,0 +1,45 @@
+diff -ruN aget-0.4.1-orig/Download.c aget-0.4.1-bounded/Download.c
+--- aget-0.4.1-orig/Download.c	2011-08-18 19:59:17.000000000 -0400
++++ aget-0.4.1-bounded/Download.c	2011-08-18 21:29:49.000000000 -0400
+@@ -12,6 +12,7 @@
+ #include <signal.h>
+ #include <pthread.h>
+ #include <errno.h>
++#include <assert.h>
+ 
+ #include <netinet/in.h>
+ 
+@@ -93,12 +94,17 @@
+ 		s++;
+ 		i++;
+ 	}
++	if (i < 0)
++		pthread_exit((void *)1);
++	if (i > dr)
++		pthread_exit((void *)1);
+ 	td->offset = td->soffset;
+ 
+-	if ((dr - i ) > foffset) 
+-		dw = pwrite(td->fd, s, (foffset - i), td->soffset);
++	if (td->offset + (dr - i ) > foffset) 
++		dw = pwrite(td->fd, s, (foffset - td->offset), td->soffset);
+ 	else
+ 		dw = pwrite(td->fd, s, (dr - i), td->soffset);
++	assert(dw >= 0);
+ 	td->offset = td->soffset + dw;
+ 
+ 
+@@ -109,10 +115,13 @@
+ 	while (td->offset < foffset) {
+ 		memset(rbuf, GETRECVSIZ, 0);
+ 		dr = recv(sd, rbuf, GETRECVSIZ, 0);
++		if (dr == -1)
++			pthread_exit((void *)1);
+ 		if ((td->offset + dr) > foffset)
+ 			dw = pwrite(td->fd, rbuf, foffset - td->offset, td->offset);
+ 		else
+ 			dw = pwrite(td->fd, rbuf, dr, td->offset);
++		assert(dw >= 0);
+ 		td->offset += dw;
+ 		pthread_mutex_lock(&bwritten_mutex);
+ 		bwritten += dw;

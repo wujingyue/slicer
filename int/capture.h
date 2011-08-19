@@ -183,7 +183,7 @@ namespace slicer {
 		void capture_unreachable(Module &M);
 		void capture_unreachable(Function &F);
 		/* Function summaries. */
-		void capture_func_summaries(Module &M);
+		void capture_function_summaries(Module &M);
 		void capture_libcall(const CallSite &cs);
 		bool capture_memory_allocation(
 				const CallSite &cs, Expr *&start, Expr *&size);
