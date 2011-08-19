@@ -201,7 +201,6 @@ void MaxSlicing::check_dominance(Module &M) {
 }
 
 void MaxSlicing::volatile_landmarks(Module &M, const Trace &trace) {
-	
 	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
 
 	vector<int> thr_ids = LT.get_thr_ids();
@@ -210,6 +209,8 @@ void MaxSlicing::volatile_landmarks(Module &M, const Trace &trace) {
 		size_t n_trunks = LT.get_n_trunks(i);
 		for (size_t j = 0; j < n_trunks; ++j) {
 			if (LT.is_enforcing_landmark(i, j)) {
+				DEBUG(dbgs() << "Volatiling Instruction " <<
+						LT.get_landmark(i, j).ins_id << "\n";);
 				assert(trace.count(i));
 				assert(j < trace.find(i)->second.size());
 				Instruction *old_inst = trace.find(i)->second[j];

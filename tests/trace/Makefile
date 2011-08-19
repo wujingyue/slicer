@@ -132,7 +132,7 @@ pfscan.ft: pfscan.trace
 		< $(PROGS_DIR)/$(<:.ft=.id.bc)
 
 %.landmarks: $(PROGS_DIR)/%.id.bc
-	opt -analyze \
+	opt -stats -analyze \
 		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \

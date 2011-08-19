@@ -89,8 +89,8 @@ void MarkLandmarks::mark_enforcing_landmarks(Module &M) {
 
 void MarkLandmarks::mark_branch_succs(Module &M) {
 	OmitBranch &OB = getAnalysis<OmitBranch>();
-	forallinst(M, ii) {
-		BranchInst *bi = dyn_cast<BranchInst>(ii);
+	forallbb(M, bb) {
+		BranchInst *bi = dyn_cast<BranchInst>(bb->getTerminator());
 		if (bi) {
 			if (OB.omit(bi)) {
 				++NumOmittedBranches;

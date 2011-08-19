@@ -99,7 +99,7 @@ bool PostReducer::constantize(Module &M) {
 				// Signed values. 
 				int64_t svalue = to_replace[i].second->getSExtValue();
 				DEBUG(dbgs() << *local[j]->getUser() << "\n";);
-				local[j]->set(ConstantInt::get(int_type, svalue, true));
+				local[j]->set(ConstantInt::getSigned(int_type, svalue));
 				locally_changed = true;
 			} else if (const PointerType *ptr_type = dyn_cast<PointerType>(type)) {
 				if (to_replace[i].second->isZero()) {

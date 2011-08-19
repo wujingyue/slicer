@@ -5,6 +5,13 @@
  * Follow the LLVM coding style. 
  */
 
+#include <cstdio>
+#include <memory>
+#include <algorithm>
+#include <sstream>
+#include <string>
+using namespace std;
+
 #include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
 #include "llvm/PassManager.h"
@@ -31,13 +38,6 @@
 #include "llvm/LinkAllPasses.h"
 #include "llvm/LinkAllVMCore.h"
 using namespace llvm;
-
-#include <cstdio>
-#include <memory>
-#include <algorithm>
-#include <sstream>
-#include <string>
-using namespace std;
 
 #include "listener.h"
 using namespace slicer;

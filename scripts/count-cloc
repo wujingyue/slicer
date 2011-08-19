@@ -1,0 +1,3 @@
+#!/bin/bash
+
+cloc int max-slicing preparer reducer simplifier tests trace $LLVM_ROOT/common --exclude-lang=D,Assembly,HTML

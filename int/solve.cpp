@@ -282,7 +282,8 @@ void SolveConstraints::identify_fixed_values() {
 	// Finally, make identified fixed values to be roots. 
 	for (i = fixed_values.begin(); i != fixed_values.end(); ++i) {
 		const Value *v = i->first;
-		root[v] = ConstantInt::get(v->getType(), i->second.first);
+		// Note: Convert it to a signed integer.
+		root[v] = ConstantInt::getSigned(v->getType(), (int)i->second.first);
 	}
 }
 
