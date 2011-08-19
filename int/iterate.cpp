@@ -61,7 +61,6 @@ bool Iterate::runOnModule(Module &M) {
 
 void Iterate::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
-	AU.addRequired<ObjectID>();
 	AU.addRequired<CaptureConstraints>();
 	AU.addRequired<SolveConstraints>();
 	AU.addRequired<AdvancedAlias>();

@@ -215,6 +215,9 @@ namespace slicer {
 		 */
 		void fix_def_use(Module &M, const Trace &trace);
 		void fix_def_use_bb(Module &M, const Trace &trace);
+		void fix_def_use_phinodes(BasicBlock *bb);
+		// <unreachable_bb> is the unreachable BB in <bb>'s containing function. 
+		void fix_def_use_terminator(BasicBlock *bb, BasicBlock *&unreachable_bb);
 		void fix_def_use_insts(Module &M, const Trace &trace);
 		void fix_def_use_insts(Function &F);
 		void fix_def_use_func_param(Module &M);

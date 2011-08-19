@@ -4,6 +4,11 @@
 
 #define DEBUG_TYPE "max-slicing"
 
+#include <iostream>
+#include <fstream>
+#include <sstream>
+using namespace std;
+
 #include "llvm/Module.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/ADT/Statistic.h"
@@ -15,11 +20,6 @@
 #include "common/id-manager/IDManager.h"
 #include "common/cfg/may-exec.h"
 using namespace llvm;
-
-#include <iostream>
-#include <fstream>
-#include <sstream>
-using namespace std;
 
 #include "max-slicing.h"
 using namespace slicer;
@@ -38,8 +38,118 @@ void MaxSlicing::redirect_program_entry(
 	new_main->setName(old_main_name);
 }
 
-void MaxSlicing::fix_def_use_bb(Module &M, const Trace &trace) {
+void MaxSlicing::fix_def_use_phinodes(BasicBlock *bi) {
+	if (!isa<PHINode>(bi->begin()))
+		return;
 
+	// Fix all PHINodes in this BB. 
+	BBMapping actual_pred_bbs;
+	const InstList &actual_pred_insts = cfg_r.lookup(bi->begin());
+	for (size_t j = 0; j < actual_pred_insts.size(); ++j) {
+		EdgeType et = get_edge_type(actual_pred_insts[j], bi->begin());
+		// FIXME: Are you sure? Successors of InvokeInsts never
+		// have PHINodes? 
+		assert(et == EDGE_INTRA_BB || et == EDGE_INTER_BB);
+		Instruction *orig_pred_inst =
+			clone_map_r.lookup(actual_pred_insts[j]);
+		assert(orig_pred_inst);
+		actual_pred_bbs[orig_pred_inst->getParent()] =
+			actual_pred_insts[j]->getParent();
+	}
+	for (BasicBlock::iterator ii = bi->begin();
+			ii != (BasicBlock::iterator)bi->getFirstNonPHI(); ++ii) {
+		PHINode *phi = dyn_cast<PHINode>(ii);
+		// We may delete incoming values while traversing, therefore
+		// we have to go backwards. 
+		for (unsigned j = phi->getNumIncomingValues(); j > 0;) {
+			--j;
+			BasicBlock *incoming_bb = phi->getIncomingBlock(j);
+			// If an incoming block does not appear in the cloned CFG, 
+			// we remove this incoming value;
+			// otherwise, we replace it with its counterpart in the
+			// cloned CFG. 
+			if (!actual_pred_bbs.count(incoming_bb))
+				// Don't remove PHINodes even if it's empty. 
+				// Dangerous because the clone mappings still have its
+				// references. 
+				phi->removeIncomingValue(j, false);
+			else
+				phi->setIncomingBlock(j, actual_pred_bbs[incoming_bb]);
+		}
+	}
+}
+
+void MaxSlicing::fix_def_use_terminator(BasicBlock *bb,
+		BasicBlock *&unreachable_bb) {
+	Function *f = bb->getParent();
+	TerminatorInst *ti = bb->getTerminator();
+
+	if (ti == NULL) {
+		/*
+		 * Some BBs don't have a Terminator because they end with functions
+		 * such as pthread_exit() or exit(), or the CFG is not complete due
+		 * to not exiting normally. 
+		 * Need to append UnreachableInsts to them
+		 * because LLVM requires all BBs to end with a TerminatorInst. 
+		 */
+		bool ends_with_no_return;
+		if (bb->empty())
+			ends_with_no_return = false;
+		else {
+			CallSite cs = CallSite::get(&bb->back());
+			if (!cs.getInstruction())
+				ends_with_no_return = false;
+			else
+				ends_with_no_return = cs.doesNotReturn();
+		}
+		if (ends_with_no_return)
+			new UnreachableInst(getGlobalContext(), bb);
+		else {
+			errs() << "[Warning] CFG broken due to incomplete execution: " <<
+				f->getNameStr() << "." << bb->getNameStr() << "\n";
+			if (!unreachable_bb)
+				unreachable_bb = create_unreachable(f);
+			BranchInst::Create(unreachable_bb, bb);
+		}
+	} else {
+		BBMapping actual_succ_bbs; // Map to the cloned CFG. 
+		InstList actual_succ_insts;
+		if (invoke_successors.count(ti))
+			actual_succ_insts = invoke_successors.lookup(ti);
+		else
+			actual_succ_insts = cfg.lookup(ti);
+
+		for (size_t j = 0; j < actual_succ_insts.size(); ++j) {
+			Instruction *orig_succ_inst =
+				clone_map_r.lookup(actual_succ_insts[j]);
+			assert(orig_succ_inst);
+			assert(orig_succ_inst->getParent());
+			actual_succ_bbs[orig_succ_inst->getParent()] =
+				actual_succ_insts[j]->getParent();
+		}
+		for (unsigned j = 0; j < ti->getNumSuccessors(); ++j) {
+			// If an outgoing block does not appear in the cloned CFG, 
+			// we redirect the outgoing edge to the unreachable BB in
+			// the function;
+			// otherwise, redirect the outgoing edge to the cloned CFG. 
+			BasicBlock *outgoing_bb = ti->getSuccessor(j);
+			if (!actual_succ_bbs.count(outgoing_bb)) {
+				if (!unreachable_bb) {
+					// <f> does not have an unreachable BB yet. Create one. 
+					// This statement changes <f> while we are still scanning
+					// <f>, but it's fine because the BB list is simply a
+					// linked list.
+					unreachable_bb = create_unreachable(f);
+				}
+				ti->setSuccessor(j, unreachable_bb);
+			} else {
+				ti->setSuccessor(j, actual_succ_bbs[outgoing_bb]);
+			}
+		}
+	} // if (ti == NULL)
+}
+
+void MaxSlicing::fix_def_use_bb(Module &M, const Trace &trace) {
 	dbgs() << "Fixing BBs in def-use graph...\n";
 
 	// An InvokeInst's successors may not be its successors in <cfg>. 
@@ -48,119 +158,20 @@ void MaxSlicing::fix_def_use_bb(Module &M, const Trace &trace) {
 
 	DenseMap<Function *, BasicBlock *> unreach_bbs;
 	forallfunc(M, fi) {
+		// Skip original functions. 
+		if (!clone_map_r.count(fi->begin()->begin()))
+			continue;
+		BasicBlock *unreachable_bb = NULL;
 		forall(Function, bi, *fi) {
 			assert(bi->begin() != bi->end());
-			// Skip original BBs. 
-			if (!clone_map_r.count(bi->begin()))
-				continue;
-			if (isa<PHINode>(bi->begin())) {
-				// Fix all PHINodes in this BB. 
-				BBMapping actual_pred_bbs;
-				const InstList &actual_pred_insts = cfg_r.lookup(bi->begin());
-				for (size_t j = 0; j < actual_pred_insts.size(); ++j) {
-					EdgeType et = get_edge_type(actual_pred_insts[j], bi->begin());
-					// FIXME: Are you sure? Successors of InvokeInsts never
-					// have PHINodes? 
-					assert(et == EDGE_INTRA_BB || et == EDGE_INTER_BB);
-					Instruction *orig_pred_inst =
-						clone_map_r.lookup(actual_pred_insts[j]);
-					assert(orig_pred_inst);
-					actual_pred_bbs[orig_pred_inst->getParent()] =
-						actual_pred_insts[j]->getParent();
-				}
-				for (BasicBlock::iterator ii = bi->begin();
-						ii != (BasicBlock::iterator)bi->getFirstNonPHI(); ++ii) {
-					PHINode *phi = dyn_cast<PHINode>(ii);
-					// We may delete incoming values while traversing, therefore
-					// we have to go backwards. 
-					for (unsigned j = phi->getNumIncomingValues(); j > 0;) {
-						--j;
-						BasicBlock *incoming_bb = phi->getIncomingBlock(j);
-						// If an incoming block does not appear in the cloned CFG, 
-						// we remove this incoming value;
-						// otherwise, we replace it with its counterpart in the
-						// cloned CFG. 
-						if (!actual_pred_bbs.count(incoming_bb))
-							// Don't remove PHINodes even if it's empty. 
-							// Dangerous because the clone mappings still have its
-							// references. 
-							phi->removeIncomingValue(j, false);
-						else
-							phi->setIncomingBlock(j, actual_pred_bbs[incoming_bb]);
-					}
-				}
-			}
-			// Fix the terminator. 
-			TerminatorInst *ti = bi->getTerminator();
-			if (ti == NULL) {
-				/*
-				 * Some BBs don't have a Terminator because they end with functions
-				 * such as pthread_exit() or exit(), or the CFG is not complete due
-				 * to not exiting normally. 
-				 * Need to append UnreachableInsts to them
-				 * because LLVM requires all BBs to end with a TerminatorInst. 
-				 */
-				bool ends_with_no_return;
-				if (bi->empty())
-					ends_with_no_return = false;
-				else {
-					CallSite cs = CallSite::get(&bi->back());
-					if (!cs.getInstruction())
-						ends_with_no_return = false;
-					else
-						ends_with_no_return = cs.doesNotReturn();
-				}
-				if (ends_with_no_return)
-					new UnreachableInst(getGlobalContext(), bi);
-				else {
-					errs() << "[Warning] CFG broken due to incomplete execution: " <<
-						fi->getNameStr() << "." << bi->getNameStr() << "\n";
-					BasicBlock *&unreachable_bb = unreach_bbs[fi];
-					if (!unreachable_bb)
-						unreachable_bb = create_unreachable(fi);
-					BranchInst::Create(unreachable_bb, bi);
-				}
-			} else {
-				BBMapping actual_succ_bbs; // Map to the cloned CFG. 
-				InstList actual_succ_insts;
-				if (invoke_successors.count(ti))
-					actual_succ_insts = invoke_successors.lookup(ti);
-				else
-					actual_succ_insts = cfg.lookup(ti);
-
-				for (size_t j = 0; j < actual_succ_insts.size(); ++j) {
-					Instruction *orig_succ_inst =
-						clone_map_r.lookup(actual_succ_insts[j]);
-					assert(orig_succ_inst);
-					assert(orig_succ_inst->getParent());
-					actual_succ_bbs[orig_succ_inst->getParent()] =
-						actual_succ_insts[j]->getParent();
-				}
-				for (unsigned j = 0; j < ti->getNumSuccessors(); ++j) {
-					// If an outgoing block does not appear in the cloned CFG, 
-					// we redirect the outgoing edge to the unreachable BB in
-					// the function;
-					// otherwise, redirect the outgoing edge to the cloned CFG. 
-					BasicBlock *outgoing_bb = ti->getSuccessor(j);
-					if (!actual_succ_bbs.count(outgoing_bb)) {
-						// NOTE: This refers to a slot in the hash map. 
-						BasicBlock *&unreachable_bb = unreach_bbs[fi];
-						if (!unreachable_bb) {
-							// <fi> does not have an unreachable BB yet. Create one. 
-							// This statement changes <fi> while we are still scanning
-							// <fi>, but it's fine because the BB list is simply a
-							// linked list.
-							unreachable_bb = create_unreachable(fi);
-						}
-						ti->setSuccessor(j, unreachable_bb);
-					} else {
-						ti->setSuccessor(j, actual_succ_bbs[outgoing_bb]);
-					}
-				}
-			} // if (ti == NULL)
+			fix_def_use_phinodes(bi);
+			// <unreachable_bb> may be changed inside this function, and the new
+			// value will be used when processing the next BB. 
+			fix_def_use_terminator(bi, unreachable_bb);
 		} // for bb
 	} // for func
 	
+	// Make sure each BB has only one terminator. 
 	forallbb(M, bb) {
 		unsigned n_terminators = 0;
 		forall(BasicBlock, ins, *bb) {
@@ -174,6 +185,7 @@ void MaxSlicing::fix_def_use_bb(Module &M, const Trace &trace) {
 		assert(n_terminators == 1);
 	}
 
+	// Check the CFG. 
 	forallbb(M, bb) {
 		for (succ_iterator si = succ_begin(bb); si != succ_end(bb); ++si) {
 			assert(bb->getParent() == (*si)->getParent());
@@ -266,15 +278,14 @@ void MaxSlicing::fix_def_use_func_param(Module &M) {
 
 void MaxSlicing::fix_def_use_insts(Module &M, const Trace &trace) {
 	dbgs() << "Fixing instructions in def-use graph...\n";
+
 	forallfunc(M, f) {
-		if (f->isDeclaration())
-			continue;
-		fix_def_use_insts(*f);
+		if (!f->isDeclaration())
+			fix_def_use_insts(*f);
 	}
 }
 
 void MaxSlicing::fix_def_use_insts(Function &F) {
-	
 	dbgs() << "Fixing instructions in Function " << F.getName() << "...\n";
 
 	// An old instruction may correspond to multiple new instructions.
@@ -284,21 +295,24 @@ void MaxSlicing::fix_def_use_insts(Function &F) {
 	// Collect all def-use chains in this function. 
 	forall(Function, bb, F) {
 		forall(BasicBlock, new_ins, *bb) {
-			if (Instruction *old_ins = clone_map_r.lookup(new_ins)) {
+			// Update <old_insts_to_new>. 
+			if (Instruction *old_ins = clone_map_r.lookup(new_ins))
 				old_insts_to_new[old_ins].insert(new_ins);
-				for (unsigned i = 0; i < new_ins->getNumOperands(); ++i) {
-					Value *op = new_ins->getOperand(i);
-					// Needn't consider ConstantExprs, because they are constant. 
-					if (Instruction *used = dyn_cast<Instruction>(op)) {
-						assert(!clone_map_r.count(used));
-						uses_of_old_insts[used].push_back(&new_ins->getOperandUse(i));
-					}
+			// Update <uses_of_old_insts>.
+			for (unsigned i = 0; i < new_ins->getNumOperands(); ++i) {
+				Value *op = new_ins->getOperand(i);
+				// Needn't consider ConstantExprs, because they are constant. 
+				if (Instruction *used = dyn_cast<Instruction>(op)) {
+					assert(!clone_map_r.count(used));
+					uses_of_old_insts[used].push_back(&new_ins->getOperandUse(i));
 				}
 			}
 		}
 	}
 
 	// Resolve them using SSAUpdater. 
+	// TODO: SSAUpdater uses DFS to add PHINodes and resolve def-use chains. 
+	// Therefore, it uses too much stack space sometimes. 
 	for (DenseMap<Instruction *, InstSet>::iterator
 			i = old_insts_to_new.begin(); i != old_insts_to_new.end(); ++i) {
 		// old_ins => {new_ins, new_ins, ..., new_ins}
