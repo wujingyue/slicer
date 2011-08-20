@@ -10,6 +10,7 @@ using namespace repair;
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/ADT/Statistic.h"
+#include "common/id-manager/IDAssigner.h"
 using namespace llvm;
 
 #include "capture.h"
@@ -40,7 +41,7 @@ void AdvancedAlias::releaseMemory() {
 }
 
 void AdvancedAlias::print_average_query_time(raw_ostream &O) const {
-	
+	IDAssigner &IDA = getAnalysis<IDAssigner>();
 	if (query_times.size() == 0)
 		return;
 	
@@ -61,8 +62,10 @@ void AdvancedAlias::print_average_query_time(raw_ostream &O) const {
 			fout << "may equal?\n";
 		else
 			fout << "must equal?\n";
-		fout << "V1 = " << *query_times[i].second.v1 << "\n";
-		fout << "V2 = " << *query_times[i].second.v2 << "\n";
+		const Value *v1 = query_times[i].second.v1;
+		const Value *v2 = query_times[i].second.v2;
+		fout << "[" << IDA.getValueID(v1) << "] " << *v1 << "\n";
+		fout << "[" << IDA.getValueID(v2) << "] " << *v2 << "\n";
 	}
 }
 
@@ -101,6 +104,7 @@ void AdvancedAlias::print(raw_ostream &O, const Module *M) const {
 
 void AdvancedAlias::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
+	AU.addRequiredTransitive<IDAssigner>();
 	AU.addRequiredTransitive<AliasAnalysis>();
 	AU.addRequiredTransitive<BddAliasAnalysis>();
 	AU.addRequiredTransitive<SolveConstraints>();

@@ -4,17 +4,17 @@
 
 #define DEBUG_TYPE "int"
 
+#include <list>
+#include <iostream>
+#include <sstream>
+using namespace std;
+
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Analysis/Dominators.h"
 #include "common/include/util.h"
 #include "common/cfg/intra-reach.h"
 using namespace llvm;
-
-#include <list>
-#include <iostream>
-#include <sstream>
-using namespace std;
 
 #include "capture.h"
 #include "solve.h"
@@ -567,6 +567,12 @@ bool SolveConstraints::provable(const Clause *c) {
 	realize(c);
 	VCExpr vce = translate_to_vc(c2);
 	delete c2;
+
+	if (print_asserts) {
+		vc_printVarDecls(vc);
+		vc_printAsserts(vc);
+	}
+
 	int ret = vc_query(vc, vce);
 	delete_vcexpr(vce);
 	if (ret == 0 && print_counterexample_on_failure)

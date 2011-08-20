@@ -29,7 +29,6 @@ namespace slicer {
 	// an assignment satisfying both existing constraints and
 	// newly-added constraints. 
 	struct SolveConstraints: public ModulePass {
-
 		static char ID;
 
 		SolveConstraints():

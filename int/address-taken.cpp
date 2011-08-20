@@ -246,15 +246,8 @@ Instruction *CaptureConstraints::find_latest_overwriter(
 	Instruction *i1 = get_idom_ip(i2);
 	while (i1) {
 		if (Value *p = get_pointer_operand(i1)) {
-#if 1
 			if (must_alias(p, q))
 				break;
-#endif
-#if 0
-			AliasAnalysis::AliasResult res = AA->alias(p, 0, q, 0);
-			if (res == AliasAnalysis::MustAlias)
-				break;
-#endif
 		}
 		i1 = get_idom_ip(i1);
 	}
