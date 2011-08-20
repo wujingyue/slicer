@@ -508,6 +508,7 @@ bool SolveConstraints::satisfiable(const Clause *c) {
 	if (print_asserts) {
 		vc_printVarDecls(vc);
 		vc_printAsserts(vc);
+		vc_printExpr(vc, not_vce);
 	}
 
 	int ret = vc_query(vc, not_vce);
@@ -571,6 +572,7 @@ bool SolveConstraints::provable(const Clause *c) {
 	if (print_asserts) {
 		vc_printVarDecls(vc);
 		vc_printAsserts(vc);
+		vc_printExpr(vc, vce);
 	}
 
 	int ret = vc_query(vc, vce);

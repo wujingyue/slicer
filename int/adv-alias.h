@@ -12,7 +12,6 @@ using namespace llvm;
 namespace slicer {
 
 	struct QueryInfo {
-
 		QueryInfo(bool s, const Value *a, const Value *b):
 			satisfiable(s), v1(a), v2(b) {}
 

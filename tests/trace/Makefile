@@ -110,7 +110,8 @@ FFT.ft: FFT.trace
 	mv /tmp/fulltrace $@
 
 pfscan.ft: pfscan.trace
-	./$< -n2 -v -d pthread ../progs
+	# pfscan returns the number of matches
+	./$< -n2 -v -d pthread $(LLVM_ROOT)/common/include/ || true
 	mv /tmp/fulltrace $@
 
 # Most programs don't need any special command line. 

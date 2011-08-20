@@ -40,6 +40,11 @@ bool AdvancedAlias::runOnModule(Module &M) {
 void AdvancedAlias::releaseMemory() {
 }
 
+static bool by_first(const pair<clock_t, QueryInfo> &a,
+		const pair<clock_t, QueryInfo>& b) {
+	return a.first > b.first;
+}
+
 void AdvancedAlias::print_average_query_time(raw_ostream &O) const {
 	IDAssigner &IDA = getAnalysis<IDAssigner>();
 	if (query_times.size() == 0)
@@ -54,16 +59,19 @@ void AdvancedAlias::print_average_query_time(raw_ostream &O) const {
 		(double)tot_time / CLOCKS_PER_SEC / query_times.size();
 	O << "Average time on each query = " << oss.str() << "\n";
 
+	vector<pair<clock_t, QueryInfo> > sorted_query_times(query_times);
+	sort(sorted_query_times.begin(), sorted_query_times.end(), by_first);
+
 	string error_info;
 	raw_fd_ostream fout("/tmp/query-times.txt", error_info);
-	for (size_t i = 0; i < query_times.size(); ++i) {
-		fout << query_times[i].first << "\n";
-		if (query_times[i].second.satisfiable)
+	for (size_t i = 0; i < sorted_query_times.size(); ++i) {
+		fout << sorted_query_times[i].first << "\n";
+		if (sorted_query_times[i].second.satisfiable)
 			fout << "may equal?\n";
 		else
 			fout << "must equal?\n";
-		const Value *v1 = query_times[i].second.v1;
-		const Value *v2 = query_times[i].second.v2;
+		const Value *v1 = sorted_query_times[i].second.v1;
+		const Value *v2 = sorted_query_times[i].second.v2;
 		fout << "[" << IDA.getValueID(v1) << "] " << *v1 << "\n";
 		fout << "[" << IDA.getValueID(v2) << "] " << *v2 << "\n";
 	}
