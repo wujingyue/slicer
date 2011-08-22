@@ -9,9 +9,6 @@ struct Record {
 	clock_t query_time;
 	string str1, str2, str3;
 };
-bool operator<(const Record &a, const Record &b) {
-	return a.query_time > b.query_time;
-}
 
 vector<Record> records;
 
@@ -41,11 +38,23 @@ int main() {
 	while (read_record(r))
 		records.push_back(r);
 	
-	sort(records.begin(), records.end());
+	clock_t tot_provable = 0, tot_unprovable = 0;
+	unsigned n_unprovables = 0, n_provables = 0;
 	for (size_t i = 0; i < records.size(); ++i) {
-		cout << records[i].query_time << "\t" << records[i].str1 << endl;
-		cout << records[i].str2 << endl << records[i].str3 << endl;
+		bool satisfiable = (records[i].str1.compare(0, 3, "may") == 0);
+		bool correct = (records[i].str1[records[i].str1.length() - 1] == '1');
+		if ((satisfiable && correct) || (!satisfiable && !correct)) {
+			tot_unprovable += records[i].query_time;
+			n_unprovables++;
+		} else {
+			tot_provable += records[i].query_time;
+			n_provables++;
+		}
 	}
+	cout << "Time spent on provable queries = " << tot_provable << "\n";
+	cout << "# of provable queries = " << n_provables << "\n";
+	cout << "Time spent on unprovable queries = " << tot_unprovable << "\n";
+	cout << "# of unprovable queries = " << n_unprovables << "\n";
 	
 	return 0;
 }

@@ -65,6 +65,13 @@ void SolveConstraints::identify_eqs() {
 		if (is_simple_eq(c, &v1, &v2)) {
 			assert(v1 && v2);
 			const Value *r1 = get_root(v1), *r2 = get_root(v2);
+
+			const Expr *e_r1 = new Expr(r1), *e_r2 = new Expr(r2);
+			// Otherwise, the clause should contain Trunc, ZExt, or SExt. 
+			assert(e_r1->get_width() == e_r2->get_width());
+			delete e_r1;
+			delete e_r2;
+
 			/*
 			 * Make sure constant integers will always be the roots. 
 			 * Otherwise, we would miss information when replacing
@@ -120,7 +127,6 @@ void SolveConstraints::refine_candidates(list<const Value *> &candidates) {
 	 */
 	ConstValueSet appeared;
 	for (unsigned k = 0; k < CC.get_num_constraints(); ++k) {
-
 		Clause *c = CC.get_constraint(k)->clone();
 #if 0
 		print_clause(errs(), c, getAnalysis<IDAssigner>());
@@ -360,17 +366,68 @@ void SolveConstraints::diagnose(Module &M) {
 	errs() << "Finished printing a minimal set\n";
 }
 
-void SolveConstraints::translate_captured(Module &M) {
-
+void SolveConstraints::separate(Module &M) {
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
-
-	assert(vc);
 	unsigned n_constraints = CC.get_num_constraints();
-	dbgs() << "# of constraints = " << n_constraints << "\n";
+
+	ConstValueMapping root2;
 	for (unsigned i = 0; i < n_constraints; ++i) {
-		
 		Clause *c = CC.get_constraint(i)->clone();
 		replace_with_root(c);
+		VCExpr vce = translate_to_vc(c);
+		if (can_be_simplified(vce) == -1) {
+			ConstValueSet appeared;
+			update_appeared(appeared, c);
+			const Value *last_v = NULL;
+			forall(ConstValueSet, it, appeared) {
+				const Value *v = *it;
+				if (!isa<Constant>(v)) {
+					if (last_v) {
+						const Value *r_last_v = get_root2(root2, last_v);
+						const Value *r_v = get_root2(root2, v);
+						root2[r_v] = r_last_v;
+					}
+					last_v = v;
+				}
+			}
+		}
+		delete_vcexpr(vce);
+		delete c;
+	}
+
+	DenseMap<const Value *, unsigned> class_sizes;
+	forallconst(ConstValueSet, it, CC.get_integers()) {
+		const Value *v = *it;
+		const Value *r_v = get_root2(root2, v);
+		++class_sizes[r_v];
+	}
+
+	vector<unsigned> sorted_class_sizes;
+	for (DenseMap<const Value *, unsigned>::iterator it = class_sizes.begin();
+			it != class_sizes.end(); ++it) {
+		if (it->second > 1)
+			sorted_class_sizes.push_back(it->second);
+	}
+	sort(sorted_class_sizes.begin(), sorted_class_sizes.end(),
+			greater<unsigned>());
+	errs() << "Sizes of related classes:\n";
+	for (size_t i = 0; i < sorted_class_sizes.size(); ++i) {
+		errs() << sorted_class_sizes[i] << "\n";
+	}
+}
+
+void SolveConstraints::translate_captured(Module &M) {
+#if 0
+	separate(M);
+#endif
+
+	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
+	unsigned n_constraints = CC.get_num_constraints();
+	dbgs() << "# of constraints = " << n_constraints << "\n";
+
+	assert(vc);
+	for (unsigned i = 0; i < n_constraints; ++i) {
+		Clause *c = CC.get_constraint(i)->clone();
 
 		VCExpr vce = translate_to_vc(c);
 		if (can_be_simplified(vce) == -1)
@@ -379,10 +436,14 @@ void SolveConstraints::translate_captured(Module &M) {
 		
 		delete c; // c is cloned
 	}
-	
+
 	// The captured constraints should be consistent. 
-	vc_push(vc);
+	check_consistency(M);
+}
+
+void SolveConstraints::check_consistency(Module &M) {
 	dbgs() << "Checking consistency... ";
+	vc_push(vc);
 	if (print_asserts) {
 		vc_printVarDecls(vc);
 		vc_printAsserts(vc);
@@ -451,6 +512,19 @@ const Value *SolveConstraints::get_root(const Value *x) {
 		root[x] = ry;
 	}
 	return root.lookup(x);
+}
+
+const Value *SolveConstraints::get_root2(
+		ConstValueMapping &root2, const Value *x) {
+	assert(x);
+	if (!root2.count(x))
+		return x;
+	const Value *y = root2.lookup(x);
+	if (y != x) {
+		const Value *ry = get_root2(root2, y);
+		root2[x] = ry;
+	}
+	return root2.lookup(x);
 }
 
 bool SolveConstraints::is_simple_eq(

@@ -67,9 +67,10 @@ void AdvancedAlias::print_average_query_time(raw_ostream &O) const {
 	for (size_t i = 0; i < sorted_query_times.size(); ++i) {
 		fout << sorted_query_times[i].first << "\n";
 		if (sorted_query_times[i].second.satisfiable)
-			fout << "may equal?\n";
+			fout << "may equal?";
 		else
-			fout << "must equal?\n";
+			fout << "must equal?";
+		fout << " " << sorted_query_times[i].second.result << "\n";
 		const Value *v1 = sorted_query_times[i].second.v1;
 		const Value *v2 = sorted_query_times[i].second.v2;
 		fout << "[" << IDA.getValueID(v1) << "] " << *v1 << "\n";
@@ -149,7 +150,8 @@ bool AdvancedAlias::must_alias(const Value *v1, const Value *v2) {
 	if (!check_must_cache(v1, v2, pro)) {
 		clock_t start = clock();
 		pro = SC.provable(CmpInst::ICMP_EQ, v1, v2);
-		query_times.push_back(make_pair(clock() - start, QueryInfo(false, v1, v2)));
+		query_times.push_back(make_pair(
+					clock() - start, QueryInfo(false, v1, v2, pro)));
 		add_to_must_cache(v1, v2, pro);
 	}
 	return pro;
@@ -185,7 +187,8 @@ bool AdvancedAlias::may_alias(const Value *v1, const Value *v2) {
 	if (!check_may_cache(v1, v2, sat)) {
 		clock_t start = clock();
 		sat = SC.satisfiable(CmpInst::ICMP_EQ, v1, v2);
-		query_times.push_back(make_pair(clock() - start, QueryInfo(true, v1, v2)));
+		query_times.push_back(make_pair(
+					clock() - start, QueryInfo(true, v1, v2, sat)));
 		add_to_may_cache(v1, v2, sat);
 	}
 	return sat;
@@ -205,7 +208,8 @@ AliasAnalysis::AliasResult AdvancedAlias::alias(
 	if (!check_may_cache(v1, v2, sat)) {
 		clock_t start = clock();
 		sat = SC.satisfiable(CmpInst::ICMP_EQ, v1, v2);
-		query_times.push_back(make_pair(clock() - start, QueryInfo(true, v1, v2)));
+		query_times.push_back(
+				make_pair(clock() - start, QueryInfo(true, v1, v2, sat)));
 		add_to_may_cache(v1, v2, sat);
 	}
 	if (!sat)
@@ -215,7 +219,8 @@ AliasAnalysis::AliasResult AdvancedAlias::alias(
 	if (!check_must_cache(v1, v2, pro)) {
 		clock_t start = clock();
 		pro = SC.provable(CmpInst::ICMP_EQ, v1, v2);
-		query_times.push_back(make_pair(clock() - start, QueryInfo(false, v1, v2)));
+		query_times.push_back(make_pair(
+					clock() - start, QueryInfo(false, v1, v2, pro)));
 		add_to_must_cache(v1, v2, pro);
 	}
 	return (pro ? MustAlias : MayAlias);

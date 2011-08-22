@@ -93,6 +93,8 @@ namespace slicer {
 		 * inserts them to <vc>.
 		 */
 		void translate_captured(Module &M);
+		void check_consistency(Module &M);
+		void separate(Module &M);
 		VCExpr translate_to_vc(const Clause *c);
 		VCExpr translate_to_vc(const BoolExpr *be);
 		VCExpr translate_to_vc(const Expr *e);
@@ -134,6 +136,7 @@ namespace slicer {
 		 * Get the representitive of <x>'s containing equivalent class.
 		 */
 		const Value *get_root(const Value *x);
+		const Value *get_root2(ConstValueMapping &root2, const Value *x);
 		void update_appeared(ConstValueSet &appeared, const Clause *c);
 		void update_appeared(ConstValueSet &appeared, const BoolExpr *be);
 		void update_appeared(ConstValueSet &appeared, const Expr *e);
