@@ -9,6 +9,9 @@ stp-svn:
 test:
 	cd stp-svn && echo `pwd`
 
+update: stp-svn
+	cd stp-svn && svn update && make install
+
 clean:
 	make -C stp-svn clean
 

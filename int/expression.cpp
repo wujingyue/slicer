@@ -88,6 +88,17 @@ Expr::Expr(unsigned opcode, Expr *expr1, Expr *expr2):
 	}
 }
 
+Clause::~Clause() {
+	if (c1) {
+		delete c1;
+		c1 = NULL;
+	}
+	if (c2) {
+		delete c2;
+		c2 = NULL;
+	}
+}
+
 void slicer::print_opcode(raw_ostream &O, unsigned op) {
 	switch (op) {
 		case Instruction::Add:
@@ -226,6 +237,12 @@ void slicer::print_bool_expr(raw_ostream &O, const BoolExpr *be, IDAssigner &IDA
 void slicer::print_clause(raw_ostream &O, const Clause *c, IDAssigner &IDA) {
 	if (c->be) {
 		print_bool_expr(O, c->be, IDA);
+		return;
+	}
+	if (c->op == Instruction::UserOp1) {
+		O << "(NOT ";
+		print_clause(O, c->c1, IDA);
+		O << ")";
 		return;
 	}
 	O << "(";

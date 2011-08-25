@@ -66,16 +66,21 @@ VCExpr SolveConstraints::translate_to_vc(const Clause *c) {
 	if (c->be)
 		return translate_to_vc(c->be);
 	VCExpr vce1 = translate_to_vc(c->c1);
-	VCExpr vce2 = translate_to_vc(c->c2);
+	VCExpr vce2 = (c->c2 == NULL ? NULL : translate_to_vc(c->c2));
 	VCExpr res;
 	if (c->op == Instruction::And)
 		res = vc_andExpr(vc, vce1, vce2);
 	else if (c->op == Instruction::Or)
 		res = vc_orExpr(vc, vce1, vce2);
-	else
+	else if (c->op == Instruction::Xor)
 		res = vc_xorExpr(vc, vce1, vce2);
+	else {
+		assert(c->op == Instruction::UserOp1);
+		res = vc_notExpr(vc, vce1);
+	}
 	delete_vcexpr(vce1);
-	delete_vcexpr(vce2);
+	if (vce2)
+		delete_vcexpr(vce2);
 	return res;
 }
 
@@ -395,11 +400,6 @@ void SolveConstraints::avoid_overflow(unsigned op, VCExpr left, VCExpr right) {
 #endif
 			break;
 	}
-}
-
-void SolveConstraints::print_assertions() {
-	assert(vc);
-	vc_printAsserts(vc);
 }
 
 void SolveConstraints::delete_vcexpr(VCExpr e) {

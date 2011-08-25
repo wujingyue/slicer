@@ -32,8 +32,8 @@ namespace slicer {
 		static char ID;
 
 		SolveConstraints():
-			ModulePass(&ID), print_counterexample_on_failure(false),
-			print_asserts(false) {}
+			ModulePass(&ID), print_counterexample_(false),
+			print_asserts_(false), print_minimal_proof_set_(false) {}
 		virtual bool runOnModule(Module &M);
 		virtual void print(raw_ostream &O, const Module *M) const;
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
@@ -53,12 +53,15 @@ namespace slicer {
 		 * Enable or disable the print_counterexample flag. 
 		 */
 		void set_print_counterexample(bool value) {
-			print_counterexample_on_failure = value;
+			print_counterexample_ = value;
+		}
+		void set_print_minimal_proof_set(bool value) {
+			print_minimal_proof_set_ = value;
 		}
 		/**
 		 * Enable or disable the print_asserts flag. 
 		 */
-		void set_print_asserts(bool value) { print_asserts = value; }
+		void set_print_asserts(bool value) { print_asserts_ = value; }
 
 		/**
 		 * The caller is responsible to delete this clause.
@@ -80,7 +83,6 @@ namespace slicer {
 		bool provable(CmpInst::Predicate p, const T1 *v1, const T2 *v2);
 
 		// Debugging functions. 
-		void print_assertions();
 		unsigned get_num_symbols() const { return symbols.size(); }
 
 	private:
@@ -90,6 +92,7 @@ namespace slicer {
 		void calculate(Module &M);
 		void diagnose(Module &M);
 		void print_counterexample();
+		void print_minimal_proof_set(const Clause *to_prove);
 		/*
 		 * Translates and simplifies captured constraints, and
 		 * inserts them to <vc>.
@@ -195,8 +198,9 @@ namespace slicer {
 		/* NOTE: <root> may contain some constants that don't appeared in CC. */
 		ConstValueMapping root;
 		DenseMap<ConstValuePair, bool> may_eq_cache, must_eq_cache;
-		bool print_counterexample_on_failure;
-		bool print_asserts;
+		bool print_counterexample_;
+		bool print_asserts_;
+		bool print_minimal_proof_set_;
 		/* There can only be one instance of VC running. */
 		static VC vc;
 		static DenseMap<string, VCExpr> symbols;

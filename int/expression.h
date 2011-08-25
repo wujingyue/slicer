@@ -14,23 +14,19 @@ using namespace llvm;
 using namespace std;
 
 namespace slicer {
-
 	/**
 	 * We don't allow any Expr, BoolExpr or Clause has more than one references. 
 	 * TODO: We could allow that by adding reference counting. 
 	 */
-
 	struct Expr {
-
 		enum Type {
-			SingleDef,
-			SingleUse,
-			LoopBound,
-			Unary,
-			Binary
+			SingleDef, SingleUse, LoopBound,
+			Unary, Binary
 		} type;
 		unsigned op;
+
 		Expr *e1, *e2;
+		
 		union {
 			const Value *v;
 			const Use *u;
@@ -60,7 +56,6 @@ namespace slicer {
 
 	// Expressions connected with predicates. 
 	struct BoolExpr {
-
 		CmpInst::Predicate p;
 		Expr *e1, *e2;
 
@@ -96,7 +91,6 @@ namespace slicer {
 
 	// A clause is a set of boolean expressions connected with AND, OR, or XOR
 	struct Clause {
-
 		unsigned op;
 		BoolExpr *be;
 		Clause *c1, *c2;
@@ -104,6 +98,8 @@ namespace slicer {
 		Clause *clone() const {
 			if (be)
 				return new Clause(be->clone());
+			else if (op == Instruction::UserOp1)
+				return new Clause(op, c1->clone());
 			else
 				return new Clause(op, c1->clone(), c2->clone());
 		}
@@ -116,19 +112,16 @@ namespace slicer {
 			assert(c1 != this && c2 != this && c1 != c2);
 		}
 
+		Clause(unsigned opcode, Clause *child):
+			op(opcode), be(NULL), c1(child), c2(NULL)
+		{
+			assert(op == Instruction::UserOp1);
+			assert(c1 != this);
+		}
+
 		Clause(BoolExpr *expr): op(0), be(expr), c1(NULL), c2(NULL) {}
 
-		~Clause() {
-			// fprintf(stderr, "~Clause %p\n", (void *)this);
-			if (c1) {
-				delete c1;
-				c1 = NULL;
-			}
-			if (c2) {
-				delete c2;
-				c2 = NULL;
-			}
-		}
+		~Clause();
 	};
 
 	void print_opcode(raw_ostream &O, unsigned op);

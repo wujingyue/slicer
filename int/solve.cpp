@@ -307,6 +307,8 @@ void SolveConstraints::update_appeared(
 		ConstValueSet &appeared, const Clause *c) {
 	if (c->be)
 		update_appeared(appeared, c->be);
+	else if (c->op == Instruction::UserOp1)
+		update_appeared(appeared, c->c1);
 	else {
 		update_appeared(appeared, c->c1);
 		update_appeared(appeared, c->c2);
@@ -332,6 +334,48 @@ void SolveConstraints::update_appeared(
 		update_appeared(appeared, e->e2);
 	} else
 		assert_not_supported();
+}
+
+void SolveConstraints::print_minimal_proof_set(const Clause *to_prove) {
+	errs() << "Finding a minimal proof set...\n";
+
+	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
+	unsigned n_constraints = CC.get_num_constraints();
+	DenseSet<unsigned> does_not_matter;
+	for (unsigned j = 0; j < n_constraints; ++j) {
+		// Decide if <j> matters. 
+		does_not_matter.insert(j);
+		destroy_vc();
+		create_vc();
+		for (unsigned i = 0; i < n_constraints; ++i) {
+			if (does_not_matter.count(i))
+				continue;
+			const Clause *c = CC.get_constraint(i);
+			VCExpr vce = translate_to_vc(c);
+			if (can_be_simplified(vce) == -1)
+				vc_assertFormula(vc, vce);
+			delete_vcexpr(vce);
+		}
+		VCExpr vce_to_prove = translate_to_vc(to_prove);
+		int ret = vc_query(vc, vce_to_prove);
+		delete_vcexpr(vce_to_prove);
+		if (ret == 0) {
+			errs().changeColor(raw_ostream::GREEN) << "Y"; errs().resetColor();
+			does_not_matter.erase(j);
+		} else {
+			errs().changeColor(raw_ostream::RED) << "N"; errs().resetColor();
+		}
+	}
+
+	errs() << "Start printing the minimal proof set...\n";
+	for (unsigned i = 0; i < n_constraints; ++i) {
+		if (!does_not_matter.count(i)) {
+			print_clause(dbgs(), CC.get_constraint(i), getAnalysis<IDAssigner>());
+			errs() << "\n";
+		}
+	}
+	errs() << "Finished printing the minimal proof set\n";
+	assert(false && "Abort");
 }
 
 void SolveConstraints::diagnose(Module &M) {
@@ -453,7 +497,7 @@ void SolveConstraints::translate_captured(Module &M) {
 void SolveConstraints::check_consistency(Module &M) {
 	dbgs() << "Checking consistency... ";
 	vc_push(vc);
-	if (print_asserts) {
+	if (print_asserts_) {
 		vc_printVarDecls(vc);
 		vc_printAsserts(vc);
 	}
@@ -484,6 +528,8 @@ ConstantInt *SolveConstraints::get_fixed_value(const Value *v) {
 void SolveConstraints::replace_with_root(Clause *c) {
 	if (c->be)
 		replace_with_root(c->be);
+	else if (c->op == Instruction::UserOp1)
+		replace_with_root(c->c1);
 	else {
 		replace_with_root(c->c1);
 		replace_with_root(c->c2);
@@ -567,7 +613,6 @@ void SolveConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
 }
 
 bool SolveConstraints::satisfiable(const Clause *c) {
-
 	DEBUG(dbgs() << "Satisfiable?: ";
 			print_clause(dbgs(), c, getAnalysis<IDAssigner>());
 			dbgs() << "\n";);
@@ -580,34 +625,22 @@ bool SolveConstraints::satisfiable(const Clause *c) {
 		delete c2;
 		return true;
 	}
-
-	vc_push(vc);
-	realize(c);
-	VCExpr vce = translate_to_vc(c2);
 	delete c2;
-	VCExpr not_vce = vc_notExpr(vc, vce);
-	delete_vcexpr(vce);
 
-	if (print_asserts) {
-		vc_printVarDecls(vc);
-		vc_printAsserts(vc);
-		vc_printExpr(vc, not_vce);
-	}
+	Clause *not_c = new Clause(Instruction::UserOp1, c->clone());
+	bool sat = !provable(not_c);
+	delete not_c;
 
-	int ret = vc_query(vc, not_vce);
-	delete_vcexpr(not_vce);
-	if (ret == 0 && print_counterexample_on_failure)
-		print_counterexample();
-	vc_pop(vc);
-	
-	assert(ret != 2);
-	return ret == 0;
+	return sat;
 }
 
 bool SolveConstraints::contains_only_ints(const Clause *c) {
 	if (c->be)
 		return contains_only_ints(c->be);
-	return contains_only_ints(c->c1) && contains_only_ints(c->c2);
+	else if (c->op == Instruction::UserOp1)
+		return contains_only_ints(c->c1);
+	else
+		return contains_only_ints(c->c1) && contains_only_ints(c->c2);
 }
 
 bool SolveConstraints::contains_only_ints(const BoolExpr *be) {
@@ -632,9 +665,6 @@ bool SolveConstraints::provable(const Clause *c) {
 			print_clause(dbgs(), c, getAnalysis<IDAssigner>());
 			dbgs() << "\n";);
 
-	if (!contains_only_ints(c))
-		return false;
-	
 	Clause *c2 = c->clone();
 	replace_with_root(c2);
 	// OPT: If is in the format of v0 == v0, then must be true.
@@ -651,25 +681,30 @@ bool SolveConstraints::provable(const Clause *c) {
 	VCExpr vce = translate_to_vc(c2);
 	delete c2;
 
-	if (print_asserts) {
+	if (print_asserts_) {
 		vc_printVarDecls(vc);
 		vc_printAsserts(vc);
 		vc_printExpr(vc, vce);
 	}
 
 	int ret = vc_query(vc, vce);
+	assert(ret != 2);
 	delete_vcexpr(vce);
-	if (ret == 0 && print_counterexample_on_failure)
+	if (ret == 0 && print_counterexample_)
 		print_counterexample();
 	vc_pop(vc);
 
-	assert(ret != 2);
+	if (ret == 1 && print_minimal_proof_set_)
+		print_minimal_proof_set(c);
+
 	return ret == 1;
 }
 
 void SolveConstraints::realize(const Clause *c) {
 	if (c->be)
 		realize(c->be);
+	else if (c->op == Instruction::UserOp1)
+		realize(c->c1);
 	else {
 		realize(c->c1);
 		realize(c->c2);

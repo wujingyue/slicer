@@ -112,8 +112,9 @@ void QuerySimulator::analyze(const Value *v) {
 }
 
 void QuerySimulator::issue_queries() {
-#if 0
+#if 1
 	AdvancedAlias &AA = getAnalysis<AdvancedAlias>();
+	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 #endif
 	
 	for (size_t i = 0; i < queries.size(); ++i) {
@@ -121,7 +122,7 @@ void QuerySimulator::issue_queries() {
 		const QueryInfo &query = queries[i];
 		analyze(query.v1);
 		analyze(query.v2);
-#if 0
+#if 1
 		if (query.satisfiable)
 			AA.may_alias(query.v1, query.v2);
 		else
