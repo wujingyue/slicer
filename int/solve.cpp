@@ -19,6 +19,7 @@ using namespace llvm;
 #include "capture.h"
 #include "solve.h"
 #include "config.h"
+#include "adv-alias.h"
 using namespace slicer;
 
 static RegisterPass<SolveConstraints> X(
@@ -56,32 +57,43 @@ void SolveConstraints::calculate(Module &M) {
 	translate_captured(M);
 }
 
-void SolveConstraints::identify_eqs() {
+void SolveConstraints::identify_eq(const Value *v1, const Value *v2) {
+	const Value *r1 = get_root(v1), *r2 = get_root(v2);
 
+	// Validity check. 
+	const Expr *e_r1 = new Expr(r1), *e_r2 = new Expr(r2);
+	// Otherwise, the clause should contain Trunc, ZExt, or SExt. 
+	assert(e_r1->get_width() == e_r2->get_width());
+	delete e_r1;
+	delete e_r2;
+
+	/*
+	 * Make sure constant integers will always be the roots. 
+	 * Otherwise, we would miss information when replacing
+	 * a variable with roots. 
+	 */
+	if (isa<ConstantInt>(r1) || isa<ConstantPointerNull>(r1))
+		root[r2] = r1;
+	else
+		root[r1] = r2;
+}
+
+void SolveConstraints::identify_eqs() {
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 	for (unsigned i = 0; i < CC.get_num_constraints(); ++i) {
 		const Clause *c = CC.get_constraint(i);
 		const Value *v1 = NULL, *v2 = NULL;
 		if (is_simple_eq(c, &v1, &v2)) {
 			assert(v1 && v2);
-			const Value *r1 = get_root(v1), *r2 = get_root(v2);
-
-			const Expr *e_r1 = new Expr(r1), *e_r2 = new Expr(r2);
-			// Otherwise, the clause should contain Trunc, ZExt, or SExt. 
-			assert(e_r1->get_width() == e_r2->get_width());
-			delete e_r1;
-			delete e_r2;
-
-			/*
-			 * Make sure constant integers will always be the roots. 
-			 * Otherwise, we would miss information when replacing
-			 * a variable with roots. 
-			 */
-			if (isa<ConstantInt>(r1) || isa<ConstantPointerNull>(r1))
-				root[r2] = r1;
-			else
-				root[r1] = r2;
+			identify_eq(v1, v2);
 		}
+	}
+
+	if (AdvancedAlias *AA = getAnalysisIfAvailable<AdvancedAlias>()) {
+		vector<ConstValuePair> must_alias_pairs;
+		AA->get_must_alias_pairs(must_alias_pairs);
+		for (size_t i = 0; i < must_alias_pairs.size(); ++i)
+			identify_eq(must_alias_pairs[i].first, must_alias_pairs[i].second);
 	}
 }
 
@@ -167,7 +179,6 @@ void SolveConstraints::refine_candidates(list<const Value *> &candidates) {
 
 /* TODO: Could do the same thing for uses as well, but too many uses. */
 void SolveConstraints::identify_fixed_values() {
-
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 
 	// Get all integers that are possible to be a fixed value. 
@@ -217,7 +228,6 @@ void SolveConstraints::identify_fixed_values() {
 	// Try proving each guess. 
 	unsigned n_fixed = 0, n_not_fixed = 0, n_opted = 0;
 	for (i = fixed_values.begin(); i != fixed_values.end(); ) {
-
 		vc_push(vc);
 		VCExpr guessed_value = vc_bvConstExprFromInt(vc,
 				i->second.second, i->second.first);
@@ -325,7 +335,6 @@ void SolveConstraints::update_appeared(
 }
 
 void SolveConstraints::diagnose(Module &M) {
-
 	errs() << "Detected inconsistency. Enter diagnose mode...\n";
 
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
@@ -423,7 +432,7 @@ void SolveConstraints::translate_captured(Module &M) {
 
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 	unsigned n_constraints = CC.get_num_constraints();
-	dbgs() << "# of constraints = " << n_constraints << "\n";
+	dbgs() << "# of captured constraints = " << n_constraints << "\n";
 
 	assert(vc);
 	for (unsigned i = 0; i < n_constraints; ++i) {
@@ -619,7 +628,6 @@ bool SolveConstraints::contains_only_ints(const Expr *e) {
 }
 
 bool SolveConstraints::provable(const Clause *c) {
-	
 	DEBUG(dbgs() << "Provable?: ";
 			print_clause(dbgs(), c, getAnalysis<IDAssigner>());
 			dbgs() << "\n";);

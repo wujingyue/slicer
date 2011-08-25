@@ -337,7 +337,9 @@ Clause *CaptureConstraints::get_in_gep(const User *user) {
 	for (unsigned i = 1; i < user->getNumOperands(); ++i) {
 		if (const SequentialType *sqt = dyn_cast<SequentialType>(type)) {
 			const Type *et = sqt->getElementType();
-			uint64_t type_size = TD.getTypeSizeInBits(et);
+			uint64_t type_size_in_bits = TD.getTypeSizeInBits(et);
+			assert(type_size_in_bits % 8 == 0);
+			uint64_t type_size = type_size_in_bits / 8;
 			uint64_t exp = 0;
 			Expr *delta;
 			if (is_power_of_two(type_size, exp)) {
@@ -357,8 +359,11 @@ Clause *CaptureConstraints::get_in_gep(const User *user) {
 			unsigned m = idx->getZExtValue();
 			assert(m < st->getNumElements());
 			unsigned offset = 0;
-			for (unsigned j = 0; j < m; ++j)
-				offset += TD.getTypeSizeInBits(st->getElementType(j));
+			for (unsigned j = 0; j < m; ++j) {
+				uint64_t type_size_in_bits = TD.getTypeSizeInBits(st->getElementType(j));
+				assert(type_size_in_bits % 8 == 0);
+				offset += type_size_in_bits / 8;
+			}
 			Expr *delta = new Expr(ConstantInt::get(int_type, offset));
 			cur = new Expr(Instruction::Add, cur, delta);
 			type = st->getElementType(m);

@@ -32,7 +32,11 @@ void CaptureConstraints::get_loop_bound(
 
 	const PHINode *IV = L->getCanonicalInductionVariable();
 	// Give up if we cannot find the loop index. 
-	if (!IV || IV->getNumIncomingValues() != 2) {
+	if (!IV) {
+		DEBUG(dbgs() << "Unable to find the canonical induction variable.\n";);
+		return;
+	}
+	if (IV->getNumIncomingValues() != 2) {
 		DEBUG(dbgs() << "Unable to compute the bound of" << *IV << "\n";);
 		return;
 	}

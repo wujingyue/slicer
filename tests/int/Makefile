@@ -1,5 +1,3 @@
-# TODO: Always works on simplified programs. 
-
 LEVEL = $(shell $(LLVM_ROOT)/scripts/level-to-llvm-root)/llvm-obj
 LIBRARYNAME = int-test
 LOADABLE_MODULE = 1
@@ -14,7 +12,7 @@ PROG_NAMES = test-overwrite test-loop \
 	     test-array aget-like \
 	     test-overwrite-2 \
 	     test-thread-2 RADIX-like \
-	     test-malloc test-range \
+	     test-malloc test-range test-range-4 \
 	     aget FFT
 PROGS_DIR = ../progs
 

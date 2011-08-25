@@ -8,6 +8,10 @@
  */
 // #define IDENTIFY_ONLY
 
+#include <map>
+#include <vector>
+using namespace std;
+
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/DominatorInternals.h"
 #include "llvm/Support/CommandLine.h"
@@ -25,10 +29,6 @@ using namespace llvm;
 #include "tests/include/test-utils.h"
 #include "int-test.h"
 using namespace slicer;
-
-#include <map>
-#include <vector>
-using namespace std;
 
 static RegisterPass<IntTest> X(
 		"int-test", "Test the integer constraint solver");
@@ -89,6 +89,7 @@ bool IntTest::runOnModule(Module &M) {
 	test_test_range(M);
 	test_test_range_2(M);
 	test_test_range_3(M);
+	test_test_range_4(M);
 	test_test_dep(M);
 	return false;
 }
@@ -105,8 +106,35 @@ void IntTest::test_test_dep(const Module &M) {
 	test_test_dep_common(M);
 }
 
-void IntTest::test_test_dep_common(const Module &M) {
+void IntTest::test_test_range_4(const Module &M) {
+	if (Program != "test-range-4")
+		return;
+	TestBanner X("test-range-4");
 
+	const PHINode *phi = NULL;
+	forallconst(Module, f, M) {
+		forallconst(Function, bb, *f) {
+			forallconst(BasicBlock, ins, *bb) {
+				if (const PHINode *p = dyn_cast<PHINode>(ins)) {
+					assert(!phi);
+					phi = p;
+				}
+			}
+		}
+	}
+	assert(phi);
+
+	SolveConstraints &SC = getAnalysis<SolveConstraints>();
+	const IntegerType *int_type = IntegerType::get(M.getContext(), 32);
+	assert(SC.provable(CmpInst::ICMP_SGE,
+				dyn_cast<Value>(phi),
+				dyn_cast<Value>(ConstantInt::get(int_type, 0))));
+	assert(SC.provable(CmpInst::ICMP_SLE,
+				dyn_cast<Value>(phi),
+				dyn_cast<Value>(ConstantInt::get(int_type, 110))));
+}
+
+void IntTest::test_test_dep_common(const Module &M) {
 	ExecOnce &EO = getAnalysis<ExecOnce>();
 
 	DenseMap<const Function *, ConstValueList> accesses;

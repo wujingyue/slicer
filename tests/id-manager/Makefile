@@ -4,7 +4,7 @@ PROG_NAMES = test-thread test-overwrite test-loop \
 	     aget-like test-array test-pointer \
 	     test-overwrite-2 RADIX-like test-thread-2 \
 	     test-malloc test-ctxt test-range \
-	     test-range-2 test-range-3 \
+	     test-range-2 test-range-3 test-range-4 \
 	     aget FFT RADIX pbzip2 CHOLESKY pfscan
 PROGS_DIR = ../progs
 PROGS = $(addprefix $(PROGS_DIR)/, $(PROG_NAMES))

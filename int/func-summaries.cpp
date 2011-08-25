@@ -54,20 +54,16 @@ bool CaptureConstraints::capture_memory_allocation(
 		// TODO: valloc also guarantees the block is page-aligned. 
 		assert(cs.arg_size() == 1);
 		start = new Expr(cs.getInstruction());
-		size = new Expr(Instruction::Shl,
-				new Expr(cs.getArgument(0)),
-				new Expr(ConstantInt::get(int_type, 3)));
+		size = new Expr(cs.getArgument(0));
 		return true;
 	} 
 	
 	if (name == "calloc") {
 		assert(cs.arg_size() == 2);
 		start = new Expr(cs.getInstruction());
-		size = new Expr(Instruction::Shl,
-				new Expr(Instruction::Mul,
+		size = new Expr(Instruction::Mul,
 					new Expr(cs.getArgument(0)),
-					new Expr(cs.getArgument(1))),
-				new Expr(ConstantInt::get(int_type, 3)));
+					new Expr(cs.getArgument(1)));
 		return true;
 	}
 

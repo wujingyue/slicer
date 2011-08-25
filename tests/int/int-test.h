@@ -6,9 +6,7 @@
 using namespace llvm;
 
 namespace slicer {
-
 	struct IntTest: public ModulePass {
-
 		static char ID;
 
 		IntTest(): ModulePass(&ID) {}
@@ -40,5 +38,6 @@ namespace slicer {
 		void test_test_range_3(const Module &M);
 		void test_test_dep(const Module &M);
 		void test_test_dep_common(const Module &M);
+		void test_test_range_4(const Module &M);
 	};
 }

@@ -4,7 +4,7 @@ PROG_NAMES = test-loop test-reducer test-thread \
 	     test-array test-pointer test-range-2 \
 	     test-overwrite-2 RADIX-like test-thread-2 \
 	     test-malloc test-ctxt test-range \
-	     test-range-3 \
+	     test-range-3 test-range-4 \
 	     FFT RADIX aget pbzip2 CHOLESKY
 PROGS_DIR = ../progs
 PROG_PATHS = $(addprefix $(PROGS_DIR)/, $(PROG_NAMES))

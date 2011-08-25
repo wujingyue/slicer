@@ -66,6 +66,8 @@ namespace slicer {
 		bool may_alias(const Value *v1, const Value *v2);
 		bool may_alias(const Use *u1, const Use *u2);
 
+		void get_must_alias_pairs(vector<ConstValuePair> &must_alias_pairs) const;
+
 	private:
 		void print_average_query_time(raw_ostream &O) const;
 

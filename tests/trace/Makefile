@@ -5,7 +5,7 @@ PROG_NAMES = test-thread test-overwrite test-loop \
 	     test-recursive test-bound FFT-like \
 	     aget-like test-array test-dep \
 	     test-overwrite-2 RADIX-like test-thread-2 \
-	     test-malloc test-ctxt test-range test-range-3 \
+	     test-malloc test-ctxt test-range test-range-3 test-range-4 \
 	     aget FFT RADIX pbzip2 CHOLESKY pfscan
 PROGS_DIR = ../progs
 TRACED_PROGS = $(PROG_NAMES:=.trace)

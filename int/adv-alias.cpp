@@ -276,3 +276,12 @@ ConstValuePair AdvancedAlias::make_ordered_value_pair(
 		swap(v1, v2);
 	return make_pair(v1, v2);
 }
+
+void AdvancedAlias::get_must_alias_pairs(vector<ConstValuePair> &result) const {
+	result.clear();
+	for (DenseMap<ConstValuePair, bool>::const_iterator it = must_cache.begin();
+			it != must_cache.end(); ++it) {
+		if (it->second == true)
+			result.push_back(it->first);
+	}
+}

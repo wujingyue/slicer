@@ -16,8 +16,6 @@
 #include "common/cfg/exec-once.h"
 #include "common/cfg/partial-icfg-builder.h"
 #include "common/cfg/reach.h"
-#include "max-slicing/clone-info-manager.h"
-#include "max-slicing/region-manager.h"
 using namespace llvm;
 
 #include "bc2bdd/BddAliasAnalysis.h"
@@ -27,6 +25,8 @@ using namespace repair;
 #include "must-alias.h"
 #include "adv-alias.h"
 #include "trace/landmark-trace.h"
+#include "max-slicing/clone-info-manager.h"
+#include "max-slicing/region-manager.h"
 using namespace slicer;
 
 Value *CaptureConstraints::get_pointer_operand(const Instruction *i) {
@@ -255,7 +255,6 @@ Instruction *CaptureConstraints::find_latest_overwriter(
 }
 
 bool CaptureConstraints::region_may_write(const Region &r, const Value *q) {
-	
 	RegionManager &RM = getAnalysis<RegionManager>();
 
 	if (!RM.region_has_insts(r))
@@ -277,7 +276,6 @@ bool CaptureConstraints::region_may_write(const Region &r, const Value *q) {
 }
 
 void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
-
 	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
 	CloneInfoManager &CIM = getAnalysis<CloneInfoManager>();
 	RegionManager &RM = getAnalysis<RegionManager>();
@@ -517,7 +515,6 @@ bool CaptureConstraints::may_write(
 
 bool CaptureConstraints::path_may_write(int thr_id, size_t trunk_id,
 		const Instruction *i2, const Value *q) {
-	
 	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
 	MicroBasicBlockBuilder &MBBB = getAnalysis<MicroBasicBlockBuilder>();
 	CloneInfoManager &CIM = getAnalysis<CloneInfoManager>();

@@ -44,7 +44,6 @@ void AggressivePromotion::getAnalysisUsage(AnalysisUsage &AU) const {
 }
 
 bool AggressivePromotion::runOnLoop(Loop *L, LPPassManager &LPM) {
-
 	LoopInfo &LI = getAnalysis<LoopInfo>();
 
 	BasicBlock *preheader = L->getLoopPreheader();

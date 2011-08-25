@@ -48,6 +48,7 @@ namespace slicer {
 		 * Call <identify_fixed_values> beforehand. 
 		 */
 		ConstantInt *get_fixed_value(const Value *v);
+		bool is_root(const Value *v) { return get_root(v) == v; }
 		/**
 		 * Enable or disable the print_counterexample flag. 
 		 */
@@ -80,6 +81,7 @@ namespace slicer {
 
 		// Debugging functions. 
 		void print_assertions();
+		unsigned get_num_symbols() const { return symbols.size(); }
 
 	private:
 		/**
@@ -122,6 +124,7 @@ namespace slicer {
 		int can_be_simplified(VCExpr e);
 		// Updates <root> to reflect simple eqs. 
 		void identify_eqs();
+		void identify_eq(const Value *v1, const Value *v2);
 		// Updates <root>. Make the identified fixed values the roots. 
 		void refine_candidates(list<const Value *> &candidates);
 		void replace_with_root(Clause *c);
