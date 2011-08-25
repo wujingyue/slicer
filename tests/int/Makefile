@@ -12,7 +12,7 @@ PROG_NAMES = test-overwrite test-loop \
 	     test-array aget-like \
 	     test-overwrite-2 \
 	     test-thread-2 RADIX-like \
-	     test-malloc test-range test-range-4 \
+	     test-malloc test-range \
 	     aget FFT
 PROGS_DIR = ../progs
 
