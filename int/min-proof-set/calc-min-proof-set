@@ -1,0 +1,63 @@
+#!/usr/bin/env python
+
+import re, sys, os
+import subprocess
+
+if __name__ == "__main__":
+    text = "".join(sys.stdin)
+    prog = [line + ";" for line in text.split(";")]
+    
+    var_decls = []
+    for statement in prog:
+        if re.search("  : BITVECTOR\\(\\d+\\)", statement):
+            var_decls.append(statement)
+
+    asserts = []
+    for statement in prog:
+        if re.search("ASSERT\\(.+\\);", statement, re.DOTALL):
+            asserts.append(statement)
+
+    query = ""
+    for statement in prog:
+        if re.search("QUERY .+;", statement):
+            assert query == ""
+            query = statement
+    assert query != ""
+
+    print >> sys.stderr, var_decls
+    print >> sys.stderr, asserts
+    print >> sys.stderr, query
+    print >> sys.stderr, "# of asserts =", len(asserts)
+
+    n_asserts = len(asserts)
+    slicer_root = os.getenv("SLICER_ROOT")
+    if len(slicer_root) == 0:
+        print >> sys.stderr, "SLICER_ROOT is not set"
+        sys.exit(1)
+    stp_path = slicer_root + "/stp/install/bin/stp"
+
+    does_not_matter = set()
+    for i in range(n_asserts):
+        does_not_matter.add(i)
+        modified_prog = "".join(var_decls)
+        for j in range(n_asserts):
+            if j not in does_not_matter:
+                modified_prog += asserts[j]
+        modified_prog += query
+        # sys.stdout.write(modified_prog)
+        # assert False
+        pipe = subprocess.Popen([stp_path],
+                stdin = subprocess.PIPE, stdout = subprocess.PIPE)
+        result = pipe.communicate(modified_prog)[0]
+        if re.search("Invalid\\.", "".join(result)):
+            does_not_matter.remove(i)
+            print >> sys.stderr, "Assert", i, "matters."
+        else:
+            print >> sys.stderr, "Assert", i, "does not matter."
+
+    min_prog = "".join(var_decls)
+    for j in range(n_asserts):
+        if j not in does_not_matter:
+            min_prog += asserts[j]
+    min_prog += query
+    sys.stdout.write(min_prog)

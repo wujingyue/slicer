@@ -332,44 +332,7 @@ void SolveConstraints::update_appeared(
 
 void SolveConstraints::print_minimal_proof_set(const Clause *to_prove) {
 	errs() << "Finding a minimal proof set...\n";
-
-	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
-	unsigned n_constraints = CC.get_num_constraints();
-	DenseSet<unsigned> does_not_matter;
-	for (unsigned j = 0; j < n_constraints; ++j) {
-		// Decide if <j> matters. 
-		does_not_matter.insert(j);
-		destroy_vc();
-		create_vc();
-		for (unsigned i = 0; i < n_constraints; ++i) {
-			if (does_not_matter.count(i))
-				continue;
-			const Clause *c = CC.get_constraint(i);
-			VCExpr vce = translate_to_vc(c);
-			if (can_be_simplified(vce) == -1)
-				vc_assertFormula(vc, vce);
-			delete_vcexpr(vce);
-		}
-		VCExpr vce_to_prove = translate_to_vc(to_prove);
-		int ret = vc_query(vc, vce_to_prove);
-		delete_vcexpr(vce_to_prove);
-		if (ret == 0) {
-			errs().changeColor(raw_ostream::GREEN) << "Y"; errs().resetColor();
-			does_not_matter.erase(j);
-		} else {
-			errs().changeColor(raw_ostream::RED) << "N"; errs().resetColor();
-		}
-	}
-
-	errs() << "Start printing the minimal proof set...\n";
-	for (unsigned i = 0; i < n_constraints; ++i) {
-		if (!does_not_matter.count(i)) {
-			print_clause(dbgs(), CC.get_constraint(i), getAnalysis<IDAssigner>());
-			errs() << "\n";
-		}
-	}
-	errs() << "Finished printing the minimal proof set\n";
-	assert(false && "Abort");
+	errs() << "Not implemented yet. Use slicer/int/calc-min-proof-set.\n";
 }
 
 void SolveConstraints::diagnose(Module &M) {
@@ -388,7 +351,7 @@ void SolveConstraints::diagnose(Module &M) {
 				continue;
 			const Clause *c = CC.get_constraint(i);
 			VCExpr vce = translate_to_vc(c);
-			if (can_be_simplified(vce) == -1)
+			if (try_to_simplify(vce) == -1)
 				vc_assertFormula(vc, vce);
 			delete_vcexpr(vce);
 		}
@@ -423,7 +386,7 @@ void SolveConstraints::separate(Module &M) {
 		Clause *c = CC.get_constraint(i)->clone();
 		replace_with_root(c);
 		VCExpr vce = translate_to_vc(c);
-		if (can_be_simplified(vce) == -1) {
+		if (try_to_simplify(vce) == -1) {
 			ConstValueSet appeared;
 			update_appeared(appeared, c);
 			const Value *last_v = NULL;
@@ -479,7 +442,7 @@ void SolveConstraints::translate_captured(Module &M) {
 		Clause *c = CC.get_constraint(i)->clone();
 
 		VCExpr vce = translate_to_vc(c);
-		if (can_be_simplified(vce) == -1)
+		if (try_to_simplify(vce) == -1)
 			vc_assertFormula(vc, vce);
 		delete_vcexpr(vce);
 		
@@ -658,7 +621,9 @@ bool SolveConstraints::provable(const Clause *c) {
 	if (print_asserts_) {
 		vc_printVarDecls(vc);
 		vc_printAsserts(vc);
+		outs() << "QUERY ";
 		vc_printExpr(vc, vce);
+		outs() << ";\n";
 	}
 
 	int ret = vc_query(vc, vce);
@@ -746,16 +711,25 @@ void SolveConstraints::realize(const Instruction *ins, unsigned context) {
 		for (size_t i = 0; i < constraints_from_l.size(); ++i) {
 			Clause *c = constraints_from_l[i];
 			Clause *c2 = c->clone();
-			CC.attach_context(c2, context);
-			replace_with_root(c2); // Only fixed integers will be replaced. 
-			
-			DEBUG(dbgs() << "[realize] ";
+#if 0
+			DEBUG(dbgs() << "[realize: before attaching] ";
 					print_clause(dbgs(), c2, getAnalysis<IDAssigner>());
 					dbgs() << "\n";);
+#endif
+			CC.attach_context(c2, context);
+			replace_with_root(c2); // Only fixed integers will be replaced. 
 
 			VCExpr vce = translate_to_vc(c2);
-			if (can_be_simplified(vce) != 1)
+			int simplified = try_to_simplify(vce);
+			if (simplified == 0)
+				errs() << *ins << "\n";
+			assert(simplified != 0);
+			if (simplified == -1) {
+				DEBUG(dbgs() << "[realize] ";
+						print_clause(dbgs(), c2, getAnalysis<IDAssigner>());
+						dbgs() << "\n";);
 				vc_assertFormula(vc, vce);
+			}
 			delete_vcexpr(vce);
 
 			delete c2;
@@ -786,13 +760,14 @@ void SolveConstraints::realize(const Instruction *ins, unsigned context) {
 					CC.attach_context(c2, context);
 					replace_with_root(c2);
 
-					DEBUG(dbgs() << "[realize] ";
-							print_clause(dbgs(), c2, getAnalysis<IDAssigner>());
-							dbgs() << "\n";);
 
 					VCExpr vce = translate_to_vc(c2);
-					if (can_be_simplified(vce) != 1)
+					if (try_to_simplify(vce) != 1) {
+						DEBUG(dbgs() << "[realize] ";
+								print_clause(dbgs(), c2, getAnalysis<IDAssigner>());
+								dbgs() << "\n";);
 						vc_assertFormula(vc, vce);
+					}
 					delete_vcexpr(vce);
 
 					delete c2;
@@ -802,7 +777,6 @@ void SolveConstraints::realize(const Instruction *ins, unsigned context) {
 		}
 		dom = p;
 	}
-
 }
 
 void SolveConstraints::print_counterexample() {

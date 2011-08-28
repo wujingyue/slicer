@@ -120,12 +120,13 @@ Clause *QuerySimulator::construct_inst_query(unsigned iid1, unsigned iid2,
 	CC.attach_context(e1, query_id * 2 + 1);
 	CC.attach_context(e2, query_id * 2 + 2);
 	
-	return new Clause(new BoolExpr(CmpInst::ICMP_EQ,
-				new Expr(v1), new Expr(v2)));
+	return new Clause(new BoolExpr(CmpInst::ICMP_EQ, e1, e2));
 }
 
 void QuerySimulator::fake_queries() {
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
+	IDAssigner &IDA = getAnalysis<IDAssigner>();
+	BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
 
 	ifstream fin("for-jingyue/slicing.log");
 	vector<pair<unsigned, unsigned> > inst_queries;
@@ -137,14 +138,12 @@ void QuerySimulator::fake_queries() {
 
 #if 0
 	set<int> does_not_matter;
-	for (int i = 33; i < 2232; ++i) {
-		does_not_matter.insert(i);
-	}
 
-	for (int j = 0; j < 33; ++j) {
+	for (int j = 99; j >= 0; --j) {
+		errs() << "j = " << j << "\n";
 		does_not_matter.insert(j);
 		Clause *c = NULL;
-		for (int i = 0; i < 33; ++i) {
+		for (int i = 0; i < 100; ++i) {
 			if (does_not_matter.count(i))
 				continue;
 			unsigned iid1 = inst_queries[i].first, iid2 = inst_queries[i].second;
@@ -157,16 +156,27 @@ void QuerySimulator::fake_queries() {
 			does_not_matter.erase(j);
 		delete c;
 	}
-	for (int i = 0; i < 33; ++i) {
+	for (int i = 0; i < 100; ++i) {
 		if (!does_not_matter.count(i))
 			errs() << "i = " << i << "\n";
 	}
 #endif
 
-#if 1
+#if 0
 	Clause *c = NULL;
-	for (int i = 31; i < 33; ++i) {
+	for (int i = 0; i < 100; ++i) {
 		unsigned iid1 = inst_queries[i].first, iid2 = inst_queries[i].second;
+		
+		Instruction *i1 = IDA.getInstruction(iid1); assert(i1);
+		Instruction *i2 = IDA.getInstruction(iid2); assert(i2);
+		assert(isa<StoreInst>(i1) || isa<LoadInst>(i1));
+		assert(isa<StoreInst>(i2) || isa<LoadInst>(i2));
+		const Value *v1 = i1->getOperand(isa<StoreInst>(i1) ? 1 : 0);
+		const Value *v2 = i2->getOperand(isa<StoreInst>(i2) ? 1 : 0);
+
+		if (BAA.alias(v1, 0, v2, 0) == AliasAnalysis::NoAlias)
+			continue;
+
 		if (!c)
 			c = construct_inst_query(iid1, iid2, i);
 		else
@@ -180,6 +190,27 @@ void QuerySimulator::fake_queries() {
 	assert(SC.provable(c) == false);
 
 	delete c;
+#endif
+
+#if 1
+	for (int i = 0; i < 2322; ++i) {
+		unsigned iid1 = inst_queries[i].first, iid2 = inst_queries[i].second;
+		
+		Instruction *i1 = IDA.getInstruction(iid1); assert(i1);
+		Instruction *i2 = IDA.getInstruction(iid2); assert(i2);
+		assert(isa<StoreInst>(i1) || isa<LoadInst>(i1));
+		assert(isa<StoreInst>(i2) || isa<LoadInst>(i2));
+		const Value *v1 = i1->getOperand(isa<StoreInst>(i1) ? 1 : 0);
+		const Value *v2 = i2->getOperand(isa<StoreInst>(i2) ? 1 : 0);
+
+		if (BAA.alias(v1, 0, v2, 0) == AliasAnalysis::NoAlias)
+			continue;
+		
+		errs() << "Query " << i << ": ";
+		Clause *c = construct_inst_query(iid1, iid2, i);
+		errs() << SC.satisfiable(c) << "\n";
+		delete c;
+	}
 #endif
 }
 

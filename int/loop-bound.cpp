@@ -54,8 +54,9 @@ bool CaptureConstraints::get_loop_bound(const Loop *L,
 		loop_constraints.push_back(c);
 	}
 	// LB(iv) = iv - 1
+	// Will attach the context later. 
 	loop_constraints.push_back(new Clause(new BoolExpr(CmpInst::ICMP_EQ,
-					new Expr(iv, Expr::LoopBound),
+					new Expr(iv, 0, Expr::LoopBound),
 					new Expr(Instruction::Sub,
 						new Expr(iv), new Expr(ConstantInt::get(int_type, 1))))));
 	// (iv == 0) or (iv > 0 and Condition(iv/LB(iv))
@@ -64,12 +65,12 @@ bool CaptureConstraints::get_loop_bound(const Loop *L,
 	if (BI->getSuccessor(0) == L->getHeader()) {
 		// The true branch goes back to the loop entry. 
 		backedge_cond = new Clause(new BoolExpr(CmpInst::ICMP_EQ,
-					new Expr(Condition, Expr::LoopBound),
+					new Expr(Condition, 0, Expr::LoopBound),
 					new Expr(ConstantInt::getTrue(BI->getContext()))));
 	} else {
 		// The false branch goes back to the loop entry. 
 		backedge_cond = new Clause(new BoolExpr(CmpInst::ICMP_EQ,
-					new Expr(Condition, Expr::LoopBound),
+					new Expr(Condition, 0, Expr::LoopBound),
 					new Expr(ConstantInt::getFalse(BI->getContext()))));
 	}
 	loop_constraints.push_back(new Clause(Instruction::Or,

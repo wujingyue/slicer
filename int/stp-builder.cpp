@@ -25,7 +25,7 @@ VC SolveConstraints::vc = NULL;
 sys::Mutex SolveConstraints::vc_mutex(false); // not recursive
 DenseMap<string, VCExpr> SolveConstraints::symbols;
 
-int SolveConstraints::can_be_simplified(VCExpr e) {
+int SolveConstraints::try_to_simplify(VCExpr e) {
 	vc_push(vc);
 	VCExpr simplified = vc_simplify(vc, e);
 	int ret = vc_isBool(simplified);

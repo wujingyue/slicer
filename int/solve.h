@@ -121,11 +121,13 @@ namespace slicer {
 		// If so, outputs <v1> and <v2> as well if they are not <NULL>. 
 		static bool is_simple_eq(
 				const Clause *c, const Value **v1, const Value **v2);
-		// Try to simplify this expression. 
-		// Returns 1 if it can be simplified as true. 
-		// Returns 0 if it can be simplified as false. 
-		// Returns -1 otherwise. 
-		int can_be_simplified(VCExpr e);
+		/**
+		 * Try very basic simplification on this expression. 
+		 * Returns 1 if it can be simplified as true. 
+		 * Returns 0 if it can be simplified as false. 
+		 * Returns -1 otherwise. 
+		 */
+		int try_to_simplify(VCExpr e);
 		// Updates <root> to reflect simple eqs. 
 		void identify_eqs();
 		void identify_eq(const Value *v1, const Value *v2);
