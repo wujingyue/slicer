@@ -16,16 +16,13 @@ using namespace slicer;
 #include <sstream>
 using namespace std;
 
-static RegisterPass<Iterate> X(
-		"iterate",
+static RegisterPass<Iterate> X("iterate",
 		"A iterator to provide more accurate analyses",
-		false,
-		false); // Not an analysis.
+		false, false); // Not an analysis.
 
 char Iterate::ID = 0;
 
 bool Iterate::runOnModule(Module &M) {
-
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	AdvancedAlias &AAA = getAnalysis<AdvancedAlias>();
