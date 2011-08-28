@@ -81,6 +81,7 @@ bool IntTest::runOnModule(Module &M) {
 	test_radix(M);
 	test_radix_like(M);
 	test_test_loop(M);
+	test_test_loop_2(M);
 	test_test_reducer(M);
 	test_test_bound(M);
 	test_test_thread(M);
@@ -332,7 +333,6 @@ void IntTest::test_test_malloc(const Module &M) {
 }
 
 void IntTest::test_test_array(const Module &M) {
-
 	if (Program != "test-array")
 		return;
 	TestBanner X("test-array");
@@ -372,7 +372,6 @@ void IntTest::test_test_thread(const Module &M) {
 }
 
 void IntTest::test_test_bound(const Module &M) {
-
 	if (Program != "test-bound")
 		return;
 	TestBanner X("test-bound");
@@ -418,6 +417,8 @@ void IntTest::test_test_reducer(const Module &M) {
 		return;
 	TestBanner X("test-reducer");
 
+	SolveConstraints &SC = getAnalysis<SolveConstraints>();
+
 	forallconst(Module, f, M) {
 		if (f->getName() != "main")
 			continue;
@@ -433,7 +434,6 @@ void IntTest::test_test_reducer(const Module &M) {
 						}
 						assert(isa<GetElementPtrInst>(gep) &&
 								"Cannot find a GEP before the printf");
-						SolveConstraints &SC = getAnalysis<SolveConstraints>();
 						errs() << "GEP:" << *gep << "\n";
 						const IntegerType *int_type = IntegerType::get(M.getContext(), 32);
 						errs() << "argc - 1 >= 0? ...";
@@ -448,8 +448,42 @@ void IntTest::test_test_reducer(const Module &M) {
 	}
 }
 
-void IntTest::test_test_loop(const Module &M) {
+void IntTest::test_test_loop_2(const Module &M) {
+	if (Program != "test-loop-2")
+		return;
+	TestBanner X("test-loop-2");
+
+	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	
+	const Instruction *indvar = NULL;
+	forallconst(Module, f, M) {
+		forallconst(Function, bb, *f) {
+			forallconst(BasicBlock, ins, *bb) {
+				if (isa<PHINode>(ins)) {
+					assert(!indvar);
+					indvar = ins;
+				}
+			}
+		}
+	}
+	assert(indvar);
+
+	BasicBlock::const_iterator next = indvar; 
+	while (next != next->getParent()->end()) {
+		if (next->getOpcode() == Instruction::Add)
+			break;
+		++next;
+	}
+	assert(next != next->getParent()->end());
+
+	errs() << "Shouldn't be able to prove indvar != next? ...";
+	assert(!SC.provable(CmpInst::ICMP_NE,
+				dyn_cast<Value>(indvar),
+				dyn_cast<Value>((const Instruction *)next)));
+	print_pass(errs());
+}
+
+void IntTest::test_test_loop(const Module &M) {
 	if (Program != "test-loop")
 		return;
 	TestBanner X("test-loop");
@@ -476,7 +510,6 @@ void IntTest::test_test_loop(const Module &M) {
 }
 
 void IntTest::test_radix_like(const Module &M) {
-	
 	if (Program != "RADIX-like")
 		return;
 	TestBanner X("RADIX-like");

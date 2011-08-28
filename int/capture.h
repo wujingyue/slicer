@@ -48,21 +48,15 @@ namespace slicer {
 		 * Used to check whether the iterative process should stop. 
 		 */
 		long get_fingerprint() const;
-		/**
-		 * In <integers>?
-		 * i.e. is a reachable integer or pointer?
-		 */
-		bool is_integer(const Value *v) const {
-			return integers.count(const_cast<Value *>(v));
-		}
+		bool is_reachable_integer(const Value *v) const;
 		/**
 		 * Is <v> an integer that's defined only once?
 		 */
-		bool is_constant_integer(const Value *v) const;
+		bool is_fixed_integer(const Value *v) const;
 		/**
 		 * Returns all reachable integers or pointers. 
 		 */
-		const ConstValueSet &get_integers() const { return integers; }
+		const ConstValueSet &get_fixed_integers() const;
 		/**
 		 * Used by the solver as well, so need make it public.
 		 * Called internally by the module to capture constraints on
@@ -74,7 +68,24 @@ namespace slicer {
 		 * Get the constraints on the loop index of loop <L>. 
 		 * NOTE: <constraints> will be cleared at the beginning. 
 		 */
-		void get_loop_bound(const Loop *L, vector<Clause *> &constraints);
+		void get_in_loop(const Loop *l, vector<Clause *> &loop_constraints);
+		/**
+		 * NOTE: <loop_body_constraints> will be cleared at the beginning. 
+		 */
+		void get_in_loop_body(const Loop *l,
+				vector<Clause *> &loop_body_constraints);
+		/**
+		 * NOTE: <constraints> will be cleared at the beginning. 
+		 * Return true if we can figure out the loop bound. 
+		 * If this function returns false, we needn't run <get_in_loop_body>. 
+		 */
+		bool get_loop_bound(const Loop *l, vector<Clause *> &loop_constraints);
+		/**
+		 * Attach expressions with the given context. 
+		 */
+		void attach_context(Clause *c, unsigned context);
+		void attach_context(BoolExpr *be, unsigned context);
+		void attach_context(Expr *e, unsigned context);
 
 	private:
 		// Utility functions. 
@@ -100,6 +111,7 @@ namespace slicer {
 		static Clause *construct_bound_constraint(const Value *v,
 				const Value *lb, bool lb_inclusive,
 				const Value *ub, bool ub_inclusive);
+		// Using visitor mode. 
 		void replace_with_loop_bound_version(Clause *c, const Loop *l);
 		void replace_with_loop_bound_version(BoolExpr *c, const Loop *l);
 		void replace_with_loop_bound_version(Expr *c, const Loop *l);
@@ -151,7 +163,7 @@ namespace slicer {
 
 		// Integer and pointer values. 
 		void capture_top_level(Module &M);
-		void identify_integers(Module &M);
+		void identify_fixed_integers(Module &M);
 		/* 
 		 * Extract constants from constant <c>.
 		 * <c> might be a constant expression, so we need extract constants
@@ -191,7 +203,7 @@ namespace slicer {
 
 		// Data members. 
 		vector<Clause *> constraints;
-		ConstValueSet integers;
+		ConstValueSet fixed_integers;
 		const Type *int_type;
 		DominatorTreeBase<ICFGNode> IDT;
 	};

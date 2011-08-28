@@ -78,7 +78,7 @@ CaptureConstraints::~CaptureConstraints() {
 void CaptureConstraints::print(raw_ostream &O, const Module *M) const {
 	IDAssigner &IDA = getAnalysis<IDAssigner>();
 	O << "\nIntegers:\n";
-	forallconst(ConstValueSet, it, integers) {
+	forallconst(ConstValueSet, it, fixed_integers) {
 		if (isa<ConstantInt>(*it))
 			continue;
 		unsigned value_id = IDA.getValueID(*it);
@@ -156,14 +156,12 @@ void CaptureConstraints::recalculate(Module &M) {
 }
 
 void CaptureConstraints::calculate(Module &M) {
-
 	constraints.clear();
 
+	// Check whether each loop is in the simplified and LCSSA form. 
 	check_loops(M);
-	
 	// Identify all integer and pointer variables. 
-	identify_integers(M);
-	
+	identify_fixed_integers(M);
 	// Look at arithmetic operations on these constants. 
 	capture_top_level(M);
 	

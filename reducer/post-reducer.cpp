@@ -42,7 +42,7 @@ bool PostReducer::constantize(Module &M) {
 
 	vector<pair<const Value *, ConstantInt *> > to_replace;
 	// TODO: consider only constants. 
-	const ConstValueSet &constants = CC.get_integers();
+	const ConstValueSet &constants = CC.get_fixed_integers();
 	forallconst(ConstValueSet, it, constants) {
 		// Skip if already a constant. 
 		if (isa<Constant>(*it))
@@ -241,7 +241,9 @@ void PostReducer::prepare_remove_branch(
 		return;
 	
 	Value *cond = bi->getCondition();
-	if (!CC.is_integer(cond))
+	// If <cond> may change (i.e. be defined more than once), don't remove
+	// any of its branches. 
+	if (!CC.is_fixed_integer(cond))
 		return;
 
 	// If one of the branches is already removed, don't waste time do

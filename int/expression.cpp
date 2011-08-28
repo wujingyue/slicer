@@ -26,9 +26,9 @@ bool CompareClause::operator()(const Clause *a, const Clause *b) {
 
 Expr *Expr::clone() const {
 	if (type == SingleDef || type == LoopBound)
-		return new Expr(v, type);
+		return new Expr(v, context, type);
 	if (type == SingleUse)
-		return new Expr(u);
+		return new Expr(u, context);
 	if (type == Unary)
 		return new Expr(op, e1->clone());
 	if (type == Binary)
@@ -65,9 +65,37 @@ unsigned Expr::get_width() const {
 	assert_unreachable();
 }
 
-Expr::Expr(unsigned opcode, Expr *expr1, Expr *expr2):
-	type(Binary), op(opcode), e1(expr1), e2(expr2), v(NULL)
-{
+Expr::Expr(const Use *use, unsigned c) {
+	type = SingleUse;
+	e1 = e2 = NULL;
+	context = c;
+	u = use;
+}
+
+// <t> can be LoopBound as well, although seldom used. 
+Expr::Expr(const Value *value, unsigned c, enum Type t) {
+	type = t;
+	e1 = e2 = NULL;
+	v = value;
+	context = c;
+}
+
+Expr::Expr(unsigned opcode, Expr *expr) {
+	type = Unary;
+	op = opcode;
+	e1 = expr;
+	e2 = NULL;
+	v = NULL;
+	assert(opcode == Instruction::ZExt || opcode == Instruction::SExt ||
+			opcode == Instruction::Trunc);
+}
+
+Expr::Expr(unsigned opcode, Expr *expr1, Expr *expr2) {
+	type = Binary;
+	op = opcode;
+	e1 = expr1;
+	e2 = expr2;
+	v = NULL;
 	assert(e1->get_width() == e2->get_width());
 	switch (opcode) {
 		case Instruction::Add:
@@ -86,6 +114,70 @@ Expr::Expr(unsigned opcode, Expr *expr1, Expr *expr2):
 			break;
 		default: assert_not_supported();
 	}
+}
+
+BoolExpr *BoolExpr::clone() const {
+	return new BoolExpr(p, e1->clone(), e2->clone());
+}
+
+BoolExpr::BoolExpr(CmpInst::Predicate pred, Expr *expr1, Expr *expr2) {
+	p = pred;
+	e1 = expr1;
+	e2 = expr2;
+	switch (p) {
+		case CmpInst::ICMP_EQ:
+		case CmpInst::ICMP_NE:
+		case CmpInst::ICMP_UGT:
+		case CmpInst::ICMP_UGE:
+		case CmpInst::ICMP_ULT:
+		case CmpInst::ICMP_ULE:
+		case CmpInst::ICMP_SGT:
+		case CmpInst::ICMP_SGE:
+		case CmpInst::ICMP_SLT:
+		case CmpInst::ICMP_SLE:
+			break;
+		default: assert(false && "Invalid predicate");
+	}
+}
+
+BoolExpr::~BoolExpr() {
+	delete e1;
+	delete e2;
+	e1 = e2 = NULL;
+}
+
+Clause *Clause::clone() const {
+	if (be)
+		return new Clause(be->clone());
+	else if (op == Instruction::UserOp1)
+		return new Clause(op, c1->clone());
+	else
+		return new Clause(op, c1->clone(), c2->clone());
+}
+
+Clause::Clause(unsigned opcode, Clause *lhs, Clause *rhs) {
+	op = opcode;
+	be = NULL;
+	c1 = lhs;
+	c2 = rhs;
+	assert(op == Instruction::And || op == Instruction::Or ||
+			op == Instruction::Xor);
+	assert(c1 != this && c2 != this && c1 != c2);
+}
+
+Clause::Clause(unsigned opcode, Clause *child) {
+	op = opcode;
+	be = NULL;
+	c1 = child;
+	c2 = NULL;
+	assert(op == Instruction::UserOp1);
+	assert(c1 != this);
+}
+
+Clause::Clause(BoolExpr *expr) {
+	op = 0;
+	be = expr;
+	c1 = c2 = NULL;
 }
 
 Clause::~Clause() {
@@ -205,6 +297,8 @@ void slicer::print_expr(raw_ostream &O, const Expr *e, IDAssigner &IDA) {
 			else
 				assert_unreachable();
 			O << value_id;
+			if (e->context != 0)
+				O << "_" << e->context;
 		}
 	} else if (e->type == Expr::Unary) {
 		O << "(";
@@ -255,4 +349,49 @@ void slicer::print_clause(raw_ostream &O, const Clause *c, IDAssigner &IDA) {
 		O << " XOR ";
 	print_clause(O, c->c2, IDA);
 	O << ")";
+}
+
+void ClauseVisitor::visit_clause(Clause *c) {
+	if (c->be)
+		visit_bool_expr(c->be);
+	else if (c->op == Instruction::UserOp1)
+		visit_clause(c->c1);
+	else {
+		visit_clause(c->c1);
+		visit_clause(c->c2);
+	}
+}
+
+void ClauseVisitor::visit_bool_expr(BoolExpr *be) {
+	visit_expr(be->e1);
+	visit_expr(be->e2);
+}
+
+void ClauseVisitor::visit_expr(Expr *e) {
+	if (e->type == Expr::SingleDef) {
+		visit_single_def(e->v);
+	} else if (e->type == Expr::LoopBound) {
+		visit_loop_bound(e->v);
+	} else if (e->type == Expr::SingleUse) {
+		visit_single_use(e->u);
+	} else if (e->type == Expr::Unary) {
+		visit_expr(e->e1);
+	} else if (e->type == Expr::Binary) {
+		visit_expr(e->e1);
+		visit_expr(e->e2);
+	} else {
+		assert_not_supported();
+	}
+}
+
+void ClauseVisitor::visit_single_use(const Use *u) {
+	// Do nothing by default. 
+}
+
+void ClauseVisitor::visit_single_def(const Value *v) {
+	// Do nothing by default. 
+}
+
+void ClauseVisitor::visit_loop_bound(const Value *v) {
+	// Do nothing by default. 
 }

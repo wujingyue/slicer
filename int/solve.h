@@ -7,11 +7,11 @@
 #ifndef __SLICER_SOLVE_H
 #define __SLICER_SOLVE_H
 
-#include "llvm/System/Mutex.h"
-using namespace llvm;
-
 #include <list>
 using namespace std;
+
+#include "llvm/System/Mutex.h"
+using namespace llvm;
 
 #include "expression.h"
 
@@ -22,7 +22,6 @@ using namespace std;
 #undef Type
 
 namespace slicer {
-
 	// SolveConstraints runs CaptureConstraints to capture
 	// existing constraints firstly. Then, the user may add
 	// new constraints, and ask SolveConstraints whether there's
@@ -31,8 +30,7 @@ namespace slicer {
 	struct SolveConstraints: public ModulePass {
 		static char ID;
 
-		SolveConstraints():
-			ModulePass(&ID), print_counterexample_(false),
+		SolveConstraints(): ModulePass(&ID), print_counterexample_(false),
 			print_asserts_(false), print_minimal_proof_set_(false) {}
 		virtual bool runOnModule(Module &M);
 		virtual void print(raw_ostream &O, const Module *M) const;
@@ -99,12 +97,15 @@ namespace slicer {
 		 */
 		void translate_captured(Module &M);
 		void check_consistency(Module &M);
+#if 0
 		void separate(Module &M);
+#endif
 		VCExpr translate_to_vc(const Clause *c);
 		VCExpr translate_to_vc(const BoolExpr *be);
 		VCExpr translate_to_vc(const Expr *e);
-		VCExpr translate_to_vc(const Value *v, bool is_loop_bound = false);
-		VCExpr translate_to_vc(const Use *u);
+		VCExpr translate_to_vc(const Value *v,
+				unsigned context, bool is_loop_bound = false);
+		VCExpr translate_to_vc(const Use *u, unsigned context);
 		/**
 		 * Used by translate_to_vc. 
 		 * Avoid numeric overflow or underflow by adding extra constraints. 
@@ -188,8 +189,8 @@ namespace slicer {
 		void realize(const Clause *c);
 		void realize(const BoolExpr *c);
 		void realize(const Expr *c);
-		void realize(const Use *u);
-		void realize(const Instruction *i);
+		void realize(const Use *u, unsigned context);
+		void realize(const Instruction *i, unsigned context);
 		BasicBlock *get_idom(BasicBlock *bb);
 		// Protected by <vc_mutex>.
 		static void create_vc();

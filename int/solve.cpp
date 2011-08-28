@@ -88,36 +88,28 @@ void SolveConstraints::identify_eqs() {
 			identify_eq(v1, v2);
 		}
 	}
-
+#if 0
+	// Dangerous with existence of contexts. 
+	assert_not_supported();
 	if (AdvancedAlias *AA = getAnalysisIfAvailable<AdvancedAlias>()) {
 		vector<ConstValuePair> must_alias_pairs;
 		AA->get_must_alias_pairs(must_alias_pairs);
 		for (size_t i = 0; i < must_alias_pairs.size(); ++i)
 			identify_eq(must_alias_pairs[i].first, must_alias_pairs[i].second);
 	}
+#endif
 }
 
 void SolveConstraints::refine_candidates(list<const Value *> &candidates) {
-
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 
 	list<const Value *>::iterator i, j, to_del;
-	ConstValueSet tree_contains_consts;
-	const ConstValueSet &integers = CC.get_integers();
-	forallconst(ConstValueSet, it, integers) {
-		const Value *v = *it;
-		if (CC.is_constant_integer(v))
-			tree_contains_consts.insert(get_root(v));
-	}
 
 	for (i = candidates.begin(); i != candidates.end(); ) {
 		const Value *v = *i;
 		bool to_be_removed = false;
 		// Only try fixing the roots of equivalent classes. 
 		to_be_removed = to_be_removed || (get_root(v) != v);
-		// NOTE: <v> represents its equivalent class rather than just itself. 
-		// Only try those integers defined only once. 
-		to_be_removed = to_be_removed || !tree_contains_consts.count(v);
 		// Don't try fixing a pointer. TODO: ConstantPointerNULL. 
 		to_be_removed = to_be_removed || (!isa<IntegerType>(v->getType()));
 		// Don't try fixing an alreayd fixed value. 
@@ -184,8 +176,9 @@ void SolveConstraints::identify_fixed_values() {
 	// Get all integers that are possible to be a fixed value. 
 	// No need to be sound. 
 	list<const Value *> candidates;
-	const ConstValueSet &integers = CC.get_integers();
-	candidates.insert(candidates.end(), integers.begin(), integers.end());
+	const ConstValueSet &fixed_integers = CC.get_fixed_integers();
+	candidates.insert(candidates.end(),
+			fixed_integers.begin(), fixed_integers.end());
 	refine_candidates(candidates);
 	dbgs() << "# of candidates = " << candidates.size() << "\n";
 	
@@ -216,7 +209,8 @@ void SolveConstraints::identify_fixed_values() {
 	
 	forall(list<const Value *>, it, candidates) {
 		const Value *v = *it;
-		VCExpr vce = translate_to_vc(v);
+		// Only integers under Context 0 may be fixed. 
+		VCExpr vce = translate_to_vc(v, 0);
 		VCExpr ce = vc_getCounterExample(vc, vce);
 		fixed_values.push_back(make_pair(
 					v, make_pair(getBVUnsigned(ce), vc_getBVLength(vc, ce))));
@@ -231,7 +225,7 @@ void SolveConstraints::identify_fixed_values() {
 		vc_push(vc);
 		VCExpr guessed_value = vc_bvConstExprFromInt(vc,
 				i->second.second, i->second.first);
-		VCExpr vce = translate_to_vc(i->first);
+		VCExpr vce = translate_to_vc(i->first, 0);
 		VCExpr eq = vc_eqExpr(vc, vce, guessed_value);
 		int fixed = vc_query(vc, eq);
 		assert(fixed != 2);
@@ -259,7 +253,7 @@ void SolveConstraints::identify_fixed_values() {
 #endif
 			j = i; ++j;
 			while (j != fixed_values.end()) {
-				VCExpr vj = translate_to_vc(j->first);
+				VCExpr vj = translate_to_vc(j->first, 0);
 				VCExpr ce = vc_getCounterExample(vc, vj);
 				if (j->second.first == getBVUnsigned(ce)) {
 					++j;
@@ -419,6 +413,7 @@ void SolveConstraints::diagnose(Module &M) {
 	errs() << "Finished printing a minimal set\n";
 }
 
+#if 0
 void SolveConstraints::separate(Module &M) {
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 	unsigned n_constraints = CC.get_num_constraints();
@@ -468,6 +463,7 @@ void SolveConstraints::separate(Module &M) {
 		errs() << sorted_class_sizes[i] << "\n";
 	}
 }
+#endif
 
 void SolveConstraints::translate_captured(Module &M) {
 #if 0
@@ -589,12 +585,16 @@ bool SolveConstraints::is_simple_eq(
 	if (c->be->p != CmpInst::ICMP_EQ)
 		return false;
 	// <is_simple_eq> ignores Expr::LoopBound. 
-	if (c->be->e1->type != Expr::SingleDef || c->be->e2->type != Expr::SingleDef)
+	const Expr *e1 = c->be->e1, *e2 = c->be->e2;
+	if (e1->type != Expr::SingleDef || e2->type != Expr::SingleDef)
+		return false;
+	// Must be fixed integers. 
+	if (e1->context != 0 || e2->context != 0)
 		return false;
 	if (v1)
-		*v1 = c->be->e1->v;
+		*v1 = e1->v;
 	if (v2)
-		*v2 = c->be->e2->v;
+		*v2 = e2->v;
 	return true;
 }
 
@@ -632,32 +632,6 @@ bool SolveConstraints::satisfiable(const Clause *c) {
 	delete not_c;
 
 	return sat;
-}
-
-bool SolveConstraints::contains_only_ints(const Clause *c) {
-	if (c->be)
-		return contains_only_ints(c->be);
-	else if (c->op == Instruction::UserOp1)
-		return contains_only_ints(c->c1);
-	else
-		return contains_only_ints(c->c1) && contains_only_ints(c->c2);
-}
-
-bool SolveConstraints::contains_only_ints(const BoolExpr *be) {
-	return contains_only_ints(be->e1) && contains_only_ints(be->e2);
-}
-
-bool SolveConstraints::contains_only_ints(const Expr *e) {
-	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
-	if (e->type == Expr::SingleDef || e->type == Expr::LoopBound)
-		return CC.is_integer(e->v) || isa<Constant>(e->v);
-	if (e->type == Expr::SingleUse)
-		return CC.is_integer(e->u->get()) || isa<Constant>(e->u->get());
-	if (e->type == Expr::Unary)
-		return contains_only_ints(e->e1);
-	if (e->type == Expr::Binary)
-		return contains_only_ints(e->e1) && contains_only_ints(e->e2);
-	assert_not_supported();
 }
 
 bool SolveConstraints::provable(const Clause *c) {
@@ -723,10 +697,10 @@ void SolveConstraints::realize(const Expr *e) {
 		realize(e->e1);
 		realize(e->e2);
 	} else if (e->type == Expr::SingleUse) {
-		realize(e->u);
+		realize(e->u, e->context);
 	} else {
 		if (const Instruction *ins = dyn_cast<Instruction>(e->v))
-			realize(ins);
+			realize(ins, e->context);
 	}
 }
 
@@ -741,14 +715,18 @@ BasicBlock *SolveConstraints::get_idom(BasicBlock *bb) {
 	return (idom ? idom->getBlock() : NULL);
 }
 
-void SolveConstraints::realize(const Use *u) {
+void SolveConstraints::realize(const Use *u, unsigned context) {
 	// The value of a llvm::Constant is compile-time known. Therefore,
 	// we don't need to capture extra constraints. 
 	if (const Instruction *ins = dyn_cast<Instruction>(u->getUser()))
-		realize(ins);
+		realize(ins, context);
 }
 
-void SolveConstraints::realize(const Instruction *ins) {
+void SolveConstraints::realize(const Instruction *ins, unsigned context) {
+	/**
+	 * Realize its containing functions and containing loops. 
+	 * Fix branches along the way. 
+	 */
 	assert(ins);
 	BasicBlock *bb = const_cast<BasicBlock *>(ins->getParent());
 	Function *f = bb->getParent();
@@ -757,6 +735,36 @@ void SolveConstraints::realize(const Instruction *ins) {
 	// TODO: Make it inter-procedural
 	IntraReach &IR = getAnalysis<IntraReach>(*f);
 	LoopInfo &LI = getAnalysis<LoopInfo>(*f);
+
+	// TODO: realize its containing functions. 
+	// Realize each containing loop. 
+	// TODO: Also realize loops that dominate this one. 
+	Loop *l = LI.getLoopFor(bb);
+	while (l) {
+		vector<Clause *> constraints_from_l;
+		CC.get_in_loop(l, constraints_from_l);
+		for (size_t i = 0; i < constraints_from_l.size(); ++i) {
+			Clause *c = constraints_from_l[i];
+			Clause *c2 = c->clone();
+			CC.attach_context(c2, context);
+			replace_with_root(c2); // Only fixed integers will be replaced. 
+			
+			DEBUG(dbgs() << "[realize] ";
+					print_clause(dbgs(), c2, getAnalysis<IDAssigner>());
+					dbgs() << "\n";);
+
+			VCExpr vce = translate_to_vc(c2);
+			if (can_be_simplified(vce) != 1)
+				vc_assertFormula(vc, vce);
+			delete_vcexpr(vce);
+
+			delete c2;
+		}
+		for (size_t i = 0; i < constraints_from_l.size(); ++i)
+			delete constraints_from_l[i];
+
+		l = l->getParentLoop();
+	}
 
 	// Realize each dominating BranchInst. 
 	BasicBlock *dom = bb;
@@ -773,13 +781,14 @@ void SolveConstraints::realize(const Instruction *ins) {
 		TerminatorInst *ti = p->getTerminator(); assert(ti);
 		for (unsigned i = 0; i < ti->getNumSuccessors(); ++i) {
 			if (!visited.count(ti->getSuccessor(i))) {
-				const Clause *c = CC.get_avoid_branch(ti, i);
-				if (c) {
-					DEBUG(dbgs() << "[realize] ";
-							print_clause(dbgs(), c, getAnalysis<IDAssigner>());
-							dbgs() << "\n";);
+				if (const Clause *c = CC.get_avoid_branch(ti, i)) {
 					Clause *c2 = c->clone();
+					CC.attach_context(c2, context);
 					replace_with_root(c2);
+
+					DEBUG(dbgs() << "[realize] ";
+							print_clause(dbgs(), c2, getAnalysis<IDAssigner>());
+							dbgs() << "\n";);
 
 					VCExpr vce = translate_to_vc(c2);
 					if (can_be_simplified(vce) != 1)
@@ -794,45 +803,22 @@ void SolveConstraints::realize(const Instruction *ins) {
 		dom = p;
 	}
 
-	// Realize each containing loop. 
-	// TODO: Also realize loops that dominate this one. 
-	Loop *l = LI.getLoopFor(bb);
-	while (l) {
-		vector<Clause *> constraints_from_l;
-		CC.get_loop_bound(l, constraints_from_l);
-		for (size_t i = 0; i < constraints_from_l.size(); ++i) {
-			Clause *c = constraints_from_l[i];
-			DEBUG(dbgs() << "[realize] ";
-					print_clause(dbgs(), c, getAnalysis<IDAssigner>());
-					dbgs() << "\n";);
-			Clause *c2 = c->clone();
-			replace_with_root(c2);
-			
-			VCExpr vce = translate_to_vc(c2);
-			if (can_be_simplified(vce) != 1)
-				vc_assertFormula(vc, vce);
-			delete_vcexpr(vce);
-
-			delete c2;
-		}
-		for (size_t i = 0; i < constraints_from_l.size(); ++i)
-			delete constraints_from_l[i];
-
-		l = l->getParentLoop();
-	}
 }
 
 void SolveConstraints::print_counterexample() {
+	vc_printCounterExample(vc);
+#if 0
 	IDAssigner &IDA = getAnalysis<IDAssigner>();
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 
-	// Scan through all integers. 
-	const ConstValueSet &integers = CC.get_integers();
+	// Scan through all fixed integers. 
+	// TODO: Scan non-fixed integers as well. 
+	const ConstValueSet &fixed_integers = CC.get_fixed_integers();
 	DenseMap<const Value *, unsigned> assignment;
-	forallconst(ConstValueSet, it, integers) {
+	forallconst(ConstValueSet, it, fixed_integers) {
 		const Value *v = *it;
 		const Value *root_v = get_root(v);
-		VCExpr e = translate_to_vc(root_v);
+		VCExpr e = translate_to_vc(root_v, 0);
 		VCExpr ce = vc_getCounterExample(vc, e);
 		assignment[v] = getBVUnsigned(ce);
 	}
@@ -855,6 +841,7 @@ void SolveConstraints::print_counterexample() {
 		errs() << "x" << sorted_assignment[i].first << " = " << hex_str << "\n";
 	}
 	errs() << "Finished printing the counter example\n";
+#endif
 }
 
 template bool SolveConstraints::provable(CmpInst::Predicate,
@@ -869,7 +856,13 @@ template bool SolveConstraints::provable(CmpInst::Predicate,
 template <typename T1, typename T2>
 bool SolveConstraints::satisfiable(CmpInst::Predicate p,
 		const T1 *v1, const T2 *v2) {
-	const Clause *c = new Clause(new BoolExpr(p, new Expr(v1), new Expr(v2)));
+	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
+	
+	Expr *e1 = new Expr(v1), *e2 = new Expr(v2);
+	CC.attach_context(e1, 1);
+	CC.attach_context(e2, 2);
+	
+	const Clause *c = new Clause(new BoolExpr(p, e1, e2));
 	bool ret = satisfiable(c);
 	delete c;
 	return ret;
@@ -887,7 +880,13 @@ template bool SolveConstraints::satisfiable(CmpInst::Predicate,
 template <typename T1, typename T2>
 bool SolveConstraints::provable(CmpInst::Predicate p,
 		const T1 *v1, const T2 *v2) {
-	const Clause *c = new Clause(new BoolExpr(p, new Expr(v1), new Expr(v2)));
+	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
+
+	Expr *e1 = new Expr(v1), *e2 = new Expr(v2);
+	CC.attach_context(e1, 1);
+	CC.attach_context(e2, 2);
+	
+	const Clause *c = new Clause(new BoolExpr(p, e1, e2));
 	bool ret = provable(c);
 	delete c;
 	return ret;

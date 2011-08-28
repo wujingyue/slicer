@@ -25,7 +25,7 @@ Clause *CaptureConstraints::get_avoid_branch(
 		assert(i == 0 || i == 1);
 		const Value *cond = bi->getCondition();
 		assert(cond && cond->getType()->isIntegerTy(1));
-		if (!is_integer(cond))
+		if (!is_reachable_integer(cond))
 			return NULL;
 		// i == 0 => avoid true branch => cond is 0
 		// i == 1 => avoid false branch => cond is 1
@@ -52,7 +52,7 @@ Clause *CaptureConstraints::get_avoid_branch(
 		 */
 		const Value *cond = si->getCondition();
 		assert(cond);
-		if (!is_integer(cond))
+		if (!is_reachable_integer(cond))
 			return NULL;
 		if (ti->getSuccessor(i) == si->getDefaultDest()) {
 			// The condition is equal to one of the case values. 

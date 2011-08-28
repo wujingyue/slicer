@@ -3,6 +3,7 @@ PROG_NAMES = test-thread test-path test-overwrite test-ctxt test-recursive \
 	     FFT-like aget-like test-array test-pointer test-overwrite-2 \
 	     RADIX-like test-thread-2 test-malloc test-array-2 test-array-3 \
 	     test-range test-dep test-range-2 test-range-3 test-range-4 \
+	     test-loop-2 \
 	     aget FFT RADIX pbzip2 CHOLESKY pfscan
 PROGS_DIR = ../progs
 

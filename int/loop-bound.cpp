@@ -12,71 +12,53 @@ using namespace llvm;
 #include "capture.h"
 using namespace slicer;
 
-Clause *CaptureConstraints::construct_bound_constraint(const Value *v,
-		const Value *lb, bool lb_inclusive,
-		const Value *ub, bool ub_inclusive) {
-	Clause *c_lb = new Clause(new BoolExpr(
-				(lb_inclusive ? CmpInst::ICMP_SGE : CmpInst::ICMP_SGT),
-				new Expr(v), new Expr(lb)));
-	Clause *c_ub = new Clause(new BoolExpr(
-				(ub_inclusive ? CmpInst::ICMP_SLE : CmpInst::ICMP_SLT),
-				new Expr(v), new Expr(ub)));
-	return new Clause(Instruction::And, c_lb, c_ub);
-}
+bool CaptureConstraints::get_loop_bound(const Loop *L,
+		vector<Clause *> &loop_constraints) {
+	loop_constraints.clear();
 
-void CaptureConstraints::get_loop_bound(
-		const Loop *L, vector<Clause *> &constraints) {
-	LoopInfo &LI = getAnalysis<LoopInfo>(*L->getHeader()->getParent());
-
-	constraints.clear();
-
-	const PHINode *IV = L->getCanonicalInductionVariable();
+	const PHINode *iv = L->getCanonicalInductionVariable();
 	// Give up if we cannot find the loop index. 
-	if (!IV) {
+	if (!iv) {
 		DEBUG(dbgs() << "Unable to find the canonical induction variable.\n";);
-		return;
+		return false;
 	}
-	if (IV->getNumIncomingValues() != 2) {
-		DEBUG(dbgs() << "Unable to compute the bound of" << *IV << "\n";);
-		return;
+	if (iv->getNumIncomingValues() != 2) {
+		DEBUG(dbgs() << "Unable to compute the bound of" << *iv << "\n";);
+		return false;
 	}
 
 	// Best case: Already optimized as a loop with a trip count. 
 	Constant *zero = ConstantInt::get(int_type, 0);
-	if (Value *Trip = L->getTripCount()) {
-		Clause *c = construct_bound_constraint(IV, zero, true, Trip, false);
-		constraints.push_back(c);
-		return;
+	if (Value *trip = L->getTripCount()) {
+		loop_constraints.push_back(new Clause(new BoolExpr(CmpInst::ICMP_SGE,
+					new Expr(iv), new Expr(zero))));
+		loop_constraints.push_back(new Clause(new BoolExpr(CmpInst::ICMP_SLT,
+					new Expr(iv), new Expr(trip))));
+		return true;
 	}
 
 	// Hard case. 
 	// Borrowed from LLVM.
-	bool P0InLoop = L->contains(IV->getIncomingBlock(0));
-	BasicBlock *BackedgeBlock = IV->getIncomingBlock(!P0InLoop);
+	bool P0InLoop = L->contains(iv->getIncomingBlock(0));
+	BasicBlock *BackedgeBlock = iv->getIncomingBlock(!P0InLoop);
 	BranchInst *BI = dyn_cast<BranchInst>(BackedgeBlock->getTerminator());
 	if (!BI || !BI->isConditional())
-		return;
+		return false;
 
-	for (Loop::block_iterator bi = L->block_begin(); bi != L->block_end(); ++bi) {
-		const BasicBlock *bb = *bi;
-		if (LI.getLoopDepth(bb) != L->getLoopDepth())
-			continue;
-		forallconst(BasicBlock, ins, *bb) {
-			if (is_integer(ins)) {
-				Clause *c = get_in_user(ins);
-				if (c)
-					constraints.push_back(c);
-			}
-		}
+	vector<Clause *> loop_body_constraints;
+	get_in_loop_body(L, loop_body_constraints);
+
+	for (size_t i = 0; i < loop_body_constraints.size(); ++i) {
+		Clause *c = loop_body_constraints[i]->clone();
+		replace_with_loop_bound_version(c, L);
+		loop_constraints.push_back(c);
 	}
-	for (size_t i = 0; i < constraints.size(); ++i)
-		replace_with_loop_bound_version(constraints[i], L);
-	// LB(IV) = IV - 1
-	constraints.push_back(new Clause(new BoolExpr(CmpInst::ICMP_EQ,
-					new Expr(IV, Expr::LoopBound),
+	// LB(iv) = iv - 1
+	loop_constraints.push_back(new Clause(new BoolExpr(CmpInst::ICMP_EQ,
+					new Expr(iv, Expr::LoopBound),
 					new Expr(Instruction::Sub,
-						new Expr(IV), new Expr(ConstantInt::get(int_type, 1))))));
-	// (IV == 0) or (IV > 0 and Condition(IV/LB(IV))
+						new Expr(iv), new Expr(ConstantInt::get(int_type, 1))))));
+	// (iv == 0) or (iv > 0 and Condition(iv/LB(iv))
 	Value *Condition = BI->getCondition();
 	Clause *backedge_cond;
 	if (BI->getSuccessor(0) == L->getHeader()) {
@@ -90,13 +72,46 @@ void CaptureConstraints::get_loop_bound(
 					new Expr(Condition, Expr::LoopBound),
 					new Expr(ConstantInt::getFalse(BI->getContext()))));
 	}
-	constraints.push_back(new Clause(Instruction::Or,
+	loop_constraints.push_back(new Clause(Instruction::Or,
 				new Clause(new BoolExpr(CmpInst::ICMP_EQ,
-						new Expr(IV), new Expr(zero))),
+						new Expr(iv), new Expr(zero))),
 				new Clause(Instruction::And,
 					new Clause(new BoolExpr(CmpInst::ICMP_SGT,
-							new Expr(IV), new Expr(zero))),
+							new Expr(iv), new Expr(zero))),
 					backedge_cond)));
+
+	return true;
+}
+
+void CaptureConstraints::get_in_loop_body(const Loop *L,
+		vector<Clause *> &loop_body_constraints) {
+	LoopInfo &LI = getAnalysis<LoopInfo>(*L->getHeader()->getParent());
+
+	loop_body_constraints.clear();
+
+	for (Loop::block_iterator bi = L->block_begin(); bi != L->block_end(); ++bi) {
+		const BasicBlock *bb = *bi;
+		// If <bb> is contained in a subloop, ignore it. 
+		if (LI.getLoopDepth(bb) != L->getLoopDepth())
+			continue;
+		forallconst(BasicBlock, ins, *bb) {
+			if (is_reachable_integer(ins)) {
+				if (Clause *c = get_in_user(ins))
+					loop_body_constraints.push_back(c);
+			}
+		}
+	}
+}
+
+void CaptureConstraints::get_in_loop(const Loop *L,
+		vector<Clause *> &loop_constraints) {
+	loop_constraints.clear();
+	if (get_loop_bound(L, loop_constraints)) {
+		vector<Clause *> loop_body_constraints;
+		get_in_loop_body(L, loop_body_constraints);
+		loop_constraints.insert(loop_constraints.end(),
+				loop_body_constraints.begin(), loop_body_constraints.end());
+	}
 }
 
 void CaptureConstraints::check_loop(Loop *l) {
@@ -141,8 +156,10 @@ void CaptureConstraints::replace_with_loop_bound_version(
 			const BasicBlock *bb = ins->getParent();
 			const Function *f = bb->getParent();
 			LoopInfo &LI = getAnalysis<LoopInfo>(*const_cast<Function *>(f));
-			if (LI.getLoopDepth(bb) == l->getLoopDepth())
+			if (LI.getLoopDepth(bb) == l->getLoopDepth()) {
+				// e->context is preserved. 
 				e->type = Expr::LoopBound;
+			}
 		}
 	} else if (e->type == Expr::SingleUse) {
 		/* Nothing */
@@ -174,4 +191,36 @@ bool CaptureConstraints::comes_from_shallow(
 			return false;
 	}
 	return true;
+}
+
+void CaptureConstraints::attach_context(Clause *c, unsigned context) {
+	if (c->be)
+		attach_context(c->be, context);
+	else if (c->op == Instruction::UserOp1)
+		attach_context(c->c1, context);
+	else {
+		attach_context(c->c1, context);
+		attach_context(c->c2, context);
+	}
+}
+
+void CaptureConstraints::attach_context(BoolExpr *be, unsigned context) {
+	attach_context(be->e1, context);
+	attach_context(be->e2, context);
+}
+
+void CaptureConstraints::attach_context(Expr *e, unsigned context) {
+	if (e->type == Expr::SingleDef || e->type == Expr::SingleUse ||
+			e->type == Expr::LoopBound) {
+		const Value *v = (e->type == Expr::SingleUse ? e->u->get() : e->v);
+		if (!is_fixed_integer(v))
+			e->context = context;
+	} else if (e->type == Expr::Unary) {
+		attach_context(e->e1, context);
+	} else if (e->type == Expr::Binary) {
+		attach_context(e->e1, context);
+		attach_context(e->e2, context);
+	} else {
+		assert_not_supported();
+	}
 }

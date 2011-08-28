@@ -28,6 +28,7 @@ namespace slicer {
 		void test_radix_like(const Module &M);
 		void test_radix_common(const Module &M);
 		void test_test_loop(const Module &M);
+		void test_test_loop_2(const Module &M);
 		void test_test_reducer(const Module &M);
 		void test_test_bound(const Module &M);
 		void test_test_thread(const Module &M);

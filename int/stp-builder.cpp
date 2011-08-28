@@ -134,11 +134,11 @@ VCExpr SolveConstraints::translate_to_vc(const BoolExpr *be) {
 
 VCExpr SolveConstraints::translate_to_vc(const Expr *e) {
 	if (e->type == Expr::SingleDef)
-		return translate_to_vc(e->v);
+		return translate_to_vc(e->v, e->context);
 	if (e->type == Expr::LoopBound)
-		return translate_to_vc(e->v, true);
+		return translate_to_vc(e->v, e->context, true);
 	if (e->type == Expr::SingleUse)
-		return translate_to_vc(e->u);
+		return translate_to_vc(e->u, e->context);
 	if (e->type == Expr::Unary) {
 		VCExpr child = translate_to_vc(e->e1);
 		VCExpr res;
@@ -221,7 +221,8 @@ VCExpr SolveConstraints::translate_to_vc(const Expr *e) {
 	assert(false && "Invalid expression type");
 }
 
-VCExpr SolveConstraints::translate_to_vc(const Value *v, bool is_loop_bound) {
+VCExpr SolveConstraints::translate_to_vc(const Value *v,
+		unsigned context, bool is_loop_bound) {
 	if (const ConstantInt *ci = dyn_cast<ConstantInt>(v)) {
 		if (ci->getType()->getBitWidth() == 1) {
 			VCExpr b = (ci->isOne() ? vc_trueExpr(vc) : vc_falseExpr(vc));
@@ -244,6 +245,9 @@ VCExpr SolveConstraints::translate_to_vc(const Value *v, bool is_loop_bound) {
 
 	ostringstream oss;
 	oss << (is_loop_bound ? "lb": "x") << value_id;
+	if (context != 0)
+		oss << "_" << context;
+
 	string name = oss.str();
 	VCExpr &symbol = symbols[name];
 	if (symbol == NULL) {
@@ -257,8 +261,8 @@ VCExpr SolveConstraints::translate_to_vc(const Value *v, bool is_loop_bound) {
 	return symbol;
 }
 
-VCExpr SolveConstraints::translate_to_vc(const Use *u) {
-	return translate_to_vc(u->get());
+VCExpr SolveConstraints::translate_to_vc(const Use *u, unsigned context) {
+	return translate_to_vc(u->get(), context);
 }
 
 void SolveConstraints::avoid_div_by_zero(VCExpr left, VCExpr right) {

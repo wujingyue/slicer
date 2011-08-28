@@ -25,23 +25,22 @@ void CaptureConstraints::extract_from_consts(Constant *c) {
 	// Only handle integer constants and pointer constants. 
 	if (!isa<IntegerType>(c->getType()) && !isa<PointerType>(c->getType()))
 		return;
-	integers.insert(c);
+	fixed_integers.insert(c);
 	for (unsigned i = 0; i < c->getNumOperands(); ++i) {
 		if (Constant *ct = dyn_cast<Constant>(c->getOperand(i)))
 			extract_from_consts(ct);
 	}
 }
 
-void CaptureConstraints::identify_integers(Module &M) {
-
+void CaptureConstraints::identify_fixed_integers(Module &M) {
 	ExecOnce &EO = getAnalysis<ExecOnce>();
 	
-	integers.clear();
+	fixed_integers.clear();
 	// Global variables. 
 	for (Module::global_iterator gi = M.global_begin();
 			gi != M.global_end(); ++gi) {
 		if (isa<IntegerType>(gi->getType()) || isa<PointerType>(gi->getType())) {
-			integers.insert(gi);
+			fixed_integers.insert(gi);
 			if (gi->hasInitializer())
 				extract_from_consts(gi->getInitializer());
 		}
@@ -49,9 +48,12 @@ void CaptureConstraints::identify_integers(Module &M) {
 	
 	// Instructions and their constant operands. 
 	forallinst(M, ii) {
-		if (!EO.not_executed(ii) &&
-				(isa<IntegerType>(ii->getType()) || isa<PointerType>(ii->getType())))
-			integers.insert(ii);
+		if (EO.not_executed(ii))
+			continue;
+		if (!EO.executed_once(ii))
+			continue;
+		if (isa<IntegerType>(ii->getType()) || isa<PointerType>(ii->getType()))
+			fixed_integers.insert(ii);
 		// No matter reachable or not, capture its constant operands. 
 		for (unsigned i = 0; i < ii->getNumOperands(); ++i) {
 			if (Constant *c = dyn_cast<Constant>(ii->getOperand(i)))
@@ -60,27 +62,28 @@ void CaptureConstraints::identify_integers(Module &M) {
 	}
 	
 	// Function parameters. 
-	forallfunc(M, fi) {
-		if (EO.not_executed(fi))
+	forallfunc(M, f) {
+		if (EO.not_executed(f))
 			continue;
-		for (Function::arg_iterator ai = fi->arg_begin();
-				ai != fi->arg_end(); ++ai) {
+		if (!EO.executed_once(f))
+			continue;
+		for (Function::arg_iterator ai = f->arg_begin();
+				ai != f->arg_end(); ++ai) {
 			if (isa<IntegerType>(ai->getType()) || isa<PointerType>(ai->getType()))
-				integers.insert(ai);
+				fixed_integers.insert(ai);
 		}
 	}
 }
 
 void CaptureConstraints::capture_top_level(Module &M) {
-
 	// Users: Instructions or ConstantExprs
-	forall(ConstValueSet, it, integers) {
+	forall(ConstValueSet, it, fixed_integers) {
 		if (const User *user = dyn_cast<User>(*it))
 			add_constraint(get_in_user(user));
 	}
 	
 	// Function parameters: formal = actual
-	forall(ConstValueSet, it, integers) {
+	forall(ConstValueSet, it, fixed_integers) {
 		if (const Argument *arg = dyn_cast<Argument>(*it))
 			add_constraint(get_in_argument(arg));
 	}
@@ -125,7 +128,7 @@ Clause *CaptureConstraints::get_in_argument(const Argument *formal) {
 }
 
 Clause *CaptureConstraints::get_in_user(const User *user) {
-	assert(is_integer(user));
+	assert(is_reachable_integer(user));
 	unsigned opcode = Operator::getOpcode(user);
 	if (opcode == Instruction::UserOp1)
 		return NULL;
@@ -170,14 +173,14 @@ Clause *CaptureConstraints::get_in_user(const User *user) {
 }
 
 Clause *CaptureConstraints::get_in_select(const SelectInst *si) {
-
 	// TODO: Handle the case where the condition is a vector of i1. 
 	// FIXME: We are assuming the true value and the false value are
 	// exclusive. Not always true. 
 	const Value *cond = si->getCondition();
 	const Value *true_value = si->getTrueValue();
 	const Value *false_value = si->getFalseValue();
-	if (!is_integer(cond) || !is_integer(true_value) || !is_integer(false_value))
+	if (!is_reachable_integer(cond) || !is_reachable_integer(true_value) ||
+			!is_reachable_integer(false_value))
 		return NULL;
 	if (!cond->getType()->isIntegerTy(1))
 		return NULL;
@@ -206,7 +209,7 @@ Clause *CaptureConstraints::get_in_select(const SelectInst *si) {
 Clause *CaptureConstraints::get_in_unary(const User *u) {
 	assert(u->getNumOperands() == 1);
 	const Value *v = u->getOperand(0);
-	if (!integers.count(v))
+	if (!is_reachable_integer(v))
 		return NULL;
 	// u == v, but they may have different bit widths. 
 	unsigned opcode = Operator::getOpcode(u);
@@ -236,7 +239,7 @@ Clause *CaptureConstraints::get_in_icmp(const ICmpInst *icmp) {
 	// i.e. (icmp == 0) ^ (branch holds) == 1
 	const Value *op0 = icmp->getOperand(0);
 	const Value *op1 = icmp->getOperand(1);
-	if (!is_integer(op0) || !is_integer(op1))
+	if (!is_reachable_integer(op0) || !is_reachable_integer(op1))
 		return NULL;
 	Clause *branch = new Clause(new BoolExpr(
 				icmp->getPredicate(), new Expr(op0), new Expr(op1)));
@@ -274,20 +277,19 @@ Clause *CaptureConstraints::get_in_phi(const PHINode *phi) {
 
 Clause *CaptureConstraints::get_in_binary(const User *user, unsigned opcode) {
 	assert(user->getNumOperands() == 2);
-	if (!integers.count(user->getOperand(0)))
+	const Value *op0 = user->getOperand(0);
+	const Value *op1 = user->getOperand(1);
+	if (!is_reachable_integer(op0))
 		return NULL;
-	if (!integers.count(user->getOperand(1)))
+	if (!is_reachable_integer(op1))
 		return NULL;
 	Expr *e1 = new Expr(user);
-	Expr *e2 = new Expr(
-			opcode,
-			new Expr(user->getOperand(0)),
-			new Expr(user->getOperand(1)));
+	Expr *e2 = new Expr(opcode, new Expr(op0), new Expr(op1));
 	// FIXME: Dirty hack. 
 	// Module the shift width by 32. 
 	if (opcode == Instruction::Shl || opcode == Instruction::LShr ||
 				opcode == Instruction::AShr) {
-		if (ConstantInt *ci = dyn_cast<ConstantInt>(user->getOperand(1))) {
+		if (const ConstantInt *ci = dyn_cast<ConstantInt>(op1)) {
 			uint64_t shift_width = ci->getZExtValue();
 			shift_width %= 32;
 			delete e2->e2;
@@ -325,7 +327,7 @@ bool CaptureConstraints::is_power_of_two(uint64_t a, uint64_t &e) {
 
 Clause *CaptureConstraints::get_in_gep(const User *user) {
 	for (unsigned i = 0; i < user->getNumOperands(); ++i) {
-		if (!integers.count(user->getOperand(i)))
+		if (!is_reachable_integer(user->getOperand(i)))
 			return NULL;
 	}
 	const Value *base = user->getOperand(0);
@@ -375,13 +377,24 @@ Clause *CaptureConstraints::get_in_gep(const User *user) {
 				CmpInst::ICMP_EQ, new Expr(user), cur));
 }
 
-bool CaptureConstraints::is_constant_integer(const Value *v) const {
-	
-	ExecOnce &EO = getAnalysis<ExecOnce>();
+bool CaptureConstraints::is_fixed_integer(const Value *v) const {
+	return fixed_integers.count(v);
+}
 
-	if (!is_integer(v))
+const ConstValueSet &CaptureConstraints::get_fixed_integers() const {
+	return fixed_integers;
+}
+
+bool CaptureConstraints::is_reachable_integer(const Value *v) const {
+	ExecOnce &EO = getAnalysis<ExecOnce>();
+	if (!isa<IntegerType>(v->getType()) && !isa<PointerType>(v->getType()))
 		return false;
 	if (const Instruction *ins = dyn_cast<Instruction>(v))
-		return EO.executed_once(ins);
-	return true;
+		return !EO.not_executed(ins);
+	else if (const Argument *arg = dyn_cast<Argument>(v))
+		return !EO.not_executed(arg->getParent());
+	else {
+		assert(isa<GlobalVariable>(v) || isa<Constant>(v));
+		return true;
+	}
 }

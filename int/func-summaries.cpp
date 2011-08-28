@@ -84,11 +84,11 @@ void CaptureConstraints::capture_libcall(const CallSite &cs) {
 		// if len >= 0, ret <= len
 		// FIXME: >= -1. But aget has a bug no checking its return value. 
 		const Instruction *ret = cs.getInstruction();
-		if (is_integer(ret)) {
+		if (is_reachable_integer(ret)) {
 			add_constraint(new Clause(new BoolExpr(CmpInst::ICMP_SGE,
 							new Expr(ret), new Expr(minus_one))));
 			const Value *len = cs.getArgument(2);
-			if (is_integer(len)) {
+			if (is_reachable_integer(len)) {
 				// len >= 0 ==> ret <= len
 				// i.e
 				// len < 0 or ret <= len
@@ -105,11 +105,11 @@ void CaptureConstraints::capture_libcall(const CallSite &cs) {
 		// ret >= -1
 		// len >= 0 ==> ret <= len i.e. len < 0 or ret <= len
 		const Value *ret = cs.getInstruction();
-		if (is_integer(ret)) {
+		if (is_reachable_integer(ret)) {
 			const Value *len = cs.getArgument(2);
 			add_constraint(new Clause(new BoolExpr(CmpInst::ICMP_SGE,
 							new Expr(ret), new Expr(minus_one))));
-			if (is_integer(len)) {
+			if (is_reachable_integer(len)) {
 				add_constraint(new Clause(Instruction::Or,
 							new Clause(new BoolExpr(CmpInst::ICMP_SLT,
 									new Expr(len), new Expr(zero))),

@@ -1,6 +1,6 @@
 # Author: Jingyue
 
-PROG_NAMES = test-thread test-overwrite test-loop \
+PROG_NAMES = test-thread test-overwrite test-loop test-loop-2 \
 	     test-reducer test-pointer test-range-2 \
 	     test-recursive test-bound FFT-like \
 	     aget-like test-array test-dep \
@@ -112,6 +112,10 @@ FFT.ft: FFT.trace
 pfscan.ft: pfscan.trace
 	# pfscan returns the number of matches
 	./$< -n2 -v -d pthread $(LLVM_ROOT)/common/include/ || true
+	mv /tmp/fulltrace $@
+
+test-loop-2.ft: test-loop-2.trace
+	./$< 1 2 3 4
 	mv /tmp/fulltrace $@
 
 # Most programs don't need any special command line. 
