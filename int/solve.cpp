@@ -701,9 +701,10 @@ void SolveConstraints::realize(const Instruction *ins, unsigned context) {
 	IntraReach &IR = getAnalysis<IntraReach>(*f);
 	LoopInfo &LI = getAnalysis<LoopInfo>(*f);
 
-	// TODO: realize its containing functions. 
+	// TODO: realize its containing functions. Calling contexts would
+	// help a lot with resolving the ambiguity. 
+	
 	// Realize each containing loop. 
-	// TODO: Also realize loops that dominate this one. 
 	Loop *l = LI.getLoopFor(bb);
 	while (l) {
 		vector<Clause *> constraints_from_l;
@@ -759,7 +760,6 @@ void SolveConstraints::realize(const Instruction *ins, unsigned context) {
 					Clause *c2 = c->clone();
 					CC.attach_context(c2, context);
 					replace_with_root(c2);
-
 
 					VCExpr vce = translate_to_vc(c2);
 					if (try_to_simplify(vce) != 1) {

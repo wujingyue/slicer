@@ -160,21 +160,20 @@ void CaptureConstraints::calculate(Module &M) {
 
 	// Check whether each loop is in the simplified and LCSSA form. 
 	check_loops(M);
+
 	// Identify all integer and pointer variables. 
 	identify_fixed_integers(M);
+
 	// Look at arithmetic operations on these constants. 
 	capture_top_level(M);
-	
 	// Look at loads and stores. 
 	// The algorithm to capture address-taken variables are flow-sensitive.
 	// Need compute the inter-procedural CFG before hand. 
 	ICFG &PIB = getAnalysis<PartialICFGBuilder>();
 	IDT.recalculate(PIB);
 	capture_addr_taken(M);
-	
 	// Collect constraints from unreachable blocks. 
 	capture_unreachable(M);
-
 	// Function summaries.
 	// TODO: We'd better have a generic module for all function summaries
 	// instead of writing it for each project. 

@@ -1,5 +1,7 @@
 /**
  * Author: Jingyue
+ *
+ * Capture constraints in a program. 
  */
 
 #ifndef __SLICER_CAPTURE_H
@@ -27,9 +29,7 @@ using namespace std;
 #include "max-slicing/region-manager.h"
 
 namespace slicer {
-
 	struct CaptureConstraints: public ModulePass {
-
 		const static unsigned INVALID_VAR_ID = (unsigned)-1;
 
 		static char ID;
@@ -82,6 +82,8 @@ namespace slicer {
 		bool get_loop_bound(const Loop *l, vector<Clause *> &loop_constraints);
 		/**
 		 * Attach expressions with the given context. 
+		 * Won't change the contexts of values that are defined only once
+		 * (e.g. global variables or instructions executed only once). 
 		 */
 		void attach_context(Clause *c, unsigned context);
 		void attach_context(BoolExpr *be, unsigned context);
@@ -195,7 +197,11 @@ namespace slicer {
 		bool comes_from_shallow(const BasicBlock *x, const BasicBlock *y);
 		/* Constraints from unreachable blocks. */
 		void capture_unreachable(Module &M);
-		void capture_unreachable(Function &F);
+		/**
+		 * <unreachable_constraints> will be reset. 
+		 */
+		void get_unreachable_in_function(Function &F,
+				vector<Clause *> &unreachable_constraints);
 		/* Function summaries. */
 		void capture_function_summaries(Module &M);
 		void capture_libcall(const CallSite &cs);

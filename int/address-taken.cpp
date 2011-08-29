@@ -195,7 +195,10 @@ void CaptureConstraints::capture_must_assign(Module &M) {
 			forall(BasicBlock, ins, *bb) {
 				if (LoadInst *i2 = dyn_cast<LoadInst>(ins)) {
 					print_progress(dbgs(), cur, n_loads);
-					capture_overwriting_to(i2);
+					const Type *i2_type = i2->getType();
+					// We don't capture equalities on real numbers. 
+					if (isa<IntegerType>(i2_type) || isa<PointerType>(i2_type))
+						capture_overwriting_to(i2);
 					++cur;
 				}
 			}
