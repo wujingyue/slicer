@@ -23,7 +23,6 @@ using namespace slicer;
 
 VC SolveConstraints::vc = NULL;
 sys::Mutex SolveConstraints::vc_mutex(false); // not recursive
-DenseMap<string, VCExpr> SolveConstraints::symbols;
 
 int SolveConstraints::try_to_simplify(VCExpr e) {
 	vc_push(vc);
@@ -36,10 +35,6 @@ int SolveConstraints::try_to_simplify(VCExpr e) {
 
 void SolveConstraints::destroy_vc() {
 	assert(vc && "create_vc and destroy_vc are not paired");
-	for (DenseMap<string, VCExpr>::iterator it = symbols.begin();
-			it != symbols.end(); ++it)
-		vc_DeleteExpr(it->second);
-	symbols.clear();
 	vc_Destroy(vc);
 	vc = NULL;
 	vc_mutex.release();
@@ -53,7 +48,6 @@ void SolveConstraints::create_vc() {
 	// We are responsible to delete them. 
 	vc_setInterfaceFlags(vc, EXPRDELETE, 0);
 	vc_registerErrorHandler(vc_error_handler);
-	assert(symbols.empty());
 	assert(vc && "Failed to create a VC");
 }
 
@@ -249,14 +243,11 @@ VCExpr SolveConstraints::translate_to_vc(const Value *v,
 		oss << "_" << context;
 
 	string name = oss.str();
-	VCExpr &symbol = symbols[name];
-	if (symbol == NULL) {
-		VCType vct = (v->getType()->isIntegerTy(1) ?
-				vc_bvType(vc, 1) :
-				vc_bv32Type(vc));
-		symbol = vc_varExpr(vc, name.c_str(), vct);
-		delete_vcexpr(vct);
-	}
+	VCType vct = (v->getType()->isIntegerTy(1) ?
+			vc_bvType(vc, 1) :
+			vc_bv32Type(vc));
+	VCExpr symbol = vc_varExpr(vc, name.c_str(), vct);
+	delete_vcexpr(vct);
 
 	return symbol;
 }

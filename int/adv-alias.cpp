@@ -107,7 +107,7 @@ void AdvancedAlias::recalculate(Module &M) {
 
 
 void AdvancedAlias::print(raw_ostream &O, const Module *M) const {
-	O << "AAA cache size = " << get_cache_size() << "\n";
+	O << "AdvancedAA cache size = " << get_cache_size() << "\n";
 	print_average_query_time(O);
 }
 

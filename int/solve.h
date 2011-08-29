@@ -80,9 +80,6 @@ namespace slicer {
 		template <typename T1, typename T2>
 		bool provable(CmpInst::Predicate p, const T1 *v1, const T2 *v2);
 
-		// Debugging functions. 
-		unsigned get_num_symbols() const { return symbols.size(); }
-
 	private:
 		/**
 		 * General functions. 
@@ -206,7 +203,6 @@ namespace slicer {
 		bool print_minimal_proof_set_;
 		/* There can only be one instance of VC running. */
 		static VC vc;
-		static DenseMap<string, VCExpr> symbols;
 		static sys::Mutex vc_mutex;
 	};
 }
