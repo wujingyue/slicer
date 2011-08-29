@@ -30,12 +30,11 @@ using namespace llvm;
 #include "int-test.h"
 using namespace slicer;
 
-static RegisterPass<IntTest> X(
-		"int-test", "Test the integer constraint solver");
+static RegisterPass<IntTest> X("int-test",
+		"Test the integer constraint solver");
 
 // If Program == "", we dump all the integer constraints. 
-static cl::opt<string> Program(
-		"prog",
+static cl::opt<string> Program("prog",
 		cl::desc("The program being tested (e.g. aget). "
 			"Usually it's simply the name of the bc file without \".bc\"."),
 		cl::init(""));
@@ -92,11 +91,41 @@ bool IntTest::runOnModule(Module &M) {
 	test_test_range_3(M);
 	test_test_range_4(M);
 	test_test_dep(M);
+	if (Program == "test-ctxt-2")
+		test_test_ctxt_2(M);
 	return false;
 }
 
 static bool starts_with(const string &a, const string &b) {
 	return a.length() >= b.length() && a.compare(0, b.length(), b) == 0;
+}
+
+void IntTest::test_test_ctxt_2(const Module &M) {
+	TestBanner X("test-ctxt-2");
+
+	SolveConstraints &SC = getAnalysis<SolveConstraints>();
+
+	const Function *foo = M.getFunction("foo");
+	assert(foo && "Cannot find function <foo>");
+	const Value *b = NULL;
+	forallconst(Function, bb, *foo) {
+		forallconst(BasicBlock, ins, *bb) {
+			if (ins->getOpcode() == Instruction::Add) {
+				assert(!b && "Multiple variable <b>");
+				b = ins;
+			}
+		}
+	}
+	assert(b && "Cannot find variable <b>");
+
+	const IntegerType *int_type = IntegerType::get(M.getContext(), 32);
+	errs() << "b == 2 or 3? ...";
+	assert(SC.provable(new Clause(Instruction::Or,
+					new Clause(new BoolExpr(CmpInst::ICMP_EQ,
+							new Expr(b, 1), new Expr(ConstantInt::get(int_type, 2)))),
+					new Clause(new BoolExpr(CmpInst::ICMP_EQ,
+							new Expr(b, 1), new Expr(ConstantInt::get(int_type, 3)))))));
+	print_pass(errs());
 }
 
 void IntTest::test_test_dep(const Module &M) {

@@ -1,6 +1,6 @@
 # Author: Jingyue
 
-PROG_NAMES = test-thread test-overwrite test-loop test-loop-2 \
+PROG_NAMES = test-thread test-overwrite test-loop test-loop-2 test-ctxt-2 \
 	     test-reducer test-pointer test-range-2 \
 	     test-recursive test-bound FFT-like \
 	     aget-like test-array test-dep \

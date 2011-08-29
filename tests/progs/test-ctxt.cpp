@@ -1,3 +1,9 @@
+/**
+ * Author: Jingyue
+ *
+ * Test whether max-slicing is working under complicated calling contexts.
+ */
+
 #include <pthread.h>
 
 #include <iostream>

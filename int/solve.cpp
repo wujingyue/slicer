@@ -22,8 +22,8 @@ using namespace llvm;
 #include "adv-alias.h"
 using namespace slicer;
 
-static RegisterPass<SolveConstraints> X(
-		"solve", "Solve captured constraints using STP",
+static RegisterPass<SolveConstraints> X("solve",
+		"Solve captured constraints using STP",
 		false, true); // is analysis
 
 char SolveConstraints::ID = 0;
