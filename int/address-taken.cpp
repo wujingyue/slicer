@@ -10,6 +10,7 @@
 #include "llvm/Analysis/DominatorInternals.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/CommandLine.h"
 #include "common/callgraph-fp/callgraph-fp.h"
 #include "common/cfg/icfg.h"
 #include "common/cfg/intra-reach.h"
@@ -28,6 +29,10 @@ using namespace repair;
 #include "max-slicing/clone-info-manager.h"
 #include "max-slicing/region-manager.h"
 using namespace slicer;
+
+static cl::opt<bool> DisableAdvancedAA("disable-advanced-aa",
+		cl::desc("Don't use the advanced AA. Always use bc2bdd"),
+		cl::init(false));
 
 Value *CaptureConstraints::get_pointer_operand(const Instruction *i) {
 	if (const StoreInst *si = dyn_cast<StoreInst>(i))
@@ -725,20 +730,21 @@ Instruction *CaptureConstraints::get_idom_ip(Instruction *ins) {
 }
 
 bool CaptureConstraints::may_alias(const Value *v1, const Value *v2) {
-	if (AdvancedAlias *AAA = getAnalysisIfAvailable<AdvancedAlias>()) {
+	AdvancedAlias *AAA = getAnalysisIfAvailable<AdvancedAlias>();
+	if (!DisableAdvancedAA && AAA)
 		return AAA->may_alias(v1, v2);
-	} else {
+	else {
 		BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
 		return BAA.alias(v1, 0, v2, 0) == AliasAnalysis::MayAlias;
 	}
 }
 
 bool CaptureConstraints::must_alias(const Value *v1, const Value *v2) {
-	if (AdvancedAlias *AAA = getAnalysisIfAvailable<AdvancedAlias>()) {
+	AdvancedAlias *AAA = getAnalysisIfAvailable<AdvancedAlias>();
+	if (!DisableAdvancedAA && AAA)
 		return AAA->must_alias(v1, v2);
-	} else {
+	else
 		return v1 == v2;
-	}
 }
 
 bool CaptureConstraints::is_using_advanced_alias() {

@@ -55,12 +55,11 @@ static const char *DEFAULT_ENFORCING_LANDMARK_FUNCS[] = {
 	"exit"
 };
 
-static RegisterPass<EnforcingLandmarks> X(
-		"enforcing-landmarks", "Identify enforcing landmarks",
+static RegisterPass<EnforcingLandmarks> X("enforcing-landmarks",
+		"Identify enforcing landmarks",
 		false, true); // is analysis
 
-static cl::opt<string> EnforcingLandmarksFile(
-		"input-landmarks",
+static cl::opt<string> EnforcingLandmarksFile("input-landmarks",
 		cl::desc("If this option is specified, MarkLandmarks uses the "
 			"landmarks from the file as enforcing landmarks."),
 		cl::init(""));

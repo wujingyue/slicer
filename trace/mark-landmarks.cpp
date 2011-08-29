@@ -18,8 +18,8 @@ using namespace llvm;
 #include "omit-branch.h"
 using namespace slicer;
 
-static RegisterPass<MarkLandmarks> X(
-		"mark-landmarks", "Mark landmarks",
+static RegisterPass<MarkLandmarks> X("mark-landmarks",
+		"Mark landmarks",
 		false, true); // is analysis
 
 STATISTIC(NumOmittedBranches, "Number of omitted branches");

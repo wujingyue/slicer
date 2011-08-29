@@ -96,6 +96,8 @@ namespace slicer {
 		static bool print_progress(raw_ostream &O, unsigned cur, unsigned tot);
 		/**
 		 * Wrappers to AdvancedAlias and BddAliasAnalysis. 
+		 * Most of the time, we need either may-alias or must-alias, but not
+		 * both of them.
 		 */
 		bool is_using_advanced_alias();
 		bool may_alias(const Value *v1, const Value *v2);
