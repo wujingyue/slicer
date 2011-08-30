@@ -1,0 +1,18 @@
+#!/bin/bash
+
+if [ "$1" = "" -o "$2" = "" ]; then
+	echo "Usage: $0 <input: id.bc> <output: slice.bc>"
+	exit 1
+fi
+
+opt -o $2 \
+	-load $LLVM_ROOT/install/lib/libidm.so \
+	-load $LLVM_ROOT/install/lib/libid-manager.so \
+	-load $LLVM_ROOT/install/lib/libbc2bdd.so \
+	-load $LLVM_ROOT/install/lib/libcallgraph-fp.so \
+	-load $LLVM_ROOT/install/lib/libcfg.so \
+	-load $LLVM_ROOT/install/lib/libslicer-trace.so \
+	-load $LLVM_ROOT/install/lib/libmax-slicing.so \
+	-max-slicing \
+	-input-landmark-trace `echo $1| sed 's/\.id.bc$/.lt/g'` \
+	< $1

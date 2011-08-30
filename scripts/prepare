@@ -1,0 +1,16 @@
+#!/bin/bash
+
+if [ -z $1 ] || [ -z $2 ]; then
+	echo "Usage: $0 <input> <output>"
+	exit 1
+fi
+
+opt -o $2 \
+	-load $LLVM_ROOT/install/lib/libidm.so \
+	-load $LLVM_ROOT/install/lib/libid-manager.so \
+	-load $LLVM_ROOT/install/lib/libbc2bdd.so \
+	-load $LLVM_ROOT/install/lib/libcallgraph-fp.so \
+	-load $LLVM_ROOT/install/lib/libcfg.so \
+	-load $LLVM_ROOT/install/lib/libpreparer.so \
+	-break-crit-edges -prepare \
+	< $1

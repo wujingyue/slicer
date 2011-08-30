@@ -1,0 +1,55 @@
+#!/bin/bash
+
+if [ "$1" = "" -o  "$2" != "0" -a "$2" != "1" ]; then
+	echo "Usage: $0 <program name> <0/1: multi-processed?> [extra link flags, e.g. -lbz2]"
+	exit 1
+fi
+
+if [ -z $SLICER_ROOT ]; then
+	echo "SLICER_ROOT is not set"
+	exit 1
+fi
+
+# TODO: I'm not familiar with bash.
+# Is there a ( ? : )-like thing in bash? 
+if [ $2 == 0 ]; then
+	opt -o $1.bc1 \
+		-load $LLVM_ROOT/install/lib/libidm.so \
+		-load $LLVM_ROOT/install/lib/libid-manager.so \
+		-load $LLVM_ROOT/install/lib/libbc2bdd.so \
+		-load $LLVM_ROOT/install/lib/libcallgraph-fp.so \
+		-load $LLVM_ROOT/install/lib/libcfg.so \
+		-load $LLVM_ROOT/install/lib/libslicer-trace.so \
+		-instrument \
+		< $1.id.bc
+else
+	opt -o $1.bc1 \
+		-load $LLVM_ROOT/install/lib/libidm.so \
+		-load $LLVM_ROOT/install/lib/libid-manager.so \
+		-load $LLVM_ROOT/install/lib/libbc2bdd.so \
+		-load $LLVM_ROOT/install/lib/libcallgraph-fp.so \
+		-load $LLVM_ROOT/install/lib/libcfg.so \
+		-load $LLVM_ROOT/install/lib/libslicer-trace.so \
+		-multi-processed \
+		-instrument \
+		< $1.id.bc
+fi
+if [ $? != 0 ]; then
+	exit $?
+fi
+
+llvm-ld $1.bc1 $SLICER_ROOT/trace/tracing.bc -b $1.trace.bc \
+	-link-as-library -disable-opt
+if [ $? != 0 ]; then
+	exit $?
+fi
+
+llc $1.trace.bc -o $1.trace.s -O0
+if [ $? != 0 ]; then
+	exit $?
+fi
+
+g++ $1.trace.s -o $1.trace -pthread ${@:3}
+if [ $? != 0 ]; then
+	exit $?
+fi

@@ -1,0 +1,11 @@
+#!/bin/bash
+
+if [ -z $1 ] || [ -z $2 ]; then
+	echo "Usage: $0 <input> <output>"
+	exit 1
+fi
+
+opt -o $2 \
+	-load $LLVM_ROOT/install/lib/libid-manager.so \
+	-tag-id \
+	< $1

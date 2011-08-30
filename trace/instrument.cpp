@@ -1,12 +1,11 @@
 /**
  * Author: Jingyue
- *
- * TODO: Record important instructions only. 
  */
 
 #include "llvm/LLVMContext.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Support/CallSite.h"
+#include "llvm/Support/CommandLine.h"
 #include "common/id-manager/IDManager.h"
 #include "common/include/util.h"
 using namespace llvm;
@@ -16,10 +15,12 @@ using namespace llvm;
 #include "mark-landmarks.h"
 using namespace slicer;
 
-static RegisterPass<slicer::Instrument> X(
-		"instrument",
+static RegisterPass<slicer::Instrument> X("instrument",
 		"Instrument the program so that it will generate a trace"
 		" when being executed");
+
+static cl::opt<bool> MultiProcessed("multi-processed",
+		cl::desc("Whether the program is multi-processed"));
 
 const static char *BLOCKING_FUNCS[] = {
 	"pthread_mutex_lock",
@@ -107,8 +108,8 @@ bool Instrument::runOnModule(Module &M) {
 			// Before the instruction if non-blocking. 
 			// After the instruction if blocking. 
 			if (!blocks(ii)) {
-				CallInst::Create(trace_inst,
-						ConstantInt::get(uint_type, ins_id), "", ii);
+				CallInst::Create(trace_inst, ConstantInt::get(uint_type, ins_id),
+						"", ii);
 			} else {
 				if (InvokeInst *inv = dyn_cast<InvokeInst>(ii)) {
 					// TODO: We don't instrument the unwind BB currently. 
@@ -143,7 +144,8 @@ bool Instrument::runOnModule(Module &M) {
 	// Insert <init_trace> at the main entry. 
 	forallfunc(M, f) {
 		if (is_main(f)) {
-			CallInst::Create(init_trace, "", f->begin()->begin());
+			CallInst::Create(init_trace, ConstantInt::get(bool_type, MultiProcessed),
+					"", f->begin()->begin());
 		}
 	}
 
@@ -154,12 +156,14 @@ void Instrument::setup(Module &M) {
 	
 	// sizeof(unsigned) == 4
 	uint_type = IntegerType::get(M.getContext(), 32);
+	// sizeof(bool) = 1
+	bool_type = IntegerType::get(M.getContext(), 8);
 	FunctionType *trace_inst_fty = FunctionType::get(
 			Type::getVoidTy(M.getContext()),
-			vector<const Type *>(1, uint_type),
-			false);
+			vector<const Type *>(1, uint_type), false);
 	FunctionType *init_trace_fty = FunctionType::get(
-			Type::getVoidTy(M.getContext()), false);
+			Type::getVoidTy(M.getContext()),
+			vector<const Type *>(1, bool_type), false);
 	
 	trace_inst = dyn_cast<Function>(
 			M.getOrInsertFunction("trace_inst", trace_inst_fty));
@@ -182,7 +186,6 @@ void Instrument::setup(Module &M) {
 				params,
 				pth_create_type->isVarArg());
 		pth_create_wrapper = dyn_cast<Function>(
-				M.getOrInsertFunction(
-					"trace_pthread_create", pth_create_wrapper_type));
+				M.getOrInsertFunction("trace_pthread_create", pth_create_wrapper_type));
 	}
 }

@@ -18,7 +18,7 @@ namespace slicer {
 		void setup(Module &M);
 		static bool blocks(Instruction *ins);
 
-		const Type *uint_type;
+		const Type *uint_type, *bool_type;
 		Function *init_trace, *trace_inst, *pth_create_wrapper;
 	};
 }

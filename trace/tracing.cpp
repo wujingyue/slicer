@@ -1,25 +1,37 @@
+/**
+ * Author: Jingyue
+ */
+
+#include <errno.h>
+#include <pthread.h>
+
 #include <iostream>
 #include <fstream>
-#include <errno.h>
+#include <sstream>
 using namespace std;
 
 #include "trace.h"
 using namespace slicer;
 
-#include "pthread.h"
-
 static pthread_mutex_t trace_mutex = PTHREAD_MUTEX_INITIALIZER;
+static bool multi_processed = false;
 
 static void append_to_trace(const TraceRecord &record) {
+	ostringstream oss;
+	oss << "/tmp/fulltrace";
+	if (multi_processed)
+		oss << "." << getpid();
 	pthread_mutex_lock(&trace_mutex);
-	ofstream fout("/tmp/fulltrace", ios::binary | ios::app);
+	ofstream fout(oss.str().c_str(), ios::binary | ios::app);
 	fout.write((char *)&record, sizeof record);
 	pthread_mutex_unlock(&trace_mutex);
 }
 
-extern "C" void init_trace() {
+extern "C" void init_trace(bool mp) {
+	multi_processed = mp;
 	pthread_mutex_lock(&trace_mutex);
-	ofstream fout("/tmp/fulltrace");
+	// There might be multiple processes. Thus we use fulltrace*. 
+	system("rm -f /tmp/fulltrace*");
 	pthread_mutex_unlock(&trace_mutex);
 }
 
