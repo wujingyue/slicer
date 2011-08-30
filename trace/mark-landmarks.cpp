@@ -43,6 +43,8 @@ void MarkLandmarks::mark_thread_exits(Module &M) {
 		if (fi->isDeclaration())
 			continue;
 		if (ITF.is_thread_func(fi) || is_main(fi)) {
+			// This should be a pthread_self() call added by the preparer. 
+			// No harm marking it again. 
 			landmarks.insert(fi->begin()->getFirstNonPHI());
 			forall(Function, bi, *fi) {
 				if (succ_begin(bi) == succ_end(bi))
@@ -53,7 +55,6 @@ void MarkLandmarks::mark_thread_exits(Module &M) {
 }
 
 void MarkLandmarks::mark_recursive_rets(Module &M) {
-	
 	EnforcingLandmarks &EL = getAnalysis<EnforcingLandmarks>();
 	MayExec &ME = getAnalysis<MayExec>();
 	CallGraph &CG = getAnalysis<CallGraphFP>();
