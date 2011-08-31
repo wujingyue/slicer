@@ -21,6 +21,7 @@ using namespace std;
 #include "common/cfg/may-exec.h"
 using namespace llvm;
 
+#include "trace/landmark-trace.h"
 #include "max-slicing.h"
 using namespace slicer;
 
@@ -149,12 +150,12 @@ void MaxSlicing::fix_def_use_terminator(BasicBlock *bb,
 	} // if (ti == NULL)
 }
 
-void MaxSlicing::fix_def_use_bb(Module &M, const Trace &trace) {
+void MaxSlicing::fix_def_use_bb(Module &M) {
 	dbgs() << "Fixing BBs in def-use graph...\n";
 
 	// An InvokeInst's successors may not be its successors in <cfg>. 
 	// Need an extra pass of DFS to resolve them. 
-	find_invoke_successors(M, trace);
+	find_invoke_successors(M);
 
 	DenseMap<Function *, BasicBlock *> unreach_bbs;
 	forallfunc(M, fi) {
@@ -196,7 +197,7 @@ void MaxSlicing::fix_def_use_bb(Module &M, const Trace &trace) {
 	}
 }
 
-void MaxSlicing::fix_def_use(Module &M, const Trace &trace) {
+void MaxSlicing::fix_def_use(Module &M) {
 	/*
 	 * Things to fix:
 	 * . BBs used in PHINodes and TerminatorInsts. 
@@ -208,8 +209,8 @@ void MaxSlicing::fix_def_use(Module &M, const Trace &trace) {
 	// instructions for now. Could make it faster by maintaining a list
 	// of unresolved operands. 
 	dbgs() << "\nFixing def-use...\n";
-	fix_def_use_bb(M, trace);
-	fix_def_use_insts(M, trace);
+	fix_def_use_bb(M);
+	fix_def_use_insts(M);
 	fix_def_use_func_param(M);
 	fix_def_use_func_call(M);
 	dbgs() << "Done fix_def_use\n";
@@ -276,7 +277,7 @@ void MaxSlicing::fix_def_use_func_param(Module &M) {
 	}
 }
 
-void MaxSlicing::fix_def_use_insts(Module &M, const Trace &trace) {
+void MaxSlicing::fix_def_use_insts(Module &M) {
 	dbgs() << "Fixing instructions in def-use graph...\n";
 
 	forallfunc(M, f) {
@@ -356,7 +357,7 @@ void MaxSlicing::fix_def_use_insts(Function &F) {
 	}
 }
 
-void MaxSlicing::link_thr_func(Module &M, const Trace &trace,
+void MaxSlicing::link_thr_func(Module &M,
 		int parent_tid, size_t trunk_id, int child_tid) {
 	
 	// <orig_site> is the pthread_create site in the original program. 
@@ -403,12 +404,34 @@ void MaxSlicing::link_thr_func(Module &M, const Trace &trace,
 	}
 }
 
-void MaxSlicing::link_thr_funcs(
-		Module &M,
-		const Trace &trace,
-		const vector<ThreadCreationRecord> &thr_cr_records) {
+/// Only used in function <link_thr_funcs>. 
+struct ThreadCreationRecord {
+	ThreadCreationRecord(int p, size_t t, int c):
+		parent_tid(p), trunk_id(t), child_tid(c) {}
+	int parent_tid;
+	size_t trunk_id;
+	int child_tid;
+};
+
+void MaxSlicing::link_thr_funcs(Module &M) {
+	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
+
+	// Collect all thread creation records. 
+	vector<ThreadCreationRecord> thr_cr_records;
+	const vector<int> &thr_ids = LT.get_thr_ids();
+	for (size_t i = 0; i < thr_ids.size(); ++i) {
+		int thr_id = thr_ids[i];
+		for (unsigned j = 0; j < LT.get_n_trunks(thr_id); ++j) {
+			const LandmarkTraceRecord &record = LT.get_landmark(i, j);
+			if (record.child_tid != -1 && record.child_tid != thr_id) {
+				thr_cr_records.push_back(
+						ThreadCreationRecord(thr_id, j, record.child_tid));
+			}
+		}
+	}
+
 	for (size_t i = 0, E = thr_cr_records.size(); i < E; ++i) {
-		link_thr_func(M, trace,
+		link_thr_func(M,
 				thr_cr_records[i].parent_tid,
 				thr_cr_records[i].trunk_id,
 				thr_cr_records[i].child_tid);

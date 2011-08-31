@@ -30,8 +30,7 @@ using namespace std;
 #include "trace/mark-landmarks.h"
 using namespace slicer;
 
-static RegisterPass<MaxSlicing> X(
-		"max-slicing",
+static RegisterPass<MaxSlicing> X("max-slicing",
 		"Slice and unroll the program according to the trace");
 
 STATISTIC(NumOrigInstructions, "Number of original instructions");
@@ -78,17 +77,14 @@ void MaxSlicing::print_edge_set(raw_ostream &O, const EdgeSet &s) {
 	O << "\n";
 }
 
-void MaxSlicing::read_trace_and_cut(
-		Trace &trace,
-		vector<ThreadCreationRecord> &thr_cr_records,
-		InstSet &cut) {
-
+void MaxSlicing::read_trace_and_landmarks() {
 	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
 	MarkLandmarks &ML = getAnalysis<MarkLandmarks>();
 	IDManager &IDM = getAnalysis<IDManager>();
-	// cut
-	cut = ML.get_landmarks();
+	// landmarks
+	landmarks = ML.get_landmarks();
 	// trace and thr_cr_records
+	trace.clear();
 	const vector<int> &thr_ids = LT.get_thr_ids();
 	for (size_t i = 0; i < thr_ids.size(); ++i) {
 		int thr_id = thr_ids[i];
@@ -100,16 +96,11 @@ void MaxSlicing::read_trace_and_cut(
 			}
 			assert(ins && "Cannot find an instruction with this instruction ID");
 			trace[thr_id].push_back(ins);
-			if (record.child_tid != -1 && record.child_tid != thr_id) {
-				thr_cr_records.push_back(
-						ThreadCreationRecord(thr_id, j, record.child_tid));
-			}
 		}
 	}
 }
 
 bool MaxSlicing::runOnModule(Module &M) {
-	
 	IDManager &IDM = getAnalysis<IDManager>();
 	MayExec &ME = getAnalysis<MayExec>();
 	EnforcingLandmarks &EL = getAnalysis<EnforcingLandmarks>();
@@ -119,24 +110,20 @@ bool MaxSlicing::runOnModule(Module &M) {
 	NumOrigInstructions = IDM.size();
 	
 	// Read the trace and the cut. 
-	Trace trace;
-	vector<ThreadCreationRecord> thr_cr_records;
-	InstSet cut;
-	read_trace_and_cut(trace, thr_cr_records, cut);
-	
+	read_trace_and_landmarks();
 	// Which functions may execute a landmark? 
 	ME.setup_landmarks(EL.get_enforcing_landmarks());
 	ME.run();
 	
 	// Build the control flow graph. 
 	// Output to <cfg>. 
-	build_cfg(M, trace, cut);
+	build_cfg(M);
 	
 	// Fix the def-use graph. 
-	fix_def_use(M, trace);
+	fix_def_use(M);
 	
 	// Link thread functions. 
-	link_thr_funcs(M, trace, thr_cr_records);
+	link_thr_funcs(M);
 	
 	// Redirect the program entry to main.SLICER. 
 	assert(trace.count(0) && trace[0].size() > 0);
@@ -149,7 +136,7 @@ bool MaxSlicing::runOnModule(Module &M) {
 	// Finally, we mark all enforcing landmarks in the cloned program
 	// as volatile, because we don't want any further compiler optimization
 	// to remove them. 
-	volatile_landmarks(M, trace);
+	volatile_landmarks(M);
 
 #if 0
 	dbgs() << "Dumping module...\n";
@@ -200,7 +187,7 @@ void MaxSlicing::check_dominance(Module &M) {
 	}
 }
 
-void MaxSlicing::volatile_landmarks(Module &M, const Trace &trace) {
+void MaxSlicing::volatile_landmarks(Module &M) {
 	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
 
 	vector<int> thr_ids = LT.get_thr_ids();
