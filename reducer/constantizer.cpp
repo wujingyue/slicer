@@ -8,7 +8,7 @@
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/ADT/Statistic.h"
-#include "common/include/util.h"
+#include "common/util.h"
 using namespace llvm;
 
 #include "constantizer.h"

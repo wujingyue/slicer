@@ -1,8 +1,8 @@
 #include "llvm/LLVMContext.h"
 #include "llvm/Support/Debug.h"
-#include "common/cfg/intra-reach.h"
-#include "common/cfg/exec-once.h"
-#include "common/include/util.h"
+#include "common/intra-reach.h"
+#include "common/exec-once.h"
+#include "common/util.h"
 using namespace llvm;
 
 #include "capture.h"

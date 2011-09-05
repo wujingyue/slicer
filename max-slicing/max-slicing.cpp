@@ -14,9 +14,9 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/ADT/Statistic.h"
-#include "common/id-manager/IDManager.h"
-#include "common/callgraph-fp/callgraph-fp.h"
-#include "common/cfg/may-exec.h"
+#include "common/IDManager.h"
+#include "common/callgraph-fp.h"
+#include "common/may-exec.h"
 using namespace llvm;
 
 #include <iostream>
@@ -81,15 +81,17 @@ void MaxSlicing::read_trace_and_landmarks() {
 	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
 	MarkLandmarks &ML = getAnalysis<MarkLandmarks>();
 	IDManager &IDM = getAnalysis<IDManager>();
-	// landmarks
+	
+	// Get all the landmarks. 
 	landmarks = ML.get_landmarks();
-	// trace and thr_cr_records
+
+	// Read the entire trace. 
 	trace.clear();
 	const vector<int> &thr_ids = LT.get_thr_ids();
 	for (size_t i = 0; i < thr_ids.size(); ++i) {
 		int thr_id = thr_ids[i];
-		for (unsigned j = 0; j < LT.get_n_trunks(thr_id); ++j) {
-			const LandmarkTraceRecord &record = LT.get_landmark(i, j);
+		for (unsigned trunk_id = 0; trunk_id < LT.get_n_trunks(thr_id); ++trunk_id) {
+			const LandmarkTraceRecord &record = LT.get_landmark(thr_id, trunk_id);
 			Instruction *ins = IDM.getInstruction(record.ins_id);
 			if (!ins) {
 				errs() << "ins_id = " << record.ins_id << "\n";
@@ -125,13 +127,19 @@ bool MaxSlicing::runOnModule(Module &M) {
 	// Link thread functions. 
 	link_thr_funcs(M);
 	
-	// Redirect the program entry to main.SLICER. 
-	assert(trace.count(0) && trace[0].size() > 0);
-	Instruction *old_start = trace[0][0];
-	assert(clone_map.count(0) && clone_map[0].size() > 0);
-	Instruction *new_start = clone_map[0][0].lookup(old_start);
-	assert(new_start && "Cannot find the program entry in the cloned CFG");
-	redirect_program_entry(old_start, new_start);
+	/*
+	 * We support partial slicing. Even if the trace of the main thread is
+	 * missing, we are still able to clone thread functions. 
+	 */
+	if (trace.count(0)) {
+		// Redirect the program entry to main.SLICER. 
+		assert(trace[0].size() > 0);
+		Instruction *old_start = trace[0][0];
+		assert(clone_map.count(0) && clone_map[0].size() > 0);
+		Instruction *new_start = clone_map[0][0].lookup(old_start);
+		assert(new_start && "Cannot find the program entry in the cloned CFG");
+		redirect_program_entry(old_start, new_start);
+	}
 
 	// Finally, we mark all enforcing landmarks in the cloned program
 	// as volatile, because we don't want any further compiler optimization

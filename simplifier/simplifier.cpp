@@ -119,8 +119,8 @@ int LoadPlugins() {
 	}
 	string LibDir = string(LLVMRoot) + "/install/lib";
 	PluginLoader Loader;
-	Loader = LibDir + "/libidm.so";
 	Loader = LibDir + "/libid-manager.so";
+	Loader = LibDir + "/libmbb.so";
 	Loader = LibDir + "/libbc2bdd.so";
 	Loader = LibDir + "/libcallgraph-fp.so";
 	Loader = LibDir + "/libcfg.so";

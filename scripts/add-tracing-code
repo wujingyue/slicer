@@ -1,7 +1,7 @@
 #!/bin/bash
 
-if [ "$1" = "" -o  "$2" != "0" -a "$2" != "1" ]; then
-	echo "Usage: $0 <program name> <0/1: multi-processed?> [extra link flags, e.g. -lbz2]"
+if [ "$1" = "" -o "$1" = "-h" -o "$1" = "--help" ]; then
+	echo "Usage: $0 <program name> [extra options to the instrumentor]  [extra link flags, e.g. -lbz2]"
 	exit 1
 fi
 
@@ -10,30 +10,16 @@ if [ -z $SLICER_ROOT ]; then
 	exit 1
 fi
 
-# TODO: I'm not familiar with bash.
-# Is there a ( ? : )-like thing in bash? 
-if [ $2 == 0 ]; then
-	opt -o $1.bc1 \
-		-load $LLVM_ROOT/install/lib/libidm.so \
-		-load $LLVM_ROOT/install/lib/libid-manager.so \
-		-load $LLVM_ROOT/install/lib/libbc2bdd.so \
-		-load $LLVM_ROOT/install/lib/libcallgraph-fp.so \
-		-load $LLVM_ROOT/install/lib/libcfg.so \
-		-load $LLVM_ROOT/install/lib/libslicer-trace.so \
-		-instrument \
-		< $1.id.bc
-else
-	opt -o $1.bc1 \
-		-load $LLVM_ROOT/install/lib/libidm.so \
-		-load $LLVM_ROOT/install/lib/libid-manager.so \
-		-load $LLVM_ROOT/install/lib/libbc2bdd.so \
-		-load $LLVM_ROOT/install/lib/libcallgraph-fp.so \
-		-load $LLVM_ROOT/install/lib/libcfg.so \
-		-load $LLVM_ROOT/install/lib/libslicer-trace.so \
-		-multi-processed \
-		-instrument \
-		< $1.id.bc
-fi
+opt -o $1.bc1 \
+	-load $LLVM_ROOT/install/lib/libidm.so \
+	-load $LLVM_ROOT/install/lib/libid-manager.so \
+	-load $LLVM_ROOT/install/lib/libbc2bdd.so \
+	-load $LLVM_ROOT/install/lib/libcallgraph-fp.so \
+	-load $LLVM_ROOT/install/lib/libcfg.so \
+	-load $LLVM_ROOT/install/lib/libslicer-trace.so \
+	$2 \
+	-instrument \
+	< $1.id.bc
 if [ $? != 0 ]; then
 	exit $?
 fi
@@ -49,7 +35,7 @@ if [ $? != 0 ]; then
 	exit $?
 fi
 
-g++ $1.trace.s -o $1.trace -pthread ${@:3}
+g++ $1.trace.s -o $1.trace -pthread $3
 if [ $? != 0 ]; then
 	exit $?
 fi

@@ -11,7 +11,7 @@
 
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
-#include "common/include/typedefs.h"
+#include "common/typedefs.h"
 using namespace llvm;
 
 #include <vector>

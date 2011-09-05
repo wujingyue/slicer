@@ -8,9 +8,9 @@
 
 #include "llvm/Support/Debug.h"
 #include "llvm/Target/TargetData.h"
-#include "common/callgraph-fp/callgraph-fp.h"
-#include "common/cfg/exec-once.h"
-#include "common/include/util.h"
+#include "common/callgraph-fp.h"
+#include "common/exec-once.h"
+#include "common/util.h"
 using namespace llvm;
 
 #include "capture.h"

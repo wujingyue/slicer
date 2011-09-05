@@ -9,8 +9,8 @@
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/Support/Debug.h"
-#include "common/include/util.h"
-#include "common/callgraph-fp/callgraph-fp.h"
+#include "common/util.h"
+#include "common/callgraph-fp.h"
 using namespace llvm;
 
 #include "aggressive-promotion.h"
@@ -21,8 +21,7 @@ using namespace slicer;
 #include "bc2bdd/BddAliasAnalysis.h"
 using namespace repair;
 
-static RegisterPass<AggressivePromotion> X(
-		"aggressive-promotion",
+static RegisterPass<AggressivePromotion> X("aggressive-promotion",
 		"A reducer running before the integer constraint solver");
 
 char AggressivePromotion::ID = 0;

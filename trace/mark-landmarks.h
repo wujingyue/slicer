@@ -3,7 +3,7 @@
 
 #include "llvm/Pass.h"
 #include "llvm/Module.h"
-#include "common/include/typedefs.h"
+#include "common/typedefs.h"
 using namespace llvm;
 
 namespace slicer {

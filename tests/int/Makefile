@@ -1,7 +1,7 @@
 LEVEL = $(shell $(LLVM_ROOT)/scripts/level-to-llvm-root)/llvm-obj
 LIBRARYNAME = int-test
 LOADABLE_MODULE = 1
-CXXFLAGS += -I$(LLVM_ROOT) -I$(SLICER_ROOT) -I$(SLICER_ROOT)/stp/install/include
+CXXFLAGS += -I$(LLVM_ROOT) -I$(SLICER_ROOT) -I$(SLICER_ROOT)/stp/install/include -I$(LLVM_ROOT)/install/include
 
 include $(LEVEL)/Makefile.common
 
@@ -20,7 +20,6 @@ run:: $(PROG_NAMES)
 
 %: $(PROGS_DIR)/%.simple.bc ../trace/%.lt
 	opt -stats -disable-output \
-		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
@@ -36,7 +35,6 @@ run:: $(PROG_NAMES)
 
 %.ctxt: $(PROGS_DIR)/%.simple.bc
 	opt -analyze \
-		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
@@ -49,7 +47,6 @@ run:: $(PROG_NAMES)
 
 %.ic: $(PROGS_DIR)/%.simple.bc ../trace/%.lt
 	opt -disable-output \
-		-load $(LLVM_ROOT)/install/lib/libidm.so \
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \

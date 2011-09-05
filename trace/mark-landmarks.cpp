@@ -7,10 +7,10 @@
 #include "llvm/Support/CFG.h"
 #include "llvm/ADT/SCCIterator.h"
 #include "llvm/ADT/Statistic.h"
-#include "common/cfg/identify-thread-funcs.h"
-#include "common/cfg/may-exec.h"
-#include "common/callgraph-fp/callgraph-fp.h"
-#include "common/id-manager/IDManager.h"
+#include "common/identify-thread-funcs.h"
+#include "common/may-exec.h"
+#include "common/callgraph-fp.h"
+#include "common/IDManager.h"
 using namespace llvm;
 
 #include "enforcing-landmarks.h"
@@ -91,14 +91,14 @@ void MarkLandmarks::mark_enforcing_landmarks(Module &M) {
 void MarkLandmarks::mark_branch_succs(Module &M) {
 	OmitBranch &OB = getAnalysis<OmitBranch>();
 	forallbb(M, bb) {
-		BranchInst *bi = dyn_cast<BranchInst>(bb->getTerminator());
-		if (bi) {
-			if (OB.omit(bi)) {
+		TerminatorInst *ti = bb->getTerminator();
+		if (ti->getNumSuccessors() >= 2) {
+			if (OB.omit(ti)) {
 				++NumOmittedBranches;
 			} else {
 				++NumRemainingBranches;
-				for (unsigned i = 0; i < bi->getNumSuccessors(); ++i) {
-					BasicBlock *succ = bi->getSuccessor(i);
+				for (unsigned i = 0; i < ti->getNumSuccessors(); ++i) {
+					BasicBlock *succ = ti->getSuccessor(i);
 					landmarks.insert(succ->getFirstNonPHI());
 				}
 			}

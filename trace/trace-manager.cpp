@@ -1,6 +1,6 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
-#include "common/id-manager/IDManager.h"
+#include "common/IDManager.h"
 using namespace llvm;
 
 #include <fstream>

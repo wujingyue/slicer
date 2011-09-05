@@ -1,14 +1,12 @@
-#include "common/callgraph-fp/callgraph-fp.h"
+#include "common/callgraph-fp.h"
 using namespace llvm;
 
 #include "clone-info-manager.h"
 using namespace slicer;
 
-static RegisterPass<CloneInfoManager> X(
-		"trunk-manager",
-		"The trunk manager",
-		false,
-		true);
+static RegisterPass<CloneInfoManager> X("clone-info-manager",
+		"The CloneInfo manager",
+		false, true);
 
 char CloneInfoManager::ID = 0;
 

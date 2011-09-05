@@ -4,9 +4,9 @@
 #include "llvm/Pass.h"
 #include "llvm/Instruction.h"
 #include "llvm/ADT/DenseSet.h"
-#include "common/include/typedefs.h"
-#include "common/include/util.h"
-#include "common/id-manager/IDManager.h"
+#include "common/typedefs.h"
+#include "common/util.h"
+#include "common/IDManager.h"
 #include "../trace/trace-manager.h"
 using namespace llvm;
 

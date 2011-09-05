@@ -4,8 +4,8 @@
 
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/CFG.h"
-#include "common/include/util.h"
-#include "common/cfg/identify-thread-funcs.h"
+#include "common/util.h"
+#include "common/identify-thread-funcs.h"
 using namespace llvm;
 
 #include "enforcing-landmarks.h"

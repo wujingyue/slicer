@@ -9,9 +9,8 @@ using namespace std;
 
 #include "llvm/Module.h"
 #include "llvm/Analysis/PostDominators.h"
-#include "common/callgraph-fp/callgraph-fp.h"
-#include "common/cfg/may-exec.h"
-#include "idm/id.h"
+#include "common/callgraph-fp.h"
+#include "common/may-exec.h"
 using namespace llvm;
 
 #include "omit-branch.h"
@@ -92,18 +91,18 @@ BasicBlock *find_nearest_common_post_dominator(
 	return NULL;
 }
 
-bool OmitBranch::omit(BranchInst *branch) {
-	BasicBlock *bb = branch->getParent();
-	assert(branch->getNumSuccessors() > 0 && "The branch has no successor.");
-	Function *func = bb->getParent();
+bool OmitBranch::omit(TerminatorInst *ti) {
+	BasicBlock *bb = ti->getParent();
+	assert(ti->getNumSuccessors() > 0 && "The branch has no successor.");
+	Function *f = bb->getParent();
 	/* Calculate the nearest post dominator of <bb> */
-	PostDominatorTree &PDT = getAnalysis<PostDominatorTree>(*func);
-	BasicBlock *post_dominator_bb = branch->getSuccessor(0);
+	PostDominatorTree &PDT = getAnalysis<PostDominatorTree>(*f);
+	BasicBlock *post_dominator_bb = ti->getSuccessor(0);
 	/*
 	 * If <bb> has only one successor, <post_dominator_bb> will be that
 	 * successor, and then <dfs> won't visit any BB. 
 	 */
-	for (unsigned i = 1; i < branch->getNumSuccessors(); i++) {
+	for (unsigned i = 1; i < ti->getNumSuccessors(); i++) {
 		/*
 		 * findNearestCommonDominator does not work with a post dominator tree
 		 * in LLVM 2.7 release. 
@@ -113,21 +112,19 @@ bool OmitBranch::omit(BranchInst *branch) {
 				post_dominator_bb,
 				branch->getSuccessor(i));
 #endif
-		post_dominator_bb = find_nearest_common_post_dominator(
-				PDT,
-				post_dominator_bb,
-				branch->getSuccessor(i));
+		post_dominator_bb = find_nearest_common_post_dominator(PDT,
+				post_dominator_bb, ti->getSuccessor(i));
 		if (!post_dominator_bb)
 			break;
 	}
 	/* Flood fill from <bb> until reaching <post_dominator_bb> */
 	visited.clear();
-	for (Function::iterator bi = func->begin(); bi != func->end(); ++bi)
+	for (Function::iterator bi = f->begin(); bi != f->end(); ++bi)
 		visited[bi] = false;
-	for (unsigned i = 0; i < branch->getNumSuccessors(); i++)
-		dfs(branch->getSuccessor(i), post_dominator_bb);
+	for (unsigned i = 0; i < ti->getNumSuccessors(); i++)
+		dfs(ti->getSuccessor(i), post_dominator_bb);
 	/* If any visited BB has a sync operation, the branch cannot be omitted. */
-	for (Function::iterator bi = func->begin(); bi != func->end(); ++bi) {
+	for (Function::iterator bi = f->begin(); bi != f->end(); ++bi) {
 		if (!visited[bi])
 			continue;
 		MayExec &ME = getAnalysis<MayExec>();

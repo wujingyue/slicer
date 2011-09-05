@@ -16,8 +16,8 @@
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/DominatorInternals.h"
 #include "llvm/Analysis/LoopInfo.h"
-#include "common/include/typedefs.h"
-#include "common/cfg/icfg.h"
+#include "common/typedefs.h"
+#include "common/icfg.h"
 using namespace llvm;
 
 #include <vector>

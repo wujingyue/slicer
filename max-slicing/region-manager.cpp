@@ -5,11 +5,10 @@
 #define DEBUG_TYPE "region-manager"
 
 #include "llvm/Support/Debug.h"
-#include "common/cfg/exec-once.h"
-#include "common/cfg/partial-icfg-builder.h"
-#include "common/cfg/reach.h"
-#include "common/callgraph-fp/callgraph-fp.h"
-#include "idm/mbb.h"
+#include "common/exec-once.h"
+#include "common/partial-icfg-builder.h"
+#include "common/reach.h"
+#include "common/callgraph-fp.h"
 using namespace llvm;
 
 #include "region-manager.h"
@@ -18,8 +17,7 @@ using namespace llvm;
 #include "trace/landmark-trace.h"
 using namespace slicer;
 
-static RegisterPass<RegionManager> X(
-		"manage-region",
+static RegisterPass<RegionManager> X("manage-region",
 		"Mark each cloned instruction with its previous enforcing landmark "
 		"and next enforcing landmark",
 		false, true);

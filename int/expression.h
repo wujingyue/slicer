@@ -7,7 +7,7 @@
 
 #include "llvm/Instruction.h"
 #include "llvm/Use.h"
-#include "common/id-manager/IDAssigner.h"
+#include "common/IDAssigner.h"
 using namespace llvm;
 
 #include <cstdio>

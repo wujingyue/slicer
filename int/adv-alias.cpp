@@ -10,7 +10,7 @@ using namespace repair;
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/ADT/Statistic.h"
-#include "common/id-manager/IDAssigner.h"
+#include "common/IDAssigner.h"
 using namespace llvm;
 
 #include "capture.h"

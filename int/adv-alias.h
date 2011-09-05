@@ -7,11 +7,10 @@
 
 #include "llvm/Pass.h"
 #include "llvm/Analysis/AliasAnalysis.h"
-#include "common/include/typedefs.h"
+#include "common/typedefs.h"
 using namespace llvm;
 
 namespace slicer {
-
 	struct QueryInfo {
 		QueryInfo(bool s, const Value *a, const Value *b, bool r):
 			satisfiable(s), v1(a), v2(b), result(r) {}
@@ -22,7 +21,6 @@ namespace slicer {
 	};
 
 	struct AdvancedAlias: public ModulePass, public AliasAnalysis {
-
 		static char ID;
 
 		AdvancedAlias(): ModulePass(&ID) {}

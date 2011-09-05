@@ -5,9 +5,7 @@
 using namespace llvm;
 
 namespace slicer {
-
 	struct Instrument: public ModulePass {
-
 		static char ID;
 
 		Instrument(): ModulePass(&ID) {}
@@ -17,6 +15,7 @@ namespace slicer {
 	private:
 		void setup(Module &M);
 		static bool blocks(Instruction *ins);
+		bool should_instrument(Instruction *ins) const;
 
 		const Type *uint_type, *bool_type;
 		Function *init_trace, *trace_inst, *pth_create_wrapper;

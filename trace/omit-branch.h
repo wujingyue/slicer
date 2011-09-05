@@ -15,9 +15,7 @@ using namespace llvm;
 using namespace std;
 
 namespace slicer {
-
 	struct OmitBranch: public ModulePass {
-
 		static char ID;
 
 		OmitBranch(): ModulePass(&ID) {}
@@ -25,7 +23,7 @@ namespace slicer {
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual bool runOnModule(Module &M);
 		virtual void print(raw_ostream &O, const Module *M) const;
-		bool omit(BranchInst *branch);
+		bool omit(TerminatorInst *ti);
 
 	private:
 		void dfs(BasicBlock *x, BasicBlock *sink);

@@ -11,12 +11,12 @@
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/CommandLine.h"
-#include "common/callgraph-fp/callgraph-fp.h"
-#include "common/cfg/icfg.h"
-#include "common/cfg/intra-reach.h"
-#include "common/cfg/exec-once.h"
-#include "common/cfg/partial-icfg-builder.h"
-#include "common/cfg/reach.h"
+#include "common/callgraph-fp.h"
+#include "common/icfg.h"
+#include "common/intra-reach.h"
+#include "common/exec-once.h"
+#include "common/partial-icfg-builder.h"
+#include "common/reach.h"
 using namespace llvm;
 
 #include "bc2bdd/BddAliasAnalysis.h"

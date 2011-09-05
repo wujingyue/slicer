@@ -2,7 +2,7 @@
 #define __SLICER_LANDMARK_TRACE_BUILDER_H
 
 #include "llvm/Pass.h"
-#include "common/include/util.h"
+#include "common/util.h"
 using namespace llvm;
 
 #include <vector>

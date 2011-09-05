@@ -11,8 +11,8 @@
  * BddAliasAnalysis each time we get a query. 
  */
 
-#include "common/cfg/exec-once.h"
-#include "common/include/util.h"
+#include "common/exec-once.h"
+#include "common/util.h"
 using namespace llvm;
 
 #include "bc2bdd/BddAliasAnalysis.h"
@@ -21,11 +21,9 @@ using namespace repair;
 #include "must-alias.h"
 using namespace slicer;
 
-static RegisterPass<MustAlias> X(
-		"must-alias",
+static RegisterPass<MustAlias> X("must-alias",
 		"Must-aliasing",
-		false,
-		true);
+		false, true);
 
 char MustAlias::ID = 0;
 

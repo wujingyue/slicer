@@ -17,8 +17,8 @@ using namespace std;
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Debug.h"
-#include "common/include/util.h"
-#include "common/cfg/exec-once.h"
+#include "common/util.h"
+#include "common/exec-once.h"
 using namespace llvm;
 
 #include "int/iterate.h"

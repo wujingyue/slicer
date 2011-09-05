@@ -2,7 +2,7 @@
  * Author: Jingyue
  */
 
-#include "common/include/util.h"
+#include "common/util.h"
 using namespace llvm;
 
 #include "capture.h"

@@ -9,9 +9,9 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
-#include "common/callgraph-fp/callgraph-fp.h"
-#include "common/cfg/may-exec.h"
-#include "common/id-manager/IDManager.h"
+#include "common/callgraph-fp.h"
+#include "common/may-exec.h"
+#include "common/IDManager.h"
 using namespace llvm;
 
 #include <iostream>
@@ -327,9 +327,14 @@ void MaxSlicing::build_cfg_of_trunk(Instruction *start, Instruction *end,
 	// Put a tombstone. 
 	end_call_stack.push_back(NULL);
 	dfs(start, end, visited_nodes, visited_edges, call_stack, end_call_stack);
+#if 0
+	errs() << "Starting call stack:\n";
+	print_call_stack(errs(), call_stack);
+#endif
 	call_stack = end_call_stack;
 	// NOTE: Be careful. <call_stack> already gets changed. 
-	if (!visited_nodes.count(end)) {
+	if (!visited_nodes.count(end) ||
+			(!end_call_stack.empty() && end_call_stack.front() == NULL)) {
 		IDManager &IDM = getAnalysis<IDManager>();
 		errs() << "=== Cannot reach from <start> to <end> ===\n";
 		errs() << IDM.getInstructionID(start) << ":" << *start << "\n";

@@ -8,8 +8,8 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Support/CommandLine.h"
-#include "common/cfg/identify-thread-funcs.h"
-#include "common/include/util.h"
+#include "common/identify-thread-funcs.h"
+#include "common/util.h"
 using namespace llvm;
 
 namespace slicer {

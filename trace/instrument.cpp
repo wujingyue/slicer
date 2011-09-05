@@ -6,8 +6,8 @@
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Support/CallSite.h"
 #include "llvm/Support/CommandLine.h"
-#include "common/id-manager/IDManager.h"
-#include "common/include/util.h"
+#include "common/IDManager.h"
+#include "common/util.h"
 using namespace llvm;
 
 #include "trace.h"
@@ -18,6 +18,9 @@ using namespace slicer;
 static RegisterPass<slicer::Instrument> X("instrument",
 		"Instrument the program so that it will generate a trace"
 		" when being executed");
+
+static cl::opt<bool> InstrumentEachBB("instrument-each-bb",
+		cl::desc("Instrument each BB so that we can get an almost full trace"));
 
 static cl::opt<bool> MultiProcessed("multi-processed",
 		cl::desc("Whether the program is multi-processed"));
@@ -67,19 +70,31 @@ bool Instrument::blocks(Instruction *ins) {
 	return false;
 }
 
-bool Instrument::runOnModule(Module &M) {
-
-	IDManager &IDM = getAnalysis<IDManager>();
+bool Instrument::should_instrument(Instruction *ins) const {
 	MarkLandmarks &ML = getAnalysis<MarkLandmarks>();
+
+	// Instruments landmarks (including derived ones).
+	if (ML.is_landmark(ins))
+		return true;
+
+	// Instrument each BB if the flag is set. 
+	if (InstrumentEachBB && ins == ins->getParent()->getFirstNonPHI())
+		return true;
+
+	return false;
+}
+
+bool Instrument::runOnModule(Module &M) {
+	IDManager &IDM = getAnalysis<IDManager>();
 
 	setup(M);
 	
 	// Insert <trace_inst> for each instruction. 
 	forallbb(M, bi) {
 		for (BasicBlock::iterator ii = bi->begin(); ii != bi->end(); ++ii) {
-			// Instruments landmarks (including derived ones) only. 
-			if (!ML.is_landmark(ii))
+			if (!should_instrument(ii))
 				continue;
+
 			assert(!isa<PHINode>(ii) &&
 					"PHINodes shouldn't be marked as landmarks.");
 			unsigned ins_id = IDM.getInstructionID(ii);
@@ -105,6 +120,7 @@ bool Instrument::runOnModule(Module &M) {
 					}
 				}
 			}
+
 			// Before the instruction if non-blocking. 
 			// After the instruction if blocking. 
 			if (!blocks(ii)) {
@@ -153,11 +169,11 @@ bool Instrument::runOnModule(Module &M) {
 }
 
 void Instrument::setup(Module &M) {
-	
 	// sizeof(unsigned) == 4
 	uint_type = IntegerType::get(M.getContext(), 32);
 	// sizeof(bool) = 1
 	bool_type = IntegerType::get(M.getContext(), 8);
+
 	FunctionType *trace_inst_fty = FunctionType::get(
 			Type::getVoidTy(M.getContext()),
 			vector<const Type *>(1, uint_type), false);
@@ -169,11 +185,7 @@ void Instrument::setup(Module &M) {
 			M.getOrInsertFunction("trace_inst", trace_inst_fty));
 	init_trace = dyn_cast<Function>(
 			M.getOrInsertFunction("init_trace", init_trace_fty));
-	Function *pth_create = M.getFunction("pthread_create");
-	if (!pth_create) {
-		// Not every programs use pthread library. 
-		pth_create_wrapper = NULL;
-	} else {
+	if (Function *pth_create = M.getFunction("pthread_create")) {
 		vector<const Type *> params;
 		// ins_id
 		params.push_back(uint_type);
@@ -187,5 +199,8 @@ void Instrument::setup(Module &M) {
 				pth_create_type->isVarArg());
 		pth_create_wrapper = dyn_cast<Function>(
 				M.getOrInsertFunction("trace_pthread_create", pth_create_wrapper_type));
+	} else {
+		// Not every programs use pthread library. 
+		pth_create_wrapper = NULL;
 	}
 }
