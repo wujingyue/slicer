@@ -1,4 +1,4 @@
-PROG_NAMES = test-thread test-overwrite test-loop test-ctxt-2 \
+PROG_NAMES = test-thread test-overwrite test-loop test-ctxt-2 test-loop-3 \
 	     test-reducer test-recursive test-ret \
 	     test-phi test-bound FFT-like test-dep \
 	     aget-like test-array test-pointer \

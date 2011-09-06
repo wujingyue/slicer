@@ -5,6 +5,7 @@
 #define DEBUG_TYPE "trace"
 
 #include "llvm/Support/CFG.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/ADT/SCCIterator.h"
 #include "llvm/ADT/Statistic.h"
 #include "common/identify-thread-funcs.h"
@@ -22,6 +23,9 @@ static RegisterPass<MarkLandmarks> X("mark-landmarks",
 		"Mark landmarks",
 		false, true); // is analysis
 
+static cl::opt<bool> DisableDerivedLandmarks("disable-derived-landmarks",
+		cl::desc("Don't mark any derived landmarks"));
+
 STATISTIC(NumOmittedBranches, "Number of omitted branches");
 STATISTIC(NumRemainingBranches, "Number of remaining branches");
 
@@ -30,9 +34,11 @@ char MarkLandmarks::ID = 0;
 bool MarkLandmarks::runOnModule(Module &M) {
 	landmarks.clear();
 	mark_enforcing_landmarks(M);
-	mark_branch_succs(M);
 	mark_thread_exits(M);
-	mark_recursive_rets(M);
+	if (!DisableDerivedLandmarks) {
+		mark_branch_succs(M);
+		mark_recursive_rets(M);
+	}
 	return false;
 }
 
@@ -43,9 +49,12 @@ void MarkLandmarks::mark_thread_exits(Module &M) {
 		if (fi->isDeclaration())
 			continue;
 		if (ITF.is_thread_func(fi) || is_main(fi)) {
-			// This should be a pthread_self() call added by the preparer. 
+			// This should be a pthread_self() call added by the preparer at
+			// each thread function entry. 
 			// No harm marking it again. 
 			landmarks.insert(fi->begin()->getFirstNonPHI());
+			// Theoretically, there's a pthread_self() call at each exit, but
+			// real exits are returns or pthread_exit() calls. 
 			forall(Function, bi, *fi) {
 				if (succ_begin(bi) == succ_end(bi))
 					landmarks.insert(bi->getTerminator());
