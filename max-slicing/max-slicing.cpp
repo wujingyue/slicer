@@ -105,7 +105,6 @@ void MaxSlicing::read_trace_and_landmarks() {
 bool MaxSlicing::runOnModule(Module &M) {
 	IDManager &IDM = getAnalysis<IDManager>();
 	Exec &EXE = getAnalysis<Exec>();
-	EnforcingLandmarks &EL = getAnalysis<EnforcingLandmarks>();
 
 	// Make sure the original program has required ID information. 
 	assert(IDM.size() > 0 && "The program does not have ID information.");
@@ -114,7 +113,12 @@ bool MaxSlicing::runOnModule(Module &M) {
 	// Read the trace and the cut. 
 	read_trace_and_landmarks();
 	// Which functions may execute a landmark? 
-	EXE.setup_landmarks(EL.get_enforcing_landmarks());
+	ConstInstSet const_landmarks;
+	for (InstSet::iterator itr = landmarks.begin(); itr != landmarks.end();
+			++itr) {
+		const_landmarks.insert(*itr);
+	}
+	EXE.setup_landmarks(const_landmarks);
 	EXE.run();
 	
 	// Build the control flow graph. 

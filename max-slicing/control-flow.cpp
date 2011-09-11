@@ -11,6 +11,7 @@
 #include "llvm/Transforms/Utils/ValueMapper.h"
 #include "common/callgraph-fp.h"
 #include "common/exec.h"
+#include "common/reach.h"
 #include "common/IDManager.h"
 using namespace llvm;
 
@@ -31,6 +32,55 @@ void MaxSlicing::add_cfg_edge(Instruction *x, Instruction *y) {
 	cfg_r[y].push_back(x);
 }
 
+void MaxSlicing::compute_reachability(Function *f) {
+	Exec &EXE = getAnalysis<Exec>();
+
+	ConstBBSet sink;
+	for (Function::iterator bb = f->begin(); bb != f->end(); ++bb) {
+		if (EXE.must_exec_landmark(bb))
+			sink.insert(bb);
+	}
+
+	Reach<BasicBlock> R;
+	ConstBBSet visited;
+	R.floodfill(f->begin(), sink, visited);
+	for (ConstBBSet::iterator it = visited.begin(); it != visited.end(); ++it) {
+		const BasicBlock *bb = *it;
+		for (BasicBlock::const_iterator ins = bb->begin(); ins != bb->end(); ++ins) {
+			reach_start.insert(ins);
+			// Even if <ins> is a landmark, <ins> can still be in <reach_start>.
+			if (EXE.must_exec_landmark(ins))
+				break;
+		}
+	}
+
+	ConstBBSet srcs;
+	for (Function::iterator bb = f->begin(); bb != f->end(); ++bb) {
+		if (is_ret(bb->getTerminator()))
+			srcs.insert(bb);
+	}
+	visited.clear();
+	R.floodfill_r(srcs, sink, visited);
+
+	for (ConstBBSet::iterator it = visited.begin(); it != visited.end(); ++it) {
+		const BasicBlock *bb = *it;
+		for (BasicBlock::const_iterator ins = bb->end(); ins != bb->begin(); ) {
+			--ins;
+			reach_end.insert(ins);
+			// Even if <ins> is a landmark, <ins> can still be in <reach_end>.
+			if (EXE.must_exec_landmark(ins))
+				break;
+		}
+	}
+}
+
+void MaxSlicing::compute_reachability(Module &M) {
+	for (Module::iterator f = M.begin(); f != M.end(); ++f) {
+		if (!f->isDeclaration())
+			compute_reachability(f);
+	}
+}
+
 void MaxSlicing::build_cfg(Module &M) {
 	dbgs() << "\nBuilding CFG...\n";
 
@@ -41,6 +91,9 @@ void MaxSlicing::build_cfg(Module &M) {
 	clone_map_r.clear();
 	cloned_to_trunk.clear();
 	cloned_to_tid.clear();
+
+	// Compute <reach_start> and <reach_end>.
+	compute_reachability(M);
 
 	forallconst(Trace, it, trace) {
 		// it->first: thread ID

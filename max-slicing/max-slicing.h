@@ -70,6 +70,8 @@ namespace slicer {
 		void link_thr_funcs(Module &M);
 		void link_thr_func(Module &M,
 				int parent_tid, size_t trunk_id, int child_tid);
+		void compute_reachability(Module &M);
+		void compute_reachability(Function *f);
 		void add_cfg_edge(Instruction *x, Instruction *y);
 		/*
 		 * Builds the control flow graph. 
@@ -224,6 +226,14 @@ namespace slicer {
 		CFG invoke_successors;
 		Trace trace; /// The entire landmark trace. 
 		InstSet landmarks; /// All landmarks. 
+		/**
+		 * <reach_start> indicates whether the control flow is able to reach
+		 * this instruction from the entry of its containing function without
+		 * touching any landmark. 
+		 *
+		 * <reach_end> has a similar meaning. 
+		 */
+		ConstInstSet reach_start, reach_end;
 	};
 }
 
