@@ -16,7 +16,7 @@
 #include "llvm/ADT/Statistic.h"
 #include "common/IDManager.h"
 #include "common/callgraph-fp.h"
-#include "common/may-exec.h"
+#include "common/exec.h"
 using namespace llvm;
 
 #include <iostream>
@@ -43,7 +43,7 @@ void MaxSlicing::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<IDManager>();
 	AU.addRequired<MicroBasicBlockBuilder>();
 	AU.addRequired<CallGraphFP>();
-	AU.addRequired<MayExec>();
+	AU.addRequired<Exec>();
 	AU.addRequired<MarkLandmarks>();
 	AU.addRequired<EnforcingLandmarks>();
 	AU.addRequired<LandmarkTrace>();
@@ -104,7 +104,7 @@ void MaxSlicing::read_trace_and_landmarks() {
 
 bool MaxSlicing::runOnModule(Module &M) {
 	IDManager &IDM = getAnalysis<IDManager>();
-	MayExec &ME = getAnalysis<MayExec>();
+	Exec &EXE = getAnalysis<Exec>();
 	EnforcingLandmarks &EL = getAnalysis<EnforcingLandmarks>();
 
 	// Make sure the original program has required ID information. 
@@ -114,8 +114,8 @@ bool MaxSlicing::runOnModule(Module &M) {
 	// Read the trace and the cut. 
 	read_trace_and_landmarks();
 	// Which functions may execute a landmark? 
-	ME.setup_landmarks(EL.get_enforcing_landmarks());
-	ME.run();
+	EXE.setup_landmarks(EL.get_enforcing_landmarks());
+	EXE.run();
 	
 	// Build the control flow graph. 
 	// Output to <cfg>. 

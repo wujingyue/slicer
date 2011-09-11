@@ -10,7 +10,7 @@ using namespace std;
 #include "llvm/Module.h"
 #include "llvm/Analysis/PostDominators.h"
 #include "common/callgraph-fp.h"
-#include "common/may-exec.h"
+#include "common/exec.h"
 using namespace llvm;
 
 #include "omit-branch.h"
@@ -27,17 +27,17 @@ char OmitBranch::ID = 0;
 void OmitBranch::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
 	AU.addRequiredTransitive<CallGraphFP>();
-	AU.addRequiredTransitive<MayExec>();
+	AU.addRequiredTransitive<Exec>();
 	AU.addRequired<EnforcingLandmarks>();
 	AU.addRequiredTransitive<PostDominatorTree>();
 	ModulePass::getAnalysisUsage(AU);
 }
 
 bool OmitBranch::runOnModule(Module &M) {
-	MayExec &ME = getAnalysis<MayExec>();
+	Exec &EXE = getAnalysis<Exec>();
 	EnforcingLandmarks &EL = getAnalysis<EnforcingLandmarks>();
-	ME.setup_landmarks(EL.get_enforcing_landmarks());
-	ME.run();
+	EXE.setup_landmarks(EL.get_enforcing_landmarks());
+	EXE.run();
 	return false;
 }
 
@@ -127,15 +127,15 @@ bool OmitBranch::omit(TerminatorInst *ti) {
 	for (Function::iterator bi = f->begin(); bi != f->end(); ++bi) {
 		if (!visited[bi])
 			continue;
-		MayExec &ME = getAnalysis<MayExec>();
+		Exec &EXE = getAnalysis<Exec>();
 		for (BasicBlock::iterator ii = bi->begin(); ii != bi->end(); ++ii) {
-			if (ME.is_landmark(ii))
+			if (EXE.is_landmark(ii))
 				return false;
 			if (is_call(ii) && !is_intrinsic_call(ii)) {
 				CallGraphFP &CG = getAnalysis<CallGraphFP>();
 				const FuncList &called_funcs = CG.get_called_functions(ii);
 				for (size_t i = 0; i < called_funcs.size(); ++i) {
-					if (ME.may_exec_landmark(called_funcs[i]))
+					if (EXE.may_exec_landmark(called_funcs[i]))
 						return false;
 				}
 			}

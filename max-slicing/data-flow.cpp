@@ -18,7 +18,7 @@ using namespace std;
 #include "llvm/Transforms/Utils/SSAUpdater.h"
 #include "common/callgraph-fp.h"
 #include "common/IDManager.h"
-#include "common/may-exec.h"
+#include "common/exec.h"
 using namespace llvm;
 
 #include "trace/landmark-trace.h"

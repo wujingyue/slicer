@@ -9,7 +9,7 @@
 #include "llvm/ADT/SCCIterator.h"
 #include "llvm/ADT/Statistic.h"
 #include "common/identify-thread-funcs.h"
-#include "common/may-exec.h"
+#include "common/exec.h"
 #include "common/callgraph-fp.h"
 #include "common/IDManager.h"
 using namespace llvm;
@@ -65,18 +65,18 @@ void MarkLandmarks::mark_thread_exits(Module &M) {
 
 void MarkLandmarks::mark_recursive_rets(Module &M) {
 	EnforcingLandmarks &EL = getAnalysis<EnforcingLandmarks>();
-	MayExec &ME = getAnalysis<MayExec>();
+	Exec &EXE = getAnalysis<Exec>();
 	CallGraph &CG = getAnalysis<CallGraphFP>();
 
-	ME.setup_landmarks(EL.get_enforcing_landmarks());
-	ME.run();
+	EXE.setup_landmarks(EL.get_enforcing_landmarks());
+	EXE.run();
 
 	for (scc_iterator<CallGraph *> si = scc_begin(&CG), E = scc_end(&CG);
 			si != E; ++si) {
 		if (si.hasLoop()) {
 			for (size_t i = 0; i < (*si).size(); ++i) {
 				Function *f = (*si)[i]->getFunction();
-				if (f && ME.may_exec_landmark(f))
+				if (f && EXE.may_exec_landmark(f))
 					mark_rets(f);
 			}
 		}
@@ -121,7 +121,7 @@ void MarkLandmarks::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<EnforcingLandmarks>();
 	AU.addRequired<OmitBranch>();
 	AU.addRequired<IdentifyThreadFuncs>();
-	AU.addRequired<MayExec>();
+	AU.addRequired<Exec>();
 	AU.addRequired<CallGraphFP>();
 	ModulePass::getAnalysisUsage(AU);
 }

@@ -10,7 +10,7 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
 #include "common/callgraph-fp.h"
-#include "common/may-exec.h"
+#include "common/exec.h"
 #include "common/IDManager.h"
 using namespace llvm;
 
@@ -223,13 +223,13 @@ MaxSlicing::EdgeType MaxSlicing::get_edge_type(Instruction *x, Instruction *y) {
 	y = clone_map_r.lookup(y);
 	assert(y && "<y> must be in the cloned CFG");
 
-	MayExec &ME = getAnalysis<MayExec>();
+	Exec &EXE = getAnalysis<Exec>();
 	if (is_call(x)) {
 		// is_call(x) does not necessarily mean x => y is a call edge. 
 		// It may also be the case that the callee is not sliced and <y> is just
 		// a successor of the CallInst. 
 		Function *fy = y->getParent()->getParent();
-		if (y == fy->begin()->begin() && ME.may_exec_landmark(fy))
+		if (y == fy->begin()->begin() && EXE.may_exec_landmark(fy))
 			return EDGE_CALL;
 	}
 	if (is_ret(x))
@@ -458,10 +458,10 @@ void MaxSlicing::dfs(Instruction *x, Instruction *end,
 	if (is_call(x) && !is_pthread_create(x)) {
 		bool may_exec_landmark = false;
 		CallGraphFP &CG = getAnalysis<CallGraphFP>();
-		MayExec &ME = getAnalysis<MayExec>();
+		Exec &EXE = getAnalysis<Exec>();
 		const FuncList &callees = CG.get_called_functions(x);
 		for (size_t j = 0, E = callees.size(); j < E; ++j) {
-			if (ME.may_exec_landmark(callees[j]))
+			if (EXE.may_exec_landmark(callees[j]))
 				may_exec_landmark = true;
 		}
 		// If no callees may execute landmarks, we don't dive into the callee. 
