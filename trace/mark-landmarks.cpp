@@ -68,7 +68,13 @@ void MarkLandmarks::mark_recursive_rets(Module &M) {
 	Exec &EXE = getAnalysis<Exec>();
 	CallGraph &CG = getAnalysis<CallGraphFP>();
 
-	EXE.setup_landmarks(EL.get_enforcing_landmarks());
+	InstSet landmarks = EL.get_enforcing_landmarks();
+	ConstInstSet const_landmarks;
+	for (InstSet::iterator itr = landmarks.begin(); itr != landmarks.end();
+			++itr) {
+		const_landmarks.insert(*itr);
+	}
+	EXE.setup_landmarks(const_landmarks);
 	EXE.run();
 
 	for (scc_iterator<CallGraph *> si = scc_begin(&CG), E = scc_end(&CG);

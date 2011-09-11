@@ -36,8 +36,16 @@ void OmitBranch::getAnalysisUsage(AnalysisUsage &AU) const {
 bool OmitBranch::runOnModule(Module &M) {
 	Exec &EXE = getAnalysis<Exec>();
 	EnforcingLandmarks &EL = getAnalysis<EnforcingLandmarks>();
-	EXE.setup_landmarks(EL.get_enforcing_landmarks());
+
+	InstSet landmarks = EL.get_enforcing_landmarks();
+	ConstInstSet const_landmarks;
+	for (InstSet::iterator itr = landmarks.begin(); itr != landmarks.end();
+			++itr) {
+		const_landmarks.insert(*itr);
+	}
+	EXE.setup_landmarks(const_landmarks);
 	EXE.run();
+
 	return false;
 }
 
