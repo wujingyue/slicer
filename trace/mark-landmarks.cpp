@@ -16,7 +16,6 @@ using namespace llvm;
 
 #include "enforcing-landmarks.h"
 #include "mark-landmarks.h"
-#include "omit-branch.h"
 using namespace slicer;
 
 static RegisterPass<MarkLandmarks> X("mark-landmarks",
@@ -47,9 +46,8 @@ bool MarkLandmarks::runOnModule(Module &M) {
 	mark_enforcing_landmarks(M);
 	mark_thread_exits(M);
 	if (!DisableDerivedLandmarks) {
-		// mark_branch_succs(M);
-		mark_recursive_rets(M);
-		mark_enforcing_functions(M);
+		mark_enforcing_recursive_returns(M);
+		mark_enforcing_calls(M);
 	}
 
 	NumEnforcingLandmarks = enf_landmarks.size();
@@ -58,24 +56,14 @@ bool MarkLandmarks::runOnModule(Module &M) {
 	return false;
 }
 
-void MarkLandmarks::mark_enforcing_functions(Module &M) {
+void MarkLandmarks::mark_enforcing_calls(Module &M) {
 	Exec &EXE = getAnalysis<Exec>();
 
 	for (Module::iterator f = M.begin(); f != M.end(); ++f) {
 		for (Function::iterator bb = f->begin(); bb != f->end(); ++bb) {
 			for (BasicBlock::iterator ins = bb->begin(); ins != bb->end(); ++ins) {
-				if (is_call(ins) && EXE.may_exec_landmark(ins)) {
+				if (is_call(ins) && EXE.may_exec_landmark(ins))
 					landmarks.insert(ins);
-					if (isa<CallInst>(ins)) {
-						BasicBlock::iterator next = ins; ++next;
-						landmarks.insert(next);
-					} else {
-						assert(isa<InvokeInst>(ins));
-						InvokeInst *ii = cast<InvokeInst>(ins);
-						// FIXME: Assume we never goes to the exception block. 
-						landmarks.insert(ii->getNormalDest()->begin());
-					}
-				}
 			}
 		}
 	}
@@ -102,39 +90,53 @@ void MarkLandmarks::mark_thread_exits(Module &M) {
 	}
 }
 
-void MarkLandmarks::mark_recursive_entries(Module &M) {
-	CallGraph &CG = getAnalysis<CallGraphFP>();
+void MarkLandmarks::mark_enforcing_recursive_returns(Module &M) {
+	CallGraph &raw_CG = getAnalysis<CallGraphFP>();
+	CallGraphFP &CG = getAnalysis<CallGraphFP>();
 	Exec &EXE = getAnalysis<Exec>();
 
-	for (scc_iterator<CallGraph *> si = scc_begin(&CG), E = scc_end(&CG);
-			si != E; ++si) {
-		if (si.hasLoop()) {
-			for (size_t i = 0; i < (*si).size(); ++i) {
-				Function *f = (*si)[i]->getFunction();
-				if (f && !f->isDeclaration() && EXE.may_exec_landmark(f))
-					landmarks.insert(f->begin()->begin());
-			}
-		}
-	}
-}
-
-void MarkLandmarks::mark_recursive_rets(Module &M) {
-	CallGraph &CG = getAnalysis<CallGraphFP>();
-	Exec &EXE = getAnalysis<Exec>();
-
-	for (scc_iterator<CallGraph *> si = scc_begin(&CG), E = scc_end(&CG);
+	FuncSet enf_recursive_funcs;
+	for (scc_iterator<CallGraph *> si = scc_begin(&raw_CG), E = scc_end(&raw_CG);
 			si != E; ++si) {
 		if (si.hasLoop()) {
 			for (size_t i = 0; i < (*si).size(); ++i) {
 				Function *f = (*si)[i]->getFunction();
 				if (f && EXE.may_exec_landmark(f))
-					mark_rets(f);
+					enf_recursive_funcs.insert(f);
+			}
+		}
+	}
+
+	for (Module::iterator f = M.begin(); f != M.end(); ++f) {
+		for (Function::iterator bb = f->begin(); bb != f->end(); ++bb) {
+			for (BasicBlock::iterator ins = bb->begin(); ins != bb->end(); ++ins) {
+				if (is_call(ins)) {
+					bool calls_enf_recursive_funcs = false;
+					FuncList callees = CG.get_called_functions(ins);
+					for (size_t i = 0; i < callees.size(); ++i) {
+						if (enf_recursive_funcs.count(callees[i])) {
+							calls_enf_recursive_funcs = true;
+							break;
+						}
+					}
+					if (calls_enf_recursive_funcs) {
+						if (isa<CallInst>(ins)) {
+							BasicBlock::iterator next = ins; ++next;
+							landmarks.insert(next);
+						} else {
+							assert(isa<InvokeInst>(ins));
+							InvokeInst *ii = cast<InvokeInst>(ins);
+							// FIXME: Assume we never goes to the exception block. 
+							landmarks.insert(ii->getNormalDest()->begin());
+						}
+					}
+				}
 			}
 		}
 	}
 }
 
-void MarkLandmarks::mark_rets(Function *f) {
+void MarkLandmarks::mark_returns(Function *f) {
 	forall(Function, bb, *f) {
 		TerminatorInst *ti = bb->getTerminator();
 		if (is_ret(ti))
@@ -148,26 +150,10 @@ void MarkLandmarks::mark_enforcing_landmarks(Module &M) {
 	landmarks.insert(enforcing_landmarks.begin(), enforcing_landmarks.end());
 }
 
-void MarkLandmarks::mark_branch_succs(Module &M) {
-	OmitBranch &OB = getAnalysis<OmitBranch>();
-	forallbb(M, bb) {
-		TerminatorInst *ti = bb->getTerminator();
-		if (ti->getNumSuccessors() >= 2) {
-			if (!OB.omit(ti)) {
-				for (unsigned i = 0; i < ti->getNumSuccessors(); ++i) {
-					BasicBlock *succ = ti->getSuccessor(i);
-					landmarks.insert(succ->getFirstNonPHI());
-				}
-			}
-		}
-	}
-}
-
 void MarkLandmarks::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
 	AU.addRequiredTransitive<IDManager>();
 	AU.addRequired<EnforcingLandmarks>();
-	AU.addRequired<OmitBranch>();
 	AU.addRequired<IdentifyThreadFuncs>();
 	AU.addRequired<Exec>();
 	AU.addRequired<CallGraphFP>();

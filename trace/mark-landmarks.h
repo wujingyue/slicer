@@ -25,9 +25,10 @@ namespace slicer {
 		const InstSet &get_landmarks() const;
 
 	private:
+		/**
+		 * Mark enforcing landmarks as landmarks. 
+		 */
 		void mark_enforcing_landmarks(Module &M);
-		// Mark the successors of each important branch. 
-		void mark_branch_succs(Module &M);
 		/**
 		 * Mark exits of thread functions as derived landmarks. 
 		 * The preparer has already inserted enforcing landmarks at
@@ -36,21 +37,18 @@ namespace slicer {
 		 */
 		void mark_thread_exits(Module &M);
 		/**
-		 * Mark the return sites of recursive functions that may execute
+		 * Mark all return sites of recursive functions that may execute
 		 * enforcing landmarks. 
 		 */
-		void mark_recursive_rets(Module &M);
-		void mark_recursive_entries(Module &M);
+		void mark_enforcing_recursive_returns(Module &M);
 		/**
-		 * Mark the entries and exits of all functions that
-		 * may execute enforcing landmarks.
+		 * Mark all calls to functions that may execute enforcing landmarks. 
 		 */
-		void mark_enforcing_functions(Module &M);
+		void mark_enforcing_calls(Module &M);
 		/**
-		 * Used by mark_recursive_rets.
 		 * Mark the return sits of function <f> as derived landmarks. 
 		 */
-		void mark_rets(Function *f);
+		void mark_returns(Function *f);
 
 		InstSet landmarks;
 	};
