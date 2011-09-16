@@ -378,9 +378,8 @@ void MaxSlicing::build_cfg_of_trunk(Instruction *start, Instruction *end,
 	// visited in the trunk. 
 	InstSet visited_nodes; visited_nodes.insert(start);
 	EdgeSet visited_edges;
-	InstList end_call_stack;
-	// Put a tombstone. 
-	end_call_stack.push_back(NULL);
+	// Initialize as a tombstone. 
+	InstList end_call_stack(1, NULL);
 	dfs(start, end, visited_nodes, visited_edges, call_stack, end_call_stack);
 #if 0
 	errs() << "Starting call stack:\n";
@@ -511,6 +510,7 @@ void MaxSlicing::dfs(Instruction *x, Instruction *end,
 	// We are performing intra-thread analysis now. 
 	// Don't go to the thread function. 
 	if (is_call(x) && !is_pthread_create(x)) {
+		// TODO: To simplify
 		bool may_exec_landmark = false;
 		CallGraphFP &CG = getAnalysis<CallGraphFP>();
 		Exec &EXE = getAnalysis<Exec>();
@@ -593,6 +593,9 @@ void MaxSlicing::move_on(Instruction *x, Instruction *y, Instruction *end,
 	// Don't put it in the "if (!visited_nodes.count(y))". 
 	// <y> might be visited as the starting point. 
 	if (y == end) {
+		// end_call_stack is a tombstone or end_call_stack equals call_stack. 
+		assert((end_call_stack.size() == 1 && end_call_stack[0] == NULL) ||
+				call_stack == end_call_stack);
 		end_call_stack.clear();
 		end_call_stack.insert(end_call_stack.end(),
 				call_stack.begin(), call_stack.end());

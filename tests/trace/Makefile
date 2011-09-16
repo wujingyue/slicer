@@ -123,7 +123,7 @@ test-loop-3.ft: test-loop-3.trace
 	mv /tmp/fulltrace $@
 
 test-ctxt-3.ft: test-ctxt-3.trace
-	./$< 1
+	./$< 0
 	mv /tmp/fulltrace $@
 
 # Most programs don't need any special command line. 
