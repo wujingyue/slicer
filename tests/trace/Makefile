@@ -2,7 +2,7 @@
 
 PROG_NAMES = test-thread test-overwrite test-loop test-loop-2 test-ctxt-2 \
 	     test-reducer test-pointer test-range-2 test-loop-3 \
-	     test-recursive test-bound FFT-like test-ctxt-3 \
+	     test-recursive test-bound FFT-like test-ctxt-3 test-loop-4 \
 	     aget-like test-array test-dep \
 	     test-overwrite-2 RADIX-like test-thread-2 \
 	     test-malloc test-ctxt test-range test-range-3 test-range-4 \
@@ -132,7 +132,7 @@ test-ctxt-3.ft: test-ctxt-3.trace
 	mv /tmp/fulltrace $@
 
 %.lt: %.ft
-	opt -disable-output \
+	opt -stats -disable-output \
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \

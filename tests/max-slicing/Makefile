@@ -1,6 +1,6 @@
 PROG_NAMES = test-loop test-reducer test-thread test-loop-2 test-ctxt-2 \
 	     test-overwrite test-recursive test-dep test-loop-3 \
-	     test-bound FFT-like aget-like test-ctxt-3 \
+	     test-bound FFT-like aget-like test-ctxt-3 test-loop-4 \
 	     test-array test-pointer test-range-2 \
 	     test-overwrite-2 RADIX-like test-thread-2 \
 	     test-malloc test-ctxt test-range \
