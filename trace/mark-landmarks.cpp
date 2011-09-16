@@ -26,8 +26,6 @@ static RegisterPass<MarkLandmarks> X("mark-landmarks",
 static cl::opt<bool> DisableDerivedLandmarks("disable-derived-landmarks",
 		cl::desc("Don't mark any derived landmarks"));
 
-STATISTIC(NumOmittedBranches, "Number of omitted branches");
-STATISTIC(NumRemainingBranches, "Number of remaining branches");
 STATISTIC(NumEnforcingLandmarks, "Number of enforcing landmarks");
 STATISTIC(NumDerivedLandmarks, "Number of derived landmarks");
 
@@ -155,10 +153,7 @@ void MarkLandmarks::mark_branch_succs(Module &M) {
 	forallbb(M, bb) {
 		TerminatorInst *ti = bb->getTerminator();
 		if (ti->getNumSuccessors() >= 2) {
-			if (OB.omit(ti)) {
-				++NumOmittedBranches;
-			} else {
-				++NumRemainingBranches;
+			if (!OB.omit(ti)) {
 				for (unsigned i = 0; i < ti->getNumSuccessors(); ++i) {
 					BasicBlock *succ = ti->getSuccessor(i);
 					landmarks.insert(succ->getFirstNonPHI());

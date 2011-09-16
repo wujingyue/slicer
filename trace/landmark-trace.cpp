@@ -1,21 +1,28 @@
+/**
+ * Author: Jingyue
+ */
+
+#define DEBUG_TYPE "trace"
+
+#include <fstream>
+using namespace std;
+
 #include "llvm/Support/CommandLine.h"
+#include "llvm/ADT/Statistic.h"
 using namespace llvm;
 
 #include "landmark-trace.h"
 using namespace slicer;
 
-#include <fstream>
-using namespace std;
-
-static RegisterPass<LandmarkTrace> X(
-		"manage-landmark-trace",
+static RegisterPass<LandmarkTrace> X("manage-landmark-trace",
 		"Reads from the landmark trace file, and manages it",
-		false,
-		true); // is analysis
-static cl::opt<string> LandmarkTraceFile(
-		"input-landmark-trace",
+		false, true); // is analysis
+static cl::opt<string> LandmarkTraceFile("input-landmark-trace",
 		cl::desc("The input landmark trace file"),
 		cl::init(""));
+
+STATISTIC(NumEnforcingEvents, "Number of enforcing events");
+STATISTIC(NumDerivedEvents, "Number of derived events");
 
 char LandmarkTrace::ID = 0;
 
@@ -40,6 +47,10 @@ bool LandmarkTrace::runOnModule(Module &M) {
 	LandmarkTraceRecord record;
 	while (fin.read((char *)&record, sizeof record)) {
 		thread_trunks[record.tid].push_back(record);
+		if (record.enforcing)
+			++NumEnforcingEvents;
+		else
+			++NumDerivedEvents;
 	}
 
 	return false;

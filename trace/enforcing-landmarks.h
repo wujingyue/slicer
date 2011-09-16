@@ -6,21 +6,15 @@
 using namespace llvm;
 
 namespace slicer {
-
 	struct EnforcingLandmarks: public ModulePass {
-
 		static char ID;
 
 		EnforcingLandmarks(): ModulePass(&ID) {}
 		virtual bool runOnModule(Module &M);
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 
-		bool is_enforcing_landmark(Instruction *ins) const {
-			return enforcing_landmarks.count(ins);
-		}
-		const InstSet &get_enforcing_landmarks() const {
-			return enforcing_landmarks;
-		}
+		bool is_enforcing_landmark(const Instruction *ins) const;
+		const InstSet &get_enforcing_landmarks() const;
 
 	private:
 		InstSet enforcing_landmarks;

@@ -71,8 +71,15 @@ void EnforcingLandmarks::getAnalysisUsage(AnalysisUsage &AU) const {
 	ModulePass::getAnalysisUsage(AU);
 }
 
-bool EnforcingLandmarks::runOnModule(Module &M) {
+bool EnforcingLandmarks::is_enforcing_landmark(const Instruction *ins) const {
+	return enforcing_landmarks.count(const_cast<Instruction *>(ins));
+}
 
+const InstSet &EnforcingLandmarks::get_enforcing_landmarks() const {
+	return enforcing_landmarks;
+}
+
+bool EnforcingLandmarks::runOnModule(Module &M) {
 	set<string> enforcing_landmark_funcs;
 	if (EnforcingLandmarksFile == "") {
 		size_t len = sizeof(DEFAULT_ENFORCING_LANDMARK_FUNCS) / sizeof(char *);
