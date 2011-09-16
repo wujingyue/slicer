@@ -92,8 +92,10 @@ void MaxSlicing::build_cfg(Module &M) {
 	cloned_to_trunk.clear();
 	cloned_to_tid.clear();
 
+#if 0
 	// Compute <reach_start> and <reach_end>.
 	compute_reachability(M);
+#endif
 
 	forallconst(Trace, it, trace) {
 		// it->first: thread ID

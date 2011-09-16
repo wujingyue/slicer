@@ -10,14 +10,11 @@ using namespace std;
 #include "trace-manager.h"
 using namespace slicer;
 
-static RegisterPass<TraceManager> X(
-		"trace-manager",
+static RegisterPass<TraceManager> X("trace-manager",
 		"Trace manager",
-		false,
-		true);
+		false, true);
 
-static cl::opt<string> FullTraceFile(
-		"fulltrace",
+static cl::opt<string> FullTraceFile("fulltrace",
 		cl::desc("The full trace"));
 
 char TraceManager::ID = 0;

@@ -1,6 +1,6 @@
 PROG_NAMES = test-loop test-reducer test-thread test-loop-2 test-ctxt-2 \
 	     test-overwrite test-recursive test-dep test-loop-3 \
-	     test-bound FFT-like aget-like \
+	     test-bound FFT-like aget-like test-ctxt-3 \
 	     test-array test-pointer test-range-2 \
 	     test-overwrite-2 RADIX-like test-thread-2 \
 	     test-malloc test-ctxt test-range \
@@ -22,23 +22,11 @@ $(PROGS_DIR)/%.slice.bc: $(PROGS_DIR)/%.id.bc ../trace/%.lt
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/libmbb.so \
 		-load $(LLVM_ROOT)/install/lib/libcfg.so \
 		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
 		-load $(LLVM_ROOT)/install/lib/libmax-slicing.so \
 		-max-slicing \
-		-input-landmark-trace $(word 2, $^) \
-		< $<
-
-$(PROGS_DIR)/test-loop-3.slice.bc: $(PROGS_DIR)/test-loop-3.id.bc ../trace/test-loop-3.lt
-	opt -stats -o $@ \
-		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
-		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
-		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
-		-load $(LLVM_ROOT)/install/lib/libcfg.so \
-		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
-		-load $(LLVM_ROOT)/install/lib/libmax-slicing.so \
-		-max-slicing \
-		-disable-derived-landmarks \
 		-input-landmark-trace $(word 2, $^) \
 		< $<
 
@@ -48,6 +36,7 @@ $(PROGS_DIR)/test-loop-3.slice.bc: $(PROGS_DIR)/test-loop-3.id.bc ../trace/test-
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/libmbb.so \
 		-load $(LLVM_ROOT)/install/lib/libcfg.so \
 		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
 		-load $(LLVM_ROOT)/install/lib/libmax-slicing.so \

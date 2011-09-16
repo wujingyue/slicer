@@ -32,14 +32,49 @@ STATISTIC(NumRemainingBranches, "Number of remaining branches");
 char MarkLandmarks::ID = 0;
 
 bool MarkLandmarks::runOnModule(Module &M) {
+	EnforcingLandmarks &EL = getAnalysis<EnforcingLandmarks>();
+	Exec &EXE = getAnalysis<Exec>();
+	InstSet landmarks = EL.get_enforcing_landmarks();
+	ConstInstSet const_landmarks;
+	for (InstSet::iterator itr = landmarks.begin(); itr != landmarks.end();
+			++itr) {
+		const_landmarks.insert(*itr);
+	}
+	EXE.setup_landmarks(const_landmarks);
+	EXE.run();
+
 	landmarks.clear();
 	mark_enforcing_landmarks(M);
 	mark_thread_exits(M);
 	if (!DisableDerivedLandmarks) {
-		mark_branch_succs(M);
+		// mark_branch_succs(M);
 		mark_recursive_rets(M);
+		mark_enforcing_functions(M);
 	}
 	return false;
+}
+
+void MarkLandmarks::mark_enforcing_functions(Module &M) {
+	Exec &EXE = getAnalysis<Exec>();
+
+	for (Module::iterator f = M.begin(); f != M.end(); ++f) {
+		for (Function::iterator bb = f->begin(); bb != f->end(); ++bb) {
+			for (BasicBlock::iterator ins = bb->begin(); ins != bb->end(); ++ins) {
+				if (is_call(ins) && EXE.may_exec_landmark(ins)) {
+					landmarks.insert(ins);
+					if (isa<CallInst>(ins)) {
+						BasicBlock::iterator next = ins; ++next;
+						landmarks.insert(next);
+					} else {
+						assert(isa<InvokeInst>(ins));
+						InvokeInst *ii = cast<InvokeInst>(ins);
+						// FIXME: Assume we never goes to the exception block. 
+						landmarks.insert(ii->getNormalDest()->begin());
+					}
+				}
+			}
+		}
+	}
 }
 
 void MarkLandmarks::mark_thread_exits(Module &M) {
@@ -63,19 +98,25 @@ void MarkLandmarks::mark_thread_exits(Module &M) {
 	}
 }
 
-void MarkLandmarks::mark_recursive_rets(Module &M) {
-	EnforcingLandmarks &EL = getAnalysis<EnforcingLandmarks>();
-	Exec &EXE = getAnalysis<Exec>();
+void MarkLandmarks::mark_recursive_entries(Module &M) {
 	CallGraph &CG = getAnalysis<CallGraphFP>();
+	Exec &EXE = getAnalysis<Exec>();
 
-	InstSet landmarks = EL.get_enforcing_landmarks();
-	ConstInstSet const_landmarks;
-	for (InstSet::iterator itr = landmarks.begin(); itr != landmarks.end();
-			++itr) {
-		const_landmarks.insert(*itr);
+	for (scc_iterator<CallGraph *> si = scc_begin(&CG), E = scc_end(&CG);
+			si != E; ++si) {
+		if (si.hasLoop()) {
+			for (size_t i = 0; i < (*si).size(); ++i) {
+				Function *f = (*si)[i]->getFunction();
+				if (f && !f->isDeclaration() && EXE.may_exec_landmark(f))
+					landmarks.insert(f->begin()->begin());
+			}
+		}
 	}
-	EXE.setup_landmarks(const_landmarks);
-	EXE.run();
+}
+
+void MarkLandmarks::mark_recursive_rets(Module &M) {
+	CallGraph &CG = getAnalysis<CallGraphFP>();
+	Exec &EXE = getAnalysis<Exec>();
 
 	for (scc_iterator<CallGraph *> si = scc_begin(&CG), E = scc_end(&CG);
 			si != E; ++si) {
@@ -134,6 +175,7 @@ void MarkLandmarks::getAnalysisUsage(AnalysisUsage &AU) const {
 
 void MarkLandmarks::print(raw_ostream &O, const Module *M) const {
 	IDManager &IDM = getAnalysis<IDManager>();
+
 	vector<unsigned> all_inst_ids;
 	forallconst(InstSet, it, landmarks) {
 		unsigned ins_id = IDM.getInstructionID(*it);

@@ -7,9 +7,7 @@
 using namespace llvm;
 
 namespace slicer {
-	
 	struct MarkLandmarks: public ModulePass {
-
 		static char ID;
 
 		MarkLandmarks(): ModulePass(&ID) {}
@@ -42,6 +40,12 @@ namespace slicer {
 		 * enforcing landmarks. 
 		 */
 		void mark_recursive_rets(Module &M);
+		void mark_recursive_entries(Module &M);
+		/**
+		 * Mark the entries and exits of all functions that
+		 * may execute enforcing landmarks.
+		 */
+		void mark_enforcing_functions(Module &M);
 		/**
 		 * Used by mark_recursive_rets.
 		 * Mark the return sits of function <f> as derived landmarks. 

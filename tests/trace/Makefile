@@ -2,7 +2,7 @@
 
 PROG_NAMES = test-thread test-overwrite test-loop test-loop-2 test-ctxt-2 \
 	     test-reducer test-pointer test-range-2 test-loop-3 \
-	     test-recursive test-bound FFT-like \
+	     test-recursive test-bound FFT-like test-ctxt-3 \
 	     aget-like test-array test-dep \
 	     test-overwrite-2 RADIX-like test-thread-2 \
 	     test-malloc test-ctxt test-range test-range-3 test-range-4 \
@@ -23,6 +23,7 @@ full-trace: $(FULL_TRACES)
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/libmbb.so \
 		-load $(LLVM_ROOT)/install/lib/libcfg.so \
 		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
 		-instrument \
@@ -121,29 +122,21 @@ test-loop-3.ft: test-loop-3.trace
 	./$< 1 0 1 0 1
 	mv /tmp/fulltrace $@
 
+test-ctxt-3.ft: test-ctxt-3.trace
+	./$< 1
+	mv /tmp/fulltrace $@
+
 # Most programs don't need any special command line. 
 %.ft: %.trace
 	./$<
 	mv /tmp/fulltrace $@
-
-test-loop-3.lt: test-loop-3.ft
-	opt -disable-output \
-		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
-		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
-		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
-		-load $(LLVM_ROOT)/install/lib/libcfg.so \
-		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
-		-build-landmark-trace \
-		-disable-derived-landmarks \
-		-fulltrace $< \
-		-output-landmark-trace $@ \
-		< $(PROGS_DIR)/$(<:.ft=.id.bc)
 
 %.lt: %.ft
 	opt -disable-output \
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/libmbb.so \
 		-load $(LLVM_ROOT)/install/lib/libcfg.so \
 		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
 		-build-landmark-trace \
@@ -156,6 +149,7 @@ test-loop-3.lt: test-loop-3.ft
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/libmbb.so \
 		-load $(LLVM_ROOT)/install/lib/libcfg.so \
 		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
 		-mark-landmarks \
