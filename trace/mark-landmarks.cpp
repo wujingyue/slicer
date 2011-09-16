@@ -28,19 +28,21 @@ static cl::opt<bool> DisableDerivedLandmarks("disable-derived-landmarks",
 
 STATISTIC(NumOmittedBranches, "Number of omitted branches");
 STATISTIC(NumRemainingBranches, "Number of remaining branches");
+STATISTIC(NumEnforcingLandmarks, "Number of enforcing landmarks");
+STATISTIC(NumDerivedLandmarks, "Number of derived landmarks");
 
 char MarkLandmarks::ID = 0;
 
 bool MarkLandmarks::runOnModule(Module &M) {
 	EnforcingLandmarks &EL = getAnalysis<EnforcingLandmarks>();
 	Exec &EXE = getAnalysis<Exec>();
-	InstSet landmarks = EL.get_enforcing_landmarks();
-	ConstInstSet const_landmarks;
-	for (InstSet::iterator itr = landmarks.begin(); itr != landmarks.end();
-			++itr) {
-		const_landmarks.insert(*itr);
+	InstSet enf_landmarks = EL.get_enforcing_landmarks();
+	ConstInstSet const_enf_landmarks;
+	for (InstSet::iterator itr = enf_landmarks.begin();
+			itr != enf_landmarks.end(); ++itr) {
+		const_enf_landmarks.insert(*itr);
 	}
-	EXE.setup_landmarks(const_landmarks);
+	EXE.setup_landmarks(const_enf_landmarks);
 	EXE.run();
 
 	landmarks.clear();
@@ -51,6 +53,10 @@ bool MarkLandmarks::runOnModule(Module &M) {
 		mark_recursive_rets(M);
 		mark_enforcing_functions(M);
 	}
+
+	NumEnforcingLandmarks = enf_landmarks.size();
+	NumDerivedLandmarks = landmarks.size() - enf_landmarks.size();
+
 	return false;
 }
 
