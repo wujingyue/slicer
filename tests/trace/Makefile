@@ -3,7 +3,7 @@
 PROG_NAMES = test-thread test-overwrite test-loop test-loop-2 test-ctxt-2 \
 	     test-reducer test-pointer test-range-2 test-loop-3 \
 	     test-recursive test-bound FFT-like test-ctxt-3 test-loop-4 \
-	     aget-like test-array test-dep \
+	     aget-like test-array test-dep test-ctxt-4 \
 	     test-overwrite-2 RADIX-like test-thread-2 \
 	     test-malloc test-ctxt test-range test-range-3 test-range-4 \
 	     aget FFT RADIX pbzip2 CHOLESKY pfscan
