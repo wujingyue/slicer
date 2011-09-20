@@ -14,6 +14,7 @@ using namespace std;
 #include "llvm/Analysis/Dominators.h"
 #include "common/util.h"
 #include "common/intra-reach.h"
+#include "common/callgraph-fp.h"
 using namespace llvm;
 
 #include "capture.h"
@@ -572,6 +573,7 @@ void SolveConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequiredTransitive<DominatorTree>();
 	AU.addRequiredTransitive<IntraReach>();
 	AU.addRequiredTransitive<CaptureConstraints>();
+	AU.addRequiredTransitive<CallGraphFP>();
 	ModulePass::getAnalysisUsage(AU);
 }
 
@@ -698,13 +700,16 @@ void SolveConstraints::realize(const Instruction *ins, unsigned context) {
 
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 	// TODO: Make it inter-procedural
-	IntraReach &IR = getAnalysis<IntraReach>(*f);
-	LoopInfo &LI = getAnalysis<LoopInfo>(*f);
+	CallGraphFP &CG = getAnalysis<CallGraphFP>();
 
-	// TODO: realize its containing functions. Calling contexts would
+	// Realize its containing functions. Calling contexts would
 	// help a lot with resolving the ambiguity. 
+	InstList call_sites = CG.get_call_sites(f);
+	if (call_sites.size() == 1)
+		realize(call_sites[0], context);
 	
 	// Realize each containing loop. 
+	LoopInfo &LI = getAnalysis<LoopInfo>(*f);
 	Loop *l = LI.getLoopFor(bb);
 	while (l) {
 		vector<Clause *> constraints_from_l;
@@ -742,6 +747,7 @@ void SolveConstraints::realize(const Instruction *ins, unsigned context) {
 	}
 
 	// Realize each dominating BranchInst. 
+	IntraReach &IR = getAnalysis<IntraReach>(*f);
 	BasicBlock *dom = bb;
 	while (dom != &f->getEntryBlock()) {
 		BasicBlock *p = get_idom(dom); assert(p);

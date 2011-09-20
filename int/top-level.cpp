@@ -90,7 +90,6 @@ void CaptureConstraints::capture_top_level(Module &M) {
 }
 
 Clause *CaptureConstraints::get_in_argument(const Argument *formal) {
-	
 	CallGraphFP &CG = getAnalysis<CallGraphFP>();
 	ExecOnce &EO = getAnalysis<ExecOnce>();
 

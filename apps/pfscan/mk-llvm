@@ -1,0 +1,10 @@
+#!/bin/bash
+
+$APPS_DIR/pfscan/mk-llvm $*
+ret=$?
+if [ $ret -ne 0 ]; then
+	exit $ret
+fi
+
+llvm-ld pfscan.bc $KLEE_UCLIBC_ROOT/libc/misc/ftw/ftw.os -b tmp.bc -link-as-library
+mv tmp.bc pfscan.bc
