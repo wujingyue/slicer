@@ -671,7 +671,7 @@ void SolveConstraints::realize(const Expr *e) {
 		realize(e->u, e->context);
 	} else {
 		if (const Instruction *ins = dyn_cast<Instruction>(e->v))
-			realize(ins, e->context);
+			realize(e->callstack, ins, e->context);
 	}
 }
 
@@ -695,11 +695,16 @@ void SolveConstraints::realize(const Use *u, unsigned context) {
 
 void SolveConstraints::realize(const InstList &callstack,
 		const Instruction *ins, unsigned context) {
+	// Realize <ins> itself. 
+	realize(ins, context);
+	// Realize each call instruction. 
 	for (size_t i = 0; i < callstack.size(); ++i)
 		realize(callstack[i], context);
+	// Realize each call edge in the calling context. 
 	for (size_t i = 0; i + 1 < callstack.size(); ++i)
 		realize(callstack[i], callstack[i + 1]->getParent()->getParent(), context);
-	realize(callstack.back(), ins->getParent()->getParent(), context);
+	if (callstack.size() > 0)
+		realize(callstack.back(), ins->getParent()->getParent(), context);
 }
 
 void SolveConstraints::realize(const Instruction *ins, const Function *f,
@@ -906,23 +911,16 @@ void SolveConstraints::print_counterexample() {
 #endif
 }
 
-template bool SolveConstraints::provable(CmpInst::Predicate,
-		const Value *, const Value *);
-template bool SolveConstraints::provable(CmpInst::Predicate,
-		const Value *, const Use *);
-template bool SolveConstraints::provable(CmpInst::Predicate,
-		const Use *, const Value *);
-template bool SolveConstraints::provable(CmpInst::Predicate,
-		const Use *, const Use *);
-
 template <typename T1, typename T2>
 bool SolveConstraints::satisfiable(CmpInst::Predicate p,
-		const T1 *v1, const T2 *v2) {
+		const InstList &c1, const T1 *v1, const InstList &c2, const T2 *v2) {
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 	
 	Expr *e1 = new Expr(v1), *e2 = new Expr(v2);
 	CC.attach_context(e1, 1);
 	CC.attach_context(e2, 2);
+	e1->callstack = c1;
+	e2->callstack = c2;
 	
 	const Clause *c = new Clause(new BoolExpr(p, e1, e2));
 	bool ret = satisfiable(c);
@@ -931,25 +929,36 @@ bool SolveConstraints::satisfiable(CmpInst::Predicate p,
 }
 
 template bool SolveConstraints::satisfiable(CmpInst::Predicate,
-		const Value *, const Value *);
+		const InstList &, const Value *, const InstList &, const Value *);
 template bool SolveConstraints::satisfiable(CmpInst::Predicate,
-		const Value *, const Use *);
+		const InstList &, const Value *, const InstList &, const Use *);
 template bool SolveConstraints::satisfiable(CmpInst::Predicate,
-		const Use *, const Value *);
+		const InstList &, const Use *, const InstList &, const Value *);
 template bool SolveConstraints::satisfiable(CmpInst::Predicate,
-		const Use *, const Use *);
+		const InstList &, const Use *, const InstList &, const Use *);
 
 template <typename T1, typename T2>
 bool SolveConstraints::provable(CmpInst::Predicate p,
-		const T1 *v1, const T2 *v2) {
+		const InstList &c1, const T1 *v1, const InstList &c2, const T2 *v2) {
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 
 	Expr *e1 = new Expr(v1), *e2 = new Expr(v2);
 	CC.attach_context(e1, 1);
 	CC.attach_context(e2, 2);
+	e1->callstack = c1;
+	e2->callstack = c2;
 	
 	const Clause *c = new Clause(new BoolExpr(p, e1, e2));
 	bool ret = provable(c);
 	delete c;
 	return ret;
 }
+
+template bool SolveConstraints::provable(CmpInst::Predicate,
+		const InstList &, const Value *, const InstList &, const Value *);
+template bool SolveConstraints::provable(CmpInst::Predicate,
+		const InstList &, const Value *, const InstList &, const Use *);
+template bool SolveConstraints::provable(CmpInst::Predicate,
+		const InstList &, const Use *, const InstList &, const Value *);
+template bool SolveConstraints::provable(CmpInst::Predicate,
+		const InstList &, const Use *, const InstList &, const Use *);

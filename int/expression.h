@@ -8,6 +8,7 @@
 #include "llvm/Instruction.h"
 #include "llvm/Use.h"
 #include "common/IDAssigner.h"
+#include "common/typedefs.h"
 using namespace llvm;
 
 #include <cstdio>
@@ -29,6 +30,7 @@ namespace slicer {
 			const Value *v;
 			const Use *u;
 		};
+		InstList callstack;
 
 		Expr *clone() const;
 		unsigned get_width() const;

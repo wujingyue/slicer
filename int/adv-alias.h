@@ -51,6 +51,8 @@ namespace slicer {
 		virtual AliasResult alias(
 				const Value *V1, unsigned V1Size,
 				const Value *V2, unsigned V2Size);
+		AliasResult alias(const InstList &c1, const Value *v1,
+				const InstList &c2, const Value *v2);
 		/**
 		 * May aliasing seems pretty slow, but must aliasing is fast. 
 		 * Therefore, we provide this interface to perform fast must-aliasing

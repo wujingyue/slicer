@@ -157,11 +157,11 @@ void IntTest::test_test_range_4(const Module &M) {
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	const IntegerType *int_type = IntegerType::get(M.getContext(), 32);
 	assert(SC.provable(CmpInst::ICMP_SGE,
-				dyn_cast<Value>(phi),
-				dyn_cast<Value>(ConstantInt::get(int_type, 0))));
+				InstList(), dyn_cast<Value>(phi),
+				InstList(), dyn_cast<Value>(ConstantInt::get(int_type, 0))));
 	assert(SC.provable(CmpInst::ICMP_SLE,
-				dyn_cast<Value>(phi),
-				dyn_cast<Value>(ConstantInt::get(int_type, 110))));
+				InstList(), dyn_cast<Value>(phi),
+				InstList(), dyn_cast<Value>(ConstantInt::get(int_type, 110))));
 }
 
 void IntTest::test_test_dep_common(const Module &M) {
@@ -394,7 +394,8 @@ void IntTest::test_test_thread(const Module &M) {
 	for (size_t i = 0; i < local_ids.size(); ++i) {
 		for (size_t j = i + 1; j < local_ids.size(); ++j) {
 			errs() << "local_ids[" << i << "] != local_ids[" << j << "]? ...";
-			assert(SC.provable(CmpInst::ICMP_NE, local_ids[i], local_ids[j]));
+			assert(SC.provable(CmpInst::ICMP_NE,
+						InstList(), local_ids[i], InstList(), local_ids[j]));
 			print_pass(errs());
 		}
 	}
@@ -433,7 +434,8 @@ void IntTest::test_test_bound(const Module &M) {
 		assert(gep1->getNumOperands() == 3 && gep2->getNumOperands() == 3);
 		errs() << "i1 != i2? ...";
 		assert(SC.provable(CmpInst::ICMP_NE,
-					&gep1->getOperandUse(2), &gep2->getOperandUse(2)));
+					InstList(), &gep1->getOperandUse(2),
+					InstList(), &gep2->getOperandUse(2)));
 		print_pass(errs());
 		errs() << "gep1 and gep2 alias? ...";
 		assert(AAA.alias(gep1, 0, gep2, 0) == AliasAnalysis::NoAlias);
@@ -467,8 +469,8 @@ void IntTest::test_test_reducer(const Module &M) {
 						const IntegerType *int_type = IntegerType::get(M.getContext(), 32);
 						errs() << "argc - 1 >= 0? ...";
 						assert(SC.provable(CmpInst::ICMP_SGT,
-									&gep->getOperandUse(1),
-									dyn_cast<Value>(ConstantInt::get(int_type, 0))));
+									InstList(), &gep->getOperandUse(1),
+									InstList(), dyn_cast<Value>(ConstantInt::get(int_type, 0))));
 						print_pass(errs());
 					}
 				}
@@ -507,8 +509,8 @@ void IntTest::test_test_loop_2(const Module &M) {
 
 	errs() << "Shouldn't be able to prove indvar != next? ...";
 	assert(!SC.provable(CmpInst::ICMP_NE,
-				dyn_cast<Value>(indvar),
-				dyn_cast<Value>((const Instruction *)next)));
+				InstList(), dyn_cast<Value>(indvar),
+				InstList(), dyn_cast<Value>((const Instruction *)next)));
 	print_pass(errs());
 }
 
@@ -729,7 +731,9 @@ void IntTest::test_radix_common(const Module &M) {
 	for (size_t i = 0; i < local_ids.size(); ++i) {
 		for (size_t j = i + 1; j < local_ids.size(); ++j) {
 			errs() << "local_ids[" << i << "] != local_ids[" << j << "]? ...";
-			assert(SC.provable(CmpInst::ICMP_NE, local_ids[i], local_ids[j]));
+			assert(SC.provable(CmpInst::ICMP_NE,
+						InstList(), local_ids[i],
+						InstList(), local_ids[j]));
 			print_pass(errs());
 		}
 	}
@@ -762,8 +766,8 @@ void IntTest::test_test_overwrite_2(const Module &M) {
 	for (size_t i = 0; i + 1 < loads.size(); ++i) {
 		errs() << "loads[" << i << "] == loads[" << (i + 1) << "]? ...";
 		assert(SC.provable(CmpInst::ICMP_EQ,
-					dyn_cast<Value>(loads[i]),
-					dyn_cast<Value>(loads[i + 1])));
+					InstList(), dyn_cast<Value>(loads[i]),
+					InstList(), dyn_cast<Value>(loads[i + 1])));
 		print_pass(errs());
 	}
 }
@@ -799,7 +803,7 @@ void IntTest::test_test_overwrite(const Module &M) {
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	errs() << "v1:" << *v1 << "\n" << "v2:" << *v2 << "\n";
 	errs() << "v1 == v2? ...";
-	assert(SC.provable(CmpInst::ICMP_EQ, v1, v2));
+	assert(SC.provable(CmpInst::ICMP_EQ, InstList(), v1, InstList(), v2));
 	print_pass(errs());
 }
 
@@ -968,7 +972,8 @@ void IntTest::test_aget(const Module &M) {
 	for (size_t i = 0; i < thr_funcs.size(); ++i) {
 		if (soffsets[i] && foffsets[i]) {
 			errs() << "soffsets[" << i << "] <= foffsets[" << i << "]? ...";
-			assert(SC.provable(CmpInst::ICMP_SLE, soffsets[i], foffsets[i]));
+			assert(SC.provable(CmpInst::ICMP_SLE,
+						InstList(), soffsets[i], InstList(), foffsets[i]));
 			print_pass(errs());
 		}
 	}
@@ -979,13 +984,15 @@ void IntTest::test_aget(const Module &M) {
 			if (soffsets[i]) {
 				errs() << "  soffsets <= offset? ...";
 				SC.set_print_counterexample(true);
-				assert(SC.provable(CmpInst::ICMP_SLE, soffsets[i], ranges[i][j].first));
+				assert(SC.provable(CmpInst::ICMP_SLE,
+							InstList(), soffsets[i], InstList(), ranges[i][j].first));
 				SC.set_print_counterexample(false);
 				print_pass(errs());
 			}
 			if (foffsets[i]) {
 				errs() << "  offset < foffset? ...";
-				assert(SC.provable(CmpInst::ICMP_SLT, ranges[i][j].first, foffsets[i]));
+				assert(SC.provable(CmpInst::ICMP_SLT,
+							InstList(), ranges[i][j].first, InstList(), foffsets[i]));
 				print_pass(errs());
 				errs() << "  offset + len <= foffset? ...";
 				assert(SC.provable(new Clause(new BoolExpr(CmpInst::ICMP_SLE,
@@ -1077,7 +1084,8 @@ void IntTest::test_fft_common(const Module &M) {
 	for (size_t i = 0; i < local_ids.size(); ++i) {
 		for (size_t j = i + 1; j < local_ids.size(); ++j) {
 			errs() << "local_ids[" << i << "] != local_ids[" << j << "]? ...";
-			assert(SC.provable(CmpInst::ICMP_NE, local_ids[i], local_ids[j]));
+			assert(SC.provable(CmpInst::ICMP_NE,
+						InstList(), local_ids[i], InstList(), local_ids[j]));
 			print_pass(errs());
 		}
 	}

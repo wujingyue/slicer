@@ -69,7 +69,9 @@ namespace slicer {
 		 * A quick way to issue satisfiable-queries. 
 		 */
 		template <typename T1, typename T2>
-		bool satisfiable(CmpInst::Predicate p, const T1 *v1, const T2 *v2);
+		bool satisfiable(CmpInst::Predicate p,
+				const InstList &c1, const T1 *v1,
+				const InstList &c2, const T2 *v2);
 		/**
 		 * The caller is responsible to delete this clause.
 		 */
@@ -78,7 +80,9 @@ namespace slicer {
 		 * A quick way to issue provable-queries. 
 		 */
 		template <typename T1, typename T2>
-		bool provable(CmpInst::Predicate p, const T1 *v1, const T2 *v2);
+		bool provable(CmpInst::Predicate p,
+				const InstList &c1, const T1 *v1,
+				const InstList &c2, const T2 *v2);
 
 	private:
 		/**
