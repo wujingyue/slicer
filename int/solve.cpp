@@ -1,5 +1,7 @@
 /**
  * Author: Jingyue
+ *
+ * TODO: simplify realize functions. Extra common conde into a function. 
  */
 
 #define DEBUG_TYPE "int"
@@ -15,6 +17,7 @@ using namespace std;
 #include "common/util.h"
 #include "common/intra-reach.h"
 #include "common/callgraph-fp.h"
+#include "common/exec-once.h"
 using namespace llvm;
 
 #include "capture.h"
@@ -574,6 +577,7 @@ void SolveConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequiredTransitive<IntraReach>();
 	AU.addRequiredTransitive<CaptureConstraints>();
 	AU.addRequiredTransitive<CallGraphFP>();
+	AU.addRequiredTransitive<ExecOnce>();
 	ModulePass::getAnalysisUsage(AU);
 }
 
@@ -689,6 +693,80 @@ void SolveConstraints::realize(const Use *u, unsigned context) {
 		realize(ins, context);
 }
 
+void SolveConstraints::realize(const InstList &callstack,
+		const Instruction *ins, unsigned context) {
+	for (size_t i = 0; i < callstack.size(); ++i)
+		realize(callstack[i], context);
+	for (size_t i = 0; i + 1 < callstack.size(); ++i)
+		realize(callstack[i], callstack[i + 1]->getParent()->getParent(), context);
+	realize(callstack.back(), ins->getParent()->getParent(), context);
+}
+
+void SolveConstraints::realize(const Instruction *ins, const Function *f,
+		unsigned context) {
+	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
+
+	CallSite cs = CallSite::get(const_cast<Instruction *>(ins));
+	assert(cs.getInstruction() && "<ins> is not a CallInst/InvokeInst");
+
+	if (cs.arg_size() != f->getArgumentList().size()) {
+		errs() << "[Warning] Signatures don't match: " << f->getName() << "\n";
+		errs() << *ins << "\n";
+		return;
+	}
+
+	unsigned i = 0;
+	for (Function::const_arg_iterator ai = f->arg_begin();
+			ai != f->arg_end(); ++ai) {
+		const Value *actual = cs.getArgument(i);
+		const Value *formal = ai;
+		
+		Clause *c = new Clause(new BoolExpr(CmpInst::ICMP_EQ,
+					new Expr(actual), new Expr(formal)));
+		Clause *c2 = c->clone();
+		CC.attach_context(c2, context);
+		replace_with_root(c2);
+		VCExpr vce = translate_to_vc(c2);
+		if (try_to_simplify(vce) != 1) {
+			DEBUG(dbgs() << "[realize] ";
+					print_clause(dbgs(), c2, getAnalysis<IDAssigner>());
+					dbgs() << "\n";);
+			vc_assertFormula(vc, vce);
+		}
+		delete_vcexpr(vce);
+		delete c2;
+		delete c;
+
+		++i;
+	}
+}
+
+void SolveConstraints::realize(const Function *f, unsigned context) {
+	ExecOnce &EO = getAnalysis<ExecOnce>();
+	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
+	if (!EO.executed_once(f))
+		return;
+
+	vector<Clause *> constraints_in_f;
+	CC.get_in_function(f, constraints_in_f);
+	for (vector<Clause *>::iterator itr = constraints_in_f.begin();
+			itr != constraints_in_f.end(); ++itr) {
+		Clause *c2 = (*itr)->clone();
+		CC.attach_context(c2, context);
+		replace_with_root(c2);
+		VCExpr vce = translate_to_vc(c2);
+		if (try_to_simplify(vce) != 1) {
+			DEBUG(dbgs() << "[realize] ";
+					print_clause(dbgs(), c2, getAnalysis<IDAssigner>());
+					dbgs() << "\n";);
+			vc_assertFormula(vc, vce);
+		}
+		delete_vcexpr(vce);
+		delete c2;
+		delete *itr;
+	}
+}
+
 void SolveConstraints::realize(const Instruction *ins, unsigned context) {
 	/**
 	 * Realize its containing functions and containing loops. 
@@ -698,18 +776,23 @@ void SolveConstraints::realize(const Instruction *ins, unsigned context) {
 	BasicBlock *bb = const_cast<BasicBlock *>(ins->getParent());
 	Function *f = bb->getParent();
 
-	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
-	// TODO: Make it inter-procedural
-	CallGraphFP &CG = getAnalysis<CallGraphFP>();
+	// Realize its containing function. <realize> does nothing if the function
+	// is executed only once. 
+	realize(f, context);
 
-	// Realize its containing functions. Calling contexts would
+	// Realize the caller of its containing functions. Calling contexts would
 	// help a lot with resolving the ambiguity. 
+	CallGraphFP &CG = getAnalysis<CallGraphFP>();
 	InstList call_sites = CG.get_call_sites(f);
 	if (call_sites.size() == 1)
 		realize(call_sites[0], context);
+
+	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
+	LoopInfo &LI = getAnalysis<LoopInfo>(*f);
+	// TODO: Make it inter-procedural
+	IntraReach &IR = getAnalysis<IntraReach>(*f);
 	
 	// Realize each containing loop. 
-	LoopInfo &LI = getAnalysis<LoopInfo>(*f);
 	Loop *l = LI.getLoopFor(bb);
 	while (l) {
 		vector<Clause *> constraints_from_l;
@@ -747,7 +830,6 @@ void SolveConstraints::realize(const Instruction *ins, unsigned context) {
 	}
 
 	// Realize each dominating BranchInst. 
-	IntraReach &IR = getAnalysis<IntraReach>(*f);
 	BasicBlock *dom = bb;
 	while (dom != &f->getEntryBlock()) {
 		BasicBlock *p = get_idom(dom); assert(p);

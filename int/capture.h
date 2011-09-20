@@ -64,6 +64,10 @@ namespace slicer {
 		 */
 		Clause *get_avoid_branch(const TerminatorInst *ti, unsigned i) const;
 		/**
+		 * Get constraints on top-level variables in function <f>.
+		 */
+		void get_in_function(const Function *f, vector<Clause *> &constraints);
+		/**
 		 * Used by the solver. 
 		 * Get the constraints on the loop index of loop <L>. 
 		 * NOTE: <constraints> will be cleared at the beginning. 

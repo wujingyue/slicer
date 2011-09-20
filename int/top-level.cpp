@@ -89,6 +89,25 @@ void CaptureConstraints::capture_top_level(Module &M) {
 	}
 }
 
+void CaptureConstraints::get_in_function(const Function *f,
+		vector<Clause *> &constraints) {
+	LoopInfo &LI = getAnalysis<LoopInfo>(*const_cast<Function *>(f));
+
+	constraints.clear();
+
+	for (Function::const_iterator bb = f->begin(); bb != f->end(); ++bb) {
+		// Skip loops. 
+		if (LI.getLoopFor(bb))
+			continue;
+		for (BasicBlock::const_iterator ins = bb->begin(); ins != bb->end(); ++ins) {
+			if (is_reachable_integer(ins)) {
+				if (Clause *c = get_in_user(ins))
+					constraints.push_back(c);
+			}
+		}
+	}
+}
+
 Clause *CaptureConstraints::get_in_argument(const Argument *formal) {
 	CallGraphFP &CG = getAnalysis<CallGraphFP>();
 	ExecOnce &EO = getAnalysis<ExecOnce>();
