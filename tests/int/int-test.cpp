@@ -116,5 +116,7 @@ bool IntTest::runOnModule(Module &M) {
 		test_test_dep(M);
 	if (Program == "test-ctxt-2")
 		test_test_ctxt_2(M);
+	if (Program == "test-ctxt-4")
+		test_test_ctxt_4(M);
 	return false;
 }

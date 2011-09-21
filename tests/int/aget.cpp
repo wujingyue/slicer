@@ -119,7 +119,7 @@ void IntTest::test_aget(const Module &M) {
 		if (soffsets[i] && foffsets[i]) {
 			errs() << "soffsets[" << i << "] <= foffsets[" << i << "]? ...";
 			assert(SC.provable(CmpInst::ICMP_SLE,
-						InstList(), soffsets[i], InstList(), foffsets[i]));
+						ConstInstList(), soffsets[i], ConstInstList(), foffsets[i]));
 			print_pass(errs());
 		}
 	}
@@ -131,14 +131,16 @@ void IntTest::test_aget(const Module &M) {
 				errs() << "  soffsets <= offset? ...";
 				SC.set_print_counterexample(true);
 				assert(SC.provable(CmpInst::ICMP_SLE,
-							InstList(), soffsets[i], InstList(), ranges[i][j].first));
+							ConstInstList(), soffsets[i],
+							ConstInstList(), ranges[i][j].first));
 				SC.set_print_counterexample(false);
 				print_pass(errs());
 			}
 			if (foffsets[i]) {
 				errs() << "  offset < foffset? ...";
 				assert(SC.provable(CmpInst::ICMP_SLT,
-							InstList(), ranges[i][j].first, InstList(), foffsets[i]));
+							ConstInstList(), ranges[i][j].first,
+							ConstInstList(), foffsets[i]));
 				print_pass(errs());
 				errs() << "  offset + len <= foffset? ...";
 				assert(SC.provable(new Clause(new BoolExpr(CmpInst::ICMP_SLE,

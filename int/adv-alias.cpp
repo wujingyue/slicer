@@ -134,7 +134,8 @@ bool AdvancedAlias::must_alias(const Use *u1, const Use *u2) {
 			return true;
 	}
 	
-	return SC.provable(CmpInst::ICMP_EQ, InstList(), u1, InstList(), u2);
+	return SC.provable(CmpInst::ICMP_EQ,
+			ConstInstList(), u1, ConstInstList(), u2);
 }
 
 bool AdvancedAlias::must_alias(const Value *v1, const Value *v2) {
@@ -149,7 +150,8 @@ bool AdvancedAlias::must_alias(const Value *v1, const Value *v2) {
 	bool pro;
 	if (!check_must_cache(v1, v2, pro)) {
 		clock_t start = clock();
-		pro = SC.provable(CmpInst::ICMP_EQ, InstList(), v1, InstList(), v2);
+		pro = SC.provable(CmpInst::ICMP_EQ,
+				ConstInstList(), v1, ConstInstList(), v2);
 		query_times.push_back(make_pair(
 					clock() - start, QueryInfo(false, v1, v2, pro)));
 		add_to_must_cache(v1, v2, pro);
@@ -171,7 +173,8 @@ bool AdvancedAlias::may_alias(const Use *u1, const Use *u2) {
 			return false;
 	}
 
-	return SC.satisfiable(CmpInst::ICMP_EQ, InstList(), u1, InstList(), u2);
+	return SC.satisfiable(CmpInst::ICMP_EQ,
+			ConstInstList(), u1, ConstInstList(), u2);
 }
 
 bool AdvancedAlias::may_alias(const Value *v1, const Value *v2) {
@@ -186,7 +189,8 @@ bool AdvancedAlias::may_alias(const Value *v1, const Value *v2) {
 	bool sat;
 	if (!check_may_cache(v1, v2, sat)) {
 		clock_t start = clock();
-		sat = SC.satisfiable(CmpInst::ICMP_EQ, InstList(), v1, InstList(), v2);
+		sat = SC.satisfiable(CmpInst::ICMP_EQ,
+				ConstInstList(), v1, ConstInstList(), v2);
 		query_times.push_back(make_pair(
 					clock() - start, QueryInfo(true, v1, v2, sat)));
 		add_to_may_cache(v1, v2, sat);
@@ -195,8 +199,8 @@ bool AdvancedAlias::may_alias(const Value *v1, const Value *v2) {
 }
 
 AliasAnalysis::AliasResult AdvancedAlias::alias(
-		const InstList &c1, const Value *v1,
-		const InstList &c2, const Value *v2) {
+		const ConstInstList &c1, const Value *v1,
+		const ConstInstList &c2, const Value *v2) {
 	// TODO: Caching
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	if (!SC.satisfiable(CmpInst::ICMP_EQ, c1, v1, c2, v2))
@@ -218,7 +222,8 @@ AliasAnalysis::AliasResult AdvancedAlias::alias(
 	bool sat;
 	if (!check_may_cache(v1, v2, sat)) {
 		clock_t start = clock();
-		sat = SC.satisfiable(CmpInst::ICMP_EQ, InstList(), v1, InstList(), v2);
+		sat = SC.satisfiable(CmpInst::ICMP_EQ,
+				ConstInstList(), v1, ConstInstList(), v2);
 		query_times.push_back(
 				make_pair(clock() - start, QueryInfo(true, v1, v2, sat)));
 		add_to_may_cache(v1, v2, sat);
@@ -229,7 +234,8 @@ AliasAnalysis::AliasResult AdvancedAlias::alias(
 	bool pro;
 	if (!check_must_cache(v1, v2, pro)) {
 		clock_t start = clock();
-		pro = SC.provable(CmpInst::ICMP_EQ, InstList(), v1, InstList(), v2);
+		pro = SC.provable(CmpInst::ICMP_EQ,
+				ConstInstList(), v1, ConstInstList(), v2);
 		query_times.push_back(make_pair(
 					clock() - start, QueryInfo(false, v1, v2, pro)));
 		add_to_must_cache(v1, v2, pro);

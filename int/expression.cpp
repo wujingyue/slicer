@@ -10,7 +10,6 @@ using namespace llvm;
 using namespace slicer;
 
 bool CompareClause::operator()(const Clause *a, const Clause *b) {
-	
 	string str_a, str_b;
 	raw_string_ostream oss_a(str_a), oss_b(str_b);
 	print_clause(oss_a, a, IDA);
@@ -29,10 +28,13 @@ bool CompareClause::operator()(const Clause *a, const Clause *b) {
 }
 
 Expr *Expr::clone() const {
-	if (type == SingleDef || type == LoopBound)
-		return new Expr(v, context, type);
-	if (type == SingleUse)
-		return new Expr(u, context);
+	if (type == SingleDef || type == LoopBound || type == SingleUse) {
+		Expr *res = (type == SingleUse ?
+				new Expr(u, context) :
+				new Expr(v, context, type));
+		res->callstack = this->callstack;
+		return res;
+	}
 	if (type == Unary)
 		return new Expr(op, e1->clone());
 	if (type == Binary)

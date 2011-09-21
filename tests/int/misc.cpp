@@ -10,6 +10,50 @@ using namespace llvm;
 #include "tests/include/test-utils.h"
 using namespace slicer;
 
+void IntTest::test_test_ctxt_4(const Module &M) {
+	TestBanner X("test-ctxt-4");
+
+	ExecOnce &EO = getAnalysis<ExecOnce>();
+	AdvancedAlias &AA = getAnalysis<AdvancedAlias>();
+
+	const Function *access = M.getFunction("access");
+	ConstInstList call_sites;
+	for (Module::const_iterator f = M.begin(); f != M.end(); ++f) {
+		if (EO.not_executed(f))
+			continue;
+		for (Function::const_iterator bb = f->begin(); bb != f->end(); ++bb) {
+			for (BasicBlock::const_iterator ins = bb->begin();
+					ins != bb->end(); ++ins) {
+				if (const CallInst *ci = dyn_cast<CallInst>(ins)) {
+					if (ci->getCalledFunction() == access)
+						call_sites.push_back(ci);
+				}
+			}
+		}
+	}
+
+	const Value *loc = NULL;
+	for (Function::const_iterator bb = access->begin();
+			bb != access->end(); ++bb) {
+		for (BasicBlock::const_iterator ins = bb->begin(); ins != bb->end(); ++ins) {
+			if (const StoreInst *si = dyn_cast<StoreInst>(ins)) {
+				assert(!loc);
+				loc = si->getPointerOperand();
+			}
+		}
+	}
+	assert(loc);
+
+	for (size_t i = 0; i < call_sites.size(); ++i) {
+		for (size_t j = i + 1; j < call_sites.size(); ++j) {
+			ConstInstList ci(1, call_sites[i]), cj(1, call_sites[j]);
+			errs() << "Access " << i << " and access " << j << " don't alias? ...";
+			assert(AA.alias(ci, loc, cj, loc) == AliasAnalysis::NoAlias);
+			print_pass(errs());
+		}
+	}
+}
+
 void IntTest::test_test_ctxt_2(const Module &M) {
 	TestBanner X("test-ctxt-2");
 
@@ -62,15 +106,16 @@ void IntTest::test_test_range_4(const Module &M) {
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	const IntegerType *int_type = IntegerType::get(M.getContext(), 32);
 	assert(SC.provable(CmpInst::ICMP_SGE,
-				InstList(), dyn_cast<Value>(phi),
-				InstList(), dyn_cast<Value>(ConstantInt::get(int_type, 0))));
+				ConstInstList(), dyn_cast<Value>(phi),
+				ConstInstList(), dyn_cast<Value>(ConstantInt::get(int_type, 0))));
 	assert(SC.provable(CmpInst::ICMP_SLE,
-				InstList(), dyn_cast<Value>(phi),
-				InstList(), dyn_cast<Value>(ConstantInt::get(int_type, 110))));
+				ConstInstList(), dyn_cast<Value>(phi),
+				ConstInstList(), dyn_cast<Value>(ConstantInt::get(int_type, 110))));
 }
 
 void IntTest::test_test_dep_common(const Module &M) {
 	ExecOnce &EO = getAnalysis<ExecOnce>();
+	AdvancedAlias &AA = getAnalysis<AdvancedAlias>();
 
 	DenseMap<const Function *, ConstValueList> accesses;
 	forallconst(Module, f, M) {
@@ -101,7 +146,6 @@ void IntTest::test_test_dep_common(const Module &M) {
 
 	for (size_t j1 = 0; j1 < i1->second.size(); ++j1) {
 		for (size_t j2 = 0; j2 < i2->second.size(); ++j2) {
-			AdvancedAlias &AA = getAnalysis<AdvancedAlias>();
 			errs() << "{" << i1->first->getName() << ":" << j1<< "} and {" <<
 				i2->first->getName() << ":" << j2 << "} don't alias? ...";
 			assert(AA.alias(i1->second[j1], 0, i2->second[j2], 0) ==
@@ -288,7 +332,7 @@ void IntTest::test_test_thread(const Module &M) {
 		for (size_t j = i + 1; j < local_ids.size(); ++j) {
 			errs() << "local_ids[" << i << "] != local_ids[" << j << "]? ...";
 			assert(SC.provable(CmpInst::ICMP_NE,
-						InstList(), local_ids[i], InstList(), local_ids[j]));
+						ConstInstList(), local_ids[i], ConstInstList(), local_ids[j]));
 			print_pass(errs());
 		}
 	}
@@ -325,8 +369,8 @@ void IntTest::test_test_bound(const Module &M) {
 		assert(gep1->getNumOperands() == 3 && gep2->getNumOperands() == 3);
 		errs() << "i1 != i2? ...";
 		assert(SC.provable(CmpInst::ICMP_NE,
-					InstList(), &gep1->getOperandUse(2),
-					InstList(), &gep2->getOperandUse(2)));
+					ConstInstList(), &gep1->getOperandUse(2),
+					ConstInstList(), &gep2->getOperandUse(2)));
 		print_pass(errs());
 		errs() << "gep1 and gep2 alias? ...";
 		assert(AAA.alias(gep1, 0, gep2, 0) == AliasAnalysis::NoAlias);
@@ -358,8 +402,9 @@ void IntTest::test_test_reducer(const Module &M) {
 						const IntegerType *int_type = IntegerType::get(M.getContext(), 32);
 						errs() << "argc - 1 >= 0? ...";
 						assert(SC.provable(CmpInst::ICMP_SGT,
-									InstList(), &gep->getOperandUse(1),
-									InstList(), dyn_cast<Value>(ConstantInt::get(int_type, 0))));
+									ConstInstList(), &gep->getOperandUse(1),
+									ConstInstList(),
+									dyn_cast<Value>(ConstantInt::get(int_type, 0))));
 						print_pass(errs());
 					}
 				}
@@ -396,8 +441,8 @@ void IntTest::test_test_loop_2(const Module &M) {
 
 	errs() << "Shouldn't be able to prove indvar != next? ...";
 	assert(!SC.provable(CmpInst::ICMP_NE,
-				InstList(), dyn_cast<Value>(indvar),
-				InstList(), dyn_cast<Value>((const Instruction *)next)));
+				ConstInstList(), dyn_cast<Value>(indvar),
+				ConstInstList(), dyn_cast<Value>((const Instruction *)next)));
 	print_pass(errs());
 }
 
@@ -449,8 +494,8 @@ void IntTest::test_test_overwrite_2(const Module &M) {
 	for (size_t i = 0; i + 1 < loads.size(); ++i) {
 		errs() << "loads[" << i << "] == loads[" << (i + 1) << "]? ...";
 		assert(SC.provable(CmpInst::ICMP_EQ,
-					InstList(), dyn_cast<Value>(loads[i]),
-					InstList(), dyn_cast<Value>(loads[i + 1])));
+					ConstInstList(), dyn_cast<Value>(loads[i]),
+					ConstInstList(), dyn_cast<Value>(loads[i + 1])));
 		print_pass(errs());
 	}
 }
@@ -484,6 +529,7 @@ void IntTest::test_test_overwrite(const Module &M) {
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	errs() << "v1:" << *v1 << "\n" << "v2:" << *v2 << "\n";
 	errs() << "v1 == v2? ...";
-	assert(SC.provable(CmpInst::ICMP_EQ, InstList(), v1, InstList(), v2));
+	assert(SC.provable(CmpInst::ICMP_EQ,
+				ConstInstList(), v1, ConstInstList(), v2));
 	print_pass(errs());
 }

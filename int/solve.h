@@ -70,8 +70,8 @@ namespace slicer {
 		 */
 		template <typename T1, typename T2>
 		bool satisfiable(CmpInst::Predicate p,
-				const InstList &c1, const T1 *v1,
-				const InstList &c2, const T2 *v2);
+				const ConstInstList &c1, const T1 *v1,
+				const ConstInstList &c2, const T2 *v2);
 		/**
 		 * The caller is responsible to delete this clause.
 		 */
@@ -81,8 +81,8 @@ namespace slicer {
 		 */
 		template <typename T1, typename T2>
 		bool provable(CmpInst::Predicate p,
-				const InstList &c1, const T1 *v1,
-				const InstList &c2, const T2 *v2);
+				const ConstInstList &c1, const T1 *v1,
+				const ConstInstList &c2, const T2 *v2);
 
 	private:
 		/**
@@ -202,7 +202,7 @@ namespace slicer {
 		 * realize(f, context) doesn't realize instructions in loops. 
 		 */
 		void realize(const Function *f, unsigned context);
-		void realize(const InstList &callstack, const Instruction *i,
+		void realize(const ConstInstList &callstack, const Instruction *i,
 				unsigned context);
 		/**
 		 * Realizes a function call from <ins> to <f>.

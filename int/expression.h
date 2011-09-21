@@ -30,7 +30,7 @@ namespace slicer {
 			const Value *v;
 			const Use *u;
 		};
-		InstList callstack;
+		ConstInstList callstack;
 
 		Expr *clone() const;
 		unsigned get_width() const;

@@ -693,7 +693,7 @@ void SolveConstraints::realize(const Use *u, unsigned context) {
 		realize(ins, context);
 }
 
-void SolveConstraints::realize(const InstList &callstack,
+void SolveConstraints::realize(const ConstInstList &callstack,
 		const Instruction *ins, unsigned context) {
 	// Realize <ins> itself. 
 	realize(ins, context);
@@ -749,7 +749,9 @@ void SolveConstraints::realize(const Instruction *ins, const Function *f,
 void SolveConstraints::realize(const Function *f, unsigned context) {
 	ExecOnce &EO = getAnalysis<ExecOnce>();
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
-	if (!EO.executed_once(f))
+	// If <f> can be executed only once, its constraints are already
+	// captured by the capturer. 
+	if (EO.executed_once(f))
 		return;
 
 	vector<Clause *> constraints_in_f;
@@ -913,7 +915,8 @@ void SolveConstraints::print_counterexample() {
 
 template <typename T1, typename T2>
 bool SolveConstraints::satisfiable(CmpInst::Predicate p,
-		const InstList &c1, const T1 *v1, const InstList &c2, const T2 *v2) {
+		const ConstInstList &c1, const T1 *v1,
+		const ConstInstList &c2, const T2 *v2) {
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 	
 	Expr *e1 = new Expr(v1), *e2 = new Expr(v2);
@@ -929,17 +932,18 @@ bool SolveConstraints::satisfiable(CmpInst::Predicate p,
 }
 
 template bool SolveConstraints::satisfiable(CmpInst::Predicate,
-		const InstList &, const Value *, const InstList &, const Value *);
+		const ConstInstList &, const Value *, const ConstInstList &, const Value *);
 template bool SolveConstraints::satisfiable(CmpInst::Predicate,
-		const InstList &, const Value *, const InstList &, const Use *);
+		const ConstInstList &, const Value *, const ConstInstList &, const Use *);
 template bool SolveConstraints::satisfiable(CmpInst::Predicate,
-		const InstList &, const Use *, const InstList &, const Value *);
+		const ConstInstList &, const Use *, const ConstInstList &, const Value *);
 template bool SolveConstraints::satisfiable(CmpInst::Predicate,
-		const InstList &, const Use *, const InstList &, const Use *);
+		const ConstInstList &, const Use *, const ConstInstList &, const Use *);
 
 template <typename T1, typename T2>
 bool SolveConstraints::provable(CmpInst::Predicate p,
-		const InstList &c1, const T1 *v1, const InstList &c2, const T2 *v2) {
+		const ConstInstList &c1, const T1 *v1,
+		const ConstInstList &c2, const T2 *v2) {
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 
 	Expr *e1 = new Expr(v1), *e2 = new Expr(v2);
@@ -955,10 +959,10 @@ bool SolveConstraints::provable(CmpInst::Predicate p,
 }
 
 template bool SolveConstraints::provable(CmpInst::Predicate,
-		const InstList &, const Value *, const InstList &, const Value *);
+		const ConstInstList &, const Value *, const ConstInstList &, const Value *);
 template bool SolveConstraints::provable(CmpInst::Predicate,
-		const InstList &, const Value *, const InstList &, const Use *);
+		const ConstInstList &, const Value *, const ConstInstList &, const Use *);
 template bool SolveConstraints::provable(CmpInst::Predicate,
-		const InstList &, const Use *, const InstList &, const Value *);
+		const ConstInstList &, const Use *, const ConstInstList &, const Value *);
 template bool SolveConstraints::provable(CmpInst::Predicate,
-		const InstList &, const Use *, const InstList &, const Use *);
+		const ConstInstList &, const Use *, const ConstInstList &, const Use *);

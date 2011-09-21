@@ -197,8 +197,8 @@ void IntTest::test_radix_common(const Module &M) {
 		for (size_t j = i + 1; j < local_ids.size(); ++j) {
 			errs() << "local_ids[" << i << "] != local_ids[" << j << "]? ...";
 			assert(SC.provable(CmpInst::ICMP_NE,
-						InstList(), local_ids[i],
-						InstList(), local_ids[j]));
+						ConstInstList(), local_ids[i],
+						ConstInstList(), local_ids[j]));
 			print_pass(errs());
 		}
 	}
