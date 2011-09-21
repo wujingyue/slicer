@@ -8,9 +8,7 @@ using namespace llvm;
 using namespace std;
 
 namespace slicer {
-
 	struct TestBanner {
-
 		static void print_banner(const string &content) {
 			errs().changeColor(raw_ostream::BLUE, true);
 			errs() << "+" << string(content.length() + 2, '-') << "+\n";
@@ -31,6 +29,10 @@ namespace slicer {
 	private:
 		string name;
 	};
+
+	static inline bool starts_with(const string &a, const string &b) {
+		return a.length() >= b.length() && a.compare(0, b.length(), b) == 0;
+	}
 
 	static inline void print_pass(raw_ostream &O) {
 		O.changeColor(raw_ostream::GREEN, true) << "Passed\n";

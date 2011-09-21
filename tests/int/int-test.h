@@ -32,6 +32,7 @@ namespace slicer {
 		void test_test_reducer(const Module &M);
 		void test_test_bound(const Module &M);
 		void test_test_thread(const Module &M);
+		void test_test_thread_2(const Module &M);
 		void test_test_array(const Module &M);
 		void test_test_malloc(const Module &M);
 		void test_test_range(const Module &M);
