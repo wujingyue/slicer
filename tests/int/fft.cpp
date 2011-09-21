@@ -13,6 +13,67 @@ using namespace slicer;
 void IntTest::test_fft(const Module &M) {
 	TestBanner X("FFT");
 	test_fft_common(M);
+	
+	SolveConstraints &SC = getAnalysis<SolveConstraints>();
+	// The ranges in Transpose under different contexts are disjoint. 
+	const Function *transpose = M.getFunction("Transpose");
+	assert(transpose);
+	const Value *my_first = NULL, *my_last = NULL;
+	for (Function::const_arg_iterator ai = transpose->arg_begin();
+			ai != transpose->arg_end(); ++ai) {
+		if (ai->getName() == "MyFirst")
+			my_first = ai;
+		if (ai->getName() == "MyLast")
+			my_last = ai;
+	}
+	assert(my_first && my_last);
+
+	DenseMap<const Function *, vector<ConstInstList> > contexts;
+	forallconst(Module, f, M) {
+		forallconst(Function, bb, *f) {
+			forallconst(BasicBlock, ins, *bb) {
+				CallSite cs = CallSite::get(
+						const_cast<Instruction *>((const Instruction *)ins));
+				if (!cs.getInstruction())
+					continue;
+				if (cs.getCalledFunction() == transpose) {
+					assert(cs.arg_size() == 7);
+					dbgs() << f->getName() << ":" << *ins << "\n";
+					contexts[f].push_back(ConstInstList(1, ins));
+				}
+			}
+		}
+	}
+
+	DenseMap<const Function *, vector<ConstInstList> >::iterator i1, i2;
+	for (i1 = contexts.begin(); i1 != contexts.end(); ++i1) {
+		i2 = i1;
+		for (++i2; i2 != contexts.end(); ++i2) {
+			for (size_t j1 = 0; j1 < i1->second.size(); ++j1) {
+				for (size_t j2 = 0; j2 < i2->second.size(); ++j2) {
+					Expr *s1 = new Expr(my_first);
+					Expr *e1 = new Expr(my_last);
+					Expr *s2 = new Expr(my_first);
+					Expr *e2 = new Expr(my_last);
+
+					s1->callstack = i1->second[j1]; s1->context = 1;
+					e1->callstack = i1->second[j1]; e1->context = 1;
+					s2->callstack = i2->second[j2]; s2->context = 2;
+					e2->callstack = i2->second[j2]; e2->context = 2;
+
+					Clause *c1 = new Clause(new BoolExpr(CmpInst::ICMP_SLE, e1, s2));
+					Clause *c2 = new Clause(new BoolExpr(CmpInst::ICMP_SLE, e2, s1));
+					Clause *disjoint = new Clause(Instruction::Or, c1, c2);
+					errs() << "Context: {" << i1->first->getName() << ":" << j1 <<
+						"} and {" << i2->first->getName() << ":" << j2 <<
+						"} are disjoint? ...";
+					assert(SC.provable(disjoint));
+					print_pass(errs());
+					delete disjoint;
+				}
+			}
+		}
+	}
 }
 
 void IntTest::test_fft_like(const Module &M) {
@@ -97,8 +158,9 @@ void IntTest::test_fft_common(const Module &M) {
 								new Expr(i2->second[j2].second),
 								new Expr(i1->second[j1].first)));
 					Clause *disjoint = new Clause(Instruction::Or, c1, c2);
-					errs() << "{" << i1->first->getName() << ":" << j1 << "} and {" <<
-						i2->first->getName() << ":" << j2 << "} are disjoint? ...";
+					errs() << "Call site: {" << i1->first->getName() << ":" << j1 <<
+						"} and {" << i2->first->getName() << ":" << j2 <<
+						"} are disjoint? ...";
 					assert(SC.provable(disjoint));
 					print_pass(errs());
 					delete disjoint;

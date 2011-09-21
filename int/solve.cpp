@@ -669,9 +669,11 @@ void SolveConstraints::realize(const Expr *e) {
 		realize(e->e2);
 	} else if (e->type == Expr::SingleUse) {
 		realize(e->u, e->context);
+	} else if (e->type == Expr::SingleDef) {
+		realize(e->callstack, e->v, e->context);
 	} else {
-		if (const Instruction *ins = dyn_cast<Instruction>(e->v))
-			realize(e->callstack, ins, e->context);
+		assert(e->type == Expr::LoopBound);
+		assert(false && "Type LoopBound shouldn't be used in a query");
 	}
 }
 
@@ -694,17 +696,29 @@ void SolveConstraints::realize(const Use *u, unsigned context) {
 }
 
 void SolveConstraints::realize(const ConstInstList &callstack,
-		const Instruction *ins, unsigned context) {
+		const Value *v, unsigned context) {
 	// Realize <ins> itself. 
-	realize(ins, context);
+	if (const Instruction *ins = dyn_cast<Instruction>(v))
+		realize(ins, context);
 	// Realize each call instruction. 
 	for (size_t i = 0; i < callstack.size(); ++i)
 		realize(callstack[i], context);
 	// Realize each call edge in the calling context. 
 	for (size_t i = 0; i + 1 < callstack.size(); ++i)
 		realize(callstack[i], callstack[i + 1]->getParent()->getParent(), context);
-	if (callstack.size() > 0)
-		realize(callstack.back(), ins->getParent()->getParent(), context);
+	if (callstack.size() > 0) {
+		if (const Function *container = get_container(v))
+			realize(callstack.back(), container, context);
+	}
+}
+
+const Function *SolveConstraints::get_container(const Value *v) {
+	if (const Instruction *ins = dyn_cast<Instruction>(v))
+		return ins->getParent()->getParent();
+	if (const Argument *arg = dyn_cast<Argument>(v))
+		return arg->getParent();
+	// TODO: Handle ConstantExpr. 
+	return NULL;
 }
 
 void SolveConstraints::realize(const Instruction *ins, const Function *f,

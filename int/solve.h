@@ -202,13 +202,18 @@ namespace slicer {
 		 * realize(f, context) doesn't realize instructions in loops. 
 		 */
 		void realize(const Function *f, unsigned context);
-		void realize(const ConstInstList &callstack, const Instruction *i,
-				unsigned context);
+		void realize(const ConstInstList &callstack,
+				const Value *v, unsigned context);
 		/**
 		 * Realizes a function call from <ins> to <f>.
 		 * <ins> must be a CallInst/InvokeInst. 
 		 */
 		void realize(const Instruction *ins, const Function *f, unsigned context);
+		/**
+		 * Returns v's containing function if <v> is an instruction or
+		 * an argument. 
+		 */
+		static const Function *get_container(const Value *v);
 		BasicBlock *get_idom(BasicBlock *bb);
 		// Protected by <vc_mutex>.
 		static void create_vc();
