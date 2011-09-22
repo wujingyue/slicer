@@ -21,12 +21,12 @@ using namespace std;
 #include "common/exec-once.h"
 using namespace llvm;
 
-#include "int/iterate.h"
-#include "int/capture.h"
-#include "int/solve.h"
-#include "int/adv-alias.h"
-#include "max-slicing/region-manager.h"
-#include "tests/include/test-utils.h"
+#include "slicer/iterate.h"
+#include "slicer/capture.h"
+#include "slicer/adv-alias.h"
+#include "slicer/solve.h"
+#include "slicer/test-utils.h"
+#include "slicer/region-manager.h"
 #include "int-test.h"
 using namespace slicer;
 
@@ -36,8 +36,7 @@ static RegisterPass<IntTest> X("int-test",
 // If Program == "", we dump all the integer constraints. 
 static cl::opt<string> Program("prog",
 		cl::desc("The program being tested (e.g. aget). "
-			"Usually it's simply the name of the bc file without \".bc\"."),
-		cl::init(""));
+			"Usually it's simply the name of the bc file without \".bc\"."));
 
 char IntTest::ID = 0;
 

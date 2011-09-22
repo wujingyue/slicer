@@ -4,10 +4,10 @@
 #include "common/exec-once.h"
 using namespace llvm;
 
-#include "int/adv-alias.h"
-#include "int/solve.h"
+#include "slicer/adv-alias.h"
+#include "slicer/solve.h"
+#include "slicer/test-utils.h"
 #include "int-test.h"
-#include "tests/include/test-utils.h"
 using namespace slicer;
 
 void IntTest::test_test_ctxt_4(const Module &M) {

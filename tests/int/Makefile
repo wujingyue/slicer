@@ -1,7 +1,10 @@
-LEVEL = $(shell $(LLVM_ROOT)/scripts/level-to-llvm-root)/llvm-obj
+LEVEL = ../..
+
 LIBRARYNAME = int-test
+
 LOADABLE_MODULE = 1
-CXXFLAGS += -I$(LLVM_ROOT) -I$(SLICER_ROOT) -I$(SLICER_ROOT)/stp/install/include -I$(LLVM_ROOT)/install/include
+
+CXXFLAGS += -I$(LLVM_ROOT) -I$(LLVM_ROOT)/install/include -I$(SLICER_ROOT)/lib/stp/install/include
 
 include $(LEVEL)/Makefile.common
 
