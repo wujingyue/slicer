@@ -18,7 +18,7 @@ using namespace std;
 
 static RegisterPass<Iterate> X("iterate",
 		"A iterator to provide more accurate analyses",
-		false, false); // Not an analysis.
+		false, true);
 
 char Iterate::ID = 0;
 

@@ -5,9 +5,7 @@
 using namespace llvm;
 
 namespace slicer {
-
 	struct Iterate: public ModulePass {
-
 		static char ID;
 
 		Iterate(): ModulePass(&ID) {}
