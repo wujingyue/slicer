@@ -1,0 +1,34 @@
+#!/usr/bin/env python
+
+import os, sys, argparse
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description = "Generate queries")
+    parser.add_argument("sliced_bc",
+            help = "The path to the sliced bc")
+    parser.add_argument("query_list",
+            help = "The output query list")
+    parser.add_argument("--orig", action = "store_true",
+            help = "Generate queries for the original program (default: false)")
+    parser.add_argument("--concurrent", metavar = "fulltrace", type = str,
+            help = "Consider concurrent loads and stores only according to "
+            "the full trace")
+    args = parser.parse_args()
+
+    LLVM_ROOT = os.getenv("LLVM_ROOT")
+    cmd = "opt -analyze "
+    cmd += "-load " + LLVM_ROOT + "/install/lib/libid-manager.so "
+    cmd += "-load " + LLVM_ROOT + "/install/lib/libbc2bdd.so "
+    cmd += "-load " + LLVM_ROOT + "/install/lib/libcallgraph-fp.so "
+    cmd += "-load " + LLVM_ROOT + "/install/lib/libmbb.so "
+    cmd += "-load " + LLVM_ROOT + "/install/lib/libcfg.so "
+    cmd += "-load " + LLVM_ROOT + "/install/lib/libslicer-trace.so "
+    cmd += "-load " + LLVM_ROOT + "/install/lib/libmax-slicing.so "
+    cmd += "-load " + LLVM_ROOT + "/install/lib/libint.so "
+    cmd += "-load " + LLVM_ROOT + "/install/lib/libalias-query.so "
+    if args.orig:
+        cmd += "-for-orig "
+    if args.concurrent:
+        cmd += "-fulltrace " + args.concurrent + " "
+    cmd += "-gen-queries < " + args.sliced_bc + " > " + args.query_list
+    os.system(cmd)

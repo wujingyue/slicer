@@ -52,7 +52,6 @@ raw_ostream &slicer::operator<<(raw_ostream &O, const Region &r) {
 }
 
 bool RegionManager::runOnModule(Module &M) {
-
 	CloneInfoManager &CIM = getAnalysis<CloneInfoManager>();
 	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
 	ExecOnce &EO = getAnalysis<ExecOnce>();
@@ -332,10 +331,29 @@ void RegionManager::get_concurrent_regions(
 	}
 }
 
-Region RegionManager::prev_region(const Region &r) const {
-
+Region RegionManager::first_region(int thr_id) const {
 	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
+	const vector<LandmarkTraceRecord> &thr_trunks = LT.get_thr_trunks(thr_id);
+	for (size_t j = 0; j < thr_trunks.size(); ++j) {
+		if (LT.is_enforcing_landmark(thr_id, j))
+			return Region(thr_id, (size_t)-1, j);
+	}
+	return Region(thr_id, (size_t)-1, (size_t)-1);
+}
 
+Region RegionManager::last_region(int thr_id) const {
+	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
+	const vector<LandmarkTraceRecord> &thr_trunks = LT.get_thr_trunks(thr_id);
+	for (size_t j = thr_trunks.size(); j > 0; ) {
+		--j;
+		if (LT.is_enforcing_landmark(thr_id, j))
+			return Region(thr_id, j, (size_t)-1);
+	}
+	return Region(thr_id, (size_t)-1, (size_t)-1);
+}
+
+Region RegionManager::prev_region(const Region &r) const {
+	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
 	const vector<LandmarkTraceRecord> &thr_trunks = LT.get_thr_trunks(r.thr_id);
 
 	assert(r.prev_enforcing_landmark != (size_t)-1);
@@ -353,7 +371,6 @@ Region RegionManager::prev_region(const Region &r) const {
 
 Region RegionManager::next_region_in_thread(
 		const Region &r, int thr_id) const {
-
 	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
 
 	assert(r.next_enforcing_landmark != (size_t)-1);
@@ -378,7 +395,6 @@ Region RegionManager::next_region_in_thread(
 }
 
 Region RegionManager::next_region(const Region &r) const {
-
 	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
 
 	const vector<LandmarkTraceRecord> &thr_trunks = LT.get_thr_trunks(r.thr_id);

@@ -6,6 +6,7 @@ using namespace std;
 
 #include "llvm/Instructions.h"
 #include "llvm/Pass.h"
+#include "common/typedefs.h"
 using namespace llvm;
 
 namespace slicer {
@@ -18,8 +19,11 @@ namespace slicer {
 		virtual void print(raw_ostream &O, const Module *M) const;
 
 	private:
-		vector<StoreInst *> all_stores;
-		vector<LoadInst *> all_loads;
+		unsigned get_instruction_id(const Instruction *ins) const;
+		void generate_static_queries(Module &M);
+		void generate_dynamic_queries(Module &M);
+
+		vector<ConstInstPair> all_queries;
 	};
 }
 

@@ -7,7 +7,7 @@
 # 
 ##===----------------------------------------------------------------------===##
 
-LEVEL = ../../llvm/llvm-obj
+LEVEL = ..
 LIBRARYNAME = racy-pairs
 LOADABLE_MODULE = 1
 

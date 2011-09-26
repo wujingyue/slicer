@@ -65,8 +65,8 @@ namespace slicer {
 		 * Trunk <trunk_id> in Thread <tid>. 
 		 */
 		size_t get_latest_happens_before(int tid, size_t trunk_id, int tid2) const;
-		/* Find the first landmark in Thread <thr_id> whose landmark > <idx> */
-		size_t search_thr_landmark(int thr_id, unsigned idx) const;
+		/* Find the first landmark in Thread <thr_id> whose landmark >= <idx> */
+		size_t search_landmark_in_thread(int thr_id, unsigned idx) const;
 
 	private:
 		/**

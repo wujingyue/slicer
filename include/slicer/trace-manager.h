@@ -25,8 +25,6 @@ using namespace std;
 using namespace slicer;
 
 namespace slicer {
-	
-	// Computed by TraceManager
 	struct TraceRecordInfo {
 		Instruction *ins;
 		// Normalized thread ID. Starts from 0. The main thread ID is always 0
@@ -35,7 +33,6 @@ namespace slicer {
 	};
 
 	struct TraceManager: public ModulePass {
-
 		static char ID;
 
 		const static unsigned INVALID_IDX = (unsigned)(-1);

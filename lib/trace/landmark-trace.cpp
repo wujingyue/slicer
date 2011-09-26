@@ -40,7 +40,6 @@ vector<int> LandmarkTrace::get_thr_ids() const {
 }
 
 bool LandmarkTrace::runOnModule(Module &M) {
-
 	assert(LandmarkTraceFile != "" && "Didn't specify the input landmark trace");
 	ifstream fin(LandmarkTraceFile.c_str(), ios::in | ios::binary);
 	assert(fin && "Cannot open the input landmark trace file");
@@ -98,8 +97,7 @@ void LandmarkTrace::extend_until_enforce(
 	}
 }
 
-void LandmarkTrace::get_concurrent_regions(
-		const pair<int, size_t> &the_trunk,
+void LandmarkTrace::get_concurrent_regions(const pair<int, size_t> &the_trunk,
 		vector<pair<int, pair<size_t, size_t> > > &concurrent_regions) const {
 	size_t s = the_trunk.second, e = the_trunk.second;
 	extend_until_enforce(the_trunk.first, s, e);
@@ -112,10 +110,10 @@ void LandmarkTrace::get_concurrent_regions(
 		// Look at other threads only. 
 		if (thr_id == the_trunk.first)
 			continue;
-		size_t s1 = search_thr_landmark(thr_id, s_idx);
+		size_t s1 = search_landmark_in_thread(thr_id, s_idx);
 		if (s1 > 0)
 			--s1;
-		size_t e1 = search_thr_landmark(thr_id, e_idx);
+		size_t e1 = search_landmark_in_thread(thr_id, e_idx);
 		if (e1 == 0) {
 			// The first landmark in Thread <thr_id> happens completely after
 			// Trunk <e> in Thread <the_trunk.first>. 
@@ -170,7 +168,7 @@ size_t LandmarkTrace::get_latest_happens_before(
 	 * in real time. 
 	 */
 	unsigned idx = get_landmark_timestamp(tid, s);
-	size_t trunk_id_2 = search_thr_landmark(tid_2, idx) - 1;
+	size_t trunk_id_2 = search_landmark_in_thread(tid_2, idx) - 1;
 	if (trunk_id_2 == (size_t)-1)
 		return (size_t)-1;
 	assert(get_landmark_timestamp(tid_2, trunk_id_2) < idx);
@@ -208,7 +206,7 @@ const vector<LandmarkTraceRecord> &LandmarkTrace::get_thr_trunks(
 
 // Find the first index >= <idx>. 
 // <, <, <, >=, >=
-size_t LandmarkTrace::search_thr_landmark(int thr_id, unsigned idx) const {
+size_t LandmarkTrace::search_landmark_in_thread(int thr_id, unsigned idx) const {
 	const vector<LandmarkTraceRecord> &thr_trunks = get_thr_trunks(thr_id);
 	size_t low = 0, high = thr_trunks.size();
 	while (low < high) {

@@ -80,6 +80,10 @@ bool Instrument::should_instrument(Instruction *ins) const {
 	// Instrument each BB if the flag is set. 
 	if (InstrumentEachBB && ins == ins->getParent()->getFirstNonPHI())
 		return true;
+	if (InstrumentEachBB && is_call(ins))
+		return true;
+	if (InstrumentEachBB && is_ret(ins))
+		return true;
 
 	return false;
 }
@@ -92,12 +96,19 @@ bool Instrument::runOnModule(Module &M) {
 	// Insert <trace_inst> for each instruction. 
 	forallbb(M, bi) {
 		for (BasicBlock::iterator ii = bi->begin(); ii != bi->end(); ++ii) {
+			if (CallInst *ci = dyn_cast<CallInst>(ii)) {
+				if (ci->getCalledFunction() == trace_inst)
+					continue;
+			}
+
 			if (!should_instrument(ii))
 				continue;
 
 			assert(!isa<PHINode>(ii) &&
 					"PHINodes shouldn't be marked as landmarks.");
 			unsigned ins_id = IDM.getInstructionID(ii);
+			if (ins_id == IDManager::INVALID_ID)
+				errs() << *ii << "\n";
 			assert(ins_id != IDManager::INVALID_ID);
 			// pthread_create needs a special wrapper. 
 			// FIXME: Can be invoke pthread_create

@@ -20,7 +20,6 @@ using namespace llvm;
 using namespace std;
 
 namespace slicer {
-
 	struct Region {
 		Region(int tid, size_t prev, size_t next):
 			thr_id(tid), prev_enforcing_landmark(prev),
@@ -35,7 +34,6 @@ namespace slicer {
 }
 
 namespace llvm {
-
 	// So that Region can be used as a DenseMap key. 
 	template <> struct DenseMapInfo<slicer::Region> {
 		static inline slicer::Region getEmptyKey() {
@@ -85,6 +83,8 @@ namespace slicer {
 		bool happens_before(const Region &a, const Region &b) const;
 		Region next_region(const Region &r) const;
 		Region prev_region(const Region &r) const;
+		Region first_region(int thr_id) const;
+		Region last_region(int thr_id) const;
 		Region next_region_in_thread(const Region &r, int thr_id) const;
 
 	private:

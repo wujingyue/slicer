@@ -19,8 +19,7 @@ static cl::opt<string> FullTraceFile("fulltrace",
 
 char TraceManager::ID = 0;
 
-bool TraceManager::read_record(
-		istream &fin,
+bool TraceManager::read_record(istream &fin,
 		TraceRecord &record) const {
 	assert((fin.flags() | ios::binary) && "Must be a binary stream");
 	if (fin.read((char *)&record, sizeof record))
@@ -30,20 +29,12 @@ bool TraceManager::read_record(
 }
 
 bool TraceManager::runOnModule(Module &M) {
-
 	records.clear();
 
 	string full_trace_file = FullTraceFile;
 	assert(full_trace_file != "" && "Didn't specify the full trace.");
 	ifstream fin(full_trace_file.c_str(), ios::in | ios::binary);
-#if 0
-	if (!fin) {
-		errs() << "[Warning] Didn't specify the full trace.\n";
-		return false;
-	}
-#else
 	assert(fin && "Cannot open the full trace.");
-#endif
 
 	TraceRecord record;
 	while (read_record(fin, record))

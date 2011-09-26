@@ -50,7 +50,6 @@ Value *CaptureConstraints::get_value_operand(const Instruction *i) {
 }
 
 void CaptureConstraints::capture_addr_taken(Module &M) {
-
 	TimerGroup tg("Capture constraints on address-taken variables");
 
 #if 0
@@ -67,7 +66,6 @@ void CaptureConstraints::capture_addr_taken(Module &M) {
 }
 
 void CaptureConstraints::capture_may_assign(Module &M) {
-
 	ExecOnce &EO = getAnalysis<ExecOnce>();
 
 	// Find all loads and stores. 
@@ -115,7 +113,6 @@ void CaptureConstraints::capture_may_assign(Module &M) {
 	dbgs() << "stores = " << all_stores.size() << "\n";
 
 	for (size_t i = 0; i < all_loads.size(); ++i) {
-
 		print_progress(dbgs(), i, all_loads.size());
 
 		// TODO: Capture constant => non-constant assignments as well. 
@@ -167,7 +164,6 @@ void CaptureConstraints::capture_may_assign(Module &M) {
 }
 
 void CaptureConstraints::capture_must_assign(Module &M) {
-
 	ExecOnce &EO = getAnalysis<ExecOnce>();
 
 	unsigned n_loads = 0;
@@ -182,7 +178,7 @@ void CaptureConstraints::capture_must_assign(Module &M) {
 		}
 	}
 	dbgs() << "=== Capturing must assignments === ";
-	dbgs() << "loads = " << n_loads << "\n";
+	dbgs() << "# of loads = " << n_loads << "\n";
 
 	unsigned cur = 0;
 	forallfunc(M, f) {
@@ -211,7 +207,6 @@ void CaptureConstraints::capture_must_assign(Module &M) {
 
 Instruction *CaptureConstraints::find_nearest_common_dom(
 		Instruction *i1, Instruction *i2) {
-
 	if (i1 == NULL)
 		return i2;
 	if (i2 == NULL)
@@ -240,7 +235,6 @@ Instruction *CaptureConstraints::find_nearest_common_dom(
 
 Instruction *CaptureConstraints::find_latest_overwriter(
 		Instruction *i2, Value *q) {
-	
 	PartialICFGBuilder &PIB = getAnalysis<PartialICFGBuilder>();
 	MicroBasicBlockBuilder &MBBB = getAnalysis<MicroBasicBlockBuilder>();
 	

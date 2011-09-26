@@ -26,25 +26,26 @@ full-trace: $(FULL_TRACES)
 		-load $(LLVM_ROOT)/install/lib/libmbb.so \
 		-load $(LLVM_ROOT)/install/lib/libcfg.so \
 		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
+		-instrument-each-bb \
 		-instrument \
 		< $<
 
 # llvm-ld doesn't generate executables if -link-as-library is specified. 
 # We don't really need a highly-optimized recorder, so we disable the opts
 # to save the compiling time. 
-%.trace.bc: %.bc1 ../../trace/tracing.bc
+%.trace.bc: %.bc1 ../../lib/trace/tracing.bc
 	llvm-ld $^ -b $@ -link-as-library -disable-opt
 
 # Default option is -O2.
-%.s: %.bc
+%.trace.s: %.trace.bc
 	llc $< -o $@ -O0
 
 # pthread may not always be necessary, but does no harm
 # Also, most of our test programs are multi-threaded
-%: %.s
+%.trace: %.trace.s
 	$(CXX) $< -o $@ -pthread
 
-pbzip2%: pbzip2%.s
+pbzip2.trace: pbzip2.trace.s
 	$(CXX) $< -o $@ -pthread -lbz2
 
 # Command lines to generate full traces
