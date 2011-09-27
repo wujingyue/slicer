@@ -10,6 +10,14 @@ using namespace std;
 using namespace llvm;
 
 namespace slicer {
+	struct DynamicInstruction {
+		DynamicInstruction(const Instruction *i, const ConstInstList &cs,
+				size_t tr_id): ins(i), callstack(cs), trunk_id(tr_id) {}
+		const Instruction *ins;
+		ConstInstList callstack;
+		size_t trunk_id; // The thread ID is included in Region.
+	};
+
 	struct QueryGenerator: public ModulePass {
 		static char ID;
 
