@@ -22,8 +22,13 @@ bool CloneInfoManager::runOnModule(Module &M) {
 			continue;
 		rmap[get_clone_info(ins)].push_back(ins);
 	}
-	assert(rmap.size() > 0 && "The program does not contain any clone_info.");
+	if (rmap.empty())
+		errs() << "[Warning] The program does not contain any clone_info.\n";
 	return false;
+}
+
+bool CloneInfoManager::has_clone_info() const {
+	return rmap.size() > 0;
 }
 
 bool CloneInfoManager::has_clone_info(const Instruction *ins) const {

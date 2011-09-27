@@ -59,6 +59,7 @@ namespace slicer {
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual bool runOnModule(Module &M);
 		
+		bool has_clone_info() const;
 		bool has_clone_info(const Instruction *ins) const;
 		/**
 		 * Assertion failure if the instruction does not have any clone info. 

@@ -56,9 +56,14 @@ bool RegionManager::runOnModule(Module &M) {
 	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
 	ExecOnce &EO = getAnalysis<ExecOnce>();
 
+	if (!CIM.has_clone_info()) {
+		errs() << "[Warning] The program doesn't contain any clone_info, "
+			<< "therefore RegionManager gives up marking region info.\n";
+		return false;
+	}
+
 	vector<int> thr_ids = LT.get_thr_ids();
 	for (size_t k = 0; k < thr_ids.size(); ++k) {
-
 		int i = thr_ids[k];
 		size_t n_trunks = LT.get_n_trunks(i);
 
