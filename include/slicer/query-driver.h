@@ -10,6 +10,11 @@ using namespace std;
 using namespace llvm;
 
 namespace slicer {
+	struct ContextedIns {
+		const Instruction *ins;
+		ConstInstList callstack;
+	};
+
 	struct QueryDriver: public ModulePass {
 		static char ID;
 		
@@ -21,8 +26,9 @@ namespace slicer {
 	private:
 		void read_queries();
 		void issue_queries();
+		void parse_contexted_ins(const string &str, ContextedIns &ci);
 		
-		vector<ConstInstPair> queries;
+		vector<pair<ContextedIns, ContextedIns> > queries;
 		vector<AliasAnalysis::AliasResult> results;
 	};
 }

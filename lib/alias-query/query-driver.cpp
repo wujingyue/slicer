@@ -1,4 +1,5 @@
 #include <fstream>
+#include <sstream>
 using namespace std;
 
 #include <boost/regex.hpp>
@@ -36,7 +37,7 @@ bool QueryDriver::runOnModule(Module &M) {
 
 void QueryDriver::issue_queries() {
 	for (size_t i = 0; i < queries.size(); ++i) {
-		const Instruction *i1 = queries[i].first, *i2 = queries[i].second;
+		const Instruction *i1 = queries[i].first.ins, *i2 = queries[i].second.ins;
 		const Value *v1 = (isa<StoreInst>(i1) ?
 				cast<StoreInst>(i1)->getPointerOperand() :
 				cast<LoadInst>(i1)->getPointerOperand());
@@ -45,10 +46,19 @@ void QueryDriver::issue_queries() {
 				cast<LoadInst>(i2)->getPointerOperand());
 		if (UseAdvancedAA) {
 			AdvancedAlias &AAA = getAnalysis<AdvancedAlias>();
-			results.push_back(AAA.alias(v1, 0, v2, 0));
+			results.push_back(AAA.alias(
+						queries[i].first.callstack, v1,
+						queries[i].second.callstack, v2));
 		} else {
 			BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
-			results.push_back(BAA.alias(v1, 0, v2, 0));
+			vector<User *> ctxt1, ctxt2;
+			for (size_t j = 0; j < queries[i].first.callstack.size(); ++j)
+				ctxt1.push_back(
+						const_cast<Instruction *>(queries[i].first.callstack[j]));
+			for (size_t j = 0; j < queries[i].second.callstack.size(); ++j)
+				ctxt2.push_back(
+						const_cast<Instruction *>(queries[i].second.callstack[j]));
+			results.push_back(BAA.alias(&ctxt1, v1, 0, &ctxt2, v2, 0));
 		}
 	}
 }
@@ -75,22 +85,33 @@ void QueryDriver::read_queries() {
 	ifstream fin(QueryList.c_str());
 	assert(fin && "Cannot open the input query list");
 
-	IDAssigner &IDA = getAnalysis<IDAssigner>();
-	
 	queries.clear();
 	string line;
 	while (getline(fin, line)) {
-		const regex e("(\\d+)\\s+(\\d+)");
+		const regex e("([\\d\\s]+),([\\d\\s]+)");
 		smatch what;
 		if (regex_match(line, what, e)) {
-			unsigned ins_id_1 = atoi(what[1].str().c_str());
-			unsigned ins_id_2 = atoi(what[2].str().c_str());
-			const Instruction *ins_1 = IDA.getInstruction(ins_id_1);
-			const Instruction *ins_2 = IDA.getInstruction(ins_id_2);
-			assert(ins_1 && ins_2);
-			queries.push_back(make_pair(ins_1, ins_2));
+			ContextedIns ci1, ci2;
+			parse_contexted_ins(what[1].str(), ci1);
+			parse_contexted_ins(what[2].str(), ci2);
+			assert(ci1.ins && ci2.ins);
+			queries.push_back(make_pair(ci1, ci2));
 		}
 	}
+}
+
+void QueryDriver::parse_contexted_ins(const string &str, ContextedIns &ci) {
+	IDAssigner &IDA = getAnalysis<IDAssigner>();
+
+	istringstream iss(str);
+	unsigned ins_id;
+	while (iss >> ins_id) {
+		ci.callstack.push_back(IDA.getInstruction(ins_id));
+		assert(ci.callstack.back());
+	}
+	assert(ci.callstack.size() > 0);
+	ci.ins = ci.callstack.back();
+	ci.callstack.pop_back();
 }
 
 void QueryDriver::getAnalysisUsage(AnalysisUsage &AU) const {
