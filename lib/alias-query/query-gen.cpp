@@ -54,7 +54,7 @@ void QueryGenerator::generate_static_queries(Module &M) {
 		for (size_t j = 0; j < all_loads.size(); ++j) {
 			all_queries.push_back(make_pair(
 						DynamicInstructionWithContext(-1, 0, all_stores[i]),
-						DynamicInstructionWithContext(-1, 0, all_stores[j])));
+						DynamicInstructionWithContext(-1, 0, all_loads[j])));
 		}
 	}
 }
@@ -200,7 +200,9 @@ void QueryGenerator::print_dynamic_instruction(raw_ostream &O,
 			O << CIM.get_clone_info(di.ins).orig_ins_id;
 		} else {
 			IDAssigner &IDA = getAnalysis<IDAssigner>();
-			O << IDA.getInstructionID(di.ins);
+			unsigned ins_id = IDA.getInstructionID(di.ins);
+			assert(ins_id != (unsigned)-1);
+			O << ins_id;
 		}
 	} else {
 		IDAssigner &IDA = getAnalysis<IDAssigner>();
@@ -217,8 +219,8 @@ void QueryGenerator::print_dynamic_instruction_with_context(raw_ostream &O,
 		const DynamicInstructionWithContext &diwc) const {
 	if (!ContextSensitive) {
 		print_dynamic_instruction(O, diwc.di);
-		assert(Concurrent && "Not supported");
 	} else {
+		assert(Concurrent && "Not supported");
 		print_dynamic_instruction(O, diwc.di);
 		O << " {";
 		for (size_t i = 0; i < diwc.callstack.size(); ++i) {
