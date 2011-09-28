@@ -46,15 +46,15 @@ void QueryGenerator::generate_static_queries(Module &M) {
 	for (size_t i = 0; i < all_stores.size(); ++i) {
 		for (size_t j = i + 1; j < all_stores.size(); ++j) {
 			all_queries.push_back(make_pair(
-						DynamicInstruction(all_stores[i], ConstInstList(), -1, 0),
-						DynamicInstruction(all_stores[j], ConstInstList(), -1, 0)));
+						DynamicInstructionWithContext(-1, 0, all_stores[i]),
+						DynamicInstructionWithContext(-1, 0, all_stores[j])));
 		}
 	}
 	for (size_t i = 0; i < all_stores.size(); ++i) {
 		for (size_t j = 0; j < all_loads.size(); ++j) {
 			all_queries.push_back(make_pair(
-						DynamicInstruction(all_stores[i], ConstInstList(), -1, 0),
-						DynamicInstruction(all_stores[j], ConstInstList(), -1, 0)));
+						DynamicInstructionWithContext(-1, 0, all_stores[i]),
+						DynamicInstructionWithContext(-1, 0, all_stores[j])));
 		}
 	}
 }
@@ -66,29 +66,36 @@ void QueryGenerator::generate_dynamic_queries(Module &M) {
 	RegionManager &RM = getAnalysis<RegionManager>();
 	MarkLandmarks &ML = getAnalysis<MarkLandmarks>();
 
-	DenseMap<Region, DenseSet<DynamicInstruction> > sls_in_regions;
-	DenseMap<int, DenseSet<DynamicInstruction> > sls_in_cur_region;
+	DenseMap<Region, DenseSet<DynamicInstructionWithContext> > sls_in_regions;
+	DenseMap<int, DenseSet<DynamicInstructionWithContext> > sls_in_cur_region;
 	DenseMap<int, const Instruction *> last_inst;
-	DenseMap<int, ConstInstList> last_callstack;
+	DenseMap<int, vector<DynamicInstruction> > last_callstack;
 	DenseMap<int, size_t> last_enforcing, last_landmark;
 
 	for (unsigned i = 0; i < TM.get_num_records(); ++i) {
 		const TraceRecordInfo &info = TM.get_record_info(i);
 		const Instruction *last_inst_of_the_thread = last_inst[info.tid];
+		size_t last_landmark_of_the_thread = (size_t)-1;
+		if (last_landmark.count(info.tid))
+			last_landmark_of_the_thread = last_landmark[info.tid];
+
 		if (last_inst_of_the_thread && is_call(last_inst_of_the_thread) &&
 				is_function_entry(info.ins)) {
-			last_callstack[info.tid].push_back(last_inst_of_the_thread);
+			assert(last_landmark_of_the_thread != (size_t)-1);
+			last_callstack[info.tid].push_back(DynamicInstruction(
+						info.tid, last_landmark_of_the_thread, last_inst_of_the_thread));
 		} else if (last_inst_of_the_thread && is_ret(last_inst_of_the_thread)) {
 			assert(last_callstack[info.tid].size() > 0);
-			BasicBlock::const_iterator ret_site = last_callstack[info.tid].back();
+			BasicBlock::const_iterator ret_site = last_callstack[info.tid].back().ins;
 			last_callstack[info.tid].pop_back();
 			BasicBlock::const_iterator ins = ret_site;
 			const BasicBlock *bb = ins->getParent();
 			for (++ins; info.ins != ins && ins != bb->end(); ++ins) {
 				if (isa<StoreInst>(ins) || isa<LoadInst>(ins)) {
-					assert(last_landmark.count(info.tid));
-					sls_in_cur_region[info.tid].insert(DynamicInstruction(ins,
-								last_callstack[info.tid], info.tid, last_landmark[info.tid]));
+					assert(last_landmark_of_the_thread != (size_t)-1);
+					sls_in_cur_region[info.tid].insert(DynamicInstructionWithContext(
+								info.tid, last_landmark_of_the_thread, ins,
+								last_callstack[info.tid]));
 				}
 			}
 		} else if (last_inst_of_the_thread) {
@@ -96,9 +103,10 @@ void QueryGenerator::generate_dynamic_queries(Module &M) {
 			for (BasicBlock::const_iterator ins = last_inst_of_the_thread;
 					info.ins != ins && ins != bb->end(); ++ins) {
 				if (isa<StoreInst>(ins) || isa<LoadInst>(ins)) {
-					assert(last_landmark.count(info.tid));
-					sls_in_cur_region[info.tid].insert(DynamicInstruction(ins,
-								last_callstack[info.tid], info.tid, last_landmark[info.tid]));
+					assert(last_landmark_of_the_thread != (size_t)-1);
+					sls_in_cur_region[info.tid].insert(DynamicInstructionWithContext(
+								info.tid, last_landmark_of_the_thread, ins,
+								last_callstack[info.tid]));
 				}
 			}
 		}
@@ -122,7 +130,7 @@ void QueryGenerator::generate_dynamic_queries(Module &M) {
 	}
 
 	// Handle the last region of each thread. 
-	for (DenseMap<int, DenseSet<DynamicInstruction> >::iterator
+	for (DenseMap<int, DenseSet<DynamicInstructionWithContext> >::iterator
 			itr = sls_in_cur_region.begin(); itr != sls_in_cur_region.end(); ++itr) {
 		if (itr->second.size() > 0) {
 			size_t last_enforcing_of_the_thread;
@@ -139,19 +147,19 @@ void QueryGenerator::generate_dynamic_queries(Module &M) {
 	// Look at each pair of concurrent regions. 
 	// TODO: Make it faster
 	errs() << "# of regions = " << sls_in_regions.size() << "\n";
-	for (DenseMap<Region, DenseSet<DynamicInstruction> >::iterator
+	for (DenseMap<Region, DenseSet<DynamicInstructionWithContext> >::iterator
 			i1 = sls_in_regions.begin(); i1 != sls_in_regions.end(); ++i1) {
-		DenseMap<Region, DenseSet<DynamicInstruction> >::iterator i2 = i1;
+		DenseMap<Region, DenseSet<DynamicInstructionWithContext> >::iterator i2 = i1;
 		for (++i2; i2 != sls_in_regions.end(); ++i2) {
 			if (RM.concurrent(i1->first, i2->first)) {
-				for (DenseSet<DynamicInstruction>::iterator j1 = i1->second.begin();
-						j1 != i1->second.end(); ++j1) {
-					for (DenseSet<DynamicInstruction>::iterator j2 = i2->second.begin();
-							j2 != i2->second.end(); ++j2) {
+				for (DenseSet<DynamicInstructionWithContext>::iterator
+						j1 = i1->second.begin(); j1 != i1->second.end(); ++j1) {
+					for (DenseSet<DynamicInstructionWithContext>::iterator
+							j2 = i2->second.begin(); j2 != i2->second.end(); ++j2) {
 						unsigned n_stores = 0;
-						if (isa<StoreInst>(j1->ins))
+						if (isa<StoreInst>(j1->di.ins))
 							++n_stores;
-						if (isa<StoreInst>(j2->ins))
+						if (isa<StoreInst>(j2->di.ins))
 							++n_stores;
 						if (n_stores >= 1)
 							all_queries.push_back(make_pair(*j1, *j2));
@@ -176,9 +184,9 @@ bool QueryGenerator::runOnModule(Module &M) {
 
 void QueryGenerator::print(raw_ostream &O, const Module *M) const {
 	for (size_t i = 0; i < all_queries.size(); ++i) {
-		print_dynamic_instruction(O, all_queries[i].first);
+		print_dynamic_instruction_with_context(O, all_queries[i].first);
 		O << ", ";
-		print_dynamic_instruction(O, all_queries[i].second);
+		print_dynamic_instruction_with_context(O, all_queries[i].second);
 		O << "\n";
 	}
 }
@@ -186,7 +194,6 @@ void QueryGenerator::print(raw_ostream &O, const Module *M) const {
 void QueryGenerator::print_dynamic_instruction(raw_ostream &O,
 		const DynamicInstruction &di) const {
 	if (!Concurrent) {
-		assert(!ContextSensitive && "Not supported");
 		if (ForOriginalProgram) {
 			CloneInfoManager &CIM = getAnalysis<CloneInfoManager>();
 			assert(CIM.has_clone_info(di.ins));
@@ -203,15 +210,23 @@ void QueryGenerator::print_dynamic_instruction(raw_ostream &O,
 			O << "(" << di.thread_id << ", " << di.trunk_id << ", "
 				<< IDA.getInstructionID(di.ins) << ")";
 		}
-		if (ContextSensitive) {
-			O << " (";
-			for (size_t i = 0; i < di.callstack.size(); ++i) {
-				O << IDA.getInstructionID(di.callstack[i]);
-				if (i + 1 < di.callstack.size())
-					O << ", ";
-			}
-			O << ")";
+	}
+}
+
+void QueryGenerator::print_dynamic_instruction_with_context(raw_ostream &O,
+		const DynamicInstructionWithContext &diwc) const {
+	if (!ContextSensitive) {
+		print_dynamic_instruction(O, diwc.di);
+		assert(Concurrent && "Not supported");
+	} else {
+		print_dynamic_instruction(O, diwc.di);
+		O << " {";
+		for (size_t i = 0; i < diwc.callstack.size(); ++i) {
+			print_dynamic_instruction(O, diwc.callstack[i]);
+			if (i + 1 < diwc.callstack.size())
+				O << ", ";
 		}
+		O << "}";
 	}
 }
 
