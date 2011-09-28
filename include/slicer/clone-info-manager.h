@@ -69,8 +69,8 @@ namespace slicer {
 		/**
 		 * Returns all instructions with this clone_info. 
 		 */
-		const InstList &get_instructions(
-				int thr_id, size_t trunk_id, unsigned orig_ins_id) const;
+		InstList get_instructions(int thr_id, size_t trunk_id,
+				unsigned orig_ins_id) const;
 		/**
 		 * Returns any instruction in Thread <thr_id>. 
 		 * Returns NULL if not found. 

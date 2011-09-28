@@ -5,18 +5,18 @@ import os, sys, argparse
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description = "Generate queries")
     parser.add_argument("orig_bc",
-            help = "The path to the original bc (with IDs tagged)")
+            help = "the path to the original bc (with IDs tagged)")
     parser.add_argument("sliced_bc",
-            help = "The path to the sliced bc")
+            help = "the path to the sliced bc")
     parser.add_argument("query_list",
-            help = "The output query list")
+            help = "the output query list")
     parser.add_argument("--orig", action = "store_true",
-            help = "Generate queries for the original program (default: false)")
+            help = "generate queries for the original program (default: false)")
     parser.add_argument("--cs", action = "store_true",
-            help = "Generate context-sensitive queries (default: false)")
+            help = "generate context-sensitive queries (default: false)")
     parser.add_argument("--concurrent", nargs = 2,
             metavar = ("full-trace", "landmark-trace"),
-            help = "Consider concurrent loads and stores only according to "
+            help = "consider concurrent loads and stores only according to "
             "the full trace and the landmark trace")
     args = parser.parse_args()
 

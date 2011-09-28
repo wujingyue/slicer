@@ -133,11 +133,9 @@ void QueryGenerator::generate_dynamic_queries(Module &M) {
 	for (DenseMap<int, DenseSet<DynamicInstructionWithContext> >::iterator
 			itr = sls_in_cur_region.begin(); itr != sls_in_cur_region.end(); ++itr) {
 		if (itr->second.size() > 0) {
-			size_t last_enforcing_of_the_thread;
+			size_t last_enforcing_of_the_thread = (size_t)-1;
 			if (last_enforcing.count(itr->first))
 				last_enforcing_of_the_thread = last_enforcing[itr->first];
-			else
-				last_enforcing_of_the_thread = -1;
 			Region cur_region(itr->first, last_enforcing_of_the_thread, (size_t)-1);
 			sls_in_regions[cur_region] = itr->second;
 			itr->second.clear();
@@ -221,14 +219,11 @@ void QueryGenerator::print_dynamic_instruction_with_context(raw_ostream &O,
 		print_dynamic_instruction(O, diwc.di);
 	} else {
 		assert(Concurrent && "Not supported");
-		print_dynamic_instruction(O, diwc.di);
-		O << " {";
 		for (size_t i = 0; i < diwc.callstack.size(); ++i) {
 			print_dynamic_instruction(O, diwc.callstack[i]);
-			if (i + 1 < diwc.callstack.size())
-				O << ", ";
+			O << " ";
 		}
-		O << "}";
+		print_dynamic_instruction(O, diwc.di);
 	}
 }
 

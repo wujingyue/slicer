@@ -52,19 +52,15 @@ CloneInfo CloneInfoManager::get_clone_info(const Instruction *ins) const {
 	return ci;
 }
 
-const InstList &CloneInfoManager::get_instructions(
-		int thr_id, size_t trunk_id, unsigned orig_ins_id) const {
+InstList CloneInfoManager::get_instructions(int thr_id,
+		size_t trunk_id, unsigned orig_ins_id) const {
 	CloneInfo ci;
 	ci.thr_id = thr_id;
 	ci.trunk_id = trunk_id;
 	ci.orig_ins_id = orig_ins_id;
 	DenseMap<CloneInfo, InstList>::const_iterator it = rmap.find(ci);
-	if (it == rmap.end()) {
-		errs() << "(" << thr_id << ", " << trunk_id << ", " <<
-			orig_ins_id << ") not found\n";
-	}
-	assert(it != rmap.end() &&
-			"Cannot find any instruction with this clone_info");
+	if (it == rmap.end())
+		return InstList();
 	return it->second;
 }
 
