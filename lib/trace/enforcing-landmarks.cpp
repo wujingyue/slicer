@@ -52,7 +52,8 @@ static const char *DEFAULT_ENFORCING_LANDMARK_FUNCS[] = {
 	"sem_trywait",
 	"sem_timedwait",
 	"epoll_wait",
-	"exit"
+	"exit",
+	"__assert_fail"
 };
 
 static RegisterPass<EnforcingLandmarks> X("enforcing-landmarks",

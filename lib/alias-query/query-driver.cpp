@@ -6,6 +6,7 @@ using namespace std;
 using namespace boost;
 
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/Debug.h"
 #include "common/IDAssigner.h"
 #include "common/util.h"
 using namespace llvm;
@@ -36,7 +37,10 @@ bool QueryDriver::runOnModule(Module &M) {
 }
 
 void QueryDriver::issue_queries() {
+	dbgs() << "# of queries = " << queries.size() << "\n";
+
 	for (size_t i = 0; i < queries.size(); ++i) {
+		dbgs() << "Query " << i << ": ";
 		const Instruction *i1 = queries[i].first.ins, *i2 = queries[i].second.ins;
 		const Value *v1 = (isa<StoreInst>(i1) ?
 				cast<StoreInst>(i1)->getPointerOperand() :
@@ -60,6 +64,7 @@ void QueryDriver::issue_queries() {
 						const_cast<Instruction *>(queries[i].second.callstack[j]));
 			results.push_back(BAA.alias(&ctxt1, v1, 0, &ctxt2, v2, 0));
 		}
+		dbgs() << results.back() << "\n";
 	}
 }
 

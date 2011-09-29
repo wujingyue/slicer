@@ -28,6 +28,7 @@ void IntTest::test_fft(const Module &M) {
 	}
 	assert(my_first && my_last);
 
+	// Collect all contexts of function Transpose. 
 	DenseMap<const Function *, vector<ConstInstList> > contexts;
 	forallconst(Module, f, M) {
 		forallconst(Function, bb, *f) {
@@ -45,6 +46,7 @@ void IntTest::test_fft(const Module &M) {
 		}
 	}
 
+	// Ask if the ranges [MyFirst, MyLast) are disjoint under different contexts.
 	DenseMap<const Function *, vector<ConstInstList> >::iterator i1, i2;
 	for (i1 = contexts.begin(); i1 != contexts.end(); ++i1) {
 		i2 = i1;
@@ -74,6 +76,45 @@ void IntTest::test_fft(const Module &M) {
 			}
 		}
 	}
+
+	const StoreInst *racy_store = NULL;
+	for (Function::const_iterator bb = transpose->begin();
+			bb != transpose->end(); ++bb) {
+		for (BasicBlock::const_iterator ins = bb->begin(); ins != bb->end(); ++ins) {
+			if (const StoreInst *si = dyn_cast<StoreInst>(ins)) {
+				if (si->getOperand(0)->getType()->isDoubleTy()) {
+					racy_store = si;
+					break;
+				}
+			}
+		}
+		if (racy_store)
+			break;
+	}
+	assert(racy_store);
+
+	for (i1 = contexts.begin(); i1 != contexts.end(); ++i1) {
+		i2 = i1;
+		for (++i2; i2 != contexts.end(); ++i2) {
+			for (size_t j1 = 0; j1 < i1->second.size(); ++j1) {
+				for (size_t j2 = 0; j2 < i2->second.size(); ++j2) {
+					AdvancedAlias &AA = getAnalysis<AdvancedAlias>();
+					errs() << "Store: {" << i1->first->getName() << ":" << j1
+						<< "} and {" << i2->first->getName() << ":" << j2
+						<< "} are disjoint? ...";
+					SC.set_print_counterexample(true);
+					assert(
+							AA.alias(
+								i1->second[j1], racy_store->getPointerOperand(),
+								i2->second[j2], racy_store->getPointerOperand()) ==
+							AliasAnalysis::NoAlias);
+					SC.set_print_counterexample(false);
+					print_pass(errs());
+				}
+			}
+		}
+	}
+
 }
 
 void IntTest::test_fft_like(const Module &M) {

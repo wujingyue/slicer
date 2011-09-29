@@ -4,7 +4,7 @@ PROGS = test-thread test-path test-overwrite test-ctxt test-recursive \
 	RADIX-like test-thread-2 test-malloc test-array-2 test-array-3 \
 	test-switch test-range test-dep test-range-2 test-range-3 \
 	test-range-4 test-loop-2 test-ctxt-2 test-ctxt-3 test-loop-4 test-ctxt-4 \
-	test-no-slice
+	test-no-slice test-global
 BCS = $(PROGS:=.bc)
 
 # Better not use -O here; otherwise difficult to construct examples.

@@ -161,6 +161,7 @@ void CaptureConstraints::calculate(Module &M) {
 
 	// Identify all integer and pointer variables. 
 	identify_fixed_integers(M);
+	// <fixed_integers> may be changed in <capture_addr_taken>. 
 
 	// Look at arithmetic operations on these constants. 
 	capture_top_level(M);

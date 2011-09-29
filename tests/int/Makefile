@@ -9,7 +9,7 @@ CXXFLAGS += -I$(LLVM_ROOT) -I$(LLVM_ROOT)/install/include -I$(SLICER_ROOT)/lib/s
 include $(LEVEL)/Makefile.common
 
 PROG_NAMES = test-overwrite test-loop test-loop-2 test-ctxt-4 \
-	     test-reducer \
+	     test-reducer test-global \
 	     test-bound FFT-like \
 	     test-thread \
 	     test-array aget-like \

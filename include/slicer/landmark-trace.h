@@ -40,13 +40,17 @@ namespace slicer {
 		const vector<LandmarkTraceRecord> &get_thr_trunks(int thr_id) const;
 
 		/* Some computation involved */
-		/* 
+		/**
+		 * DEPRECATED:
+		 * 
 		 * Returns whether trunk (i1, j1) happens before trunk (i2, j2).
 		 * Just checking the timestamps is not enough. Only the order of
 		 * enforcing landmarks will be enforced. 
 		 */
 		bool happens_before(int i1, size_t j1, int i2, size_t j2) const;
 		/**
+		 * DEPRECATED:
+		 *
 		 * Returns all trunks that are concurrent with the given trunk. 
 		 * We guarantee the output list doesn't contain duplicated items. 
 		 */
@@ -54,18 +58,24 @@ namespace slicer {
 				const pair<int, size_t> &the_trunk,
 				vector<pair<int, size_t> > &concurrent_trunks) const;
 		/**
+		 * DEPRECATED:
+		 *
 		 * A region is a contiguous set of trunks. 
 		 * We guarantee the output regions don't overlap with each other. 
 		 */
 		void get_concurrent_regions(
 				const pair<int, size_t> &the_trunk,
 				vector<pair<int, pair<size_t, size_t> > > &concurrent_regions) const;
-		/* 
+		/**
+		 * DEPRECATED:
+		 *
 		 * Returns the latest landmark in Thread <tid2> that must happen before
 		 * Trunk <trunk_id> in Thread <tid>. 
 		 */
 		size_t get_latest_happens_before(int tid, size_t trunk_id, int tid2) const;
-		/* Find the first landmark in Thread <thr_id> whose landmark >= <idx> */
+		/**
+		 * Find the first landmark in Thread <thr_id> whose landmark >= <idx>
+		 */
 		size_t search_landmark_in_thread(int thr_id, unsigned idx) const;
 
 	private:

@@ -533,3 +533,58 @@ void IntTest::test_test_overwrite(const Module &M) {
 				ConstInstList(), v1, ConstInstList(), v2));
 	print_pass(errs());
 }
+
+void IntTest::test_test_global(const Module &M) {
+	TestBanner X("test-global");
+
+	SolveConstraints &SC = getAnalysis<SolveConstraints>();
+	ExecOnce &EO = getAnalysis<ExecOnce>();
+
+	const Function *transpose = M.getFunction("transpose");
+	assert(transpose);
+	const Instruction *the_call = NULL;
+	for (Module::const_iterator f = M.begin(); f != M.end(); ++f) {
+		if (EO.not_executed(f))
+			continue;
+		for (Function::const_iterator bb = f->begin(); bb != f->end(); ++bb) {
+			for (BasicBlock::const_iterator ins = bb->begin();
+					ins != bb->end(); ++ins) {
+				if (const CallInst *ci = dyn_cast<CallInst>(ins)) {
+					if (ci->getCalledFunction() == transpose) {
+						the_call = ci;
+						break;
+					}
+				}
+			}
+			if (the_call)
+				break;
+		}
+		if (the_call)
+			break;
+	}
+	assert(the_call);
+
+	for (Module::const_iterator f = M.begin(); f != M.end(); ++f) {
+		for (Function::const_iterator bb = f->begin(); bb != f->end(); ++bb) {
+			for (BasicBlock::const_iterator ins = bb->begin();
+					ins != bb->end(); ++ins) {
+				CallSite cs = CallSite::get(
+						const_cast<Instruction *>((const Instruction *)ins));
+				if (cs.getInstruction()) {
+					Function *callee = cs.getCalledFunction();
+					if (callee && callee->getName() == "printf") {
+						assert(cs.arg_size() > 0);
+						const Value *v = cs.getArgument(cs.arg_size() - 1);
+						const IntegerType *int_type = IntegerType::get(M.getContext(), 32);
+						errs() << "a + delta <= 3? ...";
+						assert(SC.provable(CmpInst::ICMP_SLE,
+									ConstInstList(1, the_call), v,
+									ConstInstList(),
+									dyn_cast<Value>(ConstantInt::get(int_type, 3))));
+						print_pass(errs());
+					}
+				}
+			}
+		}
+	}
+}

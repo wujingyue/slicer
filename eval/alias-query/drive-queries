@@ -8,7 +8,7 @@ if __name__ == "__main__":
             help = "The path to the input bc")
     parser.add_argument("query_list",
             help = "The input query list, i.e. the workload")
-    parser.add_argument("--adv-aa", action = "store_true",
+    parser.add_argument("--adv-aa", nargs = 1, metavar = "landmark-trace",
             help = "Use the advanced AA if turned on")
     args = parser.parse_args()
 
@@ -26,5 +26,10 @@ if __name__ == "__main__":
     cmd += "-query-list " + args.query_list + " "
     if args.adv_aa:
         cmd += "-use-adv-aa "
+        cmd += "-input-landmark-trace "  + args.adv_aa[0] + " "
     cmd += "-drive-queries < " + args.input_bc
+
+    print >> sys.stderr, 50 * "="
+    print >> sys.stderr, cmd
+    print >> sys.stderr, 50 * "="
     os.system(cmd)

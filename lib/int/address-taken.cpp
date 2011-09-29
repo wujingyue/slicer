@@ -63,8 +63,114 @@ void CaptureConstraints::capture_addr_taken(Module &M) {
 	tmr_must_assign.startTimer();
 	capture_must_assign(M);
 	tmr_must_assign.stopTimer();
+
+	Timer tmr_global_var("global-var", tg);
+	tmr_global_var.startTimer();
+	capture_global_vars(M);
+	tmr_global_var.stopTimer();
 }
 
+void CaptureConstraints::capture_global_vars(Module &M) {
+	for (Module::global_iterator gi = M.global_begin();
+			gi != M.global_end(); ++gi) {
+		if (isa<IntegerType>(gi->getType()) || isa<PointerType>(gi->getType()))
+			capture_global_var(gi);
+	}
+}
+
+void CaptureConstraints::capture_global_var(GlobalVariable *gv) {
+	RegionManager &RM = getAnalysis<RegionManager>();
+	BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
+
+	assert(isa<IntegerType>(gv->getType()) || isa<PointerType>(gv->getType()));
+
+	DenseMap<Region, ConstValueList> overwriting_regions;
+	// Consider <gv>'s initializer as well. 
+	if (gv->hasInitializer()) {
+		overwriting_regions[Region(0, (size_t)-1, 0)].push_back(
+				gv->getInitializer());
+	}
+	Module *m = gv->getParent();
+	for (Module::iterator f = m->begin(); f != m->end(); ++f) {
+		for (Function::iterator bb = f->begin(); bb != f->end(); ++bb) {
+			for (BasicBlock::iterator ins = bb->begin(); ins != bb->end(); ++ins) {
+				if (StoreInst *si = dyn_cast<StoreInst>(ins)) {
+					if (BAA.alias(gv, 0, si->getPointerOperand(), 0)) {
+						vector<Region> regions;
+						RM.get_containing_regions(si, regions);
+						for (size_t i = 0; i < regions.size(); ++i)
+							overwriting_regions[regions[i]].push_back(si->getOperand(0));
+					}
+				}
+			}
+		}
+	}
+
+	vector<Region> to_be_removed;
+	for (DenseMap<Region, ConstValueList>::iterator
+			i = overwriting_regions.begin(); i != overwriting_regions.end(); ++i) {
+		bool happens_before = false;
+		for (DenseMap<Region, ConstValueList>::iterator
+				j = overwriting_regions.begin(); j != overwriting_regions.end(); ++j) {
+			if (RM.happens_before(i->first, j->first)) {
+				happens_before = true;
+				break;
+			}
+		}
+		if (happens_before)
+			to_be_removed.push_back(i->first);
+	}
+	for (size_t i = 0; i < to_be_removed.size(); ++i)
+		overwriting_regions.erase(to_be_removed[i]);
+	
+	InstList equivalent_loads;
+	for (Value::use_iterator ui = gv->use_begin(); ui != gv->use_end(); ++ui) {
+		if (LoadInst *li = dyn_cast<LoadInst>(*ui)) {
+			vector<Region> containing_regions;
+			RM.get_containing_regions(li, containing_regions);
+			bool all_happens_after = true;
+			for (size_t i = 0; i < containing_regions.size(); ++i) {
+				for (DenseMap<Region, ConstValueList>::iterator
+						j = overwriting_regions.begin();
+						j != overwriting_regions.end(); ++j) {
+					if (!RM.happens_before(j->first, containing_regions[i])) {
+						all_happens_after = false;
+						break;
+					}
+				}
+				if (!all_happens_after)
+					break;
+			}
+			if (all_happens_after)
+				equivalent_loads.push_back(li);
+		}
+	}
+
+	for (size_t i = 0; i < equivalent_loads.size(); ++i)
+		fixed_integers.insert(equivalent_loads[i]);
+	for (size_t i = 0; i + 1 < equivalent_loads.size(); ++i) {
+		add_constraint(new Clause(new BoolExpr(CmpInst::ICMP_EQ,
+						new Expr(equivalent_loads[i]), new Expr(equivalent_loads[i + 1]))));
+	}
+	if (equivalent_loads.size() > 0) {
+		Clause *disj = NULL;
+		for (DenseMap<Region, ConstValueList>::iterator
+				i = overwriting_regions.begin(); i != overwriting_regions.end(); ++i) {
+			for (size_t k = 0; k < i->second.size(); ++k) {
+				Clause *c = new Clause(new BoolExpr(CmpInst::ICMP_EQ,
+							new Expr(equivalent_loads[0]),
+							new Expr(i->second[k])));
+				if (!disj)
+					disj = c;
+				else
+					disj = new Clause(Instruction::Or, disj, c);
+			}
+		}
+		add_constraint(disj);
+	}
+}
+
+#if 0
 void CaptureConstraints::capture_may_assign(Module &M) {
 	ExecOnce &EO = getAnalysis<ExecOnce>();
 
@@ -162,6 +268,7 @@ void CaptureConstraints::capture_may_assign(Module &M) {
 	print_progress(dbgs(), all_loads.size(), all_loads.size());
 	dbgs() << "\n";
 }
+#endif
 
 void CaptureConstraints::capture_must_assign(Module &M) {
 	ExecOnce &EO = getAnalysis<ExecOnce>();
@@ -284,6 +391,7 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 
 	Value *q = i2->getPointerOperand();
 	// We only handle the case that <i2> is executed once for now. 
+	// TODO: Change to is_fixed_integer? 
 	if (!EO.executed_once(i2))
 		return;
 	
@@ -323,7 +431,6 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 	vector<Instruction *> latest_doms;
 	vector<size_t> latest_preceeding_enforcing_landmarks;
 	for (size_t k = 0; k < thr_ids.size(); ++k) {
-		
 		int i = thr_ids[k];
 		if (i == cur_thr_id) {
 			latest_preceeding_enforcing_landmarks.push_back(prev_enforcing);

@@ -126,6 +126,7 @@ namespace slicer {
 		
 		// Address taken variables. 
 		void capture_addr_taken(Module &M);
+#if 0
 		/*
 		 * store v1, p (including global variable initializers)
 		 * v2 = load q
@@ -134,7 +135,10 @@ namespace slicer {
 		 * v2 may = v1
 		 */
 		void capture_may_assign(Module &M);
+#endif
 		void capture_must_assign(Module &M);
+		void capture_global_vars(Module &M);
+		void capture_global_var(GlobalVariable *gv);
 		void capture_overwriting_to(LoadInst *i2);
 		Instruction *find_latest_overwriter(Instruction *i2, Value *q);
 		BasicBlock *get_idom(BasicBlock *bb);

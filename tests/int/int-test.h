@@ -43,5 +43,6 @@ namespace slicer {
 		void test_test_range_4(const Module &M);
 		void test_test_ctxt_2(const Module &M);
 		void test_test_ctxt_4(const Module &M);
+		void test_test_global(const Module &M);
 	};
 }
