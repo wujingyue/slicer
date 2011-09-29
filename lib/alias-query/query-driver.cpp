@@ -43,6 +43,9 @@ void QueryDriver::issue_queries() {
 	dbgs() << "# of queries = " << queries.size() << "\n";
 
 	for (size_t i = 0; i < queries.size(); ++i) {
+		// Deterministic sampling to be fair. 
+		if (i % SampleRate != 0)
+			continue;
 		dbgs() << "Query " << i << ": ";
 		const Instruction *i1 = queries[i].first.ins, *i2 = queries[i].second.ins;
 		if (!i1 || !i2) {

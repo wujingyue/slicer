@@ -114,8 +114,7 @@ void QueryTranslator::translate_contexted_ins(const vector<DynamicInsID> &a,
 		// If cannot find the counterpart of the instruction
 		// (excluding the call stack), we simply give up. 
 		if (i + 1 == a.size() && skipped) {
-			a3.clear();
-			a3.push_back((unsigned)-1);
+			a2.push_back(NULL);
 			break;
 		}
 	}
