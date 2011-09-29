@@ -27,6 +27,9 @@ static cl::opt<string> QueryList("query-list",
 		cl::desc("The input query list"));
 static cl::opt<bool> UseAdvancedAA("use-adv-aa",
 		cl::desc("Use the advanced AA if turned on"));
+static cl::opt<int> SampleRate("sample",
+		cl::desc("Sample a subset of queries: 1/sample of all queries will "
+			"be picked"));
 
 char QueryDriver::ID = 0;
 
@@ -42,27 +45,31 @@ void QueryDriver::issue_queries() {
 	for (size_t i = 0; i < queries.size(); ++i) {
 		dbgs() << "Query " << i << ": ";
 		const Instruction *i1 = queries[i].first.ins, *i2 = queries[i].second.ins;
-		const Value *v1 = (isa<StoreInst>(i1) ?
-				cast<StoreInst>(i1)->getPointerOperand() :
-				cast<LoadInst>(i1)->getPointerOperand());
-		const Value *v2 = (isa<StoreInst>(i2) ?
-				cast<StoreInst>(i2)->getPointerOperand() :
-				cast<LoadInst>(i2)->getPointerOperand());
-		if (UseAdvancedAA) {
-			AdvancedAlias &AAA = getAnalysis<AdvancedAlias>();
-			results.push_back(AAA.alias(
-						queries[i].first.callstack, v1,
-						queries[i].second.callstack, v2));
+		if (!i1 || !i2) {
+			results.push_back(AliasAnalysis::NoAlias);
 		} else {
-			BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
-			vector<User *> ctxt1, ctxt2;
-			for (size_t j = 0; j < queries[i].first.callstack.size(); ++j)
-				ctxt1.push_back(
-						const_cast<Instruction *>(queries[i].first.callstack[j]));
-			for (size_t j = 0; j < queries[i].second.callstack.size(); ++j)
-				ctxt2.push_back(
-						const_cast<Instruction *>(queries[i].second.callstack[j]));
-			results.push_back(BAA.alias(&ctxt1, v1, 0, &ctxt2, v2, 0));
+			const Value *v1 = (isa<StoreInst>(i1) ?
+					cast<StoreInst>(i1)->getPointerOperand() :
+					cast<LoadInst>(i1)->getPointerOperand());
+			const Value *v2 = (isa<StoreInst>(i2) ?
+					cast<StoreInst>(i2)->getPointerOperand() :
+					cast<LoadInst>(i2)->getPointerOperand());
+			if (UseAdvancedAA) {
+				AdvancedAlias &AAA = getAnalysis<AdvancedAlias>();
+				results.push_back(AAA.alias(
+							queries[i].first.callstack, v1,
+							queries[i].second.callstack, v2));
+			} else {
+				BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
+				vector<User *> ctxt1, ctxt2;
+				for (size_t j = 0; j < queries[i].first.callstack.size(); ++j)
+					ctxt1.push_back(
+							const_cast<Instruction *>(queries[i].first.callstack[j]));
+				for (size_t j = 0; j < queries[i].second.callstack.size(); ++j)
+					ctxt2.push_back(
+							const_cast<Instruction *>(queries[i].second.callstack[j]));
+				results.push_back(BAA.alias(&ctxt1, v1, 0, &ctxt2, v2, 0));
+			}
 		}
 		dbgs() << results.back() << "\n";
 	}
@@ -99,7 +106,8 @@ void QueryDriver::read_queries() {
 			ContextedIns ci1, ci2;
 			parse_contexted_ins(what[1].str(), ci1);
 			parse_contexted_ins(what[2].str(), ci2);
-			assert(ci1.ins && ci2.ins);
+			// ci1.ins or ci2.ins can be NULL if the translation fails.
+			// In that case, the load is optimized. 
 			queries.push_back(make_pair(ci1, ci2));
 		}
 	}

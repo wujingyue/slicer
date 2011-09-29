@@ -201,6 +201,9 @@ bool AdvancedAlias::may_alias(const Value *v1, const Value *v2) {
 AliasAnalysis::AliasResult AdvancedAlias::alias(
 		const ConstInstList &c1, const Value *v1,
 		const ConstInstList &c2, const Value *v2) {
+	// Context-insensitive version is much faster. 
+	if (alias(v1, 0, v2, 0) == NoAlias)
+		return NoAlias;
 	// TODO: Caching
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	if (!SC.satisfiable(CmpInst::ICMP_EQ, c1, v1, c2, v2))

@@ -113,10 +113,14 @@ void QueryTranslator::translate_contexted_ins(const vector<DynamicInsID> &a,
 		}
 		// If cannot find the counterpart of the instruction
 		// (excluding the call stack), we simply give up. 
-		if (i + 1 == a.size() && skipped)
+		if (i + 1 == a.size() && skipped) {
+			a3.clear();
+			a3.push_back((unsigned)-1);
 			break;
+		}
 	}
 
+	a3.clear();
 	for (size_t i = 0; i < a2.size(); ++i)
 		a3.push_back(IDA.getInstructionID(a2[i]));
 	reverse(a3.begin(), a3.end());
