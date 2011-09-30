@@ -1,0 +1,31 @@
+#!/usr/bin/env python
+
+import re, sys, os, subprocess
+
+if __name__ == "__main__":
+    started = False
+    for line in sys.stdin:
+        if re.search("--- Name ---", line):
+            started = True
+            continue
+        if started:
+            mo = re.match("[\\d\\.()\\%\\s]+([A-Z].*)$", line)
+            if mo == None:
+                continue
+            name = mo.group(1).strip()
+            if name == "TOTAL":
+                continue
+            p1 = subprocess.Popen(["opt", "-help"],
+                    stdout = subprocess.PIPE,
+                    env = os.environ)
+            p2 = subprocess.Popen(["grep", "\- " + name],
+                    stdin = p1.stdout,
+                    stdout = subprocess.PIPE)
+            p1.stdout.close() # Allow p1 to receive a SIGPIPE if p2 exits.
+            result = p2.communicate()[0]
+            if len(result.split()) == 0:
+                print >> sys.stderr, "[Warning] Cannot find the option for " \
+                        "'" + name + "'"
+                continue
+            sys.stdout.write(result.split()[0] + " ")
+    sys.stdout.write("\n")

@@ -201,11 +201,25 @@ bool AdvancedAlias::may_alias(const Value *v1, const Value *v2) {
 AliasAnalysis::AliasResult AdvancedAlias::alias(
 		const ConstInstList &c1, const Value *v1,
 		const ConstInstList &c2, const Value *v2) {
+	BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
+	SolveConstraints &SC = getAnalysis<SolveConstraints>();
+
+	// Try context-sensitive BddAliasAnalysis first. 
+	if (BAA.isAnalysisContextSensitive()) {
+		vector<User *> ctxt1, ctxt2;
+		for (size_t i = 0; i < c1.size(); ++i)
+			ctxt1.push_back(const_cast<Instruction *>(c1[i]));
+		for (size_t i = 0; i < c2.size(); ++i)
+			ctxt2.push_back(const_cast<Instruction *>(c2[i]));
+		if (BAA.alias(&ctxt1, v1, 0, &ctxt2, v2, 0) == NoAlias)
+			return NoAlias;
+	}
+
 	// Context-insensitive version is much faster. 
 	if (alias(v1, 0, v2, 0) == NoAlias)
 		return NoAlias;
+
 	// TODO: Caching
-	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	if (!SC.satisfiable(CmpInst::ICMP_EQ, c1, v1, c2, v2))
 		return NoAlias;
 	if (SC.provable(CmpInst::ICMP_EQ, c1, v1, c2, v2))

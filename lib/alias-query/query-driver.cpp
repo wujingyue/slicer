@@ -122,8 +122,10 @@ void QueryDriver::parse_contexted_ins(const string &str, ContextedIns &ci) {
 	istringstream iss(str);
 	unsigned ins_id;
 	while (iss >> ins_id) {
-		ci.callstack.push_back(IDA.getInstruction(ins_id));
-		assert(ci.callstack.back());
+		if (ins_id == (unsigned)-1)
+			ci.callstack.push_back(NULL);
+		else
+			ci.callstack.push_back(IDA.getInstruction(ins_id));
 	}
 	assert(ci.callstack.size() > 0);
 	ci.ins = ci.callstack.back();

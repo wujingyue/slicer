@@ -49,19 +49,16 @@ static SimplifierListener Listener;
  * The program will remove the output file on failure. 
  * This saves lots of troubles for Makefiles. 
  */
-static cl::opt<string> OutputFilename(
-		"o",
+static cl::opt<string> OutputFilename("o",
 		cl::desc("Override output filename"),
 		cl::value_desc("filename"),
 		cl::init("-"));
 
-static cl::opt<bool> UnitAtATime(
-		"funit-at-a-time",
+static cl::opt<bool> UnitAtATime("funit-at-a-time",
 		cl::desc("Enable IPO. This is same as llvm-gcc's -funit-at-a-time"),
 		cl::init(true));
 
-static cl::opt<bool> PrintAfterEachIteration(
-		"p",
+static cl::opt<bool> PrintAfterEachIteration("p",
 		cl::desc("Print module after each iteration"));
 
 void AddPass(PassManager &PM, Pass *P) {
@@ -78,7 +75,6 @@ void AddPass(PassManager &PM, Pass *P) {
  */
 void AddOptimizationPasses(PassManager &MPM, FunctionPassManager &FPM,
 		unsigned OptLevel) {
-
 	createStandardFunctionPasses(&FPM, OptLevel);
 
 	llvm::Pass *InliningPass = 0;
