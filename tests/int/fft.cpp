@@ -102,13 +102,11 @@ void IntTest::test_fft(const Module &M) {
 					errs() << "Store: {" << i1->first->getName() << ":" << j1
 						<< "} and {" << i2->first->getName() << ":" << j2
 						<< "} are disjoint? ...";
-					SC.set_print_counterexample(true);
 					assert(
 							AA.alias(
 								i1->second[j1], racy_store->getPointerOperand(),
 								i2->second[j2], racy_store->getPointerOperand()) ==
 							AliasAnalysis::NoAlias);
-					SC.set_print_counterexample(false);
 					print_pass(errs());
 				}
 			}
