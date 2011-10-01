@@ -9,30 +9,32 @@ using namespace llvm;
 #include "pointer-access.h"
 using namespace slicer;
 
-PointerAccess::PointerAccess(const Instruction *acc, const Value *p, bool write):
-	accessor(acc), loc(p), is_write(write) {}
+PointerAccess::PointerAccess(const Instruction *acc, const Value *p, bool write)
+	: accessor(acc), loc(p), is_write(write) {}
 
-vector<PointerAccess> get_pointer_accesses(const Instruction *ins) {
-	vector<PointerAccess> result;
-	if (const StoreInst *si = dyn_cast<StoreInst>(ins)) {
-		result.push_back(PointerAccess(si, si->getPointerOperand(), true));
-	} else if (const LoadInst *li = dyn_cast<LoadInst>(ins)) {
-		result.push_back(PointerAccess(li, li->getPointerOperand(), false));
-	} else if (is_call(ins)) {
-		CallSite cs(const_cast<Instruction *>(ins));
-		Function *callee = cs.getCalledFunction();
-		if (callee) {
-			if (callee->getName() == "read") {
-				result.push_back(PointerAccess(ins, cs.getArgument(1), true));
-			}
-			if (callee->getName() == "write") {
-				result.push_back(PointerAccess(ins, cs.getArgument(1), false));
+namespace slicer {
+	vector<PointerAccess> get_pointer_accesses(const Instruction *ins) {
+		vector<PointerAccess> result;
+		if (const StoreInst *si = dyn_cast<StoreInst>(ins)) {
+			result.push_back(PointerAccess(si, si->getPointerOperand(), true));
+		} else if (const LoadInst *li = dyn_cast<LoadInst>(ins)) {
+			result.push_back(PointerAccess(li, li->getPointerOperand(), false));
+		} else if (is_call(ins)) {
+			CallSite cs(const_cast<Instruction *>(ins));
+			Function *callee = cs.getCalledFunction();
+			if (callee) {
+				if (callee->getName() == "read") {
+					result.push_back(PointerAccess(ins, cs.getArgument(1), true));
+				}
+				if (callee->getName() == "write") {
+					result.push_back(PointerAccess(ins, cs.getArgument(1), false));
+				}
 			}
 		}
+		return result;
 	}
-	return result;
-}
 
-bool racy(const PointerAccess &a, const PointerAccess &b) {
-	return a.is_write + b.is_write >= 1;
+	bool racy(const PointerAccess &a, const PointerAccess &b) {
+		return a.is_write + b.is_write >= 1;
+	}
 }
