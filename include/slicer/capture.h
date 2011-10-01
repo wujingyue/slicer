@@ -56,13 +56,15 @@ namespace slicer {
 		/**
 		 * Returns all reachable integers or pointers. 
 		 */
-		const ConstValueSet &get_fixed_integers() const;
+		const ValueSet &get_fixed_integers() const;
 		/**
 		 * Used by the solver as well, so need make it public.
 		 * Called internally by the module to capture constraints on
 		 * unreachable BBs. 
 		 */
 		Clause *get_avoid_branch(const TerminatorInst *ti, unsigned i) const;
+		static bool is_slicer_assert_eq(const Instruction *ins,
+				const Value **v, const Value **c);
 		/**
 		 * Get constraints on top-level variables in function <f>.
 		 */
@@ -219,7 +221,7 @@ namespace slicer {
 
 		// Data members. 
 		vector<Clause *> constraints;
-		ConstValueSet fixed_integers;
+		ValueSet fixed_integers;
 		const Type *int_type;
 		DominatorTreeBase<ICFGNode> IDT;
 	};

@@ -14,6 +14,7 @@ using namespace std;
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Analysis/Dominators.h"
+#include "llvm/Target/TargetData.h"
 #include "common/util.h"
 #include "common/intra-reach.h"
 #include "common/callgraph-fp.h"
@@ -179,7 +180,7 @@ void SolveConstraints::identify_fixed_values() {
 	// Get all integers that are possible to be a fixed value. 
 	// No need to be sound. 
 	list<const Value *> candidates;
-	const ConstValueSet &fixed_integers = CC.get_fixed_integers();
+	const ValueSet &fixed_integers = CC.get_fixed_integers();
 	candidates.insert(candidates.end(),
 			fixed_integers.begin(), fixed_integers.end());
 	refine_candidates(candidates);
@@ -295,8 +296,18 @@ void SolveConstraints::identify_fixed_values() {
 	// Finally, make identified fixed values to be roots. 
 	for (i = fixed_values.begin(); i != fixed_values.end(); ++i) {
 		const Value *v = i->first;
+		assert(isa<IntegerType>(v->getType()));
 		// Note: Convert it to a signed integer.
-		root[v] = ConstantInt::getSigned(v->getType(), (int)i->second.first);
+		if (isa<IntegerType>(v->getType())) {
+			root[v] = ConstantInt::getSigned(cast<IntegerType>(v->getType()),
+					(int)i->second.first);
+		} else {
+			TargetData &TD = getAnalysis<TargetData>();
+			assert(isa<PointerType>(v->getType()));
+			root[v] = ConstantInt::getSigned(
+					IntegerType::get(v->getContext(), TD.getTypeSizeInBits(v->getType())),
+					i->second.first);
+		}
 	}
 }
 
@@ -570,6 +581,7 @@ void SolveConstraints::print(raw_ostream &O, const Module *M) const {
 
 void SolveConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
+	AU.addRequiredTransitive<TargetData>();
 	AU.addRequiredTransitive<IDAssigner>();
 	AU.addRequiredTransitive<LoopInfo>();
 	AU.addRequiredTransitive<DominatorTree>();

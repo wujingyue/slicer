@@ -76,7 +76,8 @@ CaptureConstraints::~CaptureConstraints() {
 void CaptureConstraints::print(raw_ostream &O, const Module *M) const {
 	IDAssigner &IDA = getAnalysis<IDAssigner>();
 	O << "\nIntegers:\n";
-	forallconst(ConstValueSet, it, fixed_integers) {
+	for (ValueSet::const_iterator it = fixed_integers.begin();
+			it != fixed_integers.end(); ++it) {
 		if (isa<ConstantInt>(*it))
 			continue;
 		unsigned value_id = IDA.getValueID(*it);

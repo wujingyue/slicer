@@ -10,7 +10,6 @@
 using namespace llvm;
 
 namespace slicer {
-
 	struct AggressiveLICM: public LoopPass {
 		static char ID;
 

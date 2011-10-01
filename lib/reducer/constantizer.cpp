@@ -18,9 +18,8 @@ using namespace llvm;
 #include "slicer/max-slicing.h"
 using namespace slicer;
 
-static RegisterPass<Constantizer> X("post-reduce",
-		"Replace variables with constants whenever possible and "
-		"remove unreachable branches according to int-constraints");
+static RegisterPass<Constantizer> X("constantize",
+		"Replace variables with constants whenever possible");
 
 STATISTIC(VariablesConstantized, "Number of variables constantized");
 
@@ -39,8 +38,8 @@ bool Constantizer::constantize(Module &M) {
 
 	vector<pair<const Value *, ConstantInt *> > to_replace;
 	// TODO: consider only constants. 
-	const ConstValueSet &constants = CC.get_fixed_integers();
-	forallconst(ConstValueSet, it, constants) {
+	const ValueSet &constants = CC.get_fixed_integers();
+	forallconst(ValueSet, it, constants) {
 		// Skip if already a constant. 
 		if (isa<Constant>(*it))
 			continue;
@@ -119,6 +118,7 @@ bool Constantizer::constantize(Module &M) {
 }
 
 bool Constantizer::runOnModule(Module &M) {
+	assert(false);
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	/*
 	 * NOTE: Constantize the module before removing branches. 

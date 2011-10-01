@@ -4,18 +4,22 @@
 
 #define DEBUG_TYPE "reducer"
 
+#include <sstream>
+using namespace std;
+
 #include "llvm/LLVMContext.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Target/TargetData.h"
 #include "common/util.h"
 using namespace llvm;
 
-#include "slicer/post-reducer.h"
 #include "slicer/iterate.h"
 #include "slicer/capture.h"
 #include "slicer/solve.h"
 #include "slicer/max-slicing.h"
+#include "slicer/post-reducer.h"
 using namespace slicer;
 
 static RegisterPass<PostReducer> X("post-reduce",
@@ -28,6 +32,7 @@ STATISTIC(VariablesConstantized, "Number of variables constantized");
 char PostReducer::ID = 0;
 
 void PostReducer::getAnalysisUsage(AnalysisUsage &AU) const {
+	AU.addRequired<TargetData>();
 	AU.addRequired<Iterate>();
 	AU.addRequired<CaptureConstraints>();
 	AU.addRequired<SolveConstraints>();
@@ -35,14 +40,14 @@ void PostReducer::getAnalysisUsage(AnalysisUsage &AU) const {
 }
 
 bool PostReducer::constantize(Module &M) {
-
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 
-	vector<pair<const Value *, ConstantInt *> > to_replace;
-	// TODO: consider only constants. 
-	const ConstValueSet &constants = CC.get_fixed_integers();
-	forallconst(ConstValueSet, it, constants) {
+	vector<pair<Value *, ConstantInt *> > to_replace;
+	// TODO: We consider only constants for now. 
+	const ValueSet &constants = CC.get_fixed_integers();
+	for (ValueSet::const_iterator it = constants.begin();
+			it != constants.end(); ++it) {
 		// Skip if already a constant. 
 		if (isa<Constant>(*it))
 			continue;
@@ -59,27 +64,89 @@ bool PostReducer::constantize(Module &M) {
 
 	bool changed = false;
 	for (size_t i = 0; i < to_replace.size(); ++i) {
-		
-		const Value *v = to_replace[i].first;
+		Value *v = to_replace[i].first;
+		ConstantInt *c = to_replace[i].second;
 		
 		vector<Use *> local;
 		// Don't replace uses while iterating. 
 		// Put them to a local list first. 
-		for (Value::use_const_iterator ui = v->use_begin();
-				ui != v->use_end(); ++ui)
+		bool already_asserted = false;
+		for (Value::use_iterator ui = v->use_begin(); ui != v->use_end(); ++ui) {
+			if (Instruction *ins = dyn_cast<Instruction>(*ui)) {
+				if (CaptureConstraints::is_slicer_assert_eq(ins, NULL, NULL)) {
+					already_asserted = true;
+					continue;
+				}
+			}
 			local.push_back(&ui.getUse());
+		}
 
 		DEBUG(dbgs() << "=== replacing with a constant ===\n";);
-		DEBUG(dbgs() << "Constant = " << *to_replace[i].second << "\n";);
-		if (const Instruction *ins = dyn_cast<Instruction>(v)) {
+		DEBUG(dbgs() << "Constant = " << *c << "\n";);
+		if (Instruction *ins = dyn_cast<Instruction>(v)) {
 			DEBUG(dbgs() << ins->getParent()->getParent()->getName() << ":" <<
 					*ins << "\n";);
-		} else if (const Argument *arg = dyn_cast<Argument>(v)) {
+		} else if (Argument *arg = dyn_cast<Argument>(v)) {
 			DEBUG(dbgs() << arg->getParent()->getName() << ":" << *arg << "\n";);
 		} else {
 			DEBUG(dbgs() << *v << "\n";);
 		}
 	
+		// Give up if <v> is a pointer. 
+		if (!already_asserted && local.size() > 0) {
+			// Find the position to add slicer_assert_eq
+			Instruction *pos = NULL;
+			if (Instruction *ins = dyn_cast<Instruction>(v)) {
+				BasicBlock::iterator next = ins; ++next;
+				for (; next != ins->getParent()->end() && isa<PHINode>(next); ++next);
+				// Stops if <next> reaches the end or it's not a PHINode. 
+				if (next == ins->getParent()->end()) {
+					assert(isa<InvokeInst>(ins));
+					next = cast<InvokeInst>(ins)->getNormalDest()->getFirstNonPHI();
+				}
+				pos = next;
+			} else if (Argument *arg = dyn_cast<Argument>(v)) {
+				pos = arg->getParent()->begin()->getFirstNonPHI();
+			}
+
+			if (pos) {
+				// Add slicer_assert_eq
+				Constant *the_slicer_assert_eq = NULL;
+				vector<Value *> actual_args;
+				if (isa<IntegerType>(v->getType())) {
+					TargetData &TD = getAnalysis<TargetData>();
+					unsigned bit_width = TD.getTypeSizeInBits(v->getType());
+					the_slicer_assert_eq = slicer_assert_eq.lookup(bit_width);
+
+					actual_args.push_back(v);
+					// v and c may not be of the same type, because they are retrieved
+					// from the union find set.
+					actual_args.push_back(ConstantInt::getSigned(v->getType(),
+								(int)c->getSExtValue()));
+				} else {
+					the_slicer_assert_eq = slicer_assert_eq.lookup(0);
+
+					assert(isa<PointerType>(v->getType()));
+					const PointerType *ptr_type = cast<PointerType>(v->getType());
+					const Type *elem_type = ptr_type->getElementType();
+
+					Value *ptr_v = v;
+					if (!elem_type->isIntegerTy(8)) {
+						ptr_v = new BitCastInst(ptr_v,
+								Type::getInt8PtrTy(M.getContext()), "", pos);
+					}
+					Value *ptr_c = new IntToPtrInst(c, ptr_v->getType(), "", pos);
+
+					actual_args.push_back(ptr_v);
+					actual_args.push_back(ptr_c);
+				}
+
+				assert(the_slicer_assert_eq);
+				CallInst::Create(the_slicer_assert_eq,
+						actual_args.begin(), actual_args.end(), "", pos);
+			}
+		}
+
 		DEBUG(dbgs() << "Uses:\n";);
 		// FIXME: Integer types in the solver may not be consistent with there
 		// real types. Therefore, we create new ConstantInt's with respect to
@@ -88,6 +155,7 @@ bool PostReducer::constantize(Module &M) {
 		for (size_t j = 0; j < local.size(); ++j) {
 			const Type *type = local[j]->get()->getType();
 			if (const IntegerType *int_type = dyn_cast<IntegerType>(type)) {
+#if 0
 				/*
 				 * FIXME: This is a quick hack to prevent the constantizer from
 				 * replacing branch conditions so as to keep BranchInsts. 
@@ -95,13 +163,14 @@ bool PostReducer::constantize(Module &M) {
 				 */
 				if (int_type->getBitWidth() == 1)
 					continue;
+#endif
 				// Signed values. 
-				int64_t svalue = to_replace[i].second->getSExtValue();
+				int64_t svalue = c->getSExtValue();
 				DEBUG(dbgs() << *local[j]->getUser() << "\n";);
 				local[j]->set(ConstantInt::getSigned(int_type, svalue));
 				locally_changed = true;
 			} else if (const PointerType *ptr_type = dyn_cast<PointerType>(type)) {
-				if (to_replace[i].second->isZero()) {
+				if (c->isZero()) {
 					DEBUG(dbgs() << *local[j]->getUser() << "\n";);
 					local[j]->set(ConstantPointerNull::get(ptr_type));
 					locally_changed = true;
@@ -120,9 +189,36 @@ bool PostReducer::constantize(Module &M) {
 	return changed;
 }
 
-bool PostReducer::runOnModule(Module &M) {
+void PostReducer::setup(Module &M) {
+	setup_slicer_assert_eq(M, 0);
+	setup_slicer_assert_eq(M, 1);
+	setup_slicer_assert_eq(M, 8);
+	setup_slicer_assert_eq(M, 16);
+	setup_slicer_assert_eq(M, 32);
+	setup_slicer_assert_eq(M, 64);
+}
 
+void PostReducer::setup_slicer_assert_eq(Module &M, unsigned bit_width) {
+	const Type *void_type = Type::getVoidTy(M.getContext());
+	const Type *arg_type;
+	if (bit_width == 0)
+		arg_type = Type::getInt8PtrTy(M.getContext());
+	else
+		arg_type = IntegerType::get(M.getContext(), bit_width);
+	vector<const Type *> arg_types(2, arg_type);
+
+	ostringstream oss;
+	oss << "slicer_assert_eq_" << bit_width;
+	oss.flush();
+
+	slicer_assert_eq[bit_width] = M.getOrInsertFunction(oss.str(),
+			FunctionType::get(void_type, arg_types, false));
+}
+
+bool PostReducer::runOnModule(Module &M) {
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
+
+	setup(M);
 	/*
 	 * NOTE: Constantize the module before removing branches. 
 	 * The former does not change the CFG. 
@@ -146,16 +242,17 @@ bool PostReducer::runOnModule(Module &M) {
 	changed |= constantize(M);
 	tmr_constantize.stopTimer();
 	
+#if 0
 	// Remove unreachable branches. 
 	tmr_remove_br.startTimer();
 	changed |= remove_branches(M);
 	tmr_remove_br.stopTimer();
+#endif
 
 	return changed;
 }
 
 bool PostReducer::remove_branches(Module &M) {
-
 	dbgs() << "Try removing branches... ";
 	// TODO: We could do the same thing for SwitchInsts too. 
 	/*
@@ -174,7 +271,6 @@ bool PostReducer::remove_branches(Module &M) {
 	DenseMap<Function *, BasicBlock *> unreachable_bbs;
 	bool changed = false;
 	for (size_t i = 0; i < to_remove.size(); ++i) {
-
 		BranchInst *bi = to_remove[i].first;
 		unsigned which = to_remove[i].second;
 		
@@ -196,9 +292,8 @@ bool PostReducer::remove_branches(Module &M) {
 	return changed;
 }
 
-bool PostReducer::remove_branch(
-		TerminatorInst *ti, unsigned i, BasicBlock *&unreachable_bb) {
-
+bool PostReducer::remove_branch(TerminatorInst *ti, unsigned i,
+		BasicBlock *&unreachable_bb) {
 	assert(i < ti->getNumSuccessors());
 	// Already unreachable. 
 	if (MaxSlicing::is_unreachable(ti->getSuccessor(i)))
@@ -232,7 +327,6 @@ bool PostReducer::remove_branch(
 
 void PostReducer::prepare_remove_branch(
 		BranchInst *bi, vector<pair<BranchInst *, unsigned> > &to_remove) {
-
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 

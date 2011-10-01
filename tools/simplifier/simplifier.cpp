@@ -311,6 +311,12 @@ int DoOneIteration(Module *M) {
 
 	// Run the AggressivePromotion to aggresively hoist LoadInst's. 
 	vector<const PassInfo *> PIs;
+	if (const PassInfo *PI = Listener.getPassInfo("remove-assert-eq")) {
+		PIs.push_back(PI);
+	} else {
+		errs() << "AsesrtEqRemover hasn't been laoded.\n";
+		return -1;
+	}
 	if (const PassInfo *PI = Listener.getPassInfo("aggressive-promotion")) {
 		PIs.push_back(PI);
 	} else {

@@ -77,13 +77,13 @@ void CaptureConstraints::identify_fixed_integers(Module &M) {
 
 void CaptureConstraints::capture_top_level(Module &M) {
 	// Users: Instructions or ConstantExprs
-	forall(ConstValueSet, it, fixed_integers) {
+	forall(ValueSet, it, fixed_integers) {
 		if (const User *user = dyn_cast<User>(*it))
 			add_constraint(get_in_user(user));
 	}
 	
 	// Function parameters: formal = actual
-	forall(ConstValueSet, it, fixed_integers) {
+	forall(ValueSet, it, fixed_integers) {
 		if (const Argument *arg = dyn_cast<Argument>(*it))
 			add_constraint(get_in_argument(arg));
 	}
@@ -396,10 +396,10 @@ Clause *CaptureConstraints::get_in_gep(const User *user) {
 }
 
 bool CaptureConstraints::is_fixed_integer(const Value *v) const {
-	return fixed_integers.count(v);
+	return fixed_integers.count(const_cast<Value *>(v));
 }
 
-const ConstValueSet &CaptureConstraints::get_fixed_integers() const {
+const ValueSet &CaptureConstraints::get_fixed_integers() const {
 	return fixed_integers;
 }
 

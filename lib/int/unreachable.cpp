@@ -7,7 +7,25 @@ using namespace llvm;
 
 #include "slicer/capture.h"
 #include "slicer/max-slicing.h"
+#include "slicer/post-reducer.h"
 using namespace slicer;
+
+bool CaptureConstraints::is_slicer_assert_eq(const Instruction *ins,
+		const Value **v, const Value **c) {
+	CallSite cs = CallSite::get(const_cast<Instruction *>(ins));
+	if (cs.getInstruction()) {
+		Function *callee = cs.getCalledFunction();
+		if (callee && starts_with(callee->getName(), "slicer_assert_eq_")) {
+			assert(cs.arg_size() == 2);
+			if (v)
+				*v = cs.getArgument(0);
+			if (c)
+				*c = cs.getArgument(1);
+			return true;
+		}
+	}
+	return false;
+}
 
 void CaptureConstraints::capture_unreachable(Module &M) {
 	// TODO: inter-procedural 
@@ -118,7 +136,7 @@ void CaptureConstraints::get_unreachable_in_function(Function &F,
 		if (MaxSlicing::is_unreachable(bi))
 			sink.insert(bi);
 	}
-	forall(Function, bi, F) {
+	for (Function::iterator bi = F.begin(); bi != F.end(); ++bi) {
 		bool already_in_sink = sink.count(bi);
 		if (!already_in_sink)
 			sink.insert(bi);
@@ -146,5 +164,16 @@ void CaptureConstraints::get_unreachable_in_function(Function &F,
 		}
 		if (!already_in_sink)
 			sink.erase(bi);
+	}
+	
+	// Capture slicer_assert_eq_ function calls. 
+	for (Function::iterator bb = F.begin(); bb != F.end(); ++bb) {
+		for (BasicBlock::iterator ins = bb->begin(); ins != bb->end(); ++ins) {
+			const Value *v = NULL, *c = NULL;
+			if (is_slicer_assert_eq(ins, &v, &c)) {
+				unreachable_constraints.push_back(new Clause(new BoolExpr(
+								CmpInst::ICMP_EQ, new Expr(v), new Expr(c))));
+			}
+		}
 	}
 }
