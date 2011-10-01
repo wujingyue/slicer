@@ -355,10 +355,10 @@ int DoOneIteration(Module *M) {
 	 * PostReducer requires Iterate, so don't worry about the Iterate. 
 	 */
 	PIs.clear();
-	if (const PassInfo *PI = Listener.getPassInfo("post-reduce")) {
+	if (const PassInfo *PI = Listener.getPassInfo("constantize")) {
 		PIs.push_back(PI);
 	} else {
-		errs() << "PostReducer hasn't been loaded.\n";
+		errs() << "Constantizer hasn't been loaded.\n";
 		return -1;
 	}
 
