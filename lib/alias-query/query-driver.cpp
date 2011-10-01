@@ -17,6 +17,7 @@ using namespace repair;
 #include "slicer/iterate.h"
 #include "slicer/query-driver.h"
 #include "slicer/adv-alias.h"
+#include "pointer-access.h"
 using namespace slicer;
 
 static RegisterPass<QueryDriver> X("drive-queries",
@@ -29,7 +30,8 @@ static cl::opt<bool> UseAdvancedAA("use-adv-aa",
 		cl::desc("Use the advanced AA if turned on"));
 static cl::opt<int> SampleRate("sample",
 		cl::desc("Sample a subset of queries: 1/sample of all queries will "
-			"be picked"));
+			"be picked"),
+		cl::init(1));
 
 char QueryDriver::ID = 0;
 
@@ -51,27 +53,39 @@ void QueryDriver::issue_queries() {
 		if (!i1 || !i2) {
 			results.push_back(AliasAnalysis::NoAlias);
 		} else {
-			const Value *v1 = (isa<StoreInst>(i1) ?
-					cast<StoreInst>(i1)->getPointerOperand() :
-					cast<LoadInst>(i1)->getPointerOperand());
-			const Value *v2 = (isa<StoreInst>(i2) ?
-					cast<StoreInst>(i2)->getPointerOperand() :
-					cast<LoadInst>(i2)->getPointerOperand());
+			vector<PointerAccess> accesses1 = get_pointer_accesses(i1);
+			vector<PointerAccess> accesses2 = get_pointer_accesses(i2);
 			if (UseAdvancedAA) {
 				AdvancedAlias &AAA = getAnalysis<AdvancedAlias>();
-				results.push_back(AAA.alias(
-							queries[i].first.callstack, v1,
-							queries[i].second.callstack, v2));
+				for (size_t j1 = 0; j1 < accesses1.size(); ++j1) {
+					for (size_t j2 = 0; j2 < accesses2.size(); ++j2) {
+						if (racy(accesses1[j1], accesses2[j2])) {
+							results.push_back(AAA.alias(
+										queries[i].first.callstack, accesses1[j1].loc,
+										queries[i].second.callstack, accesses2[j2].loc));
+						}
+					}
+				}
 			} else {
 				BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
 				vector<User *> ctxt1, ctxt2;
-				for (size_t j = 0; j < queries[i].first.callstack.size(); ++j)
+				for (size_t j = 0; j < queries[i].first.callstack.size(); ++j) {
 					ctxt1.push_back(
 							const_cast<Instruction *>(queries[i].first.callstack[j]));
-				for (size_t j = 0; j < queries[i].second.callstack.size(); ++j)
+				}
+				for (size_t j = 0; j < queries[i].second.callstack.size(); ++j) {
 					ctxt2.push_back(
 							const_cast<Instruction *>(queries[i].second.callstack[j]));
-				results.push_back(BAA.alias(&ctxt1, v1, 0, &ctxt2, v2, 0));
+				}
+				for (size_t j1 = 0; j1 < accesses1.size(); ++j1) {
+					for (size_t j2 = 0; j2 < accesses2.size(); ++j2) {
+						if (racy(accesses1[j1], accesses2[j2])) {
+							results.push_back(BAA.alias(
+										&ctxt1, accesses1[j1].loc, 0,
+										&ctxt2, accesses2[j2].loc, 0));
+						}
+					}
+				}
 			}
 		}
 		dbgs() << results.back() << "\n";

@@ -10,6 +10,7 @@ using namespace llvm;
 #include "slicer/landmark-trace.h"
 #include "slicer/mark-landmarks.h"
 #include "slicer/add-calling-context.h"
+#include "pointer-access.h"
 using namespace slicer;
 
 static RegisterPass<QueryGenerator> X("gen-queries",
@@ -29,32 +30,39 @@ char QueryGenerator::ID = 0;
 void QueryGenerator::generate_static_queries(Module &M) {
 	CloneInfoManager &CIM = getAnalysis<CloneInfoManager>();
 
-	vector<StoreInst *> all_stores;
-	vector<LoadInst *> all_loads;
+	vector<Instruction *> read_accessors, write_accessors;
 	for (Module::iterator f = M.begin(); f != M.end(); ++f) {
 		for (Function::iterator bb = f->begin(); bb != f->end(); ++bb) {
 			for (BasicBlock::iterator ins = bb->begin(); ins != bb->end(); ++ins) {
 				if (CIM.has_clone_info(ins)) {
-					if (StoreInst *si = dyn_cast<StoreInst>(ins))
-						all_stores.push_back(si);
-					if (LoadInst *li = dyn_cast<LoadInst>(ins))
-						all_loads.push_back(li);
+					vector<PointerAccess> accesses = get_pointer_accesses(ins);
+					bool has_read = false, has_write = false;
+					for (size_t i = 0; i < accesses.size(); ++i) {
+						if (accesses[i].is_write)
+							has_write = true;
+						else
+							has_read = true;
+					}
+					if (has_write)
+						write_accessors.push_back(ins);
+					if (has_read)
+						read_accessors.push_back(ins);
 				}
 			}
 		}
 	}
-	for (size_t i = 0; i < all_stores.size(); ++i) {
-		for (size_t j = i + 1; j < all_stores.size(); ++j) {
+	for (size_t i = 0; i < write_accessors.size(); ++i) {
+		for (size_t j = i + 1; j < write_accessors.size(); ++j) {
 			all_queries.push_back(make_pair(
-						DynamicInstructionWithContext(-1, 0, all_stores[i]),
-						DynamicInstructionWithContext(-1, 0, all_stores[j])));
+						DynamicInstructionWithContext(-1, 0, write_accessors[i]),
+						DynamicInstructionWithContext(-1, 0, write_accessors[j])));
 		}
 	}
-	for (size_t i = 0; i < all_stores.size(); ++i) {
-		for (size_t j = 0; j < all_loads.size(); ++j) {
+	for (size_t i = 0; i < write_accessors.size(); ++i) {
+		for (size_t j = 0; j < read_accessors.size(); ++j) {
 			all_queries.push_back(make_pair(
-						DynamicInstructionWithContext(-1, 0, all_stores[i]),
-						DynamicInstructionWithContext(-1, 0, all_loads[j])));
+						DynamicInstructionWithContext(-1, 0, write_accessors[i]), 
+						DynamicInstructionWithContext(-1, 0, read_accessors[j])));
 		}
 	}
 }
