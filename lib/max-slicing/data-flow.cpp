@@ -46,16 +46,35 @@ void MaxSlicing::fix_def_use_phinodes(BasicBlock *bi) {
 	BBMapping actual_pred_bbs;
 	const InstList &actual_pred_insts = cfg_r.lookup(bi->begin());
 	for (size_t j = 0; j < actual_pred_insts.size(); ++j) {
-		EdgeType et = get_edge_type(actual_pred_insts[j], bi->begin());
-		// FIXME: Are you sure? Successors of InvokeInsts never
-		// have PHINodes? 
-		assert(et == EDGE_INTRA_BB || et == EDGE_INTER_BB);
-		Instruction *orig_pred_inst =
-			clone_map_r.lookup(actual_pred_insts[j]);
+		Instruction *actual_pred_inst = actual_pred_insts[j];
+		EdgeType et = get_edge_type(actual_pred_inst, bi->begin());
+		if (et == EDGE_INTRA_BB || et == EDGE_INTER_BB) {
+			Instruction *orig_pred_inst = clone_map_r.lookup(actual_pred_inst);
+			assert(orig_pred_inst);
+			actual_pred_bbs[orig_pred_inst->getParent()] =
+				actual_pred_inst->getParent();
+		}
+	}
+	// main() {
+	//   invoke foo(); normal = bb1, unwind = bb2
+	//   bb1: I1
+	// }
+	//
+	// foo() {
+	//   I2
+	//   ret
+	// }
+	//
+	// cfg: I1 => ret
+	// invoke_predecessor: I1 => invoke
+	const InstList &invoke_pred_insts = invoke_predecessors.lookup(bi->begin());
+	for (size_t j = 0; j < invoke_pred_insts.size(); ++j) {
+		Instruction *orig_pred_inst = clone_map_r.lookup(invoke_pred_insts[j]);
 		assert(orig_pred_inst);
 		actual_pred_bbs[orig_pred_inst->getParent()] =
-			actual_pred_insts[j]->getParent();
+			invoke_pred_insts[j]->getParent();
 	}
+
 	for (BasicBlock::iterator ii = bi->begin();
 			ii != (BasicBlock::iterator)bi->getFirstNonPHI(); ++ii) {
 		PHINode *phi = dyn_cast<PHINode>(ii);
@@ -358,7 +377,6 @@ void MaxSlicing::fix_def_use_insts(Function &F) {
 
 void MaxSlicing::link_thr_func(Module &M,
 		int parent_tid, size_t trunk_id, int child_tid) {
-	
 	// <orig_site> is the pthread_create site in the original program. 
 	Trace::const_iterator it = trace.find(parent_tid);
 	assert(it != trace.end());
@@ -438,7 +456,6 @@ void MaxSlicing::link_thr_funcs(Module &M) {
 }
 
 bool MaxSlicing::is_unreachable(const BasicBlock *bb) {
-	
 	if (bb->getNameStr().find("unreachable" + SLICER_SUFFIX) != string::npos)
 		return true;
 

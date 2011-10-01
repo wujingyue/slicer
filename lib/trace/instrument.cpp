@@ -141,11 +141,8 @@ bool Instrument::runOnModule(Module &M) {
 				if (InvokeInst *inv = dyn_cast<InvokeInst>(ii)) {
 					// TODO: We don't instrument the unwind BB currently. 
 					BasicBlock *dest = inv->getNormalDest();
-					assert(dest->getSinglePredecessor() == bi &&
-							"Did you run nocrit?");
-					CallInst::Create(
-							trace_inst, ConstantInt::get(uint_type, ins_id), "",
-							dest->getFirstNonPHI());
+					CallInst::Create(trace_inst, ConstantInt::get(uint_type, ins_id),
+							"", dest->getFirstNonPHI());
 				} else {
 					assert(bi->getTerminator() != ii &&
 							"We assume terminators are non-blocking for now. "

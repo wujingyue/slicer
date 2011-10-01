@@ -22,7 +22,7 @@ all: $(PROGS:=.prep.bc)
 		-load $(LLVM_ROOT)/install/lib/libmbb.so \
 		-load $(LLVM_ROOT)/install/lib/libcfg.so \
 		-load $(LLVM_ROOT)/install/lib/libpreparer.so \
-		-break-crit-edges -prepare \
+		-prepare \
 		< $<
 
 clean:

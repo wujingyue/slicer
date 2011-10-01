@@ -136,8 +136,7 @@ void MaxSlicing::dump_thr_cfg(const CFG &cfg, int thr_id) {
 	}
 }
 
-Instruction *MaxSlicing::find_parent_at_same_level(
-		Instruction *x,
+Instruction *MaxSlicing::find_parent_at_same_level(Instruction *x,
 		const DenseMap<Instruction *, int> &level,
 		const InstMapping &parent) {
 #if 0
@@ -618,6 +617,7 @@ bool MaxSlicing::is_sliced(const Function *f) {
 
 void MaxSlicing::find_invoke_successors(Module &M) {
 	invoke_successors.clear();
+	invoke_predecessors.clear();
 	forallconst(Trace, it, trace) {
 		assert(!it->second.empty());
 		Instruction *old_start = it->second[0];
@@ -654,6 +654,7 @@ void MaxSlicing::find_invoke_successors_from(Module &M, Instruction *start) {
 					DEBUG(dbgs() << "Invoke successor:\n";);
 					DEBUG(dbgs() << *ret_addr << "\n" << *y << "\n";);
 					invoke_successors[ret_addr].push_back(y);
+					invoke_predecessors[y].push_back(ret_addr);
 				}
 				q.push(make_pair(y, call_stack));
 				q.back().second.pop_back();

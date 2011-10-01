@@ -223,7 +223,7 @@ namespace slicer {
 		// The real successors of an InvokeInst, which are at the same level.
 		// Does not include InvokeInsts whose successors in <cfg> are already
 		// real successors. 
-		CFG invoke_successors;
+		CFG invoke_successors, invoke_predecessors;
 		Trace trace; /// The entire landmark trace. 
 		InstSet landmarks; /// All landmarks. 
 		/**
