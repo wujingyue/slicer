@@ -4,3 +4,12 @@ Make sure the following variables are set correctly:
 LLVM_ROOT
 SLICER_ROOT
 APPS_ROOT
+
+e.g.
+LLVM_ROOT=/home/jingyue/Research/llvm
+SLICER_ROOT=/home/jingyue/Research/slicer
+APPS_ROOT=/home/jingyue/Research/apps
+
+2. Install libraries
+
+
