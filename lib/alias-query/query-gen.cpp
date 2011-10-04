@@ -99,7 +99,7 @@ void QueryGenerator::generate_dynamic_queries(Module &M) {
 			BasicBlock::const_iterator ins = ret_site;
 			const BasicBlock *bb = ins->getParent();
 			for (++ins; info.ins != ins && ins != bb->end(); ++ins) {
-				if (isa<StoreInst>(ins) || isa<LoadInst>(ins)) {
+				if (!get_pointer_accesses(ins).empty()) {
 					assert(last_landmark_of_the_thread != (size_t)-1);
 					sls_in_cur_region[info.tid].insert(DynamicInstructionWithContext(
 								info.tid, last_landmark_of_the_thread, ins,
@@ -110,7 +110,7 @@ void QueryGenerator::generate_dynamic_queries(Module &M) {
 			const BasicBlock *bb = last_inst_of_the_thread->getParent();
 			for (BasicBlock::const_iterator ins = last_inst_of_the_thread;
 					info.ins != ins && ins != bb->end(); ++ins) {
-				if (isa<StoreInst>(ins) || isa<LoadInst>(ins)) {
+				if (!get_pointer_accesses(ins).empty()) {
 					assert(last_landmark_of_the_thread != (size_t)-1);
 					sls_in_cur_region[info.tid].insert(DynamicInstructionWithContext(
 								info.tid, last_landmark_of_the_thread, ins,
@@ -160,15 +160,17 @@ void QueryGenerator::generate_dynamic_queries(Module &M) {
 			if (RM.concurrent(i1->first, i2->first)) {
 				for (DenseSet<DynamicInstructionWithContext>::iterator
 						j1 = i1->second.begin(); j1 != i1->second.end(); ++j1) {
+					vector<PointerAccess> accesses1 = get_pointer_accesses(j1->di.ins);
 					for (DenseSet<DynamicInstructionWithContext>::iterator
 							j2 = i2->second.begin(); j2 != i2->second.end(); ++j2) {
-						unsigned n_stores = 0;
-						if (isa<StoreInst>(j1->di.ins))
-							++n_stores;
-						if (isa<StoreInst>(j2->di.ins))
-							++n_stores;
-						if (n_stores >= 1)
-							all_queries.push_back(make_pair(*j1, *j2));
+						vector<PointerAccess> accesses2 = get_pointer_accesses(j2->di.ins);
+						for (size_t k1 = 0; k1 < accesses1.size(); ++k1) {
+							for (size_t k2 = 0; k2 < accesses2.size(); ++k2) {
+								if (racy(accesses1[k1], accesses2[k2])) {
+									all_queries.push_back(make_pair(*j1, *j2));
+								}
+							}
+						}
 					}
 				}
 			}

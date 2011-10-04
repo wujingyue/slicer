@@ -95,7 +95,8 @@ aget.ft: aget.trace
 	mv /tmp/fulltrace $@
 
 pbzip2.ft: pbzip2.trace
-	./$< -p8 -dkvf ../progs/inputs/pbzip2-test.bz2
+	# Providing input from stdin enforces pbzip2 to use multiple threads. 
+	./$< -p8 -dkvf < ../progs/inputs/pbzip2-test.bz2 > /dev/null
 	mv /tmp/fulltrace $@
 
 CHOLESKY.ft: CHOLESKY.trace

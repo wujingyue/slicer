@@ -1,3 +1,5 @@
+#define DEBUG_TYPE "alias-query"
+
 #include <fstream>
 #include <sstream>
 using namespace std;
@@ -42,13 +44,12 @@ bool QueryDriver::runOnModule(Module &M) {
 }
 
 void QueryDriver::issue_queries() {
-	dbgs() << "# of queries = " << queries.size() << "\n";
+	errs() << "# of queries = " << queries.size() << "\n";
 
 	for (size_t i = 0; i < queries.size(); ++i) {
 		// Deterministic sampling to be fair. 
 		if (i % SampleRate != 0)
 			continue;
-		dbgs() << "Query " << i << ": ";
 		const Instruction *i1 = queries[i].first.ins, *i2 = queries[i].second.ins;
 		if (!i1 || !i2) {
 			results.push_back(AliasAnalysis::NoAlias);
@@ -88,7 +89,15 @@ void QueryDriver::issue_queries() {
 				}
 			}
 		}
-		dbgs() << results.back() << "\n";
+		raw_ostream::Colors color;
+		if (results.back() == AliasAnalysis::NoAlias)
+			color = raw_ostream::GREEN;
+		else if (results.back() == AliasAnalysis::MustAlias)
+			color = raw_ostream::BLUE;
+		else
+			color = raw_ostream::RED;
+		errs().changeColor(color) << results.back(); errs().resetColor();
+		DEBUG(dbgs() << "Query " << i << ": " << results.back() << "\n";);
 	}
 }
 
