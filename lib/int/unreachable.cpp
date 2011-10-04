@@ -7,7 +7,6 @@ using namespace llvm;
 
 #include "slicer/capture.h"
 #include "slicer/max-slicing.h"
-#include "slicer/post-reducer.h"
 using namespace slicer;
 
 bool CaptureConstraints::is_slicer_assert_eq(const Instruction *ins,

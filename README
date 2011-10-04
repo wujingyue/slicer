@@ -1,0 +1,6 @@
+1. Set environmental variables
+
+Make sure the following variables are set correctly:
+LLVM_ROOT
+SLICER_ROOT
+APPS_ROOT

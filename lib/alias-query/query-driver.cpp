@@ -99,6 +99,7 @@ void QueryDriver::issue_queries() {
 		errs().changeColor(color) << results.back(); errs().resetColor();
 		DEBUG(dbgs() << "Query " << i << ": " << results.back() << "\n";);
 	}
+	errs() << "\n";
 }
 
 void QueryDriver::print(raw_ostream &O, const Module *M) const {
@@ -114,8 +115,8 @@ void QueryDriver::print(raw_ostream &O, const Module *M) const {
 			assert_not_supported();
 	}
 	O << "No: " << n_no << "; ";
-	O << "Must: " << n_must << "; ";
 	O << "May: " << n_may << "\n";
+	O << "Must: " << n_must << "; ";
 }
 
 void QueryDriver::read_queries() {
