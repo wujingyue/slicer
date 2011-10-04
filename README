@@ -36,6 +36,7 @@ cd ..
 5. Building Slicer
 
 git clone git@repair.cs.columbia.edu slicer
+cd slicer
 ./configure --with-llvmsrc=<path to LLVM source code> --with-llvmobj=<path to LLVM object files> --prefix=<path to LLVM installation directory>
 make
 make install
