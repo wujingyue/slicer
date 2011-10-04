@@ -46,3 +46,5 @@ make install
 cd tests
 make build
 make run
+
+If no crashes or assertion failures, all test cases are passed. 
