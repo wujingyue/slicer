@@ -12,7 +12,7 @@ APPS_ROOT=/home/jingyue/Research/apps
 
 2. Install libraries
 
-sudo apt-get install libbdd-dev libbz2 openjdk-6-jdk 
+sudo apt-get install libbdd-dev libbz2 openjdk-6-jdk libboost-regex-dev
 
 3. Building LLVM 2.7
 
