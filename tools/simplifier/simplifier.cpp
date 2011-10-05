@@ -177,7 +177,6 @@ Module *LoadModuleFromStdin() {
  * We shouldn't rely on the return value. 
  */
 int RunOptimizationPasses(Module *M) {
-
 	// Create a PassManager to hold and optimize the collection of passes we are
 	// about to build...
 	PassManager Passes;
@@ -269,7 +268,6 @@ int RunPassInfos(Module *M, const vector<const PassInfo *> &PIs) {
 }
 
 int OutputModule(Module *M, const string &FileName) {
-
 	raw_ostream *Out = &outs();  // Default to printing to stdout...
 	if (FileName != "-") {
 		string ErrorInfo;
@@ -300,7 +298,6 @@ int OutputModule(Module *M, const string &FileName) {
  * Returns 0 if <M> is unchanged. 
  */
 int DoOneIteration(Module *M) {
-
 	if (RunOptimizationPasses(M) == -1)
 		return -1;
 	/*
@@ -366,7 +363,6 @@ int DoOneIteration(Module *M) {
 }
 
 int main(int argc, char *argv[]) {
-
 	/*
 	 * X and Y must be put in the main function, because they can only
 	 * be deleted when the program exits. 
@@ -383,7 +379,6 @@ int main(int argc, char *argv[]) {
 	Module *M = LoadModuleFromStdin();
 	if (!M)
 		return 1;
-
 
 	TimerGroup TG("Simplifier");
 	vector<Timer *> Tmrs;

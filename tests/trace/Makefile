@@ -6,7 +6,7 @@ PROG_NAMES = test-thread test-overwrite test-loop test-loop-2 test-ctxt-2 \
 	     aget-like test-array test-dep test-ctxt-4 test-global \
 	     test-overwrite-2 RADIX-like test-thread-2 test-assert \
 	     test-malloc test-ctxt test-range test-range-3 test-range-4 \
-	     aget FFT RADIX pbzip2 CHOLESKY pfscan
+	     aget FFT RADIX pbzip2 CHOLESKY pfscan aget-fake
 PROGS_DIR = ../progs
 TRACED_PROGS = $(PROG_NAMES:=.trace)
 LANDMARK_TRACES = $(PROG_NAMES:=.lt)
@@ -90,6 +90,11 @@ aget-like.ft: aget-like.trace
 	mv /tmp/fulltrace $@
 
 aget.ft: aget.trace
+	./$< -n2 -f http://www.cs.columbia.edu/~jingyue/index.html
+	# ./$< -n8 -f http://www.cs.columbia.edu/~heming/unlink/dragonegg-2.7-bak0.tgz
+	mv /tmp/fulltrace $@
+
+aget-fake.ft: aget-fake.trace
 	./$< -n2 -f http://www.cs.columbia.edu/~jingyue/index.html
 	# ./$< -n8 -f http://www.cs.columbia.edu/~heming/unlink/dragonegg-2.7-bak0.tgz
 	mv /tmp/fulltrace $@

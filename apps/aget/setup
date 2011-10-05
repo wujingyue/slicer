@@ -9,4 +9,5 @@ fi
 patch -p1 < structurize.patch
 cd aget-$1
 patch -p1 < ../fix-pwrite.patch
+patch -p1 < ../fake-pwrite.patch
 cd ..

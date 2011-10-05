@@ -115,8 +115,8 @@ void QueryDriver::print(raw_ostream &O, const Module *M) const {
 			assert_not_supported();
 	}
 	O << "No: " << n_no << "; ";
-	O << "May: " << n_may << "\n";
-	O << "Must: " << n_must << "; ";
+	O << "May: " << n_may << "; ";
+	O << "Must: " << n_must << ";\n";
 }
 
 void QueryDriver::read_queries() {
