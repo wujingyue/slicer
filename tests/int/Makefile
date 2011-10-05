@@ -1,12 +1,15 @@
-LEVEL = $(shell $(LLVM_ROOT)/scripts/level-to-llvm-root)/llvm-obj
+LEVEL = ../..
+
 LIBRARYNAME = int-test
+
 LOADABLE_MODULE = 1
-CXXFLAGS += -I$(LLVM_ROOT) -I$(SLICER_ROOT) -I$(SLICER_ROOT)/stp/install/include -I$(LLVM_ROOT)/install/include
+
+CXXFLAGS += -I$(LLVM_ROOT) -I$(LLVM_ROOT)/install/include -I$(SLICER_ROOT)/lib/stp/install/include
 
 include $(LEVEL)/Makefile.common
 
-PROG_NAMES = test-overwrite test-loop test-loop-2 \
-	     test-reducer \
+PROG_NAMES = test-overwrite test-loop test-loop-2 test-ctxt-4 \
+	     test-reducer test-global \
 	     test-bound FFT-like \
 	     test-thread \
 	     test-array aget-like \
@@ -23,6 +26,7 @@ run:: $(PROG_NAMES)
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/libmbb.so \
 		-load $(LLVM_ROOT)/install/lib/libcfg.so \
 		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
 		-load $(LLVM_ROOT)/install/lib/libmax-slicing.so \
@@ -38,6 +42,7 @@ run:: $(PROG_NAMES)
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/libmbb.so \
 		-load $(LLVM_ROOT)/install/lib/libcfg.so \
 		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
 		-load $(LLVM_ROOT)/install/lib/libmax-slicing.so \
@@ -50,6 +55,7 @@ run:: $(PROG_NAMES)
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/libmbb.so \
 		-load $(LLVM_ROOT)/install/lib/libcfg.so \
 		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
 		-load $(LLVM_ROOT)/install/lib/libmax-slicing.so \

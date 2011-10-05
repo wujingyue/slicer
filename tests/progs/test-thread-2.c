@@ -1,3 +1,11 @@
+/**
+ * Author: Jingyue
+ *
+ * There used to be a bug where global_arr must be initialized as 0. 
+ * After fixing it, the integer constraint solver should be able to run
+ * without any problem. 
+ */
+
 #include <pthread.h>
 #include <stdio.h>
 

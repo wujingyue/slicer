@@ -1,0 +1,40 @@
+#!/usr/bin/env python
+
+import os, sys, argparse
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description = "Issue queries")
+    parser.add_argument("input_bc",
+            help = "the path to the input bc")
+    parser.add_argument("query_list",
+            help = "the input query list, i.e. the workload")
+    parser.add_argument("--adv-aa", nargs = 1, metavar = "landmark-trace",
+            help = "use the advanced AA if turned on")
+    parser.add_argument("--sample", metavar = "X",
+            type = int, default = 1,
+            help = "the sample rate. issue only 1/X of all queries")
+    args = parser.parse_args()
+
+    LLVM_ROOT = os.getenv("LLVM_ROOT")
+    cmd = "opt -analyze "
+    cmd += "-load " + LLVM_ROOT + "/install/lib/libid-manager.so "
+    cmd += "-load " + LLVM_ROOT + "/install/lib/libbc2bdd.so "
+    cmd += "-load " + LLVM_ROOT + "/install/lib/libcallgraph-fp.so "
+    cmd += "-load " + LLVM_ROOT + "/install/lib/libmbb.so "
+    cmd += "-load " + LLVM_ROOT + "/install/lib/libcfg.so "
+    cmd += "-load " + LLVM_ROOT + "/install/lib/libslicer-trace.so "
+    cmd += "-load " + LLVM_ROOT + "/install/lib/libmax-slicing.so "
+    cmd += "-load " + LLVM_ROOT + "/install/lib/libint.so "
+    cmd += "-load " + LLVM_ROOT + "/install/lib/libalias-query.so "
+    cmd += "-query-list " + args.query_list + " "
+    if args.adv_aa:
+        cmd += "-use-adv-aa "
+        cmd += "-input-landmark-trace "  + args.adv_aa[0] + " "
+    if args.sample > 1:
+        cmd += "-sample " + str(args.sample) + " "
+    cmd += "-drive-queries < " + args.input_bc
+
+    print >> sys.stderr, 50 * "="
+    print >> sys.stderr, cmd
+    print >> sys.stderr, 50 * "="
+    os.system(cmd)

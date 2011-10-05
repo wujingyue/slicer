@@ -3,8 +3,9 @@ PROG_NAMES = test-thread test-path test-overwrite test-ctxt test-recursive \
 	     FFT-like aget-like test-array test-pointer test-overwrite-2 \
 	     RADIX-like test-thread-2 test-malloc test-array-2 test-array-3 \
 	     test-range test-dep test-range-2 test-range-3 test-range-4 \
-	     test-loop-2 test-ctxt-2 test-loop-3 \
-	     aget FFT RADIX pbzip2 CHOLESKY pfscan
+	     test-loop-2 test-ctxt-2 test-loop-3 test-ctxt-3 test-loop-4 \
+	     test-assert test-ctxt-4 test-global \
+	     aget FFT RADIX pbzip2 CHOLESKY pfscan aget-fake
 PROGS_DIR = ../progs
 
 PROGS = $(addprefix $(PROGS_DIR)/, $(PROG_NAMES))
@@ -18,9 +19,10 @@ all: $(PROGS:=.prep.bc)
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/libmbb.so \
 		-load $(LLVM_ROOT)/install/lib/libcfg.so \
 		-load $(LLVM_ROOT)/install/lib/libpreparer.so \
-		-break-crit-edges -prepare \
+		-prepare \
 		< $<
 
 clean:

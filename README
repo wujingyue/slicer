@@ -1,0 +1,50 @@
+1. Set environmental variables
+
+Make sure the following variables are set correctly:
+LLVM_ROOT
+SLICER_ROOT
+APPS_ROOT
+
+e.g.
+LLVM_ROOT=/home/jingyue/Research/llvm
+SLICER_ROOT=/home/jingyue/Research/slicer
+APPS_ROOT=/home/jingyue/Research/apps
+
+2. Install libraries
+
+sudo apt-get install libbdd-dev libbz2 openjdk-6-jdk libboost-regex-dev
+
+3. Building LLVM 2.7
+
+git clone git@repair.cs.columbia.edu llvm
+
+TODO
+
+4. Building common modules
+
+cd llvm # The directory you just cloned in last step
+cd bc2bdd
+make
+make install
+cd ..
+cd common
+./configure --with-llvmsrc=<path to LLVM source code> --with-llvmobj=<path to LLVM object files> --prefix=<path to LLVM installation directory>
+make
+make install
+cd ..
+
+5. Building Slicer
+
+git clone git@repair.cs.columbia.edu slicer
+cd slicer
+./configure --with-llvmsrc=<path to LLVM source code> --with-llvmobj=<path to LLVM object files> --prefix=<path to LLVM installation directory>
+make
+make install
+
+6. Test Slicer
+
+cd tests
+make build
+make run
+
+If no crashes or assertion failures, all test cases are passed. 

@@ -1,0 +1,75 @@
+Binary files aget-0.4.1/aget and aget-0.4.1-new/aget differ
+diff -ruN aget-0.4.1/Aget.c aget-0.4.1-new/Aget.c
+--- aget-0.4.1/Aget.c	2009-05-12 01:38:38.000000000 -0400
++++ aget-0.4.1-new/Aget.c	2011-10-04 19:00:04.000000000 -0400
+@@ -32,6 +32,7 @@
+ extern pthread_t hthread;
+ #include <errno.h>
+ extern int errno;
++char *fake_buffer;
+ 
+ 
+ void get(struct request *req)
+@@ -87,6 +88,7 @@
+ 
+ 	/* Get the starting time, prepare GET format string, and start the threads */
+ 	fmt = (char *)calloc(GETREQSIZ - 2, sizeof(char));
++	fake_buffer = (char *)calloc(req->clength, sizeof(char));
+ 	time(&t_start);
+ 	for (i = 0; i < nthreads; i++) {
+ 		soffset = calc_offset(req->clength, i, nthreads);
+diff -ruN aget-0.4.1/Download.c aget-0.4.1-new/Download.c
+--- aget-0.4.1/Download.c	2011-10-04 18:57:44.000000000 -0400
++++ aget-0.4.1-new/Download.c	2011-10-04 22:42:57.000000000 -0400
+@@ -29,11 +29,18 @@
+ #include "Download.h"
+ 
+ extern sigset_t signal_set;
+-
++extern char *fake_buffer;
+ 
+ unsigned int bwritten = 0;
+ pthread_mutex_t bwritten_mutex = PTHREAD_MUTEX_INITIALIZER;
+ 
++void fake_pwrite(char *, long long, long long) __attribute__((always_inline));
++void fake_pwrite(char *buf, long long offset, long long len) {
++	long long i;
++	for (i = 0; i < len; ++i)
++		fake_buffer[offset + i] = buf[i];
++}
++
+ void * http_get(struct thread_data *arg) {
+ 	struct thread_data *td;
+ 	int sd;
+@@ -100,10 +107,13 @@
+ 		pthread_exit((void *)1);
+ 	td->offset = td->soffset;
+ 
+-	if (td->offset + (dr - i ) > foffset) 
++	if (td->offset + (dr - i ) > foffset) {
++		fake_pwrite(s, td->soffset, foffset - td->offset);
+ 		dw = pwrite(td->fd, s, (foffset - td->offset), td->soffset);
+-	else
++	} else {
++		fake_pwrite(s, td->soffset, dr - i);
+ 		dw = pwrite(td->fd, s, (dr - i), td->soffset);
++	}
+ 	assert(dw >= 0);
+ 	td->offset = td->soffset + dw;
+ 
+@@ -117,10 +127,13 @@
+ 		dr = recv(sd, rbuf, GETRECVSIZ, 0);
+ 		if (dr == -1)
+ 			pthread_exit((void *)1);
+-		if ((td->offset + dr) > foffset)
++		if ((td->offset + dr) > foffset) {
++			fake_pwrite(s, td->offset, foffset - td->offset);
+ 			dw = pwrite(td->fd, rbuf, foffset - td->offset, td->offset);
+-		else
++		} else {
++			fake_pwrite(s, td->offset, dr);
+ 			dw = pwrite(td->fd, rbuf, dr, td->offset);
++		}
+ 		assert(dw >= 0);
+ 		td->offset += dw;
+ 		pthread_mutex_lock(&bwritten_mutex);

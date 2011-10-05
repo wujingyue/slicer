@@ -2,11 +2,11 @@
 
 PROG_NAMES = test-thread test-overwrite test-loop test-loop-2 test-ctxt-2 \
 	     test-reducer test-pointer test-range-2 test-loop-3 \
-	     test-recursive test-bound FFT-like \
-	     aget-like test-array test-dep \
-	     test-overwrite-2 RADIX-like test-thread-2 \
+	     test-recursive test-bound FFT-like test-ctxt-3 test-loop-4 \
+	     aget-like test-array test-dep test-ctxt-4 test-global \
+	     test-overwrite-2 RADIX-like test-thread-2 test-assert \
 	     test-malloc test-ctxt test-range test-range-3 test-range-4 \
-	     aget FFT RADIX pbzip2 CHOLESKY pfscan
+	     aget FFT RADIX pbzip2 CHOLESKY pfscan aget-fake
 PROGS_DIR = ../progs
 TRACED_PROGS = $(PROG_NAMES:=.trace)
 LANDMARK_TRACES = $(PROG_NAMES:=.lt)
@@ -23,27 +23,29 @@ full-trace: $(FULL_TRACES)
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/libmbb.so \
 		-load $(LLVM_ROOT)/install/lib/libcfg.so \
 		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
+		-instrument-each-bb \
 		-instrument \
 		< $<
 
 # llvm-ld doesn't generate executables if -link-as-library is specified. 
 # We don't really need a highly-optimized recorder, so we disable the opts
 # to save the compiling time. 
-%.trace.bc: %.bc1 ../../trace/tracing.bc
+%.trace.bc: %.bc1 ../../lib/trace/tracing.bc
 	llvm-ld $^ -b $@ -link-as-library -disable-opt
 
 # Default option is -O2.
-%.s: %.bc
+%.trace.s: %.trace.bc
 	llc $< -o $@ -O0
 
 # pthread may not always be necessary, but does no harm
 # Also, most of our test programs are multi-threaded
-%: %.s
+%.trace: %.trace.s
 	$(CXX) $< -o $@ -pthread
 
-pbzip2%: pbzip2%.s
+pbzip2.trace: pbzip2.trace.s
 	$(CXX) $< -o $@ -pthread -lbz2
 
 # Command lines to generate full traces
@@ -92,8 +94,14 @@ aget.ft: aget.trace
 	# ./$< -n8 -f http://www.cs.columbia.edu/~heming/unlink/dragonegg-2.7-bak0.tgz
 	mv /tmp/fulltrace $@
 
+aget-fake.ft: aget-fake.trace
+	./$< -n2 -f http://www.cs.columbia.edu/~jingyue/index.html
+	# ./$< -n8 -f http://www.cs.columbia.edu/~heming/unlink/dragonegg-2.7-bak0.tgz
+	mv /tmp/fulltrace $@
+
 pbzip2.ft: pbzip2.trace
-	./$< -p8 -dkvf ../progs/inputs/pbzip2-test.bz2
+	# Providing input from stdin enforces pbzip2 to use multiple threads. 
+	./$< -p8 -dkvf < ../progs/inputs/pbzip2-test.bz2 > /dev/null
 	mv /tmp/fulltrace $@
 
 CHOLESKY.ft: CHOLESKY.trace
@@ -121,29 +129,21 @@ test-loop-3.ft: test-loop-3.trace
 	./$< 1 0 1 0 1
 	mv /tmp/fulltrace $@
 
+test-ctxt-3.ft: test-ctxt-3.trace
+	./$< 0
+	mv /tmp/fulltrace $@
+
 # Most programs don't need any special command line. 
 %.ft: %.trace
 	./$<
 	mv /tmp/fulltrace $@
 
-test-loop-3.lt: test-loop-3.ft
-	opt -disable-output \
-		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
-		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
-		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
-		-load $(LLVM_ROOT)/install/lib/libcfg.so \
-		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
-		-build-landmark-trace \
-		-disable-derived-landmarks \
-		-fulltrace $< \
-		-output-landmark-trace $@ \
-		< $(PROGS_DIR)/$(<:.ft=.id.bc)
-
 %.lt: %.ft
-	opt -disable-output \
+	opt -stats -disable-output \
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/libmbb.so \
 		-load $(LLVM_ROOT)/install/lib/libcfg.so \
 		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
 		-build-landmark-trace \
@@ -156,6 +156,7 @@ test-loop-3.lt: test-loop-3.ft
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/libmbb.so \
 		-load $(LLVM_ROOT)/install/lib/libcfg.so \
 		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
 		-mark-landmarks \
