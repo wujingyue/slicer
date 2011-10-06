@@ -1,28 +1,37 @@
-1. Set environmental variables
+1. Check out source code from the git server
+
+Pick a directory as your workspace, e.g. /home/jingyue/Research. From now on,
+we denote this directory by $WORKSPACE, but it doesn't have to be an
+environmental variable. 
+
+cd $WORKSPACE
+git clone git@repair.cs.columbia.edu llvm
+git clone git@repair.cs.columbia.edu slicer
+
+Ask Jingyue if you don't have accesses to these repos. 
+
+2. Set environmental variables
 
 Make sure the following variables are set correctly:
-LLVM_ROOT
-SLICER_ROOT
-APPS_ROOT
+LLVM_ROOT=$WORKSPACE/llvm
+SLICER_ROOT=$WORKSPACE/slicer
+APPS_ROOT=$WORKSPACE/apps
 
-e.g.
-LLVM_ROOT=/home/jingyue/Research/llvm
-SLICER_ROOT=/home/jingyue/Research/slicer
-APPS_ROOT=/home/jingyue/Research/apps
-
-2. Install libraries
+3. Install libraries
 
 sudo apt-get install libbdd-dev libbz2 openjdk-6-jdk libboost-regex-dev
 
-3. Building LLVM 2.7
-
-git clone git@repair.cs.columbia.edu llvm
+4. Building LLVM 2.7
 
 TODO
 
-4. Building common modules
+You need apply two patches, $WORKSPACE/llvm/fix-dae.patch and
+$WORKSPACE/llvm/fix-fppassmanager.patch, to the LLVM 2.7 source code. These two
+patches fixed some bugs in LLVM 2.7. 
 
-cd llvm # The directory you just cloned in last step
+5. Building common modules
+
+cd $LLVM_ROOT
 cd bc2bdd
 make
 make install
@@ -31,17 +40,15 @@ cd common
 ./configure --with-llvmsrc=<path to LLVM source code> --with-llvmobj=<path to LLVM object files> --prefix=<path to LLVM installation directory>
 make
 make install
-cd ..
 
-5. Building Slicer
+6. Building Slicer
 
-git clone git@repair.cs.columbia.edu slicer
-cd slicer
+cd $SLICER_ROOT
 ./configure --with-llvmsrc=<path to LLVM source code> --with-llvmobj=<path to LLVM object files> --prefix=<path to LLVM installation directory>
 make
 make install
 
-6. Test Slicer
+7. Test Slicer
 
 cd tests
 make build

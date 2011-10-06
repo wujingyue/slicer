@@ -16,7 +16,7 @@ PROG_NAMES = test-overwrite test-loop test-loop-2 test-ctxt-4 \
 	     test-overwrite-2 \
 	     test-thread-2 RADIX-like \
 	     test-malloc test-range \
-	     aget FFT
+	     aget FFT LU-cont
 PROGS_DIR = ../progs
 
 run:: $(PROG_NAMES)

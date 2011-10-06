@@ -6,7 +6,7 @@ PROG_NAMES = test-loop test-reducer test-overwrite test-loop-2 test-ctxt-2 \
 	     RADIX-like test-thread-2 test-range-2 \
 	     test-overwrite-2 test-malloc test-range \
 	     test-range-3 test-range-4 test-global \
-	     aget RADIX FFT aget-fake
+	     aget RADIX FFT aget-fake LU-cont
 PROGS_DIR = ../progs
 PROGS = $(addprefix $(PROGS_DIR)/, $(PROG_NAMES))
 SIMPLE_PROGS = $(PROGS:=.simple)
@@ -62,7 +62,21 @@ $(PROGS_DIR)/%.simple.bc: $(PROGS_DIR)/%.slice.bc ../trace/%.lt
 %.ll: %.bc
 	llvm-dis $<
 
+%.loop: %.bc
+	opt -analyze \
+		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
+		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
+		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/libmbb.so \
+		-load $(LLVM_ROOT)/install/lib/libcfg.so \
+		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
+		-load $(LLVM_ROOT)/install/lib/libmax-slicing.so \
+		-load $(LLVM_ROOT)/install/lib/libint.so \
+		-load $(LLVM_ROOT)/install/lib/libmisc.so \
+		-identify-loops \
+		< $<
+
 clean:
 	rm -f $(SIMPLE_BCS) $(SIMPE_PROGS)
 
-.PHONY: clean
+.PHONY: clean *.loop

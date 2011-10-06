@@ -102,7 +102,7 @@ void AddOptimizationPasses(PassManager &MPM, FunctionPassManager &FPM,
 			InliningPass);
 }
 
-/*
+/**
  * Loads the RegisterPass's at the same time.
  * The events of loading RegisterPass's will be captured by SimpliferListener. 
  * Returns 0 on success, and 1 on failure. 
@@ -229,7 +229,6 @@ int RunPasses(Module *M, const vector<Pass *> &Passes) {
  * Returns 0 if <M> is unchanged. 
  */
 int RunPassInfos(Module *M, const vector<const PassInfo *> &PIs) {
-
 	// Create a PassManager to hold and optimize the collection of passes we are
 	// about to build...
 	PassManager Passes;

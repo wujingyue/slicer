@@ -71,12 +71,14 @@ void QueryDriver::issue_queries() {
 				BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
 				vector<User *> ctxt1, ctxt2;
 				for (size_t j = 0; j < queries[i].first.callstack.size(); ++j) {
-					ctxt1.push_back(
-							const_cast<Instruction *>(queries[i].first.callstack[j]));
+					const Instruction *frame = queries[i].first.callstack[j];
+					assert(is_call(frame));
+					ctxt1.push_back(const_cast<Instruction *>(frame));
 				}
 				for (size_t j = 0; j < queries[i].second.callstack.size(); ++j) {
-					ctxt2.push_back(
-							const_cast<Instruction *>(queries[i].second.callstack[j]));
+					const Instruction *frame = queries[i].second.callstack[j];
+					assert(is_call(frame));
+					ctxt2.push_back(const_cast<Instruction *>(frame));
 				}
 				for (size_t j1 = 0; j1 < accesses1.size(); ++j1) {
 					for (size_t j2 = 0; j2 < accesses2.size(); ++j2) {
