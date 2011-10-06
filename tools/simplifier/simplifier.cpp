@@ -221,6 +221,16 @@ int RunPasses(Module *M, const vector<Pass *> &Passes) {
 	return (PM.run(*M) ? 1 : 0);
 }
 
+int RunLCSSAAndLoopSimplify(Module *M) {
+	int Changed;
+	do {
+		Changed = RunPasses(M, vector<Pass *>(1, createLCSSAPass()));
+		if (Changed == -1)
+			return -1;
+	} while (Changed);
+	return RunPasses(M, vector<Pass *>(1, createLoopSimplifyPass()));
+}
+
 /*
  * Run the passes in <PIs> in the specified order. 
  *
@@ -243,17 +253,6 @@ int RunPassInfos(Module *M, const vector<const PassInfo *> &PIs) {
 	
 	for (size_t i = 0; i < PIs.size(); ++i) {
 		const PassInfo *PI = PIs[i];
-		// FIXME: Quick hacks. AggressivePromotion and AggressiveLoopUnroll requires
-		// some LLVM internal LoopPass's, but they cannot directly acquire them
-		// because they have acquired some other passes that these internal
-		// passes don't preserve (likely to be a bug in LLVM). 
-		if (PI == Listener.getPassInfo("aggressive-loop-unroll")) {
-			AddPass(Passes, createLCSSAPass());
-			// TODO: explain why. 
-			AddPass(Passes, createLoopSimplifyPass());
-		}
-		if (PI == Listener.getPassInfo("aggressive-promotion"))
-			AddPass(Passes, createLoopSimplifyPass());
 		if (!PI->getNormalCtor()) {
 			errs() << "Cannot create Pass " << PI->getPassName() << "\n";
 			return -1;
@@ -291,7 +290,7 @@ int OutputModule(Module *M, const string &FileName) {
 	return 0;
 }
 
-/*
+/**
  * Returns -1 on failure. 
  * Returns 1 if <M> gets changed. 
  * Returns 0 if <M> is unchanged. 
@@ -306,38 +305,47 @@ int DoOneIteration(Module *M) {
 	 */
 
 	// Run the AggressivePromotion to aggresively hoist LoadInst's. 
-	vector<const PassInfo *> PIs;
 	if (const PassInfo *PI = Listener.getPassInfo("remove-assert-eq")) {
-		PIs.push_back(PI);
+		if (RunPassInfos(M, vector<const PassInfo *>(1, PI)) == -1)
+			return -1;
 	} else {
-		errs() << "AsesrtEqRemover hasn't been laoded.\n";
+		errs() << "AsesrtEqRemover hasn't been loaded.\n";
 		return -1;
 	}
+	
+	// LCSSA is actually not necessary in this step. 
+	// aggressive-promotion requires the loops to be in the simplified form. 
+	if (RunLCSSAAndLoopSimplify(M) == -1)
+		return -1;
+
 	if (const PassInfo *PI = Listener.getPassInfo("aggressive-promotion")) {
-		PIs.push_back(PI);
+		if (RunPassInfos(M, vector<const PassInfo *>(1, PI)) == -1)
+			return -1;
 	} else {
 		errs() << "AggressivePromotion hasn't been loaded.\n";
 		return -1;
 	}
+
+	// aggressive-loop-unroll requires the loops to be in LCSSA and
+	// simplified form. 
+	if (RunLCSSAAndLoopSimplify(M) == -1)
+		return -1;
+
 	if (const PassInfo *PI = Listener.getPassInfo("aggressive-loop-unroll")) {
-		PIs.push_back(PI);
+		if (RunPassInfos(M, vector<const PassInfo *>(1, PI)) == -1)
+			return -1;
 	} else {
 		errs() << "AggressiveLoopUnroll hasn't been loaded.\n";
 		return -1;
 	}
-	if (RunPassInfos(M, PIs) == -1)
-		return -1;
 
 	// Run -O3 again to remove unnecessary instructions/BBs inserted
 	// by LoopSimplifier and LCSSA. 
 	if (RunOptimizationPasses(M) == -1)
 		return -1;
 
-	// CaptureConstraints requires all loops in LCSSA form. 
-	vector<Pass *> Passes;
-	Passes.push_back(createLCSSAPass());
-	Passes.push_back(createLoopSimplifyPass());
-	if (RunPasses(M, Passes) == -1)
+	// CaptureConstraints requires all loops in LCSSA and simplified form. 
+	if (RunLCSSAAndLoopSimplify(M) == -1)
 		return -1;
 
 	// As a side effect of PrintAfterEachIteration, print the module before
@@ -350,15 +358,12 @@ int DoOneIteration(Module *M) {
 	/*
 	 * PostReducer requires Iterate, so don't worry about the Iterate. 
 	 */
-	PIs.clear();
 	if (const PassInfo *PI = Listener.getPassInfo("constantize")) {
-		PIs.push_back(PI);
+		return RunPassInfos(M, vector<const PassInfo *>(1, PI));
 	} else {
 		errs() << "Constantizer hasn't been loaded.\n";
 		return -1;
 	}
-
-	return RunPassInfos(M, PIs);
 }
 
 int main(int argc, char *argv[]) {
@@ -431,10 +436,7 @@ int main(int argc, char *argv[]) {
 
 	// The simplified program needs to be in the LCSSA form, which is
 	// required by the integer constraint solver. 
-	vector<Pass *> Passes;
-	Passes.push_back(createLCSSAPass());
-	Passes.push_back(createLoopSimplifyPass());
-	if (RunPasses(M, Passes) == -1)
+	if (RunLCSSAAndLoopSimplify(M) == -1)
 		return -1;
 
 	if (OutputModule(M, OutputFilename) == -1) {
