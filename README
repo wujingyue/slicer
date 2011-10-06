@@ -19,7 +19,7 @@ APPS_ROOT=$WORKSPACE/apps
 
 3. Install libraries
 
-sudo apt-get install libbdd-dev libbz2 openjdk-6-jdk libboost-regex-dev
+sudo apt-get install libbdd-dev libbz2 openjdk-6-jdk libboost-regex-dev shtool
 
 4. Building LLVM 2.7
 

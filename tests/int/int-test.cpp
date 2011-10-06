@@ -45,6 +45,7 @@ void IntTest::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<ExecOnce>();
 	AU.addRequired<RegionManager>();
 	AU.addRequired<IDAssigner>();
+	AU.addRequired<LoopInfo>();
 #ifndef IDENTIFY_ONLY
 	AU.addRequired<Iterate>();
 	AU.addRequired<SolveConstraints>();
@@ -87,6 +88,8 @@ bool IntTest::runOnModule(Module &M) {
 		test_radix(M);
 	if (Program == "RADIX-like")
 		test_radix_like(M);
+	if (Program == "LU-cont")
+		test_lu_cont(M);
 	if (Program == "test-loop")
 		test_test_loop(M);
 	if (Program == "test-loop-2")

@@ -22,7 +22,7 @@ PROGS_DIR = ../progs
 run:: $(PROG_NAMES)
 
 %: $(PROGS_DIR)/%.simple.bc ../trace/%.lt
-	opt -stats -disable-output \
+	opt -debug-only=int -stats -disable-output \
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
