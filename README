@@ -1,3 +1,7 @@
+Notes:
+
+* The slicer is not guaranteed to work with gcc-4.2 or earlier versions. 
+
 1. Check out source code from the git server
 
 Pick a directory as your workspace, e.g. /home/jingyue/Research. From now on,
