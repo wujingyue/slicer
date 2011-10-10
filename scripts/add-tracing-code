@@ -11,20 +11,21 @@ if [ -z $SLICER_ROOT ]; then
 fi
 
 opt -o $1.bc1 \
-	-load $LLVM_ROOT/install/lib/libidm.so \
 	-load $LLVM_ROOT/install/lib/libid-manager.so \
 	-load $LLVM_ROOT/install/lib/libbc2bdd.so \
 	-load $LLVM_ROOT/install/lib/libcallgraph-fp.so \
+	-load $LLVM_ROOT/install/lib/libmbb.so \
 	-load $LLVM_ROOT/install/lib/libcfg.so \
 	-load $LLVM_ROOT/install/lib/libslicer-trace.so \
 	$2 \
+	-instrument-each-bb \
 	-instrument \
 	< $1.id.bc
 if [ $? != 0 ]; then
 	exit $?
 fi
 
-llvm-ld $1.bc1 $SLICER_ROOT/trace/tracing.bc -b $1.trace.bc \
+llvm-ld $1.bc1 $SLICER_ROOT/lib/trace/tracing.bc -b $1.trace.bc \
 	-link-as-library -disable-opt
 if [ $? != 0 ]; then
 	exit $?

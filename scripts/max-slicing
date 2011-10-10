@@ -7,7 +7,7 @@ if [ "$1" = "" -o "$2" = "" ]; then
 	exit 1
 fi
 
-opt -o $2 \
+opt -stats -o $2 \
 	-load $LLVM_ROOT/install/lib/libid-manager.so \
 	-load $LLVM_ROOT/install/lib/libbc2bdd.so \
 	-load $LLVM_ROOT/install/lib/libcallgraph-fp.so \
