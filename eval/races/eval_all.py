@@ -4,7 +4,7 @@ import os, sys, string
 import ConfigParser
 
 def invoke(cmd):
-    print >> sys.stderr, '\033[1;33m' + cmd + '\033[m'
+    print >> sys.stderr, '\033[1;34m' + cmd + '\033[m'
     ret = os.system(cmd)
     if ret != 0:
         sys.exit(ret)

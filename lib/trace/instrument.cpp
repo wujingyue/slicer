@@ -7,6 +7,7 @@
 #include "llvm/Support/CallSite.h"
 #include "llvm/Support/CommandLine.h"
 #include "common/IDManager.h"
+#include "common/exec-once.h"
 #include "common/util.h"
 using namespace llvm;
 
@@ -52,6 +53,7 @@ void Instrument::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesCFG();
 	AU.addRequired<IDManager>();
 	AU.addRequired<MarkLandmarks>();
+	AU.addRequired<ExecOnce>();
 	ModulePass::getAnalysisUsage(AU);
 }
 
@@ -90,76 +92,81 @@ bool Instrument::should_instrument(Instruction *ins) const {
 
 bool Instrument::runOnModule(Module &M) {
 	IDManager &IDM = getAnalysis<IDManager>();
+	ExecOnce &EO = getAnalysis<ExecOnce>();
 
 	setup(M);
 	
 	// Insert <trace_inst> for each instruction. 
-	forallbb(M, bi) {
-		for (BasicBlock::iterator ii = bi->begin(); ii != bi->end(); ++ii) {
-			if (CallInst *ci = dyn_cast<CallInst>(ii)) {
-				if (ci->getCalledFunction() == trace_inst)
-					continue;
-			}
-
-			if (!should_instrument(ii))
-				continue;
-
-			assert(!isa<PHINode>(ii) &&
-					"PHINodes shouldn't be marked as landmarks.");
-			unsigned ins_id = IDM.getInstructionID(ii);
-			if (ins_id == IDManager::INVALID_ID)
-				errs() << *ii << "\n";
-			assert(ins_id != IDManager::INVALID_ID);
-			// pthread_create needs a special wrapper. 
-			// FIXME: Can be invoke pthread_create
-			if (CallInst *ci = dyn_cast<CallInst>(ii)) {
-				if (Function *callee = ci->getCalledFunction()) {
-					if (callee->getNameStr() == "pthread_create") {
-						assert(pth_create_wrapper &&
-								"Cannot find the pthread_create wrapper");
-						vector<Value *> args;
-						args.push_back(ConstantInt::get(uint_type, ins_id));
-						// Arguments start from index 1. 
-						for (unsigned i = 1; i < ci->getNumOperands(); ++i)
-							args.push_back(ci->getOperand(i));
-						CallInst *new_ci = CallInst::Create(
-								pth_create_wrapper, args.begin(), args.end());
-						ReplaceInstWithInst(ci, new_ci);
-						// Otherwise, ++ii will fail. 
-						ii = new_ci;
+	for (Module::iterator f = M.begin(); f != M.end(); ++f) {
+		// Don't instrument functions that cannot be executed. 
+		if (EO.not_executed(f))
+			continue;
+		for (Function::iterator bi = f->begin(); bi != f->end(); ++bi) {
+			for (BasicBlock::iterator ii = bi->begin(); ii != bi->end(); ++ii) {
+				if (CallInst *ci = dyn_cast<CallInst>(ii)) {
+					if (ci->getCalledFunction() == trace_inst)
 						continue;
+				}
+				if (!should_instrument(ii))
+					continue;
+
+				assert(!isa<PHINode>(ii) &&
+						"PHINodes shouldn't be marked as landmarks.");
+				unsigned ins_id = IDM.getInstructionID(ii);
+				if (ins_id == IDManager::INVALID_ID)
+					errs() << *ii << "\n";
+				assert(ins_id != IDManager::INVALID_ID);
+				// pthread_create needs a special wrapper. 
+				// FIXME: Can be invoke pthread_create
+				if (CallInst *ci = dyn_cast<CallInst>(ii)) {
+					if (Function *callee = ci->getCalledFunction()) {
+						if (callee->getNameStr() == "pthread_create") {
+							assert(pth_create_wrapper &&
+									"Cannot find the pthread_create wrapper");
+							vector<Value *> args;
+							args.push_back(ConstantInt::get(uint_type, ins_id));
+							// Arguments start from index 1. 
+							for (unsigned i = 1; i < ci->getNumOperands(); ++i)
+								args.push_back(ci->getOperand(i));
+							CallInst *new_ci = CallInst::Create(
+									pth_create_wrapper, args.begin(), args.end());
+							ReplaceInstWithInst(ci, new_ci);
+							// Otherwise, ++ii will fail. 
+							ii = new_ci;
+							continue;
+						}
 					}
 				}
-			}
 
-			// Before the instruction if non-blocking. 
-			// After the instruction if blocking. 
-			if (!blocks(ii)) {
-				CallInst::Create(trace_inst, ConstantInt::get(uint_type, ins_id),
-						"", ii);
-			} else {
-				if (InvokeInst *inv = dyn_cast<InvokeInst>(ii)) {
-					// TODO: We don't instrument the unwind BB currently. 
-					BasicBlock *dest = inv->getNormalDest();
+				// Before the instruction if non-blocking. 
+				// After the instruction if blocking. 
+				if (!blocks(ii)) {
 					CallInst::Create(trace_inst, ConstantInt::get(uint_type, ins_id),
-							"", dest->getFirstNonPHI());
+							"", ii);
 				} else {
-					assert(bi->getTerminator() != ii &&
-							"We assume terminators are non-blocking for now. "
-							"Maynot be always true, e.g. invoke pthread_mutex_lock");
-					/*
-					 * inst 1
-					 *   <== trace
-					 * inst 2
-					 */
-					// ii -> inst 1
-					++ii;
-					// ii -> inst 2
-					CallInst::Create(
-							trace_inst, ConstantInt::get(uint_type, ins_id), "", ii);
-					// ii -> inst 2
-					--ii;
-					// ii -> trace
+					if (InvokeInst *inv = dyn_cast<InvokeInst>(ii)) {
+						// TODO: We don't instrument the unwind BB currently. 
+						BasicBlock *dest = inv->getNormalDest();
+						CallInst::Create(trace_inst, ConstantInt::get(uint_type, ins_id),
+								"", dest->getFirstNonPHI());
+					} else {
+						assert(bi->getTerminator() != ii &&
+								"We assume terminators are non-blocking for now. "
+								"Maynot be always true, e.g. invoke pthread_mutex_lock");
+						/*
+						 * inst 1
+						 *   <== trace
+						 * inst 2
+						 */
+						// ii -> inst 1
+						++ii;
+						// ii -> inst 2
+						CallInst::Create(
+								trace_inst, ConstantInt::get(uint_type, ins_id), "", ii);
+						// ii -> inst 2
+						--ii;
+						// ii -> trace
+					}
 				}
 			}
 		}

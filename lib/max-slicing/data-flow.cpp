@@ -390,6 +390,8 @@ void MaxSlicing::link_thr_func(Module &M,
 	
 	// Old thread entry.
 	Trace::const_iterator j = trace.find(child_tid);
+	if (j == trace.end())
+		errs() << "Cannot find thread ID " << child_tid << "\n";
 	assert(j != trace.end());
 	Instruction *orig_entry = j->second[0];
 	

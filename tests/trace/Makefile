@@ -6,7 +6,8 @@ PROG_NAMES = test-thread test-overwrite test-loop test-loop-2 test-ctxt-2 \
 	     aget-like test-array test-dep test-ctxt-4 test-global \
 	     test-overwrite-2 RADIX-like test-thread-2 test-assert \
 	     test-malloc test-ctxt test-range test-range-3 test-range-4 \
-	     aget FFT RADIX pbzip2 CHOLESKY pfscan aget-fake LU-cont
+	     aget FFT RADIX pbzip2 CHOLESKY pfscan aget-fake LU-cont \
+	     swaptions streamcluster
 PROGS_DIR = ../progs
 TRACED_PROGS = $(PROG_NAMES:=.trace)
 LANDMARK_TRACES = $(PROG_NAMES:=.lt)
@@ -19,7 +20,7 @@ landmark-trace: $(LANDMARK_TRACES)
 full-trace: $(FULL_TRACES)
 
 %.bc1: $(PROGS_DIR)/%.id.bc
-	opt -o $@ \
+	opt -stats -o $@ \
 		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
 		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
@@ -117,7 +118,7 @@ FFT.ft: FFT.trace
 	mv /tmp/fulltrace $@
 
 LU-cont.ft: LU-cont.trace
-	./$< -p4 -n10 -b2
+	./$< -p2 -n10 -b2
 	mv /tmp/fulltrace $@
 
 pfscan.ft: pfscan.trace
@@ -135,6 +136,14 @@ test-loop-3.ft: test-loop-3.trace
 
 test-ctxt-3.ft: test-ctxt-3.trace
 	./$< 0
+	mv /tmp/fulltrace $@
+
+swaptions.ft: swaptions.trace
+	./$< -nt 2 -ns 3 -sm 5
+	mv /tmp/fulltrace $@
+
+streamcluster.ft: streamcluster.trace
+	./$< 2 120 100 100 100 100 none output.txt 8
 	mv /tmp/fulltrace $@
 
 # Most programs don't need any special command line. 

@@ -53,13 +53,14 @@ static cl::opt<string> OutputFilename("o",
 		cl::desc("Override output filename"),
 		cl::value_desc("filename"),
 		cl::init("-"));
-
 static cl::opt<bool> UnitAtATime("funit-at-a-time",
 		cl::desc("Enable IPO. This is same as llvm-gcc's -funit-at-a-time"),
 		cl::init(true));
-
 static cl::opt<bool> PrintAfterEachIteration("p",
 		cl::desc("Print module after each iteration"));
+static cl::opt<int> MaxIterNo("max-iter",
+		cl::desc("Maximum number of iterations"),
+		cl::init(-1));
 
 void AddPass(PassManager &PM, Pass *P) {
 	PM.add(P);
@@ -388,7 +389,7 @@ int main(int argc, char *argv[]) {
 	vector<Timer *> Tmrs;
 	bool Failed = false;
 	
-	for (int IterNo = 1; ; ++IterNo) {
+	for (int IterNo = 1; MaxIterNo == -1 || IterNo <= MaxIterNo; ++IterNo) {
 		
 		ostringstream OSS;
 		OSS << "Iteration " << IterNo;
@@ -434,6 +435,9 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
+	// Run -O3 even if max-iter = 0.
+	if (RunOptimizationPasses(M) == -1)
+		return -1;
 	// The simplified program needs to be in the LCSSA form, which is
 	// required by the integer constraint solver. 
 	if (RunLCSSAAndLoopSimplify(M) == -1)

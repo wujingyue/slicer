@@ -16,31 +16,31 @@ SIMPLE_BCS = $(SIMPLE_PROGS:=.bc)
 all: $(SIMPLE_BCS)
 
 $(PROGS_DIR)/test-overwrite.simple.bc: $(PROGS_DIR)/test-overwrite.slice.bc
-	opt -lcssa -loopsimplify -o $@ < $<
+	simplifier -max-iter=0 -o $@ < $<
 
 $(PROGS_DIR)/test-overwrite-2.simple.bc: $(PROGS_DIR)/test-overwrite-2.slice.bc
-	opt -O3 -lcssa -loopsimplify -o $@ < $<
+	simplifier -max-iter=0 -o $@ < $<
 
 $(PROGS_DIR)/test-bound.simple.bc: $(PROGS_DIR)/test-bound.slice.bc
-	opt -O3 -lcssa -loopsimplify -o $@ < $<
+	simplifier -max-iter=0 -o $@ < $<
 
 $(PROGS_DIR)/test-thread.simple.bc: $(PROGS_DIR)/test-thread.slice.bc
-	opt -O3 -lcssa -loopsimplify -o $@ < $<
+	simplifier -max-iter=0 -o $@ < $<
 
 $(PROGS_DIR)/test-array.simple.bc: $(PROGS_DIR)/test-array.slice.bc
-	opt -O3 -lcssa -loopsimplify -o $@ < $<
+	simplifier -max-iter=0 -o $@ < $<
 
 $(PROGS_DIR)/test-malloc.simple.bc: $(PROGS_DIR)/test-malloc.slice.bc
-	opt -O3 -lcssa -loopsimplify -o $@ < $<
+	simplifier -max-iter=0 -o $@ < $<
 
 $(PROGS_DIR)/test-range-4.simple.bc: $(PROGS_DIR)/test-range-4.slice.bc
-	opt -O3 -lcssa -loopsimplify -o $@ < $<
+	simplifier -max-iter=0 -o $@ < $<
 
 $(PROGS_DIR)/test-loop-2.simple.bc: $(PROGS_DIR)/test-loop-2.slice.bc
-	opt -O3 -lcssa -loopsimplify -o $@ < $<
+	simplifier -max-iter=0 -o $@ < $<
 
 $(PROGS_DIR)/test-ctxt-2.simple.bc: $(PROGS_DIR)/test-ctxt-2.slice.bc
-	opt -O3 -lcssa -loopsimplify -o $@ < $<
+	simplifier -max-iter=0 -o $@ < $<
 
 # We use -o whenever possible, because <simplifier> will remove the output
 # file on failure. 
@@ -49,7 +49,7 @@ $(PROGS_DIR)/aget.simple.bc: $(PROGS_DIR)/aget.slice.bc ../trace/aget.lt
 	simplifier -o $@ -input-landmark-trace $(word 2, $^) -p -funit-at-a-time=false < $<
 
 $(PROGS_DIR)/%.simple.bc: $(PROGS_DIR)/%.slice.bc ../trace/%.lt
-	simplifier -debug-only=reducer -o $@ -input-landmark-trace $(word 2, $^) -p < $<
+	simplifier -o $@ -input-landmark-trace $(word 2, $^) -p < $<
 
 %.s: %.bc
 	llc $< -o $@

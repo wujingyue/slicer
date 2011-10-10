@@ -1,3 +1,7 @@
+/**
+ * Author: Jingyue
+ */
+
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
 #include "common/IDManager.h"
@@ -54,25 +58,32 @@ void TraceManager::compute_record_infos(Module &M) {
 	if (records.empty())
 		return;
 	raw_tid_to_tid.clear();
+	n_threads = 0;
 	// Map the raw main thread ID to 0.
 	// Not necessary though, because the first record will be processed first.
 	// But for safety reason, we put it here. 
 	raw_tid_to_tid[records[0].raw_tid] = 0;
+	++n_threads;
 	for (size_t i = 0, E = records.size(); i < E; ++i) {
 		IDManager &IDM = getAnalysis<IDManager>();
 		TraceRecordInfo info;
 		info.ins = IDM.getInstruction(records[i].ins_id);
 		assert(info.ins);
 		info.tid = get_normalized_tid(records[i].raw_tid);
-		info.child_tid = get_normalized_tid(records[i].raw_child_tid);
+		if (records[i].raw_child_tid == INVALID_RAW_TID) {
+			info.child_tid = INVALID_TID;
+		} else {
+			raw_tid_to_tid[records[i].raw_child_tid] = n_threads;
+			info.child_tid = n_threads;
+			++n_threads;
+		}
 		record_infos.push_back(info);
 	}
 	assert(record_infos.size() == records.size());
 }
 
 int TraceManager::get_normalized_tid(unsigned long raw_tid) {
-	if (raw_tid == INVALID_RAW_TID)
-		return INVALID_TID;
+	assert(raw_tid != INVALID_RAW_TID);
 	if (!raw_tid_to_tid.count(raw_tid)) {
 		int new_thr_id = raw_tid_to_tid.size();
 		raw_tid_to_tid[raw_tid] = new_thr_id;

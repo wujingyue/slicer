@@ -1,6 +1,7 @@
 Notes:
 
 * The slicer is not guaranteed to work with gcc-4.2 or earlier versions. 
+* Don't use make -jx. Use some global temporary file. 
 
 1. Check out source code from the git server
 
@@ -20,6 +21,9 @@ Make sure the following variables are set correctly:
 LLVM_ROOT=$WORKSPACE/llvm
 SLICER_ROOT=$WORKSPACE/slicer
 APPS_ROOT=$WORKSPACE/apps
+
+To make your life easier, add $LLVM_ROOT/install/bin and $LLVM_ROOT/scripts
+to PATH. 
 
 3. Install libraries
 

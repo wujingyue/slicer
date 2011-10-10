@@ -372,6 +372,11 @@ void MaxSlicing::print_call_stack(raw_ostream &O, const InstList &cs) {
 void MaxSlicing::build_cfg_of_trunk(Instruction *start, Instruction *end,
 		int thr_id, size_t trunk_id, InstList &call_stack) {
 	assert(landmarks.count(end));
+
+	IDManager &IDM = getAnalysis<IDManager>();
+	DEBUG(dbgs() << "start: " << IDM.getInstructionID(start) << ":"
+			<< *start << "\n";);
+	DEBUG(dbgs() << "end: " << IDM.getInstructionID(end) << ":" << *end << "\n";);
 	
 	// DFS in both directions to find the instructions may be
 	// visited in the trunk. 
@@ -388,7 +393,6 @@ void MaxSlicing::build_cfg_of_trunk(Instruction *start, Instruction *end,
 	// NOTE: Be careful. <call_stack> already gets changed. 
 	if (!visited_nodes.count(end) ||
 			(!end_call_stack.empty() && end_call_stack.front() == NULL)) {
-		IDManager &IDM = getAnalysis<IDManager>();
 		errs() << "=== Cannot reach from <start> to <end> ===\n";
 		errs() << IDM.getInstructionID(start) << ":" << *start << "\n";
 		errs() << IDM.getInstructionID(end) << ":" << *end << "\n";

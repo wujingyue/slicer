@@ -93,6 +93,8 @@ void QueryGenerator::generate_dynamic_queries(Module &M) {
 			last_callstack[info.tid].push_back(DynamicInstruction(
 						info.tid, last_landmark_of_the_thread, last_inst_of_the_thread));
 		} else if (last_inst_of_the_thread && is_ret(last_inst_of_the_thread)) {
+			if (last_callstack[info.tid].size() == 0)
+				errs() << "Error at Record " << i << "\n";
 			assert(last_callstack[info.tid].size() > 0);
 			BasicBlock::const_iterator ret_site = last_callstack[info.tid].back().ins;
 			last_callstack[info.tid].pop_back();

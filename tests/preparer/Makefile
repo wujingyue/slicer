@@ -5,7 +5,8 @@ PROG_NAMES = test-thread test-path test-overwrite test-ctxt test-recursive \
 	     test-range test-dep test-range-2 test-range-3 test-range-4 \
 	     test-loop-2 test-ctxt-2 test-loop-3 test-ctxt-3 test-loop-4 \
 	     test-assert test-ctxt-4 test-global \
-	     aget FFT RADIX pbzip2 CHOLESKY pfscan aget-fake LU-cont
+	     aget FFT RADIX pbzip2 CHOLESKY pfscan aget-fake LU-cont \
+	     swaptions streamcluster
 PROGS_DIR = ../progs
 
 PROGS = $(addprefix $(PROGS_DIR)/, $(PROG_NAMES))

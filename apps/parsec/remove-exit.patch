@@ -1,0 +1,11 @@
+--- parsec-2.1-orig/pkgs/apps/swaptions/src/nr_routines.c	2011-10-10 14:45:28.000000000 -0400
++++ parsec-2.1/pkgs/apps/swaptions/src/nr_routines.c	2011-10-10 14:47:58.000000000 -0400
+@@ -102,7 +102,7 @@
+ 	fprintf( stderr,"Numerical Recipes run-time error...\n" );
+ 	fprintf( stderr,"%s\n",error_text );
+ 	fprintf( stderr,"...now exiting to system...\n" );
+-	exit(1);
++	// exit(1);
+ 
+ } // end of nrerror
+ 

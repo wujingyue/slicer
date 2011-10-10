@@ -16,14 +16,18 @@ using namespace slicer;
 static pthread_mutex_t trace_mutex = PTHREAD_MUTEX_INITIALIZER;
 static bool multi_processed = false;
 
-static void append_to_trace(const TraceRecord &record) {
+static void __append_to_trace(const TraceRecord &record) {
 	ostringstream oss;
 	oss << "/tmp/fulltrace";
 	if (multi_processed)
 		oss << "." << getpid();
-	pthread_mutex_lock(&trace_mutex);
 	ofstream fout(oss.str().c_str(), ios::binary | ios::app);
 	fout.write((char *)&record, sizeof record);
+}
+
+static void append_to_trace(const TraceRecord &record) {
+	pthread_mutex_lock(&trace_mutex);
+	__append_to_trace(record);
 	pthread_mutex_unlock(&trace_mutex);
 }
 
@@ -54,13 +58,18 @@ extern "C" void trace_inst(unsigned ins_id) {
 extern "C" int trace_pthread_create(
 		unsigned ins_id, pthread_t *thread, const pthread_attr_t *attr,
 		void *(*start_routine)(void *), void *arg) {
+	pthread_mutex_lock(&trace_mutex);
+
 	TraceRecord record;
 	record.ins_id = ins_id;
 	record.raw_tid = pthread_self();
 	int ret = pthread_create(thread, attr, start_routine, arg);
 	int saved_errno = errno;
 	record.raw_child_tid = *thread;
-	append_to_trace(record);
+	__append_to_trace(record);
 	errno = saved_errno;
+	
+	pthread_mutex_unlock(&trace_mutex);
+	
 	return ret;
 }

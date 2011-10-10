@@ -38,7 +38,7 @@ namespace slicer {
 		const static unsigned INVALID_IDX = (unsigned)(-1);
 		const static int INVALID_TID = -1;
 
-		TraceManager(): ModulePass(&ID) {}
+		TraceManager(): ModulePass(&ID), n_threads(0) {}
 
 		virtual bool runOnModule(Module &M);
 		virtual void print(raw_ostream &O, const Module *M) const;
@@ -50,7 +50,7 @@ namespace slicer {
 		bool write_record(ostream &fout, const TraceRecord &record) const;
 
 	private:
-		/*
+		/**
 		 * Returns true if we successfully get a trace record. 
 		 * fin must be opened in the binary mode.
 		 */
@@ -62,6 +62,12 @@ namespace slicer {
 		vector<TraceRecord> records;
 		vector<TraceRecordInfo> record_infos;
 		DenseMap<unsigned long, int> raw_tid_to_tid;
+		/**
+		 * # of used threads. 
+		 * May not equal raw_tid_to_tid.size() because pthread_create reuses
+		 * thread IDs. 
+		 */
+		unsigned n_threads;
 	};
 }
 

@@ -164,10 +164,15 @@ int main(int argc, char *argv[]) {
 	if (!M)
 		return 1;
 
-	vector<Pass *> Passes;
-	Passes.push_back(createLCSSAPass());
-	int Ret = RunPasses(M, Passes);
-	errs() << "Ret = " << Ret << "\n";
+	int Ret;
+	do {
+		Ret = RunPasses(M, vector<Pass *>(1, createLCSSAPass()));
+		if (Ret == -1)
+			return 1;
+	} while (Ret == 1);
+	
+	if (RunPasses(M, vector<Pass *>(1, createLoopSimplifyPass())) == -1)
+		return 1;
 
 	if (OutputModule(M, OutputFilename) == -1) {
 		delete M;
