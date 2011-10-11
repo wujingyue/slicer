@@ -1,5 +1,6 @@
 #define DEBUG_TYPE "alias-query"
 
+#include <sys/timeb.h>
 #include <fstream>
 #include <sstream>
 using namespace std;
@@ -21,6 +22,8 @@ using namespace repair;
 #include "slicer/adv-alias.h"
 #include "pointer-access.h"
 using namespace slicer;
+
+#define TIME_DIFFERENCE(time1, time0) (difftime((time1).time, (time0).time) + 0.001 * ((time1).millitm - (time0).millitm))
 
 static RegisterPass<QueryDriver> X("drive-queries",
 		"Issues alias queries to either bc2bdd or advanced-aa",
@@ -44,10 +47,13 @@ bool QueryDriver::runOnModule(Module &M) {
 }
 
 void QueryDriver::issue_queries() {
+	timeb start_time;
+	timeb end_time;
+
 	errs() << "# of queries = " << queries.size() << "\n";
 
 	for (size_t i = 0; i < queries.size(); ++i) {
-		// Deterministic sampling to be fair. 
+		// Deterministic sampling to be fair.
 		if (i % SampleRate != 0)
 			continue;
 		const Instruction *i1 = queries[i].first.ins, *i2 = queries[i].second.ins;
@@ -61,9 +67,12 @@ void QueryDriver::issue_queries() {
 				for (size_t j1 = 0; j1 < accesses1.size(); ++j1) {
 					for (size_t j2 = 0; j2 < accesses2.size(); ++j2) {
 						if (racy(accesses1[j1], accesses2[j2])) {
+							ftime(&start_time);
 							results.push_back(AAA.alias(
 										queries[i].first.callstack, accesses1[j1].loc,
 										queries[i].second.callstack, accesses2[j2].loc));
+							ftime(&end_time);
+							total_time += TIME_DIFFERENCE(end_time, start_time);
 						}
 					}
 				}
@@ -83,9 +92,12 @@ void QueryDriver::issue_queries() {
 				for (size_t j1 = 0; j1 < accesses1.size(); ++j1) {
 					for (size_t j2 = 0; j2 < accesses2.size(); ++j2) {
 						if (racy(accesses1[j1], accesses2[j2])) {
+							ftime(&start_time);
 							results.push_back(BAA.alias(
 										&ctxt1, accesses1[j1].loc, 0,
 										&ctxt2, accesses2[j2].loc, 0));
+							ftime(&end_time);
+							total_time += TIME_DIFFERENCE(end_time, start_time);
 						}
 					}
 				}
@@ -119,6 +131,7 @@ void QueryDriver::print(raw_ostream &O, const Module *M) const {
 	O << "No: " << n_no << "; ";
 	O << "May: " << n_may << "; ";
 	O << "Must: " << n_must << ";\n";
+	O << "Time: " << total_time / results.size() << " sec per query.\n";
 }
 
 void QueryDriver::read_queries() {
@@ -136,7 +149,7 @@ void QueryDriver::read_queries() {
 			parse_contexted_ins(what[1].str(), ci1);
 			parse_contexted_ins(what[2].str(), ci2);
 			// ci1.ins or ci2.ins can be NULL if the translation fails.
-			// In that case, the load is optimized. 
+			// In that case, the load is optimized.
 			queries.push_back(make_pair(ci1, ci2));
 		}
 	}
