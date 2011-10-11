@@ -6,7 +6,7 @@ PROG_NAMES = test-loop test-reducer test-thread test-loop-2 test-ctxt-2 \
 	     test-malloc test-ctxt test-range \
 	     test-range-3 test-range-4 test-assert \
 	     FFT RADIX aget pbzip2 CHOLESKY aget-fake LU-cont swaptions \
-	     streamcluster
+	     streamcluster blackscholes
 PROGS_DIR = ../progs
 PROG_PATHS = $(addprefix $(PROGS_DIR)/, $(PROG_NAMES))
 SLICED_PROGS = $(addsuffix .slice, $(PROG_PATHS))

@@ -23,8 +23,6 @@ using namespace repair;
 #include "pointer-access.h"
 using namespace slicer;
 
-#define TIME_DIFFERENCE(time1, time0) (difftime((time1).time, (time0).time) + 0.001 * ((time1).millitm - (time0).millitm))
-
 static RegisterPass<QueryDriver> X("drive-queries",
 		"Issues alias queries to either bc2bdd or advanced-aa",
 		false, true);
@@ -44,6 +42,11 @@ bool QueryDriver::runOnModule(Module &M) {
 	read_queries();
 	issue_queries();
 	return false;
+}
+
+static inline double time_diff(timeb time1, timeb time0) {
+	return difftime(time1.time, time0.time) +
+		0.001 * (time1.millitm - time0.millitm);
 }
 
 void QueryDriver::issue_queries() {
@@ -72,7 +75,7 @@ void QueryDriver::issue_queries() {
 										queries[i].first.callstack, accesses1[j1].loc,
 										queries[i].second.callstack, accesses2[j2].loc));
 							ftime(&end_time);
-							total_time += TIME_DIFFERENCE(end_time, start_time);
+							total_time += time_diff(end_time, start_time);
 						}
 					}
 				}
@@ -97,7 +100,7 @@ void QueryDriver::issue_queries() {
 										&ctxt1, accesses1[j1].loc, 0,
 										&ctxt2, accesses2[j2].loc, 0));
 							ftime(&end_time);
-							total_time += TIME_DIFFERENCE(end_time, start_time);
+							total_time += time_diff(end_time, start_time);
 						}
 					}
 				}

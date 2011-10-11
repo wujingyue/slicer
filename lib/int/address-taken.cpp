@@ -102,6 +102,20 @@ void CaptureConstraints::capture_global_var(GlobalVariable *gv) {
 							overwriting_regions[regions[i]].push_back(si->getOperand(0));
 					}
 				}
+				// TODO: summary, and use may_write functions etc. 
+				CallSite cs = CallSite::get(ins);
+				if (cs.getInstruction()) {
+					Function *callee = cs.getCalledFunction();
+					if (callee && callee->getName() == "fscanf") {
+						assert(cs.arg_size() > 0);
+						if (BAA.alias(gv, 0, cs.getArgument(cs.arg_size() - 1), 0)) {
+							vector<Region> regions;
+							RM.get_containing_regions(ins, regions);
+							for (size_t i = 0; i < regions.size(); ++i)
+								overwriting_regions[regions[i]].push_back(NULL);
+						}
+					}
+				}
 			}
 		}
 	}
@@ -156,6 +170,18 @@ void CaptureConstraints::capture_global_var(GlobalVariable *gv) {
 		Clause *disj = NULL;
 		for (DenseMap<Region, ConstValueList>::iterator
 				i = overwriting_regions.begin(); i != overwriting_regions.end(); ++i) {
+			bool may_equal_unknown = false;
+			for (size_t k = 0; k < i->second.size(); ++k) {
+				if (i->second[k] == NULL) {
+					may_equal_unknown = true;
+					break;
+				}
+			}
+			if (may_equal_unknown) {
+				delete disj;
+				disj = NULL;
+				break;
+			}
 			for (size_t k = 0; k < i->second.size(); ++k) {
 				Clause *c = new Clause(new BoolExpr(CmpInst::ICMP_EQ,
 							new Expr(equivalent_loads[0]),
@@ -274,7 +300,7 @@ void CaptureConstraints::capture_must_assign(Module &M) {
 	ExecOnce &EO = getAnalysis<ExecOnce>();
 
 	unsigned n_loads = 0;
-	forallfunc(M, f) {
+	for (Module::iterator f = M.begin(); f != M.end(); ++f) {
 		if (!f->isDeclaration() && !EO.not_executed(f)) {
 			forall(Function, bb, *f) {
 				forall(BasicBlock, ins, *bb) {
@@ -288,7 +314,7 @@ void CaptureConstraints::capture_must_assign(Module &M) {
 	dbgs() << "# of loads = " << n_loads << "\n";
 
 	unsigned cur = 0;
-	forallfunc(M, f) {
+	for (Module::iterator f = M.begin(); f != M.end(); ++f) {
 		if (f->isDeclaration())
 			continue;
 		if (EO.not_executed(f))

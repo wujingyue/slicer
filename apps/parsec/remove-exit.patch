@@ -1,5 +1,18 @@
---- parsec-2.1-orig/pkgs/apps/swaptions/src/nr_routines.c	2011-10-10 14:45:28.000000000 -0400
-+++ parsec-2.1/pkgs/apps/swaptions/src/nr_routines.c	2011-10-10 14:47:58.000000000 -0400
+--- parsec-2.1-orig/pkgs/apps/swaptions/src/HJM_Securities.cpp	2011-10-10 20:46:04.000000000 -0400
++++ parsec-2.1/pkgs/apps/swaptions/src/HJM_Securities.cpp	2011-10-10 20:48:52.000000000 -0400
+@@ -146,8 +146,8 @@
+           }
+         }
+ 
+-        if(nSwaptions < nThreads) {
+-	  nSwaptions = nThreads; 
++        if(nSwaptions < nThreads || nSwaptions > 10000) {
++	  exit(1);
+         }
+ 
+         printf("Number of Simulations: %d,  Number of threads: %d Number of swaptions: %d\n", NUM_TRIALS, nThreads, nSwaptions);
+--- parsec-2.1-orig/pkgs/apps/swaptions/src/nr_routines.c	2011-10-10 20:46:04.000000000 -0400
++++ parsec-2.1/pkgs/apps/swaptions/src/nr_routines.c	2011-10-10 20:49:51.000000000 -0400
 @@ -102,7 +102,7 @@
  	fprintf( stderr,"Numerical Recipes run-time error...\n" );
  	fprintf( stderr,"%s\n",error_text );
@@ -8,4 +21,3 @@
 +	// exit(1);
  
  } // end of nrerror
- 

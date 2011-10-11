@@ -19,6 +19,7 @@ if __name__ == '__main__':
                                         'args': ''})
     config.read('config.ini')
     benchmarks = config.sections()
+    specified_benchmark = sys.argv[1]
 
     LLVM_ROOT = os.getenv('LLVM_ROOT')
     SLICER_ROOT = os.getenv('SLICER_ROOT')
@@ -26,6 +27,10 @@ if __name__ == '__main__':
     PROGS_DIR = os.path.join(SLICER_ROOT, 'eval/progs')
 
     for benchmark in benchmarks:
+        # Skip unspecified benchmarks
+        if specified_benchmark != '' and specified_benchmark != benchmark:
+            continue
+
         option_simplify = config.getboolean(benchmark, 'simplify')
         option_simplifier_args = config.get(benchmark, 'simplifier-args')
         option_cs = config.getboolean(benchmark, 'cs')
