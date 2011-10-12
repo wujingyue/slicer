@@ -1,0 +1,33 @@
+diff -ruN splash2/codes/kernels/fft/fft.C splash2-bounded/codes/kernels/fft/fft.C
+--- splash2/codes/kernels/fft/fft.C	2010-05-05 00:36:21.000000000 -0400
++++ splash2-bounded/codes/kernels/fft/fft.C	2011-08-21 16:01:58.000000000 -0400
+@@ -100,20 +100,20 @@
+ long pad_length;
+ 
+ void SlaveStart(void);
+-double TouchArray(double *x, double *scratch, double *u, double *upriv, long MyFirst, long MyLast);
++double TouchArray(double *x, double *scratch, double *u, double *upriv, long MyFirst, long MyLast) __attribute__((always_inline));
+ double CheckSum(double *x);
+ void InitX(double *x);
+ void InitU(long N, double *u);
+ void InitU2(long N, double *u, long n1);
+-long BitReverse(long M, long k);
++long BitReverse(long M, long k) __attribute__((always_inline));
+ void FFT1D(long direction, long M, long N, double *x, double *scratch, double *upriv, double *umain2,
+-	   long MyNum, long *l_transtime, long MyFirst, long MyLast, long pad_length, long test_result, long dostats);
+-void TwiddleOneCol(long direction, long n1, long j, double *u, double *x, long pad_length);
+-void Scale(long n1, long N, double *x);
+-void Transpose(long n1, double *src, double *dest, long MyNum, long MyFirst, long MyLast, long pad_length);
+-void CopyColumn(long n1, double *src, double *dest);
+-void Reverse(long N, long M, double *x);
+-void FFT1DOnce(long direction, long M, long N, double *u, double *x);
++	   long MyNum, long *l_transtime, long MyFirst, long MyLast, long pad_length, long test_result, long dostats) __attribute__((always_inline));
++void TwiddleOneCol(long direction, long n1, long j, double *u, double *x, long pad_length) __attribute__((always_inline));
++void Scale(long n1, long N, double *x) __attribute__((always_inline));
++void Transpose(long n1, double *src, double *dest, long MyNum, long MyFirst, long MyLast, long pad_length) __attribute__((always_inline));
++void CopyColumn(long n1, double *src, double *dest) __attribute__((always_inline));
++void Reverse(long N, long M, double *x) __attribute__((always_inline));
++void FFT1DOnce(long direction, long M, long N, double *u, double *x) __attribute__((always_inline));
+ void PrintArray(long N, double *x);
+ void printerr(char *s);
+ long log_2(long number);

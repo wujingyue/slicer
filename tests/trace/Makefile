@@ -7,7 +7,8 @@ PROG_NAMES = test-thread test-overwrite test-loop test-loop-2 test-ctxt-2 \
 	     test-overwrite-2 RADIX-like test-thread-2 test-assert \
 	     test-malloc test-ctxt test-range test-range-3 test-range-4 \
 	     aget FFT RADIX pbzip2 CHOLESKY pfscan aget-fake LU-cont \
-	     swaptions streamcluster blackscholes
+	     swaptions streamcluster blackscholes \
+	     rmdir
 PROGS_DIR = ../progs
 TRACED_PROGS = $(PROG_NAMES:=.trace)
 LANDMARK_TRACES = $(PROG_NAMES:=.lt)
@@ -149,6 +150,9 @@ streamcluster.ft: streamcluster.trace
 blackscholes.ft: blackscholes.trace
 	./$< 2 in_4K.txt output.txt
 	mv /tmp/fulltrace $@
+
+rmdir.ft: rmdir.trace
+	./$< 
 
 # Most programs don't need any special command line. 
 %.ft: %.trace

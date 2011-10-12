@@ -6,12 +6,16 @@ PROG_NAMES = test-thread test-path test-overwrite test-ctxt test-recursive \
 	     test-loop-2 test-ctxt-2 test-loop-3 test-ctxt-3 test-loop-4 \
 	     test-assert test-ctxt-4 test-global \
 	     aget FFT RADIX pbzip2 CHOLESKY pfscan aget-fake LU-cont \
-	     swaptions streamcluster blackscholes
+	     swaptions streamcluster blackscholes \
+	     rmdir
 PROGS_DIR = ../progs
 
 PROGS = $(addprefix $(PROGS_DIR)/, $(PROG_NAMES))
 
 all: $(PROGS:=.prep.bc)
+
+$(PROGS_DIR)/rmdir.prep.bc: $(PROGS_DIR)/rmdir.bc
+	cp $< $@
 
 # Use -o when possible
 # <opt> will remove the output file on failure.
