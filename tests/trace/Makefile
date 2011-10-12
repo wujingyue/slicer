@@ -7,8 +7,7 @@ PROG_NAMES = test-thread test-overwrite test-loop test-loop-2 test-ctxt-2 \
 	     test-overwrite-2 RADIX-like test-thread-2 test-assert \
 	     test-malloc test-ctxt test-range test-range-3 test-range-4 \
 	     aget FFT RADIX pbzip2 CHOLESKY pfscan aget-fake LU-cont \
-	     swaptions streamcluster blackscholes \
-	     rmdir
+	     swaptions streamcluster blackscholes
 PROGS_DIR = ../progs
 TRACED_PROGS = $(PROG_NAMES:=.trace)
 LANDMARK_TRACES = $(PROG_NAMES:=.lt)

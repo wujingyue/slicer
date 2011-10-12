@@ -61,8 +61,7 @@ static RegisterPass<EnforcingLandmarks> X("enforcing-landmarks",
 
 static cl::opt<string> EnforcingLandmarksFile("input-landmarks",
 		cl::desc("If this option is specified, MarkLandmarks uses the "
-			"landmarks from the file as enforcing landmarks."),
-		cl::init(""));
+			"landmarks from the file as enforcing landmarks."));
 
 char EnforcingLandmarks::ID = 0;
 

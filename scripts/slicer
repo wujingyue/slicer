@@ -1,0 +1,165 @@
+#!/usr/bin/env python
+
+import os
+import sys
+import string
+import ConfigParser
+import argparse
+
+def get_base_cmd():
+    return "opt " + \
+            "-load $LLVM_ROOT/install/lib/libid-manager.so " + \
+            "-load $LLVM_ROOT/install/lib/libbc2bdd.so " + \
+            "-load $LLVM_ROOT/install/lib/libcallgraph-fp.so " + \
+            "-load $LLVM_ROOT/install/lib/libmbb.so " + \
+            "-load $LLVM_ROOT/install/lib/libcfg.so " + \
+            "-load $LLVM_ROOT/install/lib/libpreparer.so " + \
+            "-load $LLVM_ROOT/install/lib/libslicer-trace.so " + \
+            "-load $LLVM_ROOT/install/lib/libmax-slicing.so " + \
+            "-load $LLVM_ROOT/install/lib/libint.so "
+
+def print_banner(msg):
+    # Print the command in blue.
+    print >> sys.stderr, '\n\033[1;34m' + msg + '\033[m\n'
+
+def invoke(cmd):
+    print >> sys.stderr, cmd
+    ret = os.system(cmd)
+    if ret != 0:
+        sys.exit(ret)
+
+def prepare(config, section, bc, prep_bc):
+    print_banner("Preparing...")
+    customized_thread_funcs = config.get(section, "customized-thread-funcs")
+    cmd = get_base_cmd()
+    cmd += "-prepare "
+    for customized_thread_func in customized_thread_funcs.split():
+        cmd += "-thread-func " + customized_thread_func + " "
+    cmd += "-o " + prep_bc + " < " + bc
+    invoke(cmd)
+
+def tag_id(config, section, prep_bc, id_bc):
+    print_banner("Tagging IDs...")
+    cmd = get_base_cmd()
+    cmd += "-tag-id "
+    cmd += "-o " + id_bc + " < " + prep_bc
+    invoke(cmd)
+
+def instrument(config, section, id_bc, trace_exec):
+    print_banner("Instrumenting...")
+    assert string.rfind(id_bc, ".id.bc") + len(".id.bc") == len(id_bc)
+    main_file_name = os.path.basename(id_bc).rsplit(".", 2)[0]
+    cmd = get_base_cmd()
+    cmd += "-instrument "
+    cmd += "-stats "
+    if config.getboolean(section, "instrument-each-bb"):
+        cmd += "-instrument-each-bb "
+    if config.getboolean(section, "multi-processed"):
+        cmd += "-multi-processed "
+    input_landmarks = config.get(section, "input-landmarks")
+    if input_landmarks.strip() != "":
+        cmd += "-input-landmarks " + input_landmarks + " "
+    cmd += "-o " + main_file_name + ".bc1 < " + id_bc
+    invoke(cmd)
+    invoke("llvm-ld " + \
+            main_file_name + ".bc1 " + \
+            "$SLICER_ROOT/lib/trace/tracing.bc " + \
+            "-b " + main_file_name + ".trace.bc " + \
+            "-link-as-library -disable-opt")
+    invoke("llc " + \
+            main_file_name + ".trace.bc " + \
+            "-o " + main_file_name + ".trace.s " + \
+            "-O0")
+    invoke("g++ " + \
+            main_file_name + ".trace.s " + \
+            "-o " + trace_exec + " " + \
+            config.get(section, "build-flags"))
+
+def gen_traces(config, section, id_bc, trace_exec, full_trace, landmark_trace):
+    print_banner("Generating traces...")
+    # Generate the full trace
+    invoke("./" + main_file_name + ".trace " + config.get(section, "run-flags"))
+    assert not config.getboolean(section, "multi-processed")
+    invoke("mv /tmp/fulltrace " + full_trace)
+    # Generate the landmark trace
+    cmd = get_base_cmd()
+    cmd += "-build-landmark-trace "
+    cmd += "-fulltrace " + full_trace + " "
+    cmd += "-output-landmark-trace " + landmark_trace + " "
+    input_landmarks = config.get(section, "input-landmarks")
+    if input_landmarks.strip() != "":
+        cmd += "-input-landmarks " + input_landmarks + " "
+    cmd += "-disable-output < " + id_bc
+    invoke(cmd)
+
+def max_slicing(config, section, id_bc, landmark_trace, slice_bc):
+    print_banner("Max-slicing...")
+    cmd = get_base_cmd()
+    cmd += "-max-slicing "
+    cmd += "-input-landmark-trace " + landmark_trace + " "
+    input_landmarks = config.get(section, "input-landmarks")
+    if input_landmarks.strip() != "":
+        cmd += "-input-landmarks " + input_landmarks + " "
+    cmd += "-o " + slice_bc + " < " + id_bc
+    invoke(cmd)
+
+def simplify(config, section, slice_bc, landmark_trace, simple_bc):
+    print_banner("Simplifying...")
+    cmd = "simplifier "
+    cmd += "-input-landmark-trace " + landmark_trace + " "
+    input_landmarks = config.get(section, "input-landmarks")
+    if input_landmarks.strip() != "":
+        cmd += "-input-landmarks " + input_landmarks + " "
+    if config.getboolean(section, "easy-simplify"):
+        cmd += "-max-iter 0 "
+    cmd += "-o " + simple_bc + " < " + slice_bc
+    invoke(cmd)
+
+def read_config(config_file_name):
+    config = ConfigParser.ConfigParser({
+        "customized-thread-funcs": "",
+        "instrument-each-bb": "0",
+        "multi-processed": "0",
+        "input-landmarks": "",
+        "run-flags": "",
+        "build-flags": "",
+        "easy-simplify": "0"})
+    config.read(config_file_name)
+    return config
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+            description = "Simplify the program with respect to a trace")
+    parser.add_argument("-f",
+            help = "the configration file (default: slicer.cfg)",
+            default = "slicer.cfg")
+    parser.add_argument("program",
+            help = "the name of the program, used as the section name")
+    parser.add_argument("input_bc",
+            help = "the original bc")
+    parser.add_argument("output_bc",
+            help = "the simplified bc")
+    args = parser.parse_args()
+
+    main_file_name = os.path.basename(args.input_bc).rsplit(".", 1)[0]
+    print >> sys.stderr, "Main file name:", main_file_name
+    assert string.find(main_file_name, ".") == -1
+    assert string.find(main_file_name, "/") == -1
+    prep_bc = main_file_name + ".prep.bc"
+    id_bc = main_file_name + ".id.bc"
+    trace_exec = main_file_name + ".trace"
+    full_trace = main_file_name + ".ft"
+    landmark_trace = main_file_name + ".lt"
+    slice_bc = main_file_name + ".slice.bc"
+
+    assert os.path.exists(args.f)
+    config = read_config(args.f)
+    section = args.program
+    assert config.has_section(section)
+
+    prepare(config, section, args.input_bc, main_file_name + ".prep.bc")
+    tag_id(config, section, prep_bc, id_bc)
+    instrument(config, section, id_bc, trace_exec)
+    gen_traces(config, section, id_bc, trace_exec, full_trace, landmark_trace)
+    max_slicing(config, section, id_bc, landmark_trace, slice_bc)
+    simplify(config, section, slice_bc, landmark_trace, args.output_bc)
