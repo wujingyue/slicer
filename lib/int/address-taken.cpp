@@ -328,6 +328,7 @@ void CaptureConstraints::capture_must_assign(Module &M) {
 					if (isa<IntegerType>(i2_type) || isa<PointerType>(i2_type))
 						capture_overwriting_to(i2);
 					++cur;
+					dbgs() << "=";
 				}
 			}
 		}
@@ -860,9 +861,10 @@ Instruction *CaptureConstraints::get_idom_ip(Instruction *ins) {
 
 bool CaptureConstraints::may_alias(const Value *v1, const Value *v2) {
 	AdvancedAlias *AAA = getAnalysisIfAvailable<AdvancedAlias>();
-	if (!DisableAdvancedAA && AAA)
+	if (!DisableAdvancedAA && AAA) {
+		dbgs() << "=";
 		return AAA->may_alias(v1, v2);
-	else {
+	} else {
 		BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
 		return BAA.alias(v1, 0, v2, 0) == AliasAnalysis::MayAlias;
 	}
@@ -870,10 +872,12 @@ bool CaptureConstraints::may_alias(const Value *v1, const Value *v2) {
 
 bool CaptureConstraints::must_alias(const Value *v1, const Value *v2) {
 	AdvancedAlias *AAA = getAnalysisIfAvailable<AdvancedAlias>();
-	if (!DisableAdvancedAA && AAA)
+	if (!DisableAdvancedAA && AAA) {
+		dbgs() << "=";
 		return AAA->must_alias(v1, v2);
-	else
+	} else {
 		return v1 == v2;
+	}
 }
 
 bool CaptureConstraints::is_using_advanced_alias() {

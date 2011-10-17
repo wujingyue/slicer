@@ -1,0 +1,12 @@
+--- parsec-2.1-orig/pkgs/kernels/streamcluster/src/streamcluster.cpp	2011-10-10 20:46:05.000000000 -0400
++++ parsec-2.1/pkgs/kernels/streamcluster/src/streamcluster.cpp	2011-10-17 13:56:14.000000000 -0400
+@@ -18,7 +18,8 @@
+ 
+ #ifdef ENABLE_THREADS
+ #include <pthread.h>
+-#include "parsec_barrier.hpp"
++// Commented out by Jingyue
++// #include "parsec_barrier.hpp"
+ #endif
+ 
+ #ifdef TBB_VERSION

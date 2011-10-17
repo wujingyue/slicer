@@ -19,7 +19,10 @@ if __name__ == '__main__':
                                         'args': ''})
     config.read('config.ini')
     benchmarks = config.sections()
-    specified_benchmark = sys.argv[1]
+    if 1 < len(sys.argv):
+        specified_benchmark = sys.argv[1]
+    else:
+        specified_benchmark = ''
 
     LLVM_ROOT = os.getenv('LLVM_ROOT')
     SLICER_ROOT = os.getenv('SLICER_ROOT')
