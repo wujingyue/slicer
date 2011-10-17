@@ -35,6 +35,8 @@ static cl::opt<int> SampleRate("sample",
 		cl::desc("Sample a subset of queries: 1/sample of all queries will "
 			"be picked"),
 		cl::init(1));
+static cl::opt<bool> LoadLoad("driver-loadload",
+		cl::desc("The query driver considers load-load aliases as well"));
 
 char QueryDriver::ID = 0;
 
@@ -69,7 +71,7 @@ void QueryDriver::issue_queries() {
 				AdvancedAlias &AAA = getAnalysis<AdvancedAlias>();
 				for (size_t j1 = 0; j1 < accesses1.size(); ++j1) {
 					for (size_t j2 = 0; j2 < accesses2.size(); ++j2) {
-						if (racy(accesses1[j1], accesses2[j2])) {
+						if (LoadLoad || racy(accesses1[j1], accesses2[j2])) {
 							ftime(&start_time);
 							results.push_back(AAA.alias(
 										queries[i].first.callstack, accesses1[j1].loc,
@@ -94,7 +96,7 @@ void QueryDriver::issue_queries() {
 				}
 				for (size_t j1 = 0; j1 < accesses1.size(); ++j1) {
 					for (size_t j2 = 0; j2 < accesses2.size(); ++j2) {
-						if (racy(accesses1[j1], accesses2[j2])) {
+						if (LoadLoad || racy(accesses1[j1], accesses2[j2])) {
 							ftime(&start_time);
 							results.push_back(BAA.alias(
 										&ctxt1, accesses1[j1].loc, 0,

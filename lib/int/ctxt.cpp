@@ -16,7 +16,6 @@ static RegisterPass<CountCtxts> X("count-ctxts",
 char CountCtxts::ID = 0;
 
 bool CountCtxts::runOnModule(Module &M) {
-
 	CallGraphFP &CG = getAnalysis<CallGraphFP>();
 	CallGraph &raw_CG = CG;
 	// scc_iterator iterates all SCCs in a reverse topological order. 

@@ -24,6 +24,8 @@ static cl::opt<bool> Concurrent("concurrent",
 		cl::desc("Consider concurrent instructions only"));
 static cl::opt<bool> ContextSensitive("cs",
 		cl::desc("Generate context sensitive queries"));
+static cl::opt<bool> LoadLoad("gen-loadload",
+		cl::desc("Generate load-load alias queries as well"));
 
 char QueryGenerator::ID = 0;
 
@@ -63,6 +65,15 @@ void QueryGenerator::generate_static_queries(Module &M) {
 			all_queries.push_back(make_pair(
 						DynamicInstructionWithContext(-1, 0, write_accessors[i]), 
 						DynamicInstructionWithContext(-1, 0, read_accessors[j])));
+		}
+	}
+	if (LoadLoad) {
+		for (size_t i = 0; i < read_accessors.size(); ++i) {
+			for (size_t j = i + 1; j < read_accessors.size(); ++j) {
+				all_queries.push_back(make_pair(
+							DynamicInstructionWithContext(-1, 0, read_accessors[i]),
+							DynamicInstructionWithContext(-1, 0, read_accessors[j])));
+			}
 		}
 	}
 }
@@ -168,7 +179,7 @@ void QueryGenerator::generate_dynamic_queries(Module &M) {
 						vector<PointerAccess> accesses2 = get_pointer_accesses(j2->di.ins);
 						for (size_t k1 = 0; k1 < accesses1.size(); ++k1) {
 							for (size_t k2 = 0; k2 < accesses2.size(); ++k2) {
-								if (racy(accesses1[k1], accesses2[k2])) {
+								if (LoadLoad || racy(accesses1[k1], accesses2[k2])) {
 									all_queries.push_back(make_pair(*j1, *j2));
 								}
 							}

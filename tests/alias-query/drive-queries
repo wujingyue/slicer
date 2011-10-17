@@ -13,6 +13,8 @@ if __name__ == "__main__":
     parser.add_argument("--sample", metavar = "X",
             type = int, default = 1,
             help = "the sample rate. issue only 1/X of all queries")
+    parser.add_argument("--loadload", action = "store_true",
+            help = "Generate load-load alias queries as well (default: false)")
     args = parser.parse_args()
 
     LLVM_ROOT = os.getenv("LLVM_ROOT")
@@ -27,6 +29,8 @@ if __name__ == "__main__":
     cmd += "-load " + LLVM_ROOT + "/install/lib/libint.so "
     cmd += "-load " + LLVM_ROOT + "/install/lib/libalias-query.so "
     cmd += "-query-list " + args.query_list + " "
+    if args.loadload:
+        cmd += "-driver-loadload "
     if args.adv_aa:
         cmd += "-use-adv-aa "
         cmd += "-input-landmark-trace "  + args.adv_aa[0] + " "
@@ -34,7 +38,5 @@ if __name__ == "__main__":
         cmd += "-sample " + str(args.sample) + " "
     cmd += "-drive-queries < " + args.input_bc
 
-    print >> sys.stderr, 50 * "="
-    print >> sys.stderr, cmd
-    print >> sys.stderr, 50 * "="
+    print >> sys.stderr, "\033[1;34m" + cmd + "\033[m"
     os.system(cmd)

@@ -12,6 +12,8 @@ if __name__ == "__main__":
             help = "the output query list")
     parser.add_argument("--orig", action = "store_true",
             help = "generate queries for the original program (default: false)")
+    parser.add_argument("--loadload", action = "store_true",
+            help = "Consider load-load aliases as well (default: false)")
     parser.add_argument("--cs", action = "store_true",
             help = "generate context-sensitive queries (default: false)")
     parser.add_argument("--concurrent", nargs = 2,
@@ -32,26 +34,24 @@ if __name__ == "__main__":
     base_cmd += "-load " + LLVM_ROOT + "/install/lib/libint.so "
     base_cmd += "-load " + LLVM_ROOT + "/install/lib/libalias-query.so "
 
+    cmd = base_cmd
+    cmd += "-analyze "
+    if args.orig:
+        cmd += "-for-orig "
+    if args.loadload:
+        cmd += "-gen-loadload "
+    if args.cs:
+        cmd += "-cs "
+
     if not args.concurrent:
         # Static queries
-        cmd = base_cmd + "-analyze "
-        if args.orig:
-            cmd += "-for-orig "
-        if args.cs:
-            cmd += "-cs "
         cmd += "-gen-queries < " + args.sliced_bc + " > " + args.query_list
     else:
-        cmd = base_cmd + "-analyze "
-        if args.orig:
-            cmd += "-for-orig "
-        if args.cs:
-            cmd += "-cs "
+        # Dynamic queries
         cmd += "-fulltrace " + args.concurrent[0] + " "
         cmd += "-input-landmark-trace " + args.concurrent[1] + " "
         cmd += "-concurrent "
         cmd += "-gen-queries < " + args.orig_bc + " > " + args.query_list
 
-    print >> sys.stderr, 50 * "="
-    print >> sys.stderr, cmd
-    print >> sys.stderr, 50 * "="
+    print >> sys.stderr, "\033[1;34m" + cmd + "\033[m"
     os.system(cmd)
