@@ -13,9 +13,6 @@ PROGS = $(addprefix $(PROGS_DIR)/, $(PROG_NAMES))
 
 all: $(PROGS:=.prep.bc)
 
-$(PROGS_DIR)/rmdir.prep.bc: $(PROGS_DIR)/rmdir.bc
-	cp $< $@
-
 # Use -o when possible
 # <opt> will remove the output file on failure.
 %.prep.bc: %.bc

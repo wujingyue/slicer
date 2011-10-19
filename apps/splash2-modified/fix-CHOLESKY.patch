@@ -96,3 +96,14 @@ diff -ruN -x 'cscope.*' splash2-orig/codes/kernels/cholesky/util.C splash2-bound
  	}
  
  	fscanf(fp, "%11c", buf); /* pad */
+--- splash2-orig/codes/kernels/cholesky/matrix.H	2010-05-05 00:36:21.000000000 -0400
++++ splash2/codes/kernels/cholesky/matrix.H	2011-10-18 11:05:31.000000000 -0400
+@@ -227,7 +227,7 @@
+ long FindBucket(long size);
+ char *MyMalloc(long size, long home);
+ void MigrateMem(long *start, long length, long home);
+-void MyFree(long *block);
++__attribute__((noinline)) void MyFree(long *block);
+ void MyFreeNow(long *block);
+ 
+ /*

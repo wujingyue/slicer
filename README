@@ -20,7 +20,7 @@ Ask Jingyue if you don't have accesses to these repos.
 Make sure the following variables are set correctly:
 LLVM_ROOT=$WORKSPACE/llvm
 SLICER_ROOT=$WORKSPACE/slicer
-APPS_ROOT=$WORKSPACE/apps
+APPS_DIR=$WORKSPACE/apps
 
 To make your life easier, add $LLVM_ROOT/install/bin and $LLVM_ROOT/scripts
 to PATH. 

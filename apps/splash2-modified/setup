@@ -9,6 +9,6 @@ $APPS_DIR/splash2-modified/setup
 cd splash2
 patch -p1 < ../fix-RADIX.patch
 patch -p1 < ../fix-FFT.patch
-# patch -p1 < ../fix-CHOLESKY.patch
+patch -p1 < ../fix-CHOLESKY.patch
 # patch -p1 < ../inline-FFT.patch
 cd ..

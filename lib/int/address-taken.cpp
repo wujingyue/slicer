@@ -328,7 +328,6 @@ void CaptureConstraints::capture_must_assign(Module &M) {
 					if (isa<IntegerType>(i2_type) || isa<PointerType>(i2_type))
 						capture_overwriting_to(i2);
 					++cur;
-					dbgs() << "=";
 				}
 			}
 		}
@@ -369,6 +368,9 @@ Instruction *CaptureConstraints::find_nearest_common_dom(
 
 Instruction *CaptureConstraints::find_latest_overwriter(
 		Instruction *i2, Value *q) {
+	DEBUG(dbgs() << "find_latest_ovewriter:" << *i2 << "\n";
+			dbgs() << *q << "\n";);
+
 	PartialICFGBuilder &PIB = getAnalysis<PartialICFGBuilder>();
 	MicroBasicBlockBuilder &MBBB = getAnalysis<MicroBasicBlockBuilder>();
 	
@@ -439,6 +441,7 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 	DEBUG(dbgs() << "capture_overwriting_to (vid = " <<
 			getAnalysis<IDAssigner>().getValueID(i2) << "): " << cur_thr_id <<
 			' ' << prev_enforcing << ":" << *i2 << "\n";);
+	dbgs() << "|";
 
 	// If any store is concurrent with cur_regions[0], return
 	vector<Region> concurrent_regions;
@@ -650,6 +653,9 @@ bool CaptureConstraints::may_write(
 
 bool CaptureConstraints::path_may_write(int thr_id, size_t trunk_id,
 		const Instruction *i2, const Value *q) {
+	DEBUG(dbgs() << "path_may_write:" << *i2 << "\n";
+			dbgs() << thr_id << " " << trunk_id << "\n";);
+
 	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
 	MicroBasicBlockBuilder &MBBB = getAnalysis<MicroBasicBlockBuilder>();
 	CloneInfoManager &CIM = getAnalysis<CloneInfoManager>();
@@ -692,11 +698,8 @@ bool CaptureConstraints::path_may_write(int thr_id, size_t trunk_id,
 
 bool CaptureConstraints::path_may_write(const Instruction *i1,
 		int thr_id, size_t trunk_id, const Value *q) {
-
-#if 0
-	errs() << "path_may_write:" << *i1 << "\n";
-	errs() << thr_id << " " << trunk_id << "\n";
-#endif
+	DEBUG(dbgs() << "path_may_write:" << *i1 << "\n";
+			dbgs() << thr_id << " " << trunk_id << "\n";);
 
 	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
 	MicroBasicBlockBuilder &MBBB = getAnalysis<MicroBasicBlockBuilder>();
@@ -862,8 +865,9 @@ Instruction *CaptureConstraints::get_idom_ip(Instruction *ins) {
 bool CaptureConstraints::may_alias(const Value *v1, const Value *v2) {
 	AdvancedAlias *AAA = getAnalysisIfAvailable<AdvancedAlias>();
 	if (!DisableAdvancedAA && AAA) {
-		dbgs() << "=";
-		return AAA->may_alias(v1, v2);
+		bool res = AAA->may_alias(v1, v2);
+		dbgs() << (res ? "A" : "a");
+		return res;
 	} else {
 		BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
 		return BAA.alias(v1, 0, v2, 0) == AliasAnalysis::MayAlias;
@@ -873,8 +877,9 @@ bool CaptureConstraints::may_alias(const Value *v1, const Value *v2) {
 bool CaptureConstraints::must_alias(const Value *v1, const Value *v2) {
 	AdvancedAlias *AAA = getAnalysisIfAvailable<AdvancedAlias>();
 	if (!DisableAdvancedAA && AAA) {
-		dbgs() << "=";
-		return AAA->must_alias(v1, v2);
+		bool res = AAA->must_alias(v1, v2);
+		dbgs() << (res ? "U" : "u");
+		return res;
 	} else {
 		return v1 == v2;
 	}

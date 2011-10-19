@@ -164,6 +164,6 @@ if __name__ == '__main__':
         bc_filename = os.path.join(PROGS_DIR, benchmark + filename_suffix + '.bc')
         input_filename = os.path.join(PROGS_DIR, benchmark + filename_suffix + '.queries')
         cmd = string.join((base_cmd, cmd_options,
-                           '-query-list', input_filename,
+                           '-query-list', input_filename, '-debug-only=alias-query',
                            '<', bc_filename))
         invoke(cmd)

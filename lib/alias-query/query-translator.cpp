@@ -89,9 +89,13 @@ void QueryTranslator::translate_contexted_ins(const vector<DynamicInsID> &a,
 		--i;
 		InstList cloned_insts = CIM.get_instructions(
 				a[i].thread_id, a[i].trunk_id, a[i].ins_id);
-		assert(cloned_insts.size() < 2);
+		if (cloned_insts.size() >= 2) {
+			errs() << "[Warning] Found two cloned instructions. Pick the first one.\n";
+			for (size_t j = 0; j < cloned_insts.size(); ++j)
+				errs() << *cloned_insts[j] << "\n";
+		}
 		bool skipped = true;
-		if (cloned_insts.size() == 1) {
+		if (cloned_insts.size() > 0) {
 			a2.push_back(cloned_insts[0]);
 			skipped = false;
 		} else {

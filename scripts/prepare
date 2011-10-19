@@ -12,6 +12,6 @@ opt -o $2 \
 	-load $LLVM_ROOT/install/lib/libmbb.so \
 	-load $LLVM_ROOT/install/lib/libcfg.so \
 	-load $LLVM_ROOT/install/lib/libpreparer.so \
-	-prepare \
+	-replace-mymalloc -prepare \
 	${@:3} \
 	< $1

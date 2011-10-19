@@ -37,6 +37,8 @@ def prepare(config, section, bc, prep_bc):
     customized_thread_funcs = config.get(section, "customized-thread-funcs")
     cmd = get_base_cmd()
     cmd += "-prepare "
+    if section == "CHOLESKY":
+        cmd += "-replace-mymalloc "
     for customized_thread_func in customized_thread_funcs.split():
         cmd += "-thread-func " + customized_thread_func + " "
     cmd += "-o " + prep_bc + " < " + bc
@@ -167,13 +169,10 @@ if __name__ == "__main__":
     assert config.has_section(section)
 
     invoke("cp " + args.input_bc + " " + main_file_name + ".bc")
-    print >> prep_bc, os.path.exists(prep_bc)
     if not args.r or not os.path.exists(prep_bc):
         prepare(config, section, args.input_bc, prep_bc)
-    print >> id_bc, os.path.exists(id_bc)
     if not args.r or not os.path.exists(id_bc):
         tag_id(config, section, prep_bc, id_bc)
-    print >> trace_exec, os.path.exists(trace_exec)
     if not args.r or not os.path.exists(trace_exec):
         instrument(config, section, id_bc, trace_exec)
     if not args.r or not os.path.exists(full_trace) or not os.path.exists(landmark_trace):
