@@ -145,16 +145,14 @@ if __name__ == "__main__":
             help = "reuse existing intermediate files (default: false)")
     parser.add_argument("program",
             help = "the name of the program, used as the section name")
-    parser.add_argument("input_bc",
-            help = "the original bc")
-    parser.add_argument("output_bc",
-            help = "the simplified bc")
+    parser.add_argument("input_bc", help = "the original bc")
+    parser.add_argument("output_bc", help = "the simplified bc")
     args = parser.parse_args()
 
     main_file_name = os.path.basename(args.input_bc).rsplit(".", 1)[0]
-    print >> sys.stderr, "Main file name:", main_file_name
     assert string.find(main_file_name, ".") == -1
     assert string.find(main_file_name, "/") == -1
+    orig_bc = main_file_name + ".bc"
     prep_bc = main_file_name + ".prep.bc"
     id_bc = main_file_name + ".id.bc"
     trace_exec = main_file_name + ".trace"
@@ -168,7 +166,8 @@ if __name__ == "__main__":
     section = args.program
     assert config.has_section(section)
 
-    invoke("cp " + args.input_bc + " " + main_file_name + ".bc")
+    if args.input_bc != orig_bc:
+        invoke("cp " + args.input_bc + " " + orig_bc)
     if not args.r or not os.path.exists(prep_bc):
         prepare(config, section, args.input_bc, prep_bc)
     if not args.r or not os.path.exists(id_bc):
@@ -181,4 +180,5 @@ if __name__ == "__main__":
         max_slicing(config, section, id_bc, landmark_trace, slice_bc)
     if not args.r or not os.path.exists(simple_bc):
         simplify(config, section, slice_bc, landmark_trace, simple_bc)
-    invoke("cp " + simple_bc + " " + args.output_bc)
+    if simple_bc != args.output_bc:
+        invoke("cp " + simple_bc + " " + args.output_bc)
