@@ -166,11 +166,14 @@ Clause *CaptureConstraints::get_in_user(const User *user) {
 		case Instruction::Or:
 		case Instruction::Xor:
 			return get_in_binary(user, opcode);
-			// ICmpInst
+		// ICmpInst
 		case Instruction::ICmp:
-			assert(isa<ICmpInst>(user));
-			return get_in_icmp(cast<ICmpInst>(user));
-			// Unary Instructions
+			// TODO: Handle CompareConstantExpr
+			if (const ICmpInst *icmp = dyn_cast<ICmpInst>(user))
+				return get_in_icmp(icmp);
+			else
+				return NULL;
+		// Unary Instructions
 		case Instruction::Trunc:
 		case Instruction::ZExt:
 		case Instruction::SExt:
