@@ -87,8 +87,16 @@ if __name__ == "__main__":
                            "<", input_filename, ">", output_filename))
         invoke(cmd)
 
-        # translate queries: .simple.raw_queries -> .simple.queries
+        # translate queries: .simple.raw_queries -> .slice.queries, .simple.queries
         cmd_options = "-disable-output -translate-queries "
+        bc_filename = os.path.join(PROGS_DIR, benchmark + ".slice.bc")
+        input_filename = os.path.join(PROGS_DIR, benchmark + ".simple.raw_queries")
+        output_filename = os.path.join(PROGS_DIR, benchmark + ".slice.queries")
+        cmd = string.join((base_cmd, cmd_options,
+                           "-input-raw-queries", input_filename,
+                           "-output-queries", output_filename,
+                           "<", bc_filename))
+        invoke(cmd)
         bc_filename = os.path.join(PROGS_DIR, benchmark + ".simple.bc")
         input_filename = os.path.join(PROGS_DIR, benchmark + ".simple.raw_queries")
         output_filename = os.path.join(PROGS_DIR, benchmark + ".simple.queries")
@@ -98,7 +106,7 @@ if __name__ == "__main__":
                            "<", bc_filename))
         invoke(cmd)
 
-        # drive queries: .id.queries, .simple.queries ->
+        # drive queries: .id.queries, .slice.queries, .simple.queries ->
         cmd_options = "-analyze "
         landmark_trace_filename = os.path.join(PROGS_DIR, benchmark + ".lt")
         if option_sample > 1:
@@ -106,6 +114,12 @@ if __name__ == "__main__":
         cmd_options += "-drive-queries "
         bc_filename = os.path.join(PROGS_DIR, benchmark + ".id.bc")
         input_filename = os.path.join(PROGS_DIR, benchmark + ".id.queries")
+        cmd = string.join((base_cmd, cmd_options,
+                           "-query-list", input_filename,
+                           "<", bc_filename))
+        invoke(cmd)
+        bc_filename = os.path.join(PROGS_DIR, benchmark + ".slice.bc")
+        input_filename = os.path.join(PROGS_DIR, benchmark + ".slice.queries")
         cmd = string.join((base_cmd, cmd_options,
                            "-query-list", input_filename,
                            "<", bc_filename))

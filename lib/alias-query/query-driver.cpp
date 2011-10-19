@@ -137,9 +137,10 @@ void QueryDriver::print(raw_ostream &O, const Module *M) const {
 		else
 			assert_not_supported();
 	}
-	O << "No: " << n_no << "; ";
-	O << "May: " << n_may << "; ";
-	O << "Must: " << n_must << ";\n";
+	double n_total = n_no + n_may + n_must;
+	O << "No: " << n_no << " (" << n_no / n_total << "); ";
+	O << "May: " << n_may << " (" << n_may / n_total << "); ";
+	O << "Must: " << n_must << " (" << n_must / n_total << ");\n";
 	O << "Time: " << total_time / results.size() << " sec per query.\n";
 }
 
