@@ -147,7 +147,7 @@ streamcluster.ft: streamcluster.trace
 	mv /tmp/fulltrace $@
 
 blackscholes.ft: blackscholes.trace
-	./$< 2 ../progs/inputs/in_4K.txt output.txt
+	./$< 2 ../progs/inputs/blackscholes-in-4K.txt output.txt
 	mv /tmp/fulltrace $@
 
 rmdir.ft: rmdir.trace
