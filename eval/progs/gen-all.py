@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import ConfigParser
 import argparse
 import sys, os
 
@@ -18,8 +19,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     assert os.path.exists(args.f)
-    config = read_config(args.f)
-    
+    config = ConfigParser.ConfigParser()
+    config.read(args.f)
+
     for section in config.sections():
         # Dirty
         if section == "default" or section == "example":
