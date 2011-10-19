@@ -19,6 +19,7 @@ if __name__ == "__main__":
             help = "the configration file (default: slicer.cfg)",
             default = "slicer.cfg")
     parser.add_argument("program",
+            nargs = "?",
             help = "the name of the program, used as the section name",
             default = "")
     args = parser.parse_args()
@@ -37,6 +38,9 @@ if __name__ == "__main__":
     PROGS_DIR = os.path.join(SLICER_ROOT, "eval/progs")
 
     for benchmark in benchmarks:
+        # Dirty
+        if benchmark == "default" or benchmark == "example":
+            continue
         # Skip unspecified benchmarks
         if specified_benchmark != "" and specified_benchmark != benchmark:
             continue
