@@ -141,7 +141,10 @@ namespace slicer {
 		void capture_must_assign(Module &M);
 		void capture_global_vars(Module &M);
 		void capture_global_var(GlobalVariable *gv);
-		void capture_overwriting_to(LoadInst *i2);
+		/**
+		 * Returns true if any constraint is captured on this LoadInst. 
+		 */
+		bool capture_overwriting_to(LoadInst *i2);
 		Instruction *find_latest_overwriter(Instruction *i2, Value *q);
 		BasicBlock *get_idom(BasicBlock *bb);
 		Instruction *get_idom(Instruction *ins);

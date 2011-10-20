@@ -315,7 +315,8 @@ void CaptureConstraints::capture_must_assign(Module &M) {
 	dbgs() << "=== Capturing must assignments === ";
 	dbgs() << "# of loads = " << n_loads << "\n";
 
-	unsigned cur = 0;
+	unsigned cur_load = 0;
+	unsigned n_captured = 0, n_uncaptured = 0;
 	for (Module::iterator f = M.begin(); f != M.end(); ++f) {
 		if (f->isDeclaration())
 			continue;
@@ -324,12 +325,14 @@ void CaptureConstraints::capture_must_assign(Module &M) {
 		forall(Function, bb, *f) {
 			forall(BasicBlock, ins, *bb) {
 				if (LoadInst *i2 = dyn_cast<LoadInst>(ins)) {
-					print_progress(dbgs(), cur, n_loads);
+					print_progress(dbgs(), cur_load, n_loads);
 					const Type *i2_type = i2->getType();
 					// We don't capture equalities on real numbers. 
-					if (isa<IntegerType>(i2_type) || isa<PointerType>(i2_type))
-						capture_overwriting_to(i2);
-					++cur;
+					if (isa<IntegerType>(i2_type) || isa<PointerType>(i2_type)) {
+						bool captured = capture_overwriting_to(i2);
+						++(captured ? n_captured : n_uncaptured);
+					}
+					++cur_load;
 				}
 			}
 		}
@@ -338,6 +341,8 @@ void CaptureConstraints::capture_must_assign(Module &M) {
 	// Finish the progress bar. 
 	print_progress(dbgs(), n_loads, n_loads);
 	dbgs() << "\n";
+	dbgs() << "# of captured loads = " << n_captured
+		<< "; # of uncaptured loads = " << n_uncaptured << "\n";
 }
 
 Instruction *CaptureConstraints::find_nearest_common_dom(
@@ -414,7 +419,7 @@ bool CaptureConstraints::region_may_write(const Region &r, const Value *q) {
 	return false;
 }
 
-void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
+bool CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
 	CloneInfoManager &CIM = getAnalysis<CloneInfoManager>();
 	RegionManager &RM = getAnalysis<RegionManager>();
@@ -424,12 +429,12 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 	// We only handle the case that <i2> is executed once for now. 
 	// TODO: Change to is_fixed_integer? 
 	if (!EO.executed_once(i2))
-		return;
+		return false;
 	
 	vector<Region> cur_regions;
 	RM.get_containing_regions(i2, cur_regions);
 	if (cur_regions.size() != 1)
-		return;
+		return false;
 #if 0
 	errs() << "cur_region = " << cur_regions[0] << "\n";
 #endif
@@ -455,7 +460,7 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 		if (region_may_write(concurrent_regions[i], q)) {
 			DEBUG(dbgs() << concurrent_regions[i] <<
 					" may write to this pointer\n";);
-			return;
+			return false;
 		}
 	}
 
@@ -616,6 +621,7 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 		n_overwriters++;
 	}
 	DEBUG(dbgs() << "# of overwriters = " << n_overwriters << "\n";);
+	return n_overwriters > 0;
 }
 
 bool CaptureConstraints::may_write(

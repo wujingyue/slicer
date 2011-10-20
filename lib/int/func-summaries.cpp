@@ -9,12 +9,10 @@ using namespace llvm;
 using namespace slicer;
 
 void CaptureConstraints::capture_function_summaries(Module &M) {
-	
 	// Capture all memory allocations along the way. 
 	vector<pair<Expr *, Expr *> > blocks;
 	
 	forallinst(M, ii) {
-
 		CallSite cs = CallSite::get(ii);
 		if (!cs.getInstruction())
 			continue;
