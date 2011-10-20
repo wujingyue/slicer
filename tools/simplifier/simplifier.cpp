@@ -390,7 +390,6 @@ int main(int argc, char *argv[]) {
 	bool Failed = false;
 	
 	for (int IterNo = 1; MaxIterNo == -1 || IterNo <= MaxIterNo; ++IterNo) {
-		
 		ostringstream OSS;
 		OSS << "Iteration " << IterNo;
 		Timer *TmrIter = new Timer(OSS.str(), TG);

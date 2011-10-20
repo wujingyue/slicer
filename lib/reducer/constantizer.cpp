@@ -110,38 +110,24 @@ bool Constantizer::constantize(Module &M) {
 
 			if (pos) {
 				// Add slicer_assert_eq
-				Constant *the_slicer_assert_eq = NULL;
+				Constant *the_slicer_assert = get_slicer_assert(M, v->getType());
 				vector<Value *> actual_args;
 				if (isa<IntegerType>(v->getType())) {
-					TargetData &TD = getAnalysis<TargetData>();
-					unsigned bit_width = TD.getTypeSizeInBits(v->getType());
-					the_slicer_assert_eq = slicer_assert_eq.lookup(bit_width);
-
 					actual_args.push_back(v);
 					// v and c may not be of the same type, because they are retrieved
 					// from the union find set.
 					actual_args.push_back(ConstantInt::getSigned(v->getType(),
 								(int)c->getSExtValue()));
 				} else {
-					the_slicer_assert_eq = slicer_assert_eq.lookup(0);
-
+					actual_args.push_back(v);
 					assert(isa<PointerType>(v->getType()));
 					const PointerType *ptr_type = cast<PointerType>(v->getType());
-					const Type *elem_type = ptr_type->getElementType();
-
-					Value *ptr_v = v;
-					if (!elem_type->isIntegerTy(8)) {
-						ptr_v = new BitCastInst(ptr_v,
-								Type::getInt8PtrTy(M.getContext()), "", pos);
-					}
-					Value *ptr_c = new IntToPtrInst(c, ptr_v->getType(), "", pos);
-
-					actual_args.push_back(ptr_v);
+					Value *ptr_c = new IntToPtrInst(c, ptr_type, "", pos);
 					actual_args.push_back(ptr_c);
 				}
 
-				assert(the_slicer_assert_eq);
-				CallInst::Create(the_slicer_assert_eq,
+				assert(the_slicer_assert);
+				CallInst::Create(the_slicer_assert,
 						actual_args.begin(), actual_args.end(), "", pos);
 			}
 		}
@@ -168,11 +154,13 @@ bool Constantizer::constantize(Module &M) {
 				DEBUG(dbgs() << *local[j]->getUser() << "\n";);
 				local[j]->set(ConstantInt::getSigned(int_type, svalue));
 				locally_changed = true;
+				DEBUG(dbgs() << "afterwards:" << *local[j]->getUser() << "\n";);
 			} else if (const PointerType *ptr_type = dyn_cast<PointerType>(type)) {
 				if (c->isZero()) {
 					DEBUG(dbgs() << *local[j]->getUser() << "\n";);
 					local[j]->set(ConstantPointerNull::get(ptr_type));
 					locally_changed = true;
+					DEBUG(dbgs() << "afterwards:" << *local[j]->getUser() << "\n";);
 				}
 			} else {
 				assert(false && "This value is neither an integer or a pointer");
@@ -189,29 +177,20 @@ bool Constantizer::constantize(Module &M) {
 }
 
 void Constantizer::setup(Module &M) {
-	setup_slicer_assert_eq(M, 0);
-	setup_slicer_assert_eq(M, 1);
-	setup_slicer_assert_eq(M, 8);
-	setup_slicer_assert_eq(M, 16);
-	setup_slicer_assert_eq(M, 32);
-	setup_slicer_assert_eq(M, 64);
+	// Do nothing for now. 
 }
 
-void Constantizer::setup_slicer_assert_eq(Module &M, unsigned bit_width) {
-	const Type *void_type = Type::getVoidTy(M.getContext());
-	const Type *arg_type;
-	if (bit_width == 0)
-		arg_type = Type::getInt8PtrTy(M.getContext());
-	else
-		arg_type = IntegerType::get(M.getContext(), bit_width);
-	vector<const Type *> arg_types(2, arg_type);
+Function *Constantizer::get_slicer_assert(Module &M, const Type *type) {
+	if (slicer_assert_eq.count(type))
+		return slicer_assert_eq.lookup(type);
 
-	ostringstream oss;
-	oss << "slicer_assert_eq_" << bit_width;
-	oss.flush();
-
-	slicer_assert_eq[bit_width] = M.getOrInsertFunction(oss.str(),
-			FunctionType::get(void_type, arg_types, false));
+	const Type *void_ty = Type::getVoidTy(M.getContext());
+	vector<const Type *> arg_types(2, type);
+	FunctionType *func_type = FunctionType::get(void_ty, arg_types, false);
+	Function *f = Function::Create(func_type,
+			GlobalVariable::ExternalLinkage, "slicer_assert_eq", &M);
+	slicer_assert_eq[type] = f;
+	return f;
 }
 
 bool Constantizer::runOnModule(Module &M) {

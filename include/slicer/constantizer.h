@@ -28,11 +28,10 @@ namespace slicer {
 		/** Replace variables with ConstantInts whenever possible. */
 		bool constantize(Module &M);
 		void setup(Module &M);
-		void setup_slicer_assert_eq(Module &M, unsigned bit_width);
+		Function *get_slicer_assert(Module &M, const Type *type);
 
 	private:
-		// How ugly it is!
-		DenseMap<unsigned, Constant *> slicer_assert_eq;
+		DenseMap<const Type *, Function *> slicer_assert_eq;
 	};
 }
 

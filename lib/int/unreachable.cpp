@@ -14,7 +14,7 @@ bool CaptureConstraints::is_slicer_assert_eq(const Instruction *ins,
 	CallSite cs = CallSite::get(const_cast<Instruction *>(ins));
 	if (cs.getInstruction()) {
 		Function *callee = cs.getCalledFunction();
-		if (callee && starts_with(callee->getName(), "slicer_assert_eq_")) {
+		if (callee && starts_with(callee->getName(), "slicer_assert_eq")) {
 			assert(cs.arg_size() == 2);
 			if (v)
 				*v = cs.getArgument(0);
