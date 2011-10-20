@@ -32,6 +32,8 @@ using namespace slicer;
 
 static cl::opt<bool> DisableAdvancedAA("disable-advanced-aa",
 		cl::desc("Don't use the advanced AA. Always use bc2bdd"));
+static cl::opt<bool> Verbose("verbose",
+		cl::desc("Print information for each alias query"));
 
 Value *CaptureConstraints::get_pointer_operand(const Instruction *i) {
 	if (const StoreInst *si = dyn_cast<StoreInst>(i))
@@ -441,7 +443,8 @@ void CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 	DEBUG(dbgs() << "capture_overwriting_to (vid = " <<
 			getAnalysis<IDAssigner>().getValueID(i2) << "): " << cur_thr_id <<
 			' ' << prev_enforcing << ":" << *i2 << "\n";);
-	dbgs() << "|";
+	if (Verbose)
+		dbgs() << "|";
 
 	// If any store is concurrent with cur_regions[0], return
 	vector<Region> concurrent_regions;
@@ -866,7 +869,8 @@ bool CaptureConstraints::may_alias(const Value *v1, const Value *v2) {
 	AdvancedAlias *AAA = getAnalysisIfAvailable<AdvancedAlias>();
 	if (!DisableAdvancedAA && AAA) {
 		bool res = AAA->may_alias(v1, v2);
-		dbgs() << (res ? "A" : "a");
+		if (Verbose)
+			dbgs() << (res ? "A" : "a");
 		return res;
 	} else {
 		BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
@@ -878,7 +882,8 @@ bool CaptureConstraints::must_alias(const Value *v1, const Value *v2) {
 	AdvancedAlias *AAA = getAnalysisIfAvailable<AdvancedAlias>();
 	if (!DisableAdvancedAA && AAA) {
 		bool res = AAA->must_alias(v1, v2);
-		dbgs() << (res ? "U" : "u");
+		if (Verbose)
+			dbgs() << (res ? "U" : "u");
 		return res;
 	} else {
 		return v1 == v2;

@@ -23,7 +23,8 @@ if __name__ == "__main__":
     parser.add_argument("-f",
             help = "the configuration file (default: slicer.cfg)",
             default = "slicer.cfg")
-    parser.add_argument("-p",
+    parser.add_argument("program",
+            nargs = "*",
             help = "the program to run. should match the section name in the config file",
             default = "")
     args = parser.parse_args()
@@ -32,11 +33,12 @@ if __name__ == "__main__":
     config = ConfigParser.ConfigParser()
     config.read(args.f)
 
-    if args.p == "":
+    if len(args.program) == 0:
         for section in config.sections():
             # Dirty
             if section == "default" or section == "example":
                 continue
             work_on(config, section)
     else:
-        work_on(config, args.p)
+        for section in args.program:
+            work_on(config, section)
