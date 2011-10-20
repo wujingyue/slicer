@@ -419,7 +419,21 @@ bool CaptureConstraints::region_may_write(const Region &r, const Value *q) {
 	return false;
 }
 
+void CaptureConstraints::add_constraints(const vector<Clause *> &cs) {
+	for (size_t i = 0; i < cs.size(); ++i)
+		add_constraint(cs[i]);
+}
+
 bool CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
+	// Check cache. 
+	if (captured_loads.count(i2)) {
+		dbgs() << "H";
+		vector<Clause *> to_be_added = captured_loads.lookup(i2);
+		for (size_t i = 0; i < to_be_added.size(); ++i)
+			add_constraint(to_be_added[i]->clone());
+		return true;
+	}
+
 	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
 	CloneInfoManager &CIM = getAnalysis<CloneInfoManager>();
 	RegionManager &RM = getAnalysis<RegionManager>();
@@ -551,6 +565,7 @@ bool CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 			latest_overwriters[k1] = NULL;
 	}
 
+	vector<Clause *> final_constraints;
 	unsigned n_overwriters = 0;
 	for (size_t k = 0; k < thr_ids.size(); ++k) {
 		if (!latest_overwriters[k])
@@ -617,11 +632,18 @@ bool CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 		DEBUG(dbgs() << "From overwriting: ";
 				print_clause(dbgs(), c, getAnalysis<IDAssigner>());
 				dbgs() << "\n";);
-		add_constraint(c);
+		final_constraints.push_back(c);
 		n_overwriters++;
 	}
 	DEBUG(dbgs() << "# of overwriters = " << n_overwriters << "\n";);
-	return n_overwriters > 0;
+	if (n_overwriters == 0) {
+		return false;
+	} else {
+		captured_loads[i2] = final_constraints;
+		for (size_t i = 0; i < final_constraints.size(); ++i)
+			add_constraint(final_constraints[i]->clone());
+		return true;
+	}
 }
 
 bool CaptureConstraints::may_write(

@@ -39,6 +39,7 @@ Expr *Expr::clone() const {
 		return new Expr(op, e1->clone());
 	if (type == Binary)
 		return new Expr(op, e1->clone(), e2->clone());
+	errs() << "type = " << type << "\n";
 	assert_unreachable();
 }
 

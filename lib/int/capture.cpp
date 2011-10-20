@@ -67,10 +67,7 @@ void CaptureConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
 CaptureConstraints::CaptureConstraints(): ModulePass(&ID), IDT(false) {}
 
 CaptureConstraints::~CaptureConstraints() {
-	forall(vector<Clause *>, it, constraints) {
-		delete *it;
-		*it = NULL;
-	}
+	clear_constraints();
 }
 
 void CaptureConstraints::print(raw_ostream &O, const Module *M) const {
@@ -154,8 +151,17 @@ void CaptureConstraints::recalculate(Module &M) {
 	calculate(M);
 }
 
-void CaptureConstraints::calculate(Module &M) {
+void CaptureConstraints::clear_constraints() {
+	for (vector<Clause *>::iterator it = constraints.begin();
+			it != constraints.end(); ++it) {
+		delete *it;
+		*it = NULL;
+	}
 	constraints.clear();
+}
+
+void CaptureConstraints::calculate(Module &M) {
+	clear_constraints();
 
 	// Check whether each loop is in the simplified and LCSSA form. 
 	check_loops(M);
@@ -218,7 +224,7 @@ bool CaptureConstraints::print_progress(
 	for (unsigned p = 0; p <= 10; ++p) {
 		unsigned threshold = p * tot / 10;
 		if (cur == threshold) {
-			O << " [" << p * 10 << "%" << "] ";
+			O << " [" << p * 10 << "%" << "]";
 			printed = true;
 			// Do not return here. We may need to print multiple percentages if
 			// tot is small. 

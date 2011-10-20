@@ -177,6 +177,9 @@ namespace slicer {
 		void setup(Module &M);
 		void check_loop(Loop *l);
 		void check_loops(Module &M);
+		void add_constraint(Clause *c);
+		void add_constraints(const vector<Clause *> &cs);
+		void clear_constraints();
 
 		// Integer and pointer values. 
 		void capture_top_level(Module &M);
@@ -220,10 +223,10 @@ namespace slicer {
 		void capture_libcall(const CallSite &cs);
 		bool capture_memory_allocation(
 				const CallSite &cs, Expr *&start, Expr *&size);
-		void add_constraint(Clause *c);
 
 		// Data members. 
 		vector<Clause *> constraints;
+		DenseMap<LoadInst *, vector<Clause *> > captured_loads;
 		ValueSet fixed_integers;
 		const Type *int_type;
 		DominatorTreeBase<ICFGNode> IDT;
