@@ -9,8 +9,6 @@ SOURCES = add-calling-context.cpp landmark-trace.cpp omit-branch.cpp \
 	  trace-manager.cpp instrument.cpp mark-landmarks.cpp \
 	  landmark-trace-builder.cpp enforcing-landmarks.cpp
 
-CXXFLAGS += -I$(LLVM_ROOT) -I$(LLVM_ROOT)/install/include
-
 include $(LEVEL)/Makefile.common
 
 all:: tracing.bc
