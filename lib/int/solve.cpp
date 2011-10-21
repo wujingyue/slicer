@@ -350,7 +350,7 @@ void SolveConstraints::print_minimal_proof_set(const Clause *to_prove) {
 }
 
 void SolveConstraints::diagnose(Module &M) {
-	errs() << "Detected inconsistency. Enter diagnose mode...\n";
+	errs() << "Detected inconsistency. Diagnosing...\n";
 
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 	unsigned n_constraints = CC.get_num_constraints();
