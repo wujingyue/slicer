@@ -379,6 +379,7 @@ void SolveConstraints::diagnose(Module &M) {
 			errs().changeColor(raw_ostream::RED) << "N"; errs().resetColor();
 		}
 	}
+	errs() << "\n";
 
 	errs() << "Start printing a minimal set...\n";
 	for (unsigned i = 0; i < n_constraints; ++i) {
