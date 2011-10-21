@@ -33,9 +33,12 @@ sudo apt-get install libbdd-dev libbz2 openjdk-6-jdk libboost-regex-dev shtool
 
 TODO
 
-You need apply two patches, $WORKSPACE/llvm/fix-dae.patch and
-$WORKSPACE/llvm/fix-fppassmanager.patch, to the LLVM 2.7 source code. These two
-patches fixed some bugs in LLVM 2.7. 
+You need apply the following patches to fix some bugs in LLVM 2.7: 
+$WORKSPACE/llvm/fix-dae.patch
+$WORKSPACE/llvm/fix-fppassmanager.patch
+$WORKSPACE/llvm/fix-verifier.patch
+
+Some of them are fixed in later versions, but others are not. 
 
 5. Building common modules
 
