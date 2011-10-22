@@ -109,8 +109,15 @@ void CaptureConstraints::capture_global_var(GlobalVariable *gv) {
 				if (cs.getInstruction()) {
 					Function *callee = cs.getCalledFunction();
 					if (callee && callee->getName() == "fscanf") {
-						assert(cs.arg_size() > 0);
-						if (BAA.alias(gv, 0, cs.getArgument(cs.arg_size() - 1), 0)) {
+						assert(cs.arg_size() >= 2);
+						bool may_overwrite = false;
+						for (unsigned arg_no = 2; arg_no < cs.arg_size(); ++arg_no) {
+							if (BAA.alias(gv, 0, cs.getArgument(arg_no), 0)) {
+								may_overwrite = true;
+								break;
+							}
+						}
+						if (may_overwrite) {
 							vector<Region> regions;
 							RM.get_containing_regions(ins, regions);
 							for (size_t i = 0; i < regions.size(); ++i)
@@ -632,6 +639,11 @@ bool CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 		DEBUG(dbgs() << "From overwriting: ";
 				print_clause(dbgs(), c, getAnalysis<IDAssigner>());
 				dbgs() << "\n";);
+		if (getAnalysis<IDAssigner>().getValueID(i2) == 5746) {
+			errs() << "overwriter ";
+			errs() << getAnalysis<IDAssigner>().getValueID(latest_overwriters[k]);
+			errs() << ":" << *latest_overwriters[k] << "\n";
+		}
 		final_constraints.push_back(c);
 		n_overwriters++;
 	}
@@ -652,6 +664,27 @@ bool CaptureConstraints::may_write(
 		if (may_alias(si->getPointerOperand(), q))
 			return true;
 	}
+	if (is_call(i)) {
+		CallSite cs = CallSite::get(const_cast<Instruction *>(i));
+		assert(cs.getInstruction());
+		Function *callee = cs.getCalledFunction();
+		if (callee && callee->getName() == "fscanf") {
+			assert(cs.arg_size() >= 2);
+			for (unsigned arg_no = 2; arg_no < cs.arg_size(); ++arg_no) {
+				if (may_alias(cs.getArgument(arg_no), q))
+					return true;
+			}
+		}
+		if (callee && callee->isDeclaration() && (
+					callee->getName() == "BZ2_bzReadOpen" ||
+					callee->getName() == "BZ2_bzRead" ||
+					callee->getName() == "BZ2_bzReadGetUnused" ||
+					callee->getName() == "BZ2_bzReadClose")) {
+			assert(cs.arg_size() >= 1);
+			if (may_alias(cs.getArgument(0), q))
+				return true;
+		}
+	}
 	// If <i> is a function call, go into the function. 
 	if (is_call(i)) {
 		CallGraphFP &CG = getAnalysis<CallGraphFP>();
@@ -664,8 +697,8 @@ bool CaptureConstraints::may_write(
 	return false;
 }
 
-bool CaptureConstraints::may_write(
-		const Function *f, const Value *q, ConstFuncSet &visited_funcs) {
+bool CaptureConstraints::may_write(const Function *f,
+		const Value *q, ConstFuncSet &visited_funcs) {
 	if (visited_funcs.count(f))
 		return false;
 	visited_funcs.insert(f);
@@ -673,8 +706,8 @@ bool CaptureConstraints::may_write(
 	// For now, we assume external functions don't write to <q>. 
 	if (f->isDeclaration())
 		return false;
-	forallconst(Function, bi, *f) {
-		forallconst(BasicBlock, ii, *bi) {
+	for (Function::const_iterator bi = f->begin(); bi != f->end(); ++bi) {
+		for (BasicBlock::const_iterator ii = bi->begin(); ii != bi->end(); ++ii) {
 			if (may_write(ii, q, visited_funcs))
 				return true;
 		}
