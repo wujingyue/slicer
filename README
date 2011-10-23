@@ -27,7 +27,7 @@ to PATH.
 
 3. Install libraries
 
-sudo apt-get install libbdd-dev libbz2 openjdk-6-jdk libboost-regex-dev shtool
+sudo apt-get install libbdd-dev libbz2-dev openjdk-6-jdk libboost-regex-dev shtool subversion zip libzip-dev flex bison
 
 4. Building LLVM 2.7
 
@@ -61,7 +61,7 @@ make install
 
 7. Test Slicer
 
-cd tests
+cd $SLICER_ROOT/tests
 make build
 make run
 
