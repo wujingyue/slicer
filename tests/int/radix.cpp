@@ -19,7 +19,6 @@ void IntTest::test_radix_like(const Module &M) {
 	vector<const Value *> accesses_to_ff;
 	ExecOnce &EO = getAnalysis<ExecOnce>();
 	forallconst(Module, f, M) {
-
 		if (EO.not_executed(f))
 			continue;
 
@@ -117,6 +116,7 @@ void IntTest::test_radix(const Module &M) {
 
 	test_radix_common(M);
 
+#if 0
 	// rank_me_mynum and rank_ff_mynum
 	vector<const Value *> ranks;
 	vector<const Value *> arr_accesses;
@@ -153,6 +153,7 @@ void IntTest::test_radix(const Module &M) {
 			print_pass(errs());
 		}
 	}
+#endif
 }
 
 void IntTest::test_radix_common(const Module &M) {

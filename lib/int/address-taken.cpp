@@ -871,6 +871,16 @@ bool CaptureConstraints::path_may_write(
 				if (may_alias(si->getPointerOperand(), q))
 					return true;
 			}
+			if (is_call(i) && !is_pthread_create(i)) {
+				const Instruction *const_i = i;
+				CallSite cs = CallSite::get(const_cast<Instruction *>(const_i));
+				Function *callee = cs.getCalledFunction();
+				if (callee && callee->isDeclaration()) {
+					ConstFuncSet visited_funcs;
+					if (may_write(i, q, visited_funcs))
+						return true;
+				}
+			}
 		}
 	}
  	return false;
