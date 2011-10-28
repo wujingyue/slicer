@@ -478,6 +478,7 @@ bool CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 	DEBUG(dbgs() << "# of concurrent regions = " <<
 			concurrent_regions.size() << "\n");
 	for (size_t i = 0; i < concurrent_regions.size(); ++i) {
+		DEBUG(dbgs() << concurrent_regions[i] << "\n";);
 		if (region_may_write(concurrent_regions[i], q)) {
 			DEBUG(dbgs() << concurrent_regions[i] <<
 					" may write to this pointer\n";);
@@ -620,6 +621,7 @@ bool CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 		// TODO: Cache the region_may_write results. 
 		bool overwritten_by_concurrent_regions = false;
 		forall(DenseSet<Region>, it, concurrent_regions) {
+			DEBUG(dbgs() << "Potential overwriter:" << *it << "\n";);
 			if (region_may_write(*it, q)) {
 				overwritten_by_concurrent_regions = true;
 				break;
@@ -628,22 +630,24 @@ bool CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 		if (overwritten_by_concurrent_regions)
 			continue; // ignore this overwriter
 
+		// TODO: for debug only
+		if (cur_thr_id != thr_ids[k])
+			continue;
+#if 0
+		if (cur_thr_id == thr_ids[k])
+			continue;
+#endif
+
 		Clause *c = new Clause(new BoolExpr(
 					CmpInst::ICMP_EQ,
 					new Expr(i2),
 					new Expr(get_value_operand(latest_overwriters[k]))));
-#if 0
-		errs() << *latest_doms[k] << "\n";
-#endif
-		DEBUG(dbgs() << "Valid overwriter:" << *latest_overwriters[k] << "\n";);
+		DEBUG(dbgs() << "Valid overwriter [" << cur_thr_id << "<="
+				<< thr_ids[k] << "]:"
+				<< *latest_overwriters[k] << "\n";);
 		DEBUG(dbgs() << "From overwriting: ";
 				print_clause(dbgs(), c, getAnalysis<IDAssigner>());
 				dbgs() << "\n";);
-		if (getAnalysis<IDAssigner>().getValueID(i2) == 5746) {
-			errs() << "overwriter ";
-			errs() << getAnalysis<IDAssigner>().getValueID(latest_overwriters[k]);
-			errs() << ":" << *latest_overwriters[k] << "\n";
-		}
 		final_constraints.push_back(c);
 		n_overwriters++;
 	}
@@ -809,7 +813,6 @@ bool CaptureConstraints::path_may_write(const Instruction *i1,
 bool CaptureConstraints::blocks_may_write(
 		const DenseSet<const ICFGNode *> &blocks,
 		const InstList &starts, const InstList &ends, const Value *q) {
-
 	// Functions visited in <may_write>s. 
 	// In order to handle recursive functions. 
 	// FIXME: Trace into functions that don't appear in the ICFG. 
@@ -841,7 +844,7 @@ bool CaptureConstraints::blocks_may_write(
 
 bool CaptureConstraints::path_may_write(
 		const Instruction *i1, const Instruction *i2, const Value *q) {
-
+	DEBUG(dbgs() << "path_may_write:" << *i1 << "\n" << *i2 << "\n";);
 	MicroBasicBlockBuilder &MBBB = getAnalysis<MicroBasicBlockBuilder>();
 	MicroBasicBlock *m1 = MBBB.parent(i1), *m2 = MBBB.parent(i2);
 
@@ -868,6 +871,7 @@ bool CaptureConstraints::path_may_write(
 			e = i2;
 		for (BasicBlock::const_iterator i = s; i != e; ++i) {
 			if (const StoreInst *si = dyn_cast<StoreInst>(i)) {
+				DEBUG(dbgs() << "Potential overwriter:" << *i << "\n";);
 				if (may_alias(si->getPointerOperand(), q))
 					return true;
 			}
