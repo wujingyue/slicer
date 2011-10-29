@@ -398,7 +398,5 @@ void SolveConstraints::avoid_overflow(unsigned op, VCExpr left, VCExpr right) {
 }
 
 void SolveConstraints::delete_vcexpr(VCExpr e) {
-	if (getExprKind(e) == SYMBOL)
-		return;
 	vc_DeleteExpr(e);
 }
