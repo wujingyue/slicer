@@ -296,75 +296,81 @@ int OutputModule(Module *M, const string &FileName) {
  * Returns 1 if <M> gets changed. 
  * Returns 0 if <M> is unchanged. 
  */
-int DoOneIteration(Module *M) {
+int DoOneIteration(Module *M, int IterNo) {
+	bool Changed = false;
+
+	if (IterNo > 0) {
+		// Run the AggressivePromotion to aggresively hoist LoadInst's. 
+		if (const PassInfo *PI = Listener.getPassInfo("remove-assert-eq")) {
+			if (RunPassInfos(M, vector<const PassInfo *>(1, PI)) == -1)
+				return -1;
+		} else {
+			errs() << "AsesrtEqRemover hasn't been loaded.\n";
+			return -1;
+		}
+		// LCSSA is actually not necessary in this step. 
+		// aggressive-promotion only requires the loops to be in the simplified form. 
+		if (RunLCSSAAndLoopSimplify(M) == -1)
+			return -1;
+		if (const PassInfo *PI = Listener.getPassInfo("aggressive-promotion")) {
+			if (RunPassInfos(M, vector<const PassInfo *>(1, PI)) == -1)
+				return -1;
+		} else {
+			errs() << "AggressivePromotion hasn't been loaded.\n";
+			return -1;
+		}
+		// aggressive-loop-unroll requires the loops to be in LCSSA and
+		// simplified form. 
+		if (RunLCSSAAndLoopSimplify(M) == -1)
+			return -1;
+		if (const PassInfo *PI = Listener.getPassInfo("aggressive-loop-unroll")) {
+			if (RunPassInfos(M, vector<const PassInfo *>(1, PI)) == -1)
+				return -1;
+		} else {
+			errs() << "AggressiveLoopUnroll hasn't been loaded.\n";
+			return -1;
+		}
+		// Run -O3 again to remove unnecessary instructions/BBs inserted
+		// by LoopSimplifier and LCSSA. 
+		if (RunOptimizationPasses(M) == -1)
+			return -1;
+		// CaptureConstraints requires all loops in LCSSA and simplified form. 
+		if (RunLCSSAAndLoopSimplify(M) == -1)
+			return -1;
+		// As a side effect of PrintAfterEachIteration, print the module before
+		// the integer constraint solving. 
+		if (PrintAfterEachIteration) {
+			if (OutputModule(M, "before-reducer.bc") == -1)
+				return -1;
+		}
+		/*
+		 * PostReducer requires Iterate, so don't worry about the Iterate. 
+		 */
+		if (const PassInfo *PI = Listener.getPassInfo("constantize")) {
+			int Ret = RunPassInfos(M, vector<const PassInfo *>(1, PI));
+			if (Ret == -1)
+				return -1;
+			if (Ret == 1)
+				Changed = true;
+		} else {
+			errs() << "Constantizer hasn't been loaded.\n";
+			return -1;
+		}
+	} // if IterNo > 0
+
 	if (RunOptimizationPasses(M) == -1)
 		return -1;
-	/*
-	 * Optimization passes seem to always change the module (maybe a bug
-	 * in LLVM 2.7), so we only look at whether the Reducer
-	 * has changed the module or not. 
-	 */
-
-	// Run the AggressivePromotion to aggresively hoist LoadInst's. 
-	if (const PassInfo *PI = Listener.getPassInfo("remove-assert-eq")) {
-		if (RunPassInfos(M, vector<const PassInfo *>(1, PI)) == -1)
-			return -1;
-	} else {
-		errs() << "AsesrtEqRemover hasn't been loaded.\n";
-		return -1;
-	}
-	
-	// LCSSA is actually not necessary in this step. 
-	// aggressive-promotion requires the loops to be in the simplified form. 
 	if (RunLCSSAAndLoopSimplify(M) == -1)
 		return -1;
 
-	if (const PassInfo *PI = Listener.getPassInfo("aggressive-promotion")) {
-		if (RunPassInfos(M, vector<const PassInfo *>(1, PI)) == -1)
-			return -1;
-	} else {
-		errs() << "AggressivePromotion hasn't been loaded.\n";
-		return -1;
-	}
-
-	// aggressive-loop-unroll requires the loops to be in LCSSA and
-	// simplified form. 
-	if (RunLCSSAAndLoopSimplify(M) == -1)
-		return -1;
-
-	if (const PassInfo *PI = Listener.getPassInfo("aggressive-loop-unroll")) {
-		if (RunPassInfos(M, vector<const PassInfo *>(1, PI)) == -1)
-			return -1;
-	} else {
-		errs() << "AggressiveLoopUnroll hasn't been loaded.\n";
-		return -1;
-	}
-
-	// Run -O3 again to remove unnecessary instructions/BBs inserted
-	// by LoopSimplifier and LCSSA. 
-	if (RunOptimizationPasses(M) == -1)
-		return -1;
-
-	// CaptureConstraints requires all loops in LCSSA and simplified form. 
-	if (RunLCSSAAndLoopSimplify(M) == -1)
-		return -1;
-
-	// As a side effect of PrintAfterEachIteration, print the module before
-	// the integer constraint solving. 
 	if (PrintAfterEachIteration) {
-		if (OutputModule(M, "before-reducer.bc") == -1)
+		ostringstream OSS;
+		OSS << "iter-" << IterNo << ".bc";
+		if (OutputModule(M, OSS.str()) == -1)
 			return -1;
 	}
 
-	/*
-	 * PostReducer requires Iterate, so don't worry about the Iterate. 
-	 */
-	if (const PassInfo *PI = Listener.getPassInfo("constantize")) {
-		return RunPassInfos(M, vector<const PassInfo *>(1, PI));
-	} else {
-		errs() << "Constantizer hasn't been loaded.\n";
-		return -1;
-	}
+	return ((IterNo == 0 || Changed) ? 1 : 0);
 }
 
 int main(int argc, char *argv[]) {
@@ -389,7 +395,7 @@ int main(int argc, char *argv[]) {
 	vector<Timer *> Tmrs;
 	bool Failed = false;
 	
-	for (int IterNo = 1; MaxIterNo == -1 || IterNo <= MaxIterNo; ++IterNo) {
+	for (int IterNo = 0; MaxIterNo == -1 || IterNo <= MaxIterNo; ++IterNo) {
 		ostringstream OSS;
 		OSS << "Iteration " << IterNo;
 		Timer *TmrIter = new Timer(OSS.str(), TG);
@@ -397,7 +403,7 @@ int main(int argc, char *argv[]) {
 		TmrIter->startTimer();
 
 		dbgs() << "=== Starting Iteration " << IterNo << "... ===\n";
-		int Changed = DoOneIteration(M);
+		int Changed = DoOneIteration(M, IterNo);
 		dbgs() << "=== Iteration " << IterNo << " finished === ";
 
 		if (Changed == 1)
@@ -414,16 +420,6 @@ int main(int argc, char *argv[]) {
 
 		if (Changed == 0)
 			break;
-		
-		// Print the module after each iteration. 
-		if (PrintAfterEachIteration) {
-			OSS.str(""); // Reset OSS.
-			OSS << "iter-" << IterNo << ".bc";
-			if (OutputModule(M, OSS.str()) == -1) {
-				Failed = true;
-				break;
-			}
-		}
 	}
 
 	for (size_t i = 0; i < Tmrs.size(); ++i)
@@ -433,14 +429,6 @@ int main(int argc, char *argv[]) {
 		delete M;
 		return 1;
 	}
-
-	// Run -O3 even if max-iter = 0.
-	if (RunOptimizationPasses(M) == -1)
-		return -1;
-	// The simplified program needs to be in the LCSSA form, which is
-	// required by the integer constraint solver. 
-	if (RunLCSSAAndLoopSimplify(M) == -1)
-		return -1;
 
 	if (OutputModule(M, OutputFilename) == -1) {
 		delete M;

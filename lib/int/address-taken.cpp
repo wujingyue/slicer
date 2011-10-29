@@ -630,14 +630,6 @@ bool CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 		if (overwritten_by_concurrent_regions)
 			continue; // ignore this overwriter
 
-		// TODO: for debug only
-		if (cur_thr_id != thr_ids[k])
-			continue;
-#if 0
-		if (cur_thr_id == thr_ids[k])
-			continue;
-#endif
-
 		Clause *c = new Clause(new BoolExpr(
 					CmpInst::ICMP_EQ,
 					new Expr(i2),
