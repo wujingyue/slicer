@@ -5,6 +5,7 @@ import sys
 import string
 import ConfigParser
 import argparse
+import timeit
 
 def get_base_cmd():
     return "opt " + \
@@ -107,7 +108,8 @@ def max_slicing(config, section, id_bc, landmark_trace, slice_bc):
     if input_landmarks.strip() != "":
         cmd += "-input-landmarks " + input_landmarks + " "
     cmd += "-o " + slice_bc + " < " + id_bc
-    invoke(cmd)
+    t = timeit.Timer(lambda: invoke(cmd))
+    print "Time for max_slicing:", t.timeit(1), "seconds"
 
 def simplify(config, section, slice_bc, landmark_trace, simple_bc):
     print_banner("Simplifying...")
