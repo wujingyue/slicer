@@ -35,10 +35,6 @@ static cl::opt<string> QueryList("query-list",
 		cl::desc("The input query list"));
 static cl::opt<bool> UseAdvancedAA("use-adv-aa",
 		cl::desc("Use the advanced AA if turned on"));
-static cl::opt<int> SampleRate("sample",
-		cl::desc("Sample a subset of queries: 1/sample of all queries will "
-			"be picked"),
-		cl::init(1));
 static cl::opt<bool> LoadLoad("driver-loadload",
 		cl::desc("The query driver considers load-load aliases as well"));
 
@@ -62,9 +58,6 @@ void QueryDriver::issue_queries() {
 	errs() << "# of queries = " << queries.size() << "\n";
 
 	for (size_t i = 0; i < queries.size(); ++i) {
-		// Deterministic sampling to be fair.
-		if (i % SampleRate != 0)
-			continue;
 		const Instruction *i1 = queries[i].first.ins, *i2 = queries[i].second.ins;
 		if (!i1 || !i2) {
 			results.push_back(AliasAnalysis::NoAlias);

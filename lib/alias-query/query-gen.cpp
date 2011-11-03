@@ -26,10 +26,17 @@ static cl::opt<bool> ContextSensitive("cs",
 		cl::desc("Generate context sensitive queries"));
 static cl::opt<bool> LoadLoad("gen-loadload",
 		cl::desc("Generate load-load alias queries as well"));
+static cl::opt<int> SampleRate("sample",
+		cl::desc("Sample a subset of queries: 1/sample of all queries will "
+			"be picked"),
+		cl::init(1));
 
 char QueryGenerator::ID = 0;
 
 void QueryGenerator::generate_static_queries(Module &M) {
+	// Deterministic sampling to be fair.
+	unsigned counter_for_sampling = 0;
+
 	CloneInfoManager &CIM = getAnalysis<CloneInfoManager>();
 
 	vector<Instruction *> read_accessors, write_accessors;
@@ -55,6 +62,8 @@ void QueryGenerator::generate_static_queries(Module &M) {
 	}
 	for (size_t i = 0; i < write_accessors.size(); ++i) {
 		for (size_t j = i + 1; j < write_accessors.size(); ++j) {
+			if ((++counter_for_sampling) % SampleRate != 0)
+				continue;
 			all_queries.push_back(make_pair(
 						DynamicInstructionWithContext(-1, 0, write_accessors[i]),
 						DynamicInstructionWithContext(-1, 0, write_accessors[j])));
@@ -62,23 +71,32 @@ void QueryGenerator::generate_static_queries(Module &M) {
 	}
 	for (size_t i = 0; i < write_accessors.size(); ++i) {
 		for (size_t j = 0; j < read_accessors.size(); ++j) {
+			if ((++counter_for_sampling) % SampleRate != 0)
+				continue;
 			all_queries.push_back(make_pair(
-						DynamicInstructionWithContext(-1, 0, write_accessors[i]), 
+						DynamicInstructionWithContext(-1, 0, write_accessors[i]),
 						DynamicInstructionWithContext(-1, 0, read_accessors[j])));
 		}
 	}
 	if (LoadLoad) {
 		for (size_t i = 0; i < read_accessors.size(); ++i) {
 			for (size_t j = i + 1; j < read_accessors.size(); ++j) {
+				if ((++counter_for_sampling) % SampleRate != 0)
+					continue;
 				all_queries.push_back(make_pair(
 							DynamicInstructionWithContext(-1, 0, read_accessors[i]),
 							DynamicInstructionWithContext(-1, 0, read_accessors[j])));
 			}
 		}
 	}
+
+	errs() << "# of queries = " << counter_for_sampling << "\n";
 }
 
 void QueryGenerator::generate_dynamic_queries(Module &M) {
+	// Deterministic sampling to be fair.
+	unsigned counter_for_sampling = 0;
+
 	TraceManager &TM = getAnalysis<TraceManager>();
 	EnforcingLandmarks &EL = getAnalysis<EnforcingLandmarks>();
 	LandmarkTrace &LT = getAnalysis<LandmarkTrace>();
@@ -150,7 +168,7 @@ void QueryGenerator::generate_dynamic_queries(Module &M) {
 		}
 	}
 
-	// Handle the last region of each thread. 
+	// Handle the last region of each thread.
 	for (DenseMap<int, DenseSet<DynamicInstructionWithContext> >::iterator
 			itr = sls_in_cur_region.begin(); itr != sls_in_cur_region.end(); ++itr) {
 		if (itr->second.size() > 0) {
@@ -163,7 +181,7 @@ void QueryGenerator::generate_dynamic_queries(Module &M) {
 		}
 	}
 
-	// Look at each pair of concurrent regions. 
+	// Look at each pair of concurrent regions.
 	// TODO: Make it faster
 	errs() << "# of regions = " << sls_in_regions.size() << "\n";
 	for (DenseMap<Region, DenseSet<DynamicInstructionWithContext> >::iterator
@@ -180,6 +198,8 @@ void QueryGenerator::generate_dynamic_queries(Module &M) {
 						for (size_t k1 = 0; k1 < accesses1.size(); ++k1) {
 							for (size_t k2 = 0; k2 < accesses2.size(); ++k2) {
 								if (LoadLoad || racy(accesses1[k1], accesses2[k2])) {
+									if ((++counter_for_sampling) % SampleRate != 0)
+										continue;
 									all_queries.push_back(make_pair(*j1, *j2));
 								}
 							}
@@ -189,6 +209,8 @@ void QueryGenerator::generate_dynamic_queries(Module &M) {
 			}
 		}
 	}
+
+	errs() << "# of queries = " << counter_for_sampling << "\n";
 }
 
 bool QueryGenerator::runOnModule(Module &M) {
@@ -263,7 +285,7 @@ void QueryGenerator::getAnalysisUsage(AnalysisUsage &AU) const {
 	if (!Concurrent) {
 		// When Concurrent is true, the input bc is the original bc which
 		// does not contain any clone_info. Therefore, we shouldn't require
-		// CloneInfoManager in that situation. 
+		// CloneInfoManager in that situation.
 		AU.addRequiredTransitive<CloneInfoManager>();
 	}
 	AU.addRequiredTransitive<IDAssigner>();

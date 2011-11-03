@@ -65,6 +65,8 @@ if __name__ == "__main__":
                 "-load $LLVM_ROOT/install/lib/libint.so " + \
                 "-load $LLVM_ROOT/install/lib/libalias-query.so "
         cmd_options = "-analyze "
+        if option_sample > 1:
+            cmd_options += "-sample " + str(option_sample) + " "
         if option_cs:
             cmd_options += "-cs "
         if not option_concurrent:
@@ -109,8 +111,6 @@ if __name__ == "__main__":
         # drive queries: .id.queries, .slice.queries, .simple.queries ->
         cmd_options = "-analyze "
         landmark_trace_filename = os.path.join(PROGS_DIR, benchmark + ".lt")
-        if option_sample > 1:
-            cmd_options += "-sample " + str(option_sample) + " "
         cmd_options += "-drive-queries "
         bc_filename = os.path.join(PROGS_DIR, benchmark + ".id.bc")
         input_filename = os.path.join(PROGS_DIR, benchmark + ".id.queries")
