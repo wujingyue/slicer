@@ -78,7 +78,7 @@ if __name__ == "__main__":
             landmark_trace_filename = os.path.join(PROGS_DIR, benchmark + ".lt")
             cmd_options += "-fulltrace " + full_trace_filename + " "
             cmd_options += "-input-landmark-trace " + landmark_trace_filename + " "
-            cmd_options += "-concurrent "
+            cmd_options += "-concurrent -gen-loadload "
         cmd_options += "-gen-queries "
         output_filename = os.path.join(PROGS_DIR, benchmark + ".id.queries")
         cmd = string.join((base_cmd, cmd_options, "-for-orig",
@@ -111,7 +111,7 @@ if __name__ == "__main__":
         # drive queries: .id.queries, .slice.queries, .simple.queries ->
         cmd_options = "-analyze "
         landmark_trace_filename = os.path.join(PROGS_DIR, benchmark + ".lt")
-        cmd_options += "-drive-queries "
+        cmd_options += "-drive-queries -driver-loadload "
         bc_filename = os.path.join(PROGS_DIR, benchmark + ".id.bc")
         input_filename = os.path.join(PROGS_DIR, benchmark + ".id.queries")
         cmd = string.join((base_cmd, cmd_options,

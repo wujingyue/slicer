@@ -187,8 +187,11 @@ void QueryGenerator::generate_dynamic_queries(Module &M) {
 	for (DenseMap<Region, DenseSet<DynamicInstructionWithContext> >::iterator
 			i1 = sls_in_regions.begin(); i1 != sls_in_regions.end(); ++i1) {
 		DenseMap<Region, DenseSet<DynamicInstructionWithContext> >::iterator i2 = i1;
-		for (++i2; i2 != sls_in_regions.end(); ++i2) {
-			if (RM.concurrent(i1->first, i2->first)) {
+		if (!LoadLoad) {
+			++i2;
+		}
+		for (; i2 != sls_in_regions.end(); ++i2) {
+			if (LoadLoad || RM.concurrent(i1->first, i2->first)) {
 				for (DenseSet<DynamicInstructionWithContext>::iterator
 						j1 = i1->second.begin(); j1 != i1->second.end(); ++j1) {
 					vector<PointerAccess> accesses1 = get_pointer_accesses(j1->di.ins);
@@ -211,6 +214,20 @@ void QueryGenerator::generate_dynamic_queries(Module &M) {
 	}
 
 	errs() << "# of queries = " << counter_for_sampling << "\n";
+
+	// Count the number of accesses in each thread.
+	DenseMap<int, unsigned> num_of_accesses_in_threads;
+	for (DenseMap<Region, DenseSet<DynamicInstructionWithContext> >::iterator
+			i1 = sls_in_regions.begin(); i1 != sls_in_regions.end(); ++i1) {
+		num_of_accesses_in_threads[i1->first.thr_id] += i1->second.size();
+	}
+	for (DenseMap<int, unsigned>::iterator itr = num_of_accesses_in_threads.begin();
+	     itr != num_of_accesses_in_threads.end();
+	     ++itr) {
+		if (itr->second != 0) {
+			errs() << "Thread " << itr->first << ": " << itr->second << "\n";
+		}
+	}
 }
 
 bool QueryGenerator::runOnModule(Module &M) {
