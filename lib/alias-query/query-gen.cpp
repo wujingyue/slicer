@@ -192,6 +192,10 @@ void QueryGenerator::generate_dynamic_queries(Module &M) {
 		}
 		for (; i2 != sls_in_regions.end(); ++i2) {
 			if (LoadLoad || RM.concurrent(i1->first, i2->first)) {
+				if (LoadLoad && i1->first.thr_id == i2->first.thr_id) {
+					// Not interested if i1 and i2 are in the same thread.
+					continue;
+				}
 				for (DenseSet<DynamicInstructionWithContext>::iterator
 						j1 = i1->second.begin(); j1 != i1->second.end(); ++j1) {
 					vector<PointerAccess> accesses1 = get_pointer_accesses(j1->di.ins);
