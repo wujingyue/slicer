@@ -25,6 +25,7 @@ using namespace repair;
 #include "slicer/query-driver.h"
 #include "slicer/adv-alias.h"
 #include "pointer-access.h"
+#include "slicer/clone-info-manager.h"
 using namespace slicer;
 
 static RegisterPass<QueryDriver> X("drive-queries",
@@ -96,7 +97,7 @@ void QueryDriver::issue_queries() {
 						if (LoadLoad || racy(accesses1[j1], accesses2[j2])) {
 							ftime(&start_time);
 							results.push_back(BAA.alias(
-										&ctxt1, accesses1[j1].loc, 0,
+										&ctxt1, accesses1[j1].loc ,0,
 										&ctxt2, accesses2[j2].loc, 0));
 							ftime(&end_time);
 							total_time += time_diff(end_time, start_time);
@@ -112,7 +113,74 @@ void QueryDriver::issue_queries() {
 			color = raw_ostream::BLUE;
 		else
 			color = raw_ostream::RED;
-		errs().changeColor(color) << results.back(); errs().resetColor();
+		errs().changeColor(color) << results.back();
+		if (results.back() == AliasAnalysis::MayAlias) {
+			CloneInfoManager &CIM = getAnalysis<CloneInfoManager>();
+			errs() << "\nIns 1: " << *i1
+			       << "\nAt function: " << i1->getParent()->getParent()->getName();
+			if (CIM.has_clone_info(i1)) {
+				CloneInfo ci = CIM.get_clone_info(i1);
+				errs() << "\nClone info: "
+				       << "thr_id = " << ci.thr_id
+				       << " trunk_id = " << ci.trunk_id
+				       << " orig_ins_id = " << ci.orig_ins_id;
+			}
+			Function::iterator it = const_cast<BasicBlock *>(i1->getParent());
+			++it;
+			BasicBlock::iterator next_ins = it->getFirstNonPHI();
+			errs() << "\n\tNext instruction: " << *next_ins;
+			if (CIM.has_clone_info(next_ins)) {
+				CloneInfo ci = CIM.get_clone_info(next_ins);
+				errs() << "\n\tClone info: "
+				       << "thr_id = " << ci.thr_id
+				       << " trunk_id = " << ci.trunk_id
+				       << " orig_ins_id = " << ci.orig_ins_id;
+			} else {
+				++it;
+				next_ins = it->getFirstNonPHI();
+				errs() << "\n\t\tNext instruction: " << *next_ins;
+				if (CIM.has_clone_info(next_ins)) {
+					CloneInfo ci = CIM.get_clone_info(next_ins);
+					errs() << "\n\t\tClone info: "
+					       << "thr_id = " << ci.thr_id
+					       << " trunk_id = " << ci.trunk_id
+					       << " orig_ins_id = " << ci.orig_ins_id;
+				}
+			}
+			errs() << "\nIns 2: " << *i2
+			       << "\nAt function: " << i2->getParent()->getParent()->getName();
+			if (CIM.has_clone_info(i2)) {
+				CloneInfo ci = CIM.get_clone_info(i2);
+				errs() << "\nClone info: "
+				       << "thr_id = " << ci.thr_id
+				       << " trunk_id = " << ci.trunk_id
+				       << " orig_ins_id = " << ci.orig_ins_id;
+			}
+			it = const_cast<BasicBlock *>(i2->getParent());
+			++it;
+			next_ins = it->getFirstNonPHI();
+			errs() << "\n\tNext instruction: " << *next_ins;
+			if (CIM.has_clone_info(next_ins)) {
+				CloneInfo ci = CIM.get_clone_info(next_ins);
+				errs() << "\n\tClone info: "
+				       << "thr_id = " << ci.thr_id
+				       << " trunk_id = " << ci.trunk_id
+				       << " orig_ins_id = " << ci.orig_ins_id;
+			} else {
+				++it;
+				next_ins = it->getFirstNonPHI();
+				errs() << "\n\t\tNext instruction: " << *next_ins;
+				if (CIM.has_clone_info(next_ins)) {
+					CloneInfo ci = CIM.get_clone_info(next_ins);
+					errs() << "\n\t\tClone info: "
+					       << "thr_id = " << ci.thr_id
+					       << " trunk_id = " << ci.trunk_id
+					       << " orig_ins_id = " << ci.orig_ins_id;
+				}
+			}
+			errs() << "\n";
+		}
+		errs().resetColor();
 		DEBUG(dbgs() << "Query " << i << ": " << results.back() << "\n";);
 	}
 	errs() << "\n";
@@ -183,5 +251,6 @@ void QueryDriver::getAnalysisUsage(AnalysisUsage &AU) const {
 	} else {
 		AU.addRequired<BddAliasAnalysis>();
 	}
+	AU.addRequired<CloneInfoManager>();
 	ModulePass::getAnalysisUsage(AU);
 }
