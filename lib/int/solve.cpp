@@ -231,34 +231,26 @@ void SolveConstraints::identify_fixed_values() {
 				i->second.second, i->second.first);
 		VCExpr vce = translate_to_vc(i->first, 0);
 		VCExpr eq = vc_eqExpr(vc, vce, guessed_value);
+		delete_vcexpr(guessed_value);
+		delete_vcexpr(vce);
 		int fixed = vc_query(vc, eq);
+		delete_vcexpr(eq);
+
 		assert(fixed != 2);
 		if (fixed == 1) {
 			// <i>'s value must be fixed. Skip to the next candidate. 
 			// FIXME: dbgs() does not support colors? 
 			errs().changeColor(raw_ostream::GREEN) << "Y"; errs().resetColor();
 			++n_fixed;
-#if 0
-			Expr *e = new Expr(i->first);
-			print_expr(errs(), e, getAnalysis<IDAssigner>());
-			delete e;
-			errs() << " = " << i->second.first;
-			errs() << " is fixed: " << *(i->first) << "\n";
-#endif
 			++i;
 		} else {
 			errs().changeColor(raw_ostream::RED) << "N"; errs().resetColor();
 			++n_not_fixed;
-#if 0
-			Expr *e = new Expr(i->first);
-			print_expr(errs(), e, getAnalysis<IDAssigner>());
-			delete e;
-			errs() << " is NOT fixed: " << *(i->first) << "\n";
-#endif
 			j = i; ++j;
 			while (j != fixed_values.end()) {
 				VCExpr vj = translate_to_vc(j->first, 0);
 				VCExpr ce = vc_getCounterExample(vc, vj);
+				delete_vcexpr(vj);
 				if (j->second.first == getBVUnsigned(ce)) {
 					++j;
 				} else {
@@ -266,27 +258,16 @@ void SolveConstraints::identify_fixed_values() {
 					++j;
 					errs().changeColor(raw_ostream::BLUE) << "O"; errs().resetColor();
 					++n_opted;
-#if 0
-					errs() << "optimized: ";
-					Expr *ex = new Expr(to_del->first);
-					print_expr(errs(), ex, getAnalysis<IDAssigner>());
-					delete ex;
-					errs() << "\n";
-#endif
 					fixed_values.erase(to_del);
 				}
-				delete_vcexpr(vj);
 				delete_vcexpr(ce);
 			}
 			// <i> does not have a fixed value. 
 			to_del = i;
 			++i;
 			fixed_values.erase(to_del);
-		}
+		} // if (fixed == 1)
 
-		delete_vcexpr(guessed_value);
-		delete_vcexpr(vce);
-		delete_vcexpr(eq);
 		vc_pop(vc);
 	}
 	

@@ -32,6 +32,8 @@ using namespace slicer;
 
 static cl::opt<bool> DisableAdvancedAA("disable-advanced-aa",
 		cl::desc("Don't use the advanced AA. Always use bc2bdd"));
+static cl::opt<bool> DisableAddressTaken("disable-addr-taken",
+		cl::desc("Don't capture constraints on address-taken variables"));
 static cl::opt<bool> Verbose("verbose",
 		cl::desc("Print information for each alias query"));
 
@@ -313,8 +315,11 @@ void CaptureConstraints::capture_must_assign(Module &M) {
 		if (!f->isDeclaration() && !EO.not_executed(f)) {
 			forall(Function, bb, *f) {
 				forall(BasicBlock, ins, *bb) {
-					if (isa<LoadInst>(ins))
-						++n_loads;
+					if (isa<LoadInst>(ins)) {
+						const Type *ty = ins->getType();
+						if (isa<IntegerType>(ty) || isa<PointerType>(ty))
+							++n_loads;
+					}
 				}
 			}
 		}
@@ -329,8 +334,8 @@ void CaptureConstraints::capture_must_assign(Module &M) {
 			continue;
 		if (EO.not_executed(f))
 			continue;
-		forall(Function, bb, *f) {
-			forall(BasicBlock, ins, *bb) {
+		for (Function::iterator bb = f->begin(); bb != f->end(); ++bb) {
+			for (BasicBlock::iterator ins = bb->begin(); ins != bb->end(); ++ins) {
 				if (LoadInst *i2 = dyn_cast<LoadInst>(ins)) {
 					print_progress(dbgs(), cur_load, n_loads);
 					const Type *i2_type = i2->getType();
@@ -338,12 +343,13 @@ void CaptureConstraints::capture_must_assign(Module &M) {
 					if (isa<IntegerType>(i2_type) || isa<PointerType>(i2_type)) {
 						bool captured = capture_overwriting_to(i2);
 						++(captured ? n_captured : n_uncaptured);
+						++cur_load;
 					}
-					++cur_load;
 				}
 			}
 		}
 	}
+	assert(n_loads == n_captured + n_uncaptured);
 	
 	// Finish the progress bar. 
 	print_progress(dbgs(), n_loads, n_loads);
@@ -434,7 +440,6 @@ void CaptureConstraints::add_constraints(const vector<Clause *> &cs) {
 bool CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 	// Check cache. 
 	if (captured_loads.count(i2)) {
-		dbgs() << "H";
 		vector<Clause *> to_be_added = captured_loads.lookup(i2);
 		for (size_t i = 0; i < to_be_added.size(); ++i)
 			add_constraint(to_be_added[i]->clone());
@@ -574,7 +579,6 @@ bool CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 	}
 
 	vector<Clause *> final_constraints;
-	unsigned n_overwriters = 0;
 	for (size_t k = 0; k < thr_ids.size(); ++k) {
 		if (!latest_overwriters[k])
 			continue; // ignore this overwriter
@@ -641,17 +645,18 @@ bool CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 				print_clause(dbgs(), c, getAnalysis<IDAssigner>());
 				dbgs() << "\n";);
 		final_constraints.push_back(c);
-		n_overwriters++;
 	}
-	DEBUG(dbgs() << "# of overwriters = " << n_overwriters << "\n";);
-	if (n_overwriters == 0) {
+
+	DEBUG(dbgs() << "# of overwriters = " << final_constraints.size() << "\n";);
+	if (final_constraints.empty())
 		return false;
-	} else {
-		captured_loads[i2] = final_constraints;
-		for (size_t i = 0; i < final_constraints.size(); ++i)
-			add_constraint(final_constraints[i]->clone());
-		return true;
-	}
+
+	if (DisableAddressTaken)
+		final_constraints.clear();
+	captured_loads[i2] = final_constraints;
+	for (size_t i = 0; i < final_constraints.size(); ++i)
+		add_constraint(final_constraints[i]->clone());
+	return true;
 }
 
 bool CaptureConstraints::may_write(

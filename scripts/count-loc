@@ -1,5 +1,5 @@
 #!/bin/bash
 
-cloc include lib eval tests $LLVM_ROOT/common \
+cloc include lib $LLVM_ROOT/common \
 	--exclude-dir=lib/stp \
-	--exclude-lang=D,Assembly,HTML
+	--exclude-lang=D,Assembly,HTML,make,'Bourne Shell',m4,'Bourne Again Shell'

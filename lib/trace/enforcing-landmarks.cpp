@@ -99,13 +99,21 @@ bool EnforcingLandmarks::runOnModule(Module &M) {
 			continue;
 		if (f->getName() == "MyFreeNow")
 			continue;
+		if (f->getName() == "maketree")
+			continue;
 		forall(Function, bb, *f) {
 			forall(BasicBlock, ins, *bb) {
 				CallSite cs = CallSite::get(ins);
 				if (cs.getInstruction()) {
 					Function *callee = cs.getCalledFunction();
-					if (callee && enforcing_landmark_funcs.count(callee->getName()))
+					if (callee && enforcing_landmark_funcs.count(callee->getName())) {
+#if 0
+						if (callee->getName() != "pthread_self" &&
+								f->getName() == "SlaveStart")
+							continue;
+#endif
 						enforcing_landmarks.insert(ins);
+					}
 				}
 			}
 		}
