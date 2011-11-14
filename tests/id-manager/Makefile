@@ -17,7 +17,7 @@ all: $(TAGGED_BCS)
 
 %.id.bc: %.prep.bc
 	opt -o $@ \
-		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
+		-load $(LLVM_ROOT)/install/lib/id-manager.so \
 		-tag-id \
 		< $<
 clean:

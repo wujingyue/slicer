@@ -13,21 +13,21 @@ run:: $(addsuffix .slice, $(PROG_NAMES))
 
 %.icfg: $(PROGS_DIR)/%.bc
 	opt -analyze \
-		-load $(LLVM_ROOT)/install/lib/libidm.so \
-		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
-		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
-		-load $(LLVM_ROOT)/install/lib/libcfg.so \
-		-load $(LLVM_ROOT)/install/lib/libicfg-test.so \
+		-load $(LLVM_ROOT)/install/lib/idm.so \
+		-load $(LLVM_ROOT)/install/lib/bc2bdd.so \
+		-load $(LLVM_ROOT)/install/lib/callgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/cfg.so \
+		-load $(LLVM_ROOT)/install/lib/icfg-test.so \
 		-icfg-test \
 		< $< > $@
 
 %: $(PROGS_DIR)/%.bc
 	opt -disable-output \
-		-load $(LLVM_ROOT)/install/lib/libidm.so \
-		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
-		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
-		-load $(LLVM_ROOT)/install/lib/libcfg.so \
-		-load $(LLVM_ROOT)/install/lib/libicfg-test.so \
+		-load $(LLVM_ROOT)/install/lib/idm.so \
+		-load $(LLVM_ROOT)/install/lib/bc2bdd.so \
+		-load $(LLVM_ROOT)/install/lib/callgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/cfg.so \
+		-load $(LLVM_ROOT)/install/lib/icfg-test.so \
 		-icfg-test -prog $@ < $<
 
 clean::

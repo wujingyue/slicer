@@ -17,9 +17,9 @@ CXXFLAGS += -I$(LLVM_ROOT)
 
 test::
 	opt -disable-output \
-		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
-		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
-		-load $(LLVM_ROOT)/install/lib/libtest-alias.so \
+		-load $(LLVM_ROOT)/install/lib/id-manager.so \
+		-load $(LLVM_ROOT)/install/lib/bc2bdd.so \
+		-load $(LLVM_ROOT)/install/lib/test-alias.so \
 		-test-alias \
 		< ../progs/test-dep.simple.bc
 

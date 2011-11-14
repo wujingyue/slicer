@@ -45,15 +45,15 @@ if __name__ == "__main__":
         simple_bc = main_file_name + ".simple.bc"
 
         base_cmd = "opt " + \
-                "-load $LLVM_ROOT/install/lib/libid-manager.so " + \
-                "-load $LLVM_ROOT/install/lib/libbc2bdd.so " + \
-                "-load $LLVM_ROOT/install/lib/libcallgraph-fp.so " + \
-                "-load $LLVM_ROOT/install/lib/libmbb.so " + \
-                "-load $LLVM_ROOT/install/lib/libcfg.so " + \
-                "-load $LLVM_ROOT/install/lib/libslicer-trace.so " + \
-                "-load $LLVM_ROOT/install/lib/libmax-slicing.so " + \
-                "-load $LLVM_ROOT/install/lib/libint.so " + \
-                "-load $LLVM_ROOT/install/lib/libmetrics.so "
+                "-load $LLVM_ROOT/install/lib/id-manager.so " + \
+                "-load $LLVM_ROOT/install/lib/bc2bdd.so " + \
+                "-load $LLVM_ROOT/install/lib/callgraph-fp.so " + \
+                "-load $LLVM_ROOT/install/lib/mbb.so " + \
+                "-load $LLVM_ROOT/install/lib/cfg.so " + \
+                "-load $LLVM_ROOT/install/lib/slicer-trace.so " + \
+                "-load $LLVM_ROOT/install/lib/max-slicing.so " + \
+                "-load $LLVM_ROOT/install/lib/int.so " + \
+                "-load $LLVM_ROOT/install/lib/metrics.so "
         cmd_options = "-analyze -count-paths "
         cmd_options += "-iter " + config.get(section, "iter")
         cmd = string.join((base_cmd, cmd_options, "<", input_bc))

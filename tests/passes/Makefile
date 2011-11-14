@@ -8,7 +8,7 @@ CXXFLAGS += -I$(LLVM_ROOT)
 # The input can be any bc file. 
 run::
 	opt -disable-output \
-		-load $(LLVM_ROOT)/install/lib/libpasses-test.so \
+		-load $(LLVM_ROOT)/install/lib/passes-test.so \
 		-passes-test \
 		< ../progs/test-branch.bc
 

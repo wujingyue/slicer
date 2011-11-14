@@ -20,13 +20,13 @@ region: $(addsuffix .region, $(PROG_NAMES))
 # max-slicing requires ID information. 
 $(PROGS_DIR)/%.slice.bc: $(PROGS_DIR)/%.id.bc ../trace/%.lt
 	opt -stats -o $@ \
-		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
-		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
-		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
-		-load $(LLVM_ROOT)/install/lib/libmbb.so \
-		-load $(LLVM_ROOT)/install/lib/libcfg.so \
-		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
-		-load $(LLVM_ROOT)/install/lib/libmax-slicing.so \
+		-load $(LLVM_ROOT)/install/lib/id-manager.so \
+		-load $(LLVM_ROOT)/install/lib/bc2bdd.so \
+		-load $(LLVM_ROOT)/install/lib/callgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/mbb.so \
+		-load $(LLVM_ROOT)/install/lib/cfg.so \
+		-load $(LLVM_ROOT)/install/lib/slicer-trace.so \
+		-load $(LLVM_ROOT)/install/lib/max-slicing.so \
 		-max-slicing \
 		-input-landmark-trace $(word 2, $^) \
 		< $<
@@ -34,13 +34,13 @@ $(PROGS_DIR)/%.slice.bc: $(PROGS_DIR)/%.id.bc ../trace/%.lt
 # These BC's are not used by other modules, therefore put them here locally. 
 %.region: $(PROGS_DIR)/%.slice.bc ../trace/%.lt
 	opt -disable-output \
-		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
-		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
-		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
-		-load $(LLVM_ROOT)/install/lib/libmbb.so \
-		-load $(LLVM_ROOT)/install/lib/libcfg.so \
-		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
-		-load $(LLVM_ROOT)/install/lib/libmax-slicing.so \
+		-load $(LLVM_ROOT)/install/lib/id-manager.so \
+		-load $(LLVM_ROOT)/install/lib/bc2bdd.so \
+		-load $(LLVM_ROOT)/install/lib/callgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/mbb.so \
+		-load $(LLVM_ROOT)/install/lib/cfg.so \
+		-load $(LLVM_ROOT)/install/lib/slicer-trace.so \
+		-load $(LLVM_ROOT)/install/lib/max-slicing.so \
 		-manage-region \
 		-input-landmark-trace $(word 2, $^) \
 		< $<

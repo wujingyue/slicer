@@ -6,6 +6,6 @@ if [ -z $1 ] || [ -z $2 ]; then
 fi
 
 opt -o $2 \
-	-load $LLVM_ROOT/install/lib/libid-manager.so \
+	-load $LLVM_ROOT/install/lib/id-manager.so \
 	-tag-id \
 	< $1

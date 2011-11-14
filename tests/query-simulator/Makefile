@@ -9,15 +9,15 @@ PROGS_DIR = ../progs
 
 %: $(PROGS_DIR)/%.simple.bc ../trace/%.lt
 	opt -stats -disable-output \
-		-load $(LLVM_ROOT)/install/lib/libidm.so \
-		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
-		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
-		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
-		-load $(LLVM_ROOT)/install/lib/libcfg.so \
-		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
-		-load $(LLVM_ROOT)/install/lib/libmax-slicing.so \
-		-load $(LLVM_ROOT)/install/lib/libint.so \
-		-load $(LLVM_ROOT)/install/lib/libquery-simulator.so \
+		-load $(LLVM_ROOT)/install/lib/idm.so \
+		-load $(LLVM_ROOT)/install/lib/id-manager.so \
+		-load $(LLVM_ROOT)/install/lib/bc2bdd.so \
+		-load $(LLVM_ROOT)/install/lib/callgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/cfg.so \
+		-load $(LLVM_ROOT)/install/lib/slicer-trace.so \
+		-load $(LLVM_ROOT)/install/lib/max-slicing.so \
+		-load $(LLVM_ROOT)/install/lib/int.so \
+		-load $(LLVM_ROOT)/install/lib/query-simulator.so \
 		-simulate-queries \
 		-queries $@.queries \
 		-input-landmark-trace $(word 2, $^) \

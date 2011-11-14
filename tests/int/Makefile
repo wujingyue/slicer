@@ -23,15 +23,15 @@ run:: $(PROG_NAMES)
 
 %: $(PROGS_DIR)/%.simple.bc ../trace/%.lt
 	opt -stats -disable-output \
-		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
-		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
-		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
-		-load $(LLVM_ROOT)/install/lib/libmbb.so \
-		-load $(LLVM_ROOT)/install/lib/libcfg.so \
-		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
-		-load $(LLVM_ROOT)/install/lib/libmax-slicing.so \
-		-load $(LLVM_ROOT)/install/lib/libint.so \
-		-load $(LLVM_ROOT)/install/lib/libint-test.so \
+		-load $(LLVM_ROOT)/install/lib/id-manager.so \
+		-load $(LLVM_ROOT)/install/lib/bc2bdd.so \
+		-load $(LLVM_ROOT)/install/lib/callgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/mbb.so \
+		-load $(LLVM_ROOT)/install/lib/cfg.so \
+		-load $(LLVM_ROOT)/install/lib/slicer-trace.so \
+		-load $(LLVM_ROOT)/install/lib/max-slicing.so \
+		-load $(LLVM_ROOT)/install/lib/int.so \
+		-load $(LLVM_ROOT)/install/lib/int-test.so \
 		-int-test \
 		-prog $@ \
 		-input-landmark-trace $(word 2, $^) \
@@ -39,28 +39,28 @@ run:: $(PROG_NAMES)
 
 %.ctxt: $(PROGS_DIR)/%.simple.bc
 	opt -analyze \
-		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
-		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
-		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
-		-load $(LLVM_ROOT)/install/lib/libmbb.so \
-		-load $(LLVM_ROOT)/install/lib/libcfg.so \
-		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
-		-load $(LLVM_ROOT)/install/lib/libmax-slicing.so \
-		-load $(LLVM_ROOT)/install/lib/libint.so \
+		-load $(LLVM_ROOT)/install/lib/id-manager.so \
+		-load $(LLVM_ROOT)/install/lib/bc2bdd.so \
+		-load $(LLVM_ROOT)/install/lib/callgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/mbb.so \
+		-load $(LLVM_ROOT)/install/lib/cfg.so \
+		-load $(LLVM_ROOT)/install/lib/slicer-trace.so \
+		-load $(LLVM_ROOT)/install/lib/max-slicing.so \
+		-load $(LLVM_ROOT)/install/lib/int.so \
 		-count-ctxts \
 		< $<
 
 %.ic: $(PROGS_DIR)/%.simple.bc ../trace/%.lt
 	opt -disable-output \
-		-load $(LLVM_ROOT)/install/lib/libid-manager.so \
-		-load $(LLVM_ROOT)/install/lib/libbc2bdd.so \
-		-load $(LLVM_ROOT)/install/lib/libcallgraph-fp.so \
-		-load $(LLVM_ROOT)/install/lib/libmbb.so \
-		-load $(LLVM_ROOT)/install/lib/libcfg.so \
-		-load $(LLVM_ROOT)/install/lib/libslicer-trace.so \
-		-load $(LLVM_ROOT)/install/lib/libmax-slicing.so \
-		-load $(LLVM_ROOT)/install/lib/libint.so \
-		-load $(LLVM_ROOT)/install/lib/libint-test.so \
+		-load $(LLVM_ROOT)/install/lib/id-manager.so \
+		-load $(LLVM_ROOT)/install/lib/bc2bdd.so \
+		-load $(LLVM_ROOT)/install/lib/callgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/mbb.so \
+		-load $(LLVM_ROOT)/install/lib/cfg.so \
+		-load $(LLVM_ROOT)/install/lib/slicer-trace.so \
+		-load $(LLVM_ROOT)/install/lib/max-slicing.so \
+		-load $(LLVM_ROOT)/install/lib/int.so \
+		-load $(LLVM_ROOT)/install/lib/int-test.so \
 		-int-test \
 		-input-landmark-trace $(word 2, $^) \
 		< $< 2> $@
