@@ -157,7 +157,6 @@ namespace slicer {
 		static void vc_error_handler(const char *err_msg);
 		// Some construct functions. 
 		// Remember to call vc_DeleteExpr. 
-		static void delete_vcexpr(VCExpr e);
 		static VCExpr vc_zero(VC vc) {
 			return vc_bv32ConstExprFromInt(vc, 0);
 		}

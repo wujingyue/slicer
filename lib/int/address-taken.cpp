@@ -110,6 +110,22 @@ void CaptureConstraints::capture_global_var(GlobalVariable *gv) {
 				CallSite cs = CallSite::get(ins);
 				if (cs.getInstruction()) {
 					Function *callee = cs.getCalledFunction();
+					if (callee && callee->getName().find("isoc99_scanf") != string::npos) {
+						assert(cs.arg_size() >= 1);
+						bool may_overwrite = false;
+						for (unsigned arg_no = 1; arg_no < cs.arg_size(); ++arg_no) {
+							if (BAA.alias(gv, 0, cs.getArgument(arg_no), 0)) {
+								may_overwrite = true;
+								break;
+							}
+						}
+						if (may_overwrite) {
+							vector<Region> regions;
+							RM.get_containing_regions(ins, regions);
+							for (size_t i = 0; i < regions.size(); ++i)
+								overwriting_regions[regions[i]].push_back(NULL);
+						}
+					}
 					if (callee && callee->getName() == "fscanf") {
 						assert(cs.arg_size() >= 2);
 						bool may_overwrite = false;

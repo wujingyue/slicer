@@ -41,6 +41,9 @@ static RegisterPass<CaptureConstraints> X("capture",
 		"Capture all integer constraints",
 		false, true); // is analysis
 
+static cl::opt<bool> DisableAllConstraints("disable-constraints",
+		cl::desc("Don't capture any constraints"));
+
 STATISTIC(num_integers, "Number of integers");
 STATISTIC(num_pointers, "Number of pointers");
 
@@ -234,6 +237,8 @@ bool CaptureConstraints::print_progress(
 }
 
 void CaptureConstraints::add_constraint(Clause *c) {
+	if (DisableAllConstraints)
+		return;
 	// TODO: Simplify the clause. 
 	// e.g. Split the conjuction. 
 	if (c)

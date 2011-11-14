@@ -396,7 +396,3 @@ void SolveConstraints::avoid_overflow(unsigned op, VCExpr left, VCExpr right) {
 			break;
 	}
 }
-
-void SolveConstraints::delete_vcexpr(VCExpr e) {
-	vc_DeleteExpr(e);
-}

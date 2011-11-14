@@ -62,6 +62,10 @@ static RegisterPass<EnforcingLandmarks> X("enforcing-landmarks",
 static cl::opt<string> EnforcingLandmarksFile("input-landmarks",
 		cl::desc("If this option is specified, MarkLandmarks uses the "
 			"landmarks from the file as enforcing landmarks."));
+static cl::opt<bool> OnlyMain("only-main",
+		cl::desc("Only mark the sync operations in main thread as "
+			"enforcing landmarks."),
+		cl::init(true));
 
 char EnforcingLandmarks::ID = 0;
 
@@ -107,11 +111,9 @@ bool EnforcingLandmarks::runOnModule(Module &M) {
 				if (cs.getInstruction()) {
 					Function *callee = cs.getCalledFunction();
 					if (callee && enforcing_landmark_funcs.count(callee->getName())) {
-#if 0
-						if (callee->getName() != "pthread_self" &&
-								f->getName() == "SlaveStart")
+						if (OnlyMain && callee->getName() != "pthread_self" &&
+								f->getName() != "main")
 							continue;
-#endif
 						enforcing_landmarks.insert(ins);
 					}
 				}

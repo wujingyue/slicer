@@ -10,6 +10,7 @@ using namespace std;
 #include "llvm/LLVMContext.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Target/TargetData.h"
 #include "common/util.h"
@@ -25,6 +26,9 @@ using namespace slicer;
 static RegisterPass<Constantizer> X("constantize",
 		"Replace variables with constants whenever possible and "
 		"remove unreachable branches according to int-constraints");
+
+static cl::opt<bool> DisableConstantizing("disable-constantizing",
+		cl::desc("Disable constantizing"));
 
 STATISTIC(VariablesConstantized, "Number of variables constantized");
 
@@ -194,6 +198,9 @@ Function *Constantizer::get_slicer_assert(Module &M, const Type *type) {
 }
 
 bool Constantizer::runOnModule(Module &M) {
+	if (DisableConstantizing)
+		return false;
+
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 
 	setup(M);

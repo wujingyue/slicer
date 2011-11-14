@@ -142,22 +142,13 @@ void SolveConstraints::refine_candidates(list<const Value *> &candidates) {
 #endif
 		replace_with_root(c);
 
-		vc_push(vc);
 		VCExpr vce = translate_to_vc(c);
-		VCExpr simplified_vce = vc_simplify(vc, vce);
-		int ret = vc_isBool(simplified_vce);
-		if (ret == 0) {
-			errs() << "After replace: ";
-			print_clause(errs(), c, getAnalysis<IDAssigner>());
-			errs() << "\n";
-		}
+		int ret = try_to_simplify(vce);
+		delete_vcexpr(vce);
 		assert(ret != 0);
 		// If can be proved by simplification, don't add it to the constraint set. 
 		if (ret == -1)
 			update_appeared(appeared, c);
-		delete_vcexpr(vce);
-		delete_vcexpr(simplified_vce);
-		vc_pop(vc);
 
 		delete c; // c is cloned
 	}
