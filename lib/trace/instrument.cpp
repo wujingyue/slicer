@@ -58,7 +58,7 @@ void Instrument::getAnalysisUsage(AnalysisUsage &AU) const {
 }
 
 bool Instrument::blocks(Instruction *ins) {
-	CallSite cs = CallSite::get(ins);
+	CallSite cs(ins);
 	if (!cs.getInstruction())
 		return false;
 	Function *callee = cs.getCalledFunction();

@@ -16,7 +16,7 @@ namespace slicer {
 	struct MyMalloc: public BasicBlockPass {
 		static char ID;
 
-		MyMalloc(): BasicBlockPass(&ID) {}
+		MyMalloc(): BasicBlockPass(ID) {}
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual bool runOnBasicBlock(BasicBlock &BB);
 	};
@@ -36,7 +36,7 @@ bool MyMalloc::runOnBasicBlock(BasicBlock &BB) {
 	bool changed = false;
 	
 	for (BasicBlock::iterator ins = BB.begin(); ins != BB.end(); ++ins) {
-		CallSite cs = CallSite::get(ins);
+		CallSite cs(ins);
 		if (cs.getInstruction()) {
 			Function *callee = cs.getCalledFunction();
 			if (callee && callee->getName() == "MyMalloc") {

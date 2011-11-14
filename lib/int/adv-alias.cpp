@@ -216,7 +216,7 @@ AliasAnalysis::AliasResult AdvancedAlias::alias(
 	}
 
 	// Context-insensitive version is much faster. 
-	if (alias(v1, 0, v2, 0) == NoAlias)
+	if (AliasAnalysis::alias(v1, 0, v2, 0) == NoAlias)
 		return NoAlias;
 
 	// TODO: Caching
@@ -228,8 +228,10 @@ AliasAnalysis::AliasResult AdvancedAlias::alias(
 }
 
 AliasAnalysis::AliasResult AdvancedAlias::alias(
-		const Value *v1, unsigned v1_size,
-		const Value *v2, unsigned v2_size) {
+		const Location &L1, const Location &L2) {
+	const Value *v1 = L1.Ptr, *v2 = L2.Ptr;
+	uint64_t v1_size = L1.Size, v2_size = L2.Size;
+
 	BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 

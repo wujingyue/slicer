@@ -107,7 +107,7 @@ void CaptureConstraints::capture_global_var(GlobalVariable *gv) {
 					}
 				}
 				// TODO: summary, and use may_write functions etc. 
-				CallSite cs = CallSite::get(ins);
+				CallSite cs(ins);
 				if (cs.getInstruction()) {
 					Function *callee = cs.getCalledFunction();
 					if (callee && callee->getName().find("isoc99_scanf") != string::npos) {
@@ -682,7 +682,7 @@ bool CaptureConstraints::may_write(
 			return true;
 	}
 	if (is_call(i)) {
-		CallSite cs = CallSite::get(const_cast<Instruction *>(i));
+		CallSite cs(const_cast<Instruction *>(i));
 		assert(cs.getInstruction());
 		Function *callee = cs.getCalledFunction();
 		if (callee && callee->getName() == "fscanf") {
@@ -890,7 +890,7 @@ bool CaptureConstraints::path_may_write(
 			}
 			if (is_call(i) && !is_pthread_create(i)) {
 				const Instruction *const_i = i;
-				CallSite cs = CallSite::get(const_cast<Instruction *>(const_i));
+				CallSite cs(const_cast<Instruction *>(const_i));
 				Function *callee = cs.getCalledFunction();
 				if (callee && callee->isDeclaration()) {
 					ConstFuncSet visited_funcs;

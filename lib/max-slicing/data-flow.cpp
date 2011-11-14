@@ -11,6 +11,7 @@ using namespace std;
 
 #include "llvm/Module.h"
 #include "llvm/LLVMContext.h"
+#include "llvm/Instructions.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -115,7 +116,7 @@ void MaxSlicing::fix_def_use_terminator(BasicBlock *bb,
 		if (bb->empty())
 			ends_with_no_return = false;
 		else {
-			CallSite cs = CallSite::get(&bb->back());
+			CallSite cs(&bb->back());
 			if (!cs.getInstruction())
 				ends_with_no_return = false;
 			else
@@ -341,7 +342,7 @@ void MaxSlicing::fix_def_use_insts(Function &F) {
 		// <old_ins> is used as a prototype value. Only its name and type
 		// are used by SSAUpdater. 
 		// TODO: Interface changed in LLVM 2.9. 
-		su.Initialize(old_ins);
+		su.Initialize(old_ins->getType(), old_ins->getName());
 		const InstSet &avail_values = i->second;
 		forallconst(InstSet, j, avail_values) {
 			Instruction *new_ins = *j;

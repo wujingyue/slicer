@@ -14,7 +14,7 @@ using namespace slicer;
 void IntTest::test_lu_cont(const Module &M) {
 	TestBanner X("LU");
 
-	AdvancedAlias &AA = getAnalysis<AdvancedAlias>();
+	AliasAnalysis &AA = getAnalysis<AdvancedAlias>();
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	ExecOnce &EO = getAnalysis<ExecOnce>();
 
@@ -55,7 +55,7 @@ void IntTest::test_lu_cont(const Module &M) {
 				<< " access disjoint regions?... ";
 			SC.set_print_counterexample(true);
 			assert(AA.alias(i->second->getPointerOperand(), 0,
-					j->second->getPointerOperand(), 0) == AliasAnalysis::NoAlias);
+						j->second->getPointerOperand(), 0) == AliasAnalysis::NoAlias);
 			SC.set_print_counterexample(false);
 			print_pass(errs());
 		}

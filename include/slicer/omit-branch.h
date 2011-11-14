@@ -18,7 +18,7 @@ namespace slicer {
 	struct OmitBranch: public ModulePass {
 		static char ID;
 
-		OmitBranch(): ModulePass(&ID) {}
+		OmitBranch(): ModulePass(ID) {}
 
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual bool runOnModule(Module &M);

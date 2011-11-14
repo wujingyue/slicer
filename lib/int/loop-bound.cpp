@@ -116,7 +116,8 @@ void CaptureConstraints::get_in_loop(const Loop *L,
 }
 
 void CaptureConstraints::check_loop(Loop *l) {
-	assert(l->isLCSSAForm());
+	Function *f = l->getHeader()->getParent();
+	assert(l->isLCSSAForm(getAnalysis<DominatorTree>(*f)));
 	assert(l->isLoopSimplifyForm());
 	for (Loop::iterator li = l->begin(); li != l->end(); ++li)
 		check_loop(*li);

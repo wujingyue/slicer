@@ -115,7 +115,7 @@ void IntTest::test_test_range_4(const Module &M) {
 
 void IntTest::test_test_dep_common(const Module &M) {
 	ExecOnce &EO = getAnalysis<ExecOnce>();
-	AdvancedAlias &AA = getAnalysis<AdvancedAlias>();
+	AliasAnalysis &AA = getAnalysis<AdvancedAlias>();
 
 	DenseMap<const Function *, ConstValueList> accesses;
 	forallconst(Module, f, M) {
@@ -185,7 +185,7 @@ void IntTest::test_test_range_3(const Module &M) {
 
 	for (size_t j1 = 0; j1 < i1->second.size(); ++j1) {
 		for (size_t j2 = 0; j2 < i2->second.size(); ++j2) {
-			AdvancedAlias &AA = getAnalysis<AdvancedAlias>();
+			AliasAnalysis &AA = getAnalysis<AdvancedAlias>();
 			errs() << "{" << i1->first->getName() << ":" << j1<< "} and {" <<
 				i2->first->getName() << ":" << j2 << "} don't alias? ...";
 			assert(AA.alias(i1->second[j1], 0, i2->second[j2], 0) ==
@@ -221,7 +221,7 @@ void IntTest::test_test_range_2(const Module &M) {
 
 	for (size_t i = 0; i < accesses.size(); ++i) {
 		for (size_t j = i + 1; j < accesses.size(); ++j) {
-			AdvancedAlias &AA = getAnalysis<AdvancedAlias>();
+			AliasAnalysis &AA = getAnalysis<AdvancedAlias>();
 			errs() << "accesses[" << i << "] and accesses[" << j <<
 				"] don't alias? ...";
 			assert(AA.alias(accesses[i], 0, accesses[j], 0) == AliasAnalysis::NoAlias);
@@ -256,7 +256,7 @@ void IntTest::test_test_range(const Module &M) {
 
 	for (size_t i = 0; i < accesses.size(); ++i) {
 		for (size_t j = i + 1; j < accesses.size(); ++j) {
-			AdvancedAlias &AA = getAnalysis<AdvancedAlias>();
+			AliasAnalysis &AA = getAnalysis<AdvancedAlias>();
 			errs() << "accesses[" << i << "] and accesses[" << j <<
 				"] don't alias? ...";
 			assert(AA.alias(accesses[i], 0, accesses[j], 0) == AliasAnalysis::NoAlias);
@@ -288,7 +288,7 @@ void IntTest::test_test_malloc(const Module &M) {
 	for (size_t i = 0; i < accesses.size(); ++i)
 		dbgs() << "Access " << i << ":" << *accesses[i] << "\n";
 
-	AdvancedAlias &AA = getAnalysis<AdvancedAlias>();
+	AliasAnalysis &AA = getAnalysis<AdvancedAlias>();
 	for (size_t i = 0; i < accesses.size(); ++i) {
 		for (size_t j = i + 1; j < accesses.size(); ++j) {
 			errs() << "Access " << i << " and access " << j << " don't alias? ...";
@@ -363,7 +363,7 @@ void IntTest::test_test_bound(const Module &M) {
 		assert(gep1 && gep2 && "Found less than 2 GEPs");
 
 		SolveConstraints &SC = getAnalysis<SolveConstraints>();
-		AdvancedAlias &AAA = getAnalysis<AdvancedAlias>();
+		AliasAnalysis &AAA = getAnalysis<AdvancedAlias>();
 
 		errs() << "gep1:" << *gep1 << "\ngep2:" << *gep2 << "\n";
 		assert(gep1->getNumOperands() == 3 && gep2->getNumOperands() == 3);
@@ -568,8 +568,7 @@ void IntTest::test_test_global(const Module &M) {
 		for (Function::const_iterator bb = f->begin(); bb != f->end(); ++bb) {
 			for (BasicBlock::const_iterator ins = bb->begin();
 					ins != bb->end(); ++ins) {
-				CallSite cs = CallSite::get(
-						const_cast<Instruction *>((const Instruction *)ins));
+				CallSite cs(const_cast<Instruction *>((const Instruction *)ins));
 				if (cs.getInstruction()) {
 					Function *callee = cs.getCalledFunction();
 					if (callee && callee->getName() == "printf") {

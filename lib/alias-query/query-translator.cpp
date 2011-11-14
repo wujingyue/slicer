@@ -100,7 +100,7 @@ void QueryTranslator::translate_contexted_ins(const vector<DynamicInsID> &a,
 			skipped = false;
 		} else {
 			if (Instruction *cloned_ins = IDM.getInstruction(a[i].ins_id)) {
-				CallSite cs = CallSite::get(cloned_ins);
+				CallSite cs(cloned_ins);
 				if (!cs.getInstruction() || !cs.getCalledFunction()) {
 					// If not a call or calls a function pointer, it wouldn't be inlined. 
 					a2.push_back(cloned_ins);

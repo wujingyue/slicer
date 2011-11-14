@@ -13,7 +13,7 @@ namespace slicer {
 	struct AggressiveLICM: public LoopPass {
 		static char ID;
 
-		AggressiveLICM(): LoopPass(&ID) {}
+		AggressiveLICM(): LoopPass(ID) {}
 		virtual bool runOnLoop(Loop *L, LPPassManager &LPM);
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 	};

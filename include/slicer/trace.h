@@ -6,7 +6,6 @@
 #define __SLICER_TRACE_H
 
 namespace slicer {
-
 	const static unsigned long INVALID_RAW_TID = -1;
 
 	// Directly collected from executing the instrumented program

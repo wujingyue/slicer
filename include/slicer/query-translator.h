@@ -14,7 +14,7 @@ namespace slicer {
 	struct QueryTranslator: public ModulePass {
 		static char ID;
 		
-		QueryTranslator(): ModulePass(&ID) {}
+		QueryTranslator(): ModulePass(ID) {}
 		virtual bool runOnModule(Module &M);
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 

@@ -29,7 +29,7 @@ void IntTest::test_aget(const Module &M) {
 		const Function *f = thr_funcs[i];
 		assert(distance(f->arg_begin(), f->arg_end()) == 1);
 		const Value *td = f->arg_begin();
-		for (Value::use_const_iterator ui = td->use_begin();
+		for (Value::const_use_iterator ui = td->use_begin();
 				ui != td->use_end(); ++ui) {
 			if (const GetElementPtrInst *gep = dyn_cast<GetElementPtrInst>(*ui)) {
 				if (gep->getNumOperands() >= 3 && gep->getOperand(0) == td) {
@@ -42,7 +42,7 @@ void IntTest::test_aget(const Module &M) {
 						// 3: foffset
 						// 4: offset
 						if (index == 2 && soffsets[i] == NULL) {
-							for (Value::use_const_iterator ui2 = gep->use_begin();
+							for (Value::const_use_iterator ui2 = gep->use_begin();
 									ui2 != gep->use_end(); ++ui2) {
 								if (isa<LoadInst>(*ui2)) {
 									soffsets[i] = *ui2;
@@ -51,7 +51,7 @@ void IntTest::test_aget(const Module &M) {
 							}
 						}
 						if (index == 3 && foffsets[i] == NULL) {
-							for (Value::use_const_iterator ui2 = gep->use_begin();
+							for (Value::const_use_iterator ui2 = gep->use_begin();
 									ui2 != gep->use_end(); ++ui2) {
 								if (isa<LoadInst>(*ui2)) {
 									foffsets[i] = *ui2;

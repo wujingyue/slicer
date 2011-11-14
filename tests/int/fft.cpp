@@ -33,8 +33,7 @@ void IntTest::test_fft(const Module &M) {
 	forallconst(Module, f, M) {
 		forallconst(Function, bb, *f) {
 			forallconst(BasicBlock, ins, *bb) {
-				CallSite cs = CallSite::get(
-						const_cast<Instruction *>((const Instruction *)ins));
+				CallSite cs(const_cast<Instruction *>((const Instruction *)ins));
 				if (!cs.getInstruction())
 					continue;
 				if (cs.getCalledFunction() == transpose) {
@@ -170,8 +169,7 @@ void IntTest::test_fft_common(const Module &M) {
 	forallconst(Module, f, M) {
 		forallconst(Function, bb, *f) {
 			forallconst(BasicBlock, ins, *bb) {
-				CallSite cs = CallSite::get(
-						const_cast<Instruction *>((const Instruction *)ins));
+				CallSite cs(const_cast<Instruction *>((const Instruction *)ins));
 				if (!cs.getInstruction())
 					continue;
 				const Function *callee = cs.getCalledFunction();

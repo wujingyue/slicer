@@ -23,7 +23,7 @@ namespace slicer {
 	struct AdvancedAlias: public ModulePass, public AliasAnalysis {
 		static char ID;
 
-		AdvancedAlias(): ModulePass(&ID) {}
+		AdvancedAlias(): ModulePass(ID) {}
 		virtual bool runOnModule(Module &M);
 		void recalculate(Module &M);
 		virtual void print(raw_ostream &O, const Module *M) const;
@@ -35,8 +35,8 @@ namespace slicer {
 		 * should override this to adjust the this pointer as needed for the
 		 * specified pass info.
 		 */
-		virtual void *getAdjustedAnalysisPointer(const PassInfo *PI) {   
-			if (PI->isPassID(&AliasAnalysis::ID))
+		virtual void *getAdjustedAnalysisPointer(AnalysisID PI) {
+			if (PI == &AliasAnalysis::ID)
 				return (AliasAnalysis*)this;
 			return this;
 		}
@@ -48,9 +48,7 @@ namespace slicer {
 		 * AliasAnalysis interfaces.
 		 * Returns: NoAlias, MayAlias, or MustAlias
 		 */
-		virtual AliasResult alias(
-				const Value *V1, unsigned V1Size,
-				const Value *V2, unsigned V2Size);
+		virtual AliasResult alias(const Location &L1, const Location &L2);
 		AliasResult alias(
 				const ConstInstList &c1, const Value *v1,
 				const ConstInstList &c2, const Value *v2);

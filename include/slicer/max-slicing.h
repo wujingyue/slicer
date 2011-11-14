@@ -43,7 +43,7 @@ namespace slicer {
 		typedef map<int, InstList> Trace;
 
 		static char ID;
-		MaxSlicing(): ModulePass(&ID) {}
+		MaxSlicing(): ModulePass(ID) {}
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual bool runOnModule(Module &M);
 

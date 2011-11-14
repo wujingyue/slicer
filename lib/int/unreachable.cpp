@@ -11,7 +11,7 @@ using namespace slicer;
 
 bool CaptureConstraints::is_slicer_assert_eq(const Instruction *ins,
 		const Value **v, const Value **c) {
-	CallSite cs = CallSite::get(const_cast<Instruction *>(ins));
+	CallSite cs(const_cast<Instruction *>(ins));
 	if (cs.getInstruction()) {
 		Function *callee = cs.getCalledFunction();
 		if (callee && starts_with(callee->getName(), "slicer_assert_eq")) {

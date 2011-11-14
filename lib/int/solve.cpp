@@ -144,7 +144,7 @@ void SolveConstraints::refine_candidates(list<const Value *> &candidates) {
 
 		VCExpr vce = translate_to_vc(c);
 		int ret = try_to_simplify(vce);
-		delete_vcexpr(vce);
+		vc_DeleteExpr(vce);
 		assert(ret != 0);
 		// If can be proved by simplification, don't add it to the constraint set. 
 		if (ret == -1)
@@ -199,7 +199,7 @@ void SolveConstraints::identify_fixed_values() {
 	int ret = vc_query(vc, f);
 	// TODO: diagnose if ret != 0. 
 	assert(ret == 0);
-	delete_vcexpr(f);
+	vc_DeleteExpr(f);
 	dbgs() << "Done\n";
 	
 	forall(list<const Value *>, it, candidates) {
@@ -209,8 +209,8 @@ void SolveConstraints::identify_fixed_values() {
 		VCExpr ce = vc_getCounterExample(vc, vce);
 		fixed_values.push_back(make_pair(
 					v, make_pair(getBVUnsigned(ce), vc_getBVLength(vc, ce))));
-		delete_vcexpr(vce);
-		delete_vcexpr(ce);
+		vc_DeleteExpr(vce);
+		vc_DeleteExpr(ce);
 	}
 	vc_pop(vc);
 	
@@ -222,10 +222,10 @@ void SolveConstraints::identify_fixed_values() {
 				i->second.second, i->second.first);
 		VCExpr vce = translate_to_vc(i->first, 0);
 		VCExpr eq = vc_eqExpr(vc, vce, guessed_value);
-		delete_vcexpr(guessed_value);
-		delete_vcexpr(vce);
+		vc_DeleteExpr(guessed_value);
+		vc_DeleteExpr(vce);
 		int fixed = vc_query(vc, eq);
-		delete_vcexpr(eq);
+		vc_DeleteExpr(eq);
 
 		assert(fixed != 2);
 		if (fixed == 1) {
@@ -241,7 +241,7 @@ void SolveConstraints::identify_fixed_values() {
 			while (j != fixed_values.end()) {
 				VCExpr vj = translate_to_vc(j->first, 0);
 				VCExpr ce = vc_getCounterExample(vc, vj);
-				delete_vcexpr(vj);
+				vc_DeleteExpr(vj);
 				if (j->second.first == getBVUnsigned(ce)) {
 					++j;
 				} else {
@@ -251,7 +251,7 @@ void SolveConstraints::identify_fixed_values() {
 					++n_opted;
 					fixed_values.erase(to_del);
 				}
-				delete_vcexpr(ce);
+				vc_DeleteExpr(ce);
 			}
 			// <i> does not have a fixed value. 
 			to_del = i;
@@ -339,11 +339,11 @@ void SolveConstraints::diagnose(Module &M) {
 			VCExpr vce = translate_to_vc(c);
 			if (try_to_simplify(vce) == -1)
 				vc_assertFormula(vc, vce);
-			delete_vcexpr(vce);
+			vc_DeleteExpr(vce);
 		}
 		VCExpr f = vc_falseExpr(vc);
 		int ret = vc_query(vc, f);
-		delete_vcexpr(f);
+		vc_DeleteExpr(f);
 		if (ret == 0) {
 			errs().changeColor(raw_ostream::GREEN) << "Y"; errs().resetColor();
 			does_not_matter.erase(j);
@@ -389,7 +389,7 @@ void SolveConstraints::separate(Module &M) {
 				}
 			}
 		}
-		delete_vcexpr(vce);
+		vc_DeleteExpr(vce);
 		delete c;
 	}
 
@@ -431,7 +431,7 @@ void SolveConstraints::translate_captured(Module &M) {
 		VCExpr vce = translate_to_vc(c);
 		if (try_to_simplify(vce) == -1)
 			vc_assertFormula(vc, vce);
-		delete_vcexpr(vce);
+		vc_DeleteExpr(vce);
 		
 		delete c; // c is cloned
 	}
@@ -449,7 +449,7 @@ void SolveConstraints::check_consistency(Module &M) {
 	}
 	VCExpr f = vc_falseExpr(vc);
 	int ret = vc_query(vc, f);
-	delete_vcexpr(f);
+	vc_DeleteExpr(f);
 	vc_pop(vc);
 
 	if (ret != 0) {
@@ -618,7 +618,7 @@ bool SolveConstraints::provable(const Clause *c) {
 
 	int ret = vc_query(vc, vce);
 	assert(ret != 2);
-	delete_vcexpr(vce);
+	vc_DeleteExpr(vce);
 	if (ret == 0 && print_counterexample_)
 		print_counterexample();
 	vc_pop(vc);
@@ -709,7 +709,7 @@ void SolveConstraints::realize(const Instruction *ins, const Function *f,
 		unsigned context) {
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 
-	CallSite cs = CallSite::get(const_cast<Instruction *>(ins));
+	CallSite cs(const_cast<Instruction *>(ins));
 	assert(cs.getInstruction() && "<ins> is not a CallInst/InvokeInst");
 
 	if (cs.arg_size() != f->getArgumentList().size()) {
@@ -736,7 +736,7 @@ void SolveConstraints::realize(const Instruction *ins, const Function *f,
 					dbgs() << "\n";);
 			vc_assertFormula(vc, vce);
 		}
-		delete_vcexpr(vce);
+		vc_DeleteExpr(vce);
 		delete c2;
 		delete c;
 
@@ -766,7 +766,7 @@ void SolveConstraints::realize(const Function *f, unsigned context) {
 					dbgs() << "\n";);
 			vc_assertFormula(vc, vce);
 		}
-		delete_vcexpr(vce);
+		vc_DeleteExpr(vce);
 		delete c2;
 		delete *itr;
 	}
@@ -824,7 +824,7 @@ void SolveConstraints::realize(const Instruction *ins, unsigned context) {
 						dbgs() << "\n";);
 				vc_assertFormula(vc, vce);
 			}
-			delete_vcexpr(vce);
+			vc_DeleteExpr(vce);
 
 			delete c2;
 		}
@@ -861,7 +861,7 @@ void SolveConstraints::realize(const Instruction *ins, unsigned context) {
 								dbgs() << "\n";);
 						vc_assertFormula(vc, vce);
 					}
-					delete_vcexpr(vce);
+					vc_DeleteExpr(vce);
 
 					delete c2;
 					delete c;

@@ -14,7 +14,7 @@ namespace slicer {
 
 		static char ID;
 
-		CountCtxts(): ModulePass(&ID) {}
+		CountCtxts(): ModulePass(ID) {}
 		virtual bool runOnModule(Module &M);
 		virtual void print(raw_ostream &O, const Module *M) const;
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;

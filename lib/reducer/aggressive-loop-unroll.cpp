@@ -29,10 +29,14 @@ bool AggressiveLoopUnroll::runOnLoop(Loop *L, LPPassManager &LPM) {
 
 	LoopInfo &LI = getAnalysis<LoopInfo>();
 
-	if (!L->isLCSSAForm()) {
+	BasicBlock *header = L->getHeader();
+	Function *f = header->getParent();
+	DominatorTree &DT = getAnalysis<DominatorTree>(*f);
+
+	if (!L->isLCSSAForm(DT)) {
 		errs() << "not LCSSA:" << *(L->getHeader()) << "\n";
 	}
-	assert(L->isLCSSAForm());
+	assert(L->isLCSSAForm(DT));
 
 	unsigned trip_count = L->getSmallConstantTripCount();
 	if (trip_count == 0)

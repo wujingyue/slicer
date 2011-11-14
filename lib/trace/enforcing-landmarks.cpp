@@ -107,7 +107,7 @@ bool EnforcingLandmarks::runOnModule(Module &M) {
 			continue;
 		forall(Function, bb, *f) {
 			forall(BasicBlock, ins, *bb) {
-				CallSite cs = CallSite::get(ins);
+				CallSite cs(ins);
 				if (cs.getInstruction()) {
 					Function *callee = cs.getCalledFunction();
 					if (callee && enforcing_landmark_funcs.count(callee->getName())) {

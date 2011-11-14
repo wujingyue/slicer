@@ -38,7 +38,7 @@ namespace slicer {
 		const static unsigned INVALID_IDX = (unsigned)(-1);
 		const static int INVALID_TID = -1;
 
-		TraceManager(): ModulePass(&ID), n_threads(0) {}
+		TraceManager(): ModulePass(ID), n_threads(0) {}
 
 		virtual bool runOnModule(Module &M);
 		virtual void print(raw_ostream &O, const Module *M) const;

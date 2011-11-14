@@ -14,7 +14,7 @@ namespace slicer {
 	struct AggressiveLoopUnroll: public LoopPass {
 		static char ID;
 
-		AggressiveLoopUnroll(): LoopPass(&ID) {}
+		AggressiveLoopUnroll(): LoopPass(ID) {}
 		virtual bool runOnLoop(Loop *L, LPPassManager &LPM);
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 	};

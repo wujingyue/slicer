@@ -20,7 +20,7 @@ namespace slicer {
 	struct Constantizer: public ModulePass {
 		static char ID;
 
-		Constantizer(): ModulePass(&ID) {}
+		Constantizer(): ModulePass(ID) {}
 		virtual bool runOnModule(Module &M);
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		

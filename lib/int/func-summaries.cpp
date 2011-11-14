@@ -13,7 +13,7 @@ void CaptureConstraints::capture_function_summaries(Module &M) {
 	vector<pair<Expr *, Expr *> > blocks;
 	
 	forallinst(M, ii) {
-		CallSite cs = CallSite::get(ii);
+		CallSite cs(ii);
 		if (!cs.getInstruction())
 			continue;
 		

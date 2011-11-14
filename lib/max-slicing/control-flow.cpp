@@ -303,7 +303,7 @@ Instruction *MaxSlicing::clone_inst(
 	 * being cloned to another function. 
 	 * Currently, we map them to NULL, but FIXME. 
 	 */
-	DenseMap<const Value *, Value *> empty_value_map;
+	ValueToValueMapTy empty_value_map;
 	for (unsigned i = 0; i < y->getNumOperands(); ++i) {
 		Value *op = y->getOperand(i);
 		empty_value_map.clear();

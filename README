@@ -1,7 +1,7 @@
 Notes:
 
 * The slicer is not guaranteed to work with gcc-4.2 or earlier versions. 
-* Don't use make -jx. Use some global temporary file. 
+* Don't use make -jx. The makefiles use global temporary files.
 
 1. Check out source code from the git server
 
@@ -12,6 +12,8 @@ environmental variable.
 cd $WORKSPACE
 git clone git@repair.cs.columbia.edu llvm
 git clone git@repair.cs.columbia.edu slicer
+git clone git@repair.cs.columbia.edu llvm-common
+git clone git@repair.cs.columbia.edu bc2bdd
 
 Ask Jingyue if you don't have accesses to these repos. 
 
@@ -19,6 +21,8 @@ Ask Jingyue if you don't have accesses to these repos.
 
 Make sure the following variables are set correctly:
 LLVM_ROOT=$WORKSPACE/llvm
+LLVM_COMMON_ROOT=$WORKSPACE/llvm-common
+BC2BDD_ROOT=$WORKSPACE/bc2bdd
 SLICER_ROOT=$WORKSPACE/slicer
 APPS_DIR=$WORKSPACE/apps
 
@@ -29,9 +33,14 @@ to PATH.
 
 sudo apt-get install libbdd-dev libbz2-dev openjdk-6-jdk libboost-regex-dev shtool subversion zip libzip-dev flex bison
 
-4. Building LLVM 2.7
+4. Building LLVM 2.9
 
 TODO
+
+Strongly recommend you to enable assertions: 
+./configure --prefix=... --enable-assertions --enable-docs=no
+
+Note: LLVM 2.9 has a bug with generating ocaml docs. Disable documents for now. 
 
 You need apply the following patches to fix some bugs in LLVM 2.7: 
 $WORKSPACE/llvm/fix-dae.patch

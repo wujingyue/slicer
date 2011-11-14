@@ -28,7 +28,7 @@ int SolveConstraints::try_to_simplify(VCExpr e) {
 	vc_push(vc);
 	VCExpr simplified = vc_simplify(vc, e);
 	int ret = vc_isBool(simplified);
-	delete_vcexpr(simplified);
+	vc_DeleteExpr(simplified);
 	vc_pop(vc);
 	return ret;
 }
@@ -72,9 +72,9 @@ VCExpr SolveConstraints::translate_to_vc(const Clause *c) {
 		assert(c->op == Instruction::UserOp1);
 		res = vc_notExpr(vc, vce1);
 	}
-	delete_vcexpr(vce1);
+	vc_DeleteExpr(vce1);
 	if (vce2)
-		delete_vcexpr(vce2);
+		vc_DeleteExpr(vce2);
 	return res;
 }
 
@@ -92,7 +92,7 @@ VCExpr SolveConstraints::translate_to_vc(const BoolExpr *be) {
 			{
 				VCExpr eq = vc_eqExpr(vc, vce1, vce2);
 				res = vc_notExpr(vc, eq);
-				delete_vcexpr(eq);
+				vc_DeleteExpr(eq);
 			}
 			break;
 		case CmpInst::ICMP_UGT:
@@ -121,8 +121,8 @@ VCExpr SolveConstraints::translate_to_vc(const BoolExpr *be) {
 			break;
 		default: assert(false && "Invalid predicate");
 	}
-	delete_vcexpr(vce1);
-	delete_vcexpr(vce2);
+	vc_DeleteExpr(vce1);
+	vc_DeleteExpr(vce2);
 	return res;
 }
 
@@ -147,7 +147,7 @@ VCExpr SolveConstraints::translate_to_vc(const Expr *e) {
 					// STP does not have bvUnsignExtend
 					VCExpr zero_31 = vc_bvConstExprFromInt(vc, 31, 0);
 					res = vc_bvConcatExpr(vc, zero_31, child);
-					delete_vcexpr(zero_31);
+					vc_DeleteExpr(zero_31);
 				}
 				break;
 			case Instruction::Trunc:
@@ -156,7 +156,7 @@ VCExpr SolveConstraints::translate_to_vc(const Expr *e) {
 				break;
 			default: assert_not_supported();
 		}
-		delete_vcexpr(child);
+		vc_DeleteExpr(child);
 		return res;
 	}
 	if (e->type == Expr::Binary) {
@@ -208,8 +208,8 @@ VCExpr SolveConstraints::translate_to_vc(const Expr *e) {
 				break;
 			default: assert_not_supported();
 		}
-		delete_vcexpr(left);
-		delete_vcexpr(right);
+		vc_DeleteExpr(left);
+		vc_DeleteExpr(right);
 		return res;
 	}
 	assert(false && "Invalid expression type");
@@ -221,7 +221,7 @@ VCExpr SolveConstraints::translate_to_vc(const Value *v,
 		if (ci->getType()->getBitWidth() == 1) {
 			VCExpr b = (ci->isOne() ? vc_trueExpr(vc) : vc_falseExpr(vc));
 			VCExpr res = vc_boolToBVExpr(vc, b);
-			delete_vcexpr(b);
+			vc_DeleteExpr(b);
 			return res;
 		} else {
 			// TODO: Add warnings on very large constants.
@@ -247,7 +247,7 @@ VCExpr SolveConstraints::translate_to_vc(const Value *v,
 			vc_bvType(vc, 1) :
 			vc_bv32Type(vc));
 	VCExpr symbol = vc_varExpr(vc, name.c_str(), vct);
-	delete_vcexpr(vct);
+	vc_DeleteExpr(vct);
 
 	return symbol;
 }
@@ -264,8 +264,8 @@ void SolveConstraints::avoid_div_by_zero(VCExpr left, VCExpr right) {
 
 	vc_assertFormula(vc, right_gt_0);
 
-	delete_vcexpr(zero);
-	delete_vcexpr(right_gt_0);
+	vc_DeleteExpr(zero);
+	vc_DeleteExpr(right_gt_0);
 }
 
 void SolveConstraints::avoid_overflow_shl(VCExpr left, VCExpr right) {
@@ -282,17 +282,17 @@ void SolveConstraints::avoid_overflow_shl(VCExpr left, VCExpr right) {
 	vc_assertFormula(vc, left_ge_0);
 	vc_assertFormula(vc, left_le);
 
-	delete_vcexpr(int_max);
-	delete_vcexpr(left_ge_0);
-	delete_vcexpr(int_max_shr);
-	delete_vcexpr(left_le);
+	vc_DeleteExpr(int_max);
+	vc_DeleteExpr(left_ge_0);
+	vc_DeleteExpr(int_max_shr);
+	vc_DeleteExpr(left_le);
 }
 
 void SolveConstraints::avoid_overflow_sub(VCExpr left, VCExpr right) {
 	// -oo <= left + (-right) <= oo
 	VCExpr minus_right = vc_bvUMinusExpr(vc, right);
 	avoid_overflow_add(left, minus_right);
-	delete_vcexpr(minus_right);
+	vc_DeleteExpr(minus_right);
 }
 
 void SolveConstraints::avoid_overflow_add(VCExpr left, VCExpr right) {
@@ -311,13 +311,13 @@ void SolveConstraints::avoid_overflow_add(VCExpr left, VCExpr right) {
 
 	vc_assertFormula(vc, or_expr);
 	
-	delete_vcexpr(sum);
-	delete_vcexpr(h_left);
-	delete_vcexpr(h_right);
-	delete_vcexpr(h_sum);
-	delete_vcexpr(xor_expr);
-	delete_vcexpr(iff_expr);
-	delete_vcexpr(or_expr);
+	vc_DeleteExpr(sum);
+	vc_DeleteExpr(h_left);
+	vc_DeleteExpr(h_right);
+	vc_DeleteExpr(h_sum);
+	vc_DeleteExpr(xor_expr);
+	vc_DeleteExpr(iff_expr);
+	vc_DeleteExpr(or_expr);
 }
 
 void SolveConstraints::avoid_overflow_mul(VCExpr left, VCExpr right) {

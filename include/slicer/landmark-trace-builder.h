@@ -10,12 +10,10 @@ using namespace llvm;
 using namespace std;
 
 namespace slicer {
-
 	struct LandmarkTraceBuilder: public ModulePass {
-
 		static char ID;
 
-		LandmarkTraceBuilder(): ModulePass(&ID) {}
+		LandmarkTraceBuilder(): ModulePass(ID) {}
 		virtual bool runOnModule(Module &M);
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 	};

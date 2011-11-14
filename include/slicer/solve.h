@@ -10,7 +10,7 @@
 #include <list>
 using namespace std;
 
-#include "llvm/System/Mutex.h"
+#include "llvm/Support/Mutex.h"
 using namespace llvm;
 
 #include "expression.h"
@@ -30,7 +30,7 @@ namespace slicer {
 	struct SolveConstraints: public ModulePass {
 		static char ID;
 
-		SolveConstraints(): ModulePass(&ID), print_counterexample_(false),
+		SolveConstraints(): ModulePass(ID), print_counterexample_(false),
 			print_asserts_(false), print_minimal_proof_set_(false) {}
 		virtual bool runOnModule(Module &M);
 		virtual void print(raw_ostream &O, const Module *M) const;

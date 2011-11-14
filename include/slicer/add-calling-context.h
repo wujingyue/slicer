@@ -13,7 +13,7 @@ namespace slicer {
 	struct AddCallingContext: public ModulePass {
 		static char ID;
 
-		AddCallingContext(): ModulePass(&ID) {}
+		AddCallingContext(): ModulePass(ID) {}
 
 		virtual bool runOnModule(Module &M);
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;

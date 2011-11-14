@@ -25,15 +25,14 @@ void IntTest::test_radix_like(const Module &M) {
 		// Identify accesses to <rank_me>. 
 		forallconst(Function, bb, *f) {
 			forallconst(BasicBlock, ins, *bb) {
-				CallSite cs = CallSite::get(
-						const_cast<Instruction *>((const Instruction *)ins));
+				CallSite cs(const_cast<Instruction *>((const Instruction *)ins));
 				if (cs.getInstruction()) {
 					const Function *callee = cs.getCalledFunction();
 					if (callee && callee->getName() == "printf") {
 						assert(cs.arg_size() > 0);
 						const Value *my_key = cs.getArgument(cs.arg_size() - 1);
 						const User *sext = NULL;
-						for (Value::use_const_iterator ui = my_key->use_begin();
+						for (Value::const_use_iterator ui = my_key->use_begin();
 								ui != my_key->use_end(); ++ui) {
 							if (*ui == ins)
 								continue;
@@ -41,7 +40,7 @@ void IntTest::test_radix_like(const Module &M) {
 							sext = *ui;
 						}
 						assert(sext);
-						for (Value::use_const_iterator ui = sext->use_begin();
+						for (Value::const_use_iterator ui = sext->use_begin();
 								ui != sext->use_end(); ++ui) {
 							if (const GetElementPtrInst *gep =
 									dyn_cast<GetElementPtrInst>(*ui)) {
@@ -83,7 +82,7 @@ void IntTest::test_radix_like(const Module &M) {
 	for (size_t i = 0; i < accesses_to_ff.size(); ++i)
 		errs() << *accesses_to_ff[i] << "\n";
 
-	AdvancedAlias &AA = getAnalysis<AdvancedAlias>();
+	AliasAnalysis &AA = getAnalysis<AdvancedAlias>();
 	// SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	for (DenseMap<const Function *, vector<const Value *> >::iterator
 			i1 = accesses_to_me.begin(); i1 != accesses_to_me.end(); ++i1) {

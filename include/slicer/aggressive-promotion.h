@@ -17,7 +17,7 @@ namespace slicer {
 
 		static char ID;
 
-		AggressivePromotion(): LoopPass(&ID) {}
+		AggressivePromotion(): LoopPass(ID) {}
 		// The outmost loop will be processed last. 
 		virtual bool runOnLoop(Loop *L, LPPassManager &LPM);
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;

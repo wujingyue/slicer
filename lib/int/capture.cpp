@@ -67,7 +67,7 @@ void CaptureConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
 	ModulePass::getAnalysisUsage(AU);
 }
 
-CaptureConstraints::CaptureConstraints(): ModulePass(&ID), IDT(false) {}
+CaptureConstraints::CaptureConstraints(): ModulePass(ID), IDT(false) {}
 
 CaptureConstraints::~CaptureConstraints() {
 	clear_constraints();

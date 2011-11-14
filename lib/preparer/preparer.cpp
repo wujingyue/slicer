@@ -16,7 +16,7 @@ namespace slicer {
 	struct Preparer: public ModulePass {
 		static char ID;
 
-		Preparer(): ModulePass(&ID) {}
+		Preparer(): ModulePass(ID) {}
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual bool runOnModule(Module &M);
 

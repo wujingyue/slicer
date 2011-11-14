@@ -216,7 +216,7 @@ void MaxSlicing::volatile_landmarks(Module &M) {
 				assert(clone_map.count(i));
 				assert(j < clone_map.find(i)->second.size());
 				Instruction *new_inst = clone_map.find(i)->second[j].lookup(old_inst);
-				CallSite cs = CallSite::get(new_inst);
+				CallSite cs(new_inst);
 				assert(cs.getInstruction() &&
 						"Enforcing landmarks must be CallInst/InvokeInst");
 				// We claim that these enforcing landmarks may write to memory,

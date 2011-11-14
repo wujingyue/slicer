@@ -9,7 +9,7 @@ namespace slicer {
 	struct IntTest: public ModulePass {
 		static char ID;
 
-		IntTest(): ModulePass(&ID) {}
+		IntTest(): ModulePass(ID) {}
 		virtual bool runOnModule(Module &M);
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 
