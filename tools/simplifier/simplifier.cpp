@@ -120,10 +120,8 @@ int LoadPlugins() {
 	}
 	string LibDir = string(LLVMRoot) + "/install/lib";
 	PluginLoader Loader;
-	Loader = LibDir + "/id-manager.so";
-	Loader = LibDir + "/mbb.so";
+	Loader = LibDir + "/id.so";
 	Loader = LibDir + "/bc2bdd.so";
-	Loader = LibDir + "/callgraph-fp.so";
 	Loader = LibDir + "/cfg.so";
 	Loader = LibDir + "/slicer-trace.so";
 	Loader = LibDir + "/max-slicing.so";

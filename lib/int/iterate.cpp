@@ -32,6 +32,10 @@ void Iterate::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<AdvancedAlias>();
 }
 
+Iterate::Iterate(): ModulePass(ID) {
+	initializeIteratePass(*PassRegistry::getPassRegistry());
+}
+
 char Iterate::ID = 0;
 
 bool Iterate::runOnModule(Module &M) {

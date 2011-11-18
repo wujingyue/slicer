@@ -157,10 +157,8 @@ rmdir.ft: rmdir.trace
 
 %.lt: %.ft
 	opt -stats -disable-output \
-		-load $(LLVM_ROOT)/install/lib/id-manager.so \
+		-load $(LLVM_ROOT)/install/lib/id.so \
 		-load $(LLVM_ROOT)/install/lib/bc2bdd.so \
-		-load $(LLVM_ROOT)/install/lib/callgraph-fp.so \
-		-load $(LLVM_ROOT)/install/lib/mbb.so \
 		-load $(LLVM_ROOT)/install/lib/cfg.so \
 		-load $(LLVM_ROOT)/install/lib/slicer-trace.so \
 		-build-landmark-trace \
@@ -170,10 +168,8 @@ rmdir.ft: rmdir.trace
 
 %.landmarks: $(PROGS_DIR)/%.id.bc
 	opt -stats -analyze \
-		-load $(LLVM_ROOT)/install/lib/id-manager.so \
+		-load $(LLVM_ROOT)/install/lib/id.so \
 		-load $(LLVM_ROOT)/install/lib/bc2bdd.so \
-		-load $(LLVM_ROOT)/install/lib/callgraph-fp.so \
-		-load $(LLVM_ROOT)/install/lib/mbb.so \
 		-load $(LLVM_ROOT)/install/lib/cfg.so \
 		-load $(LLVM_ROOT)/install/lib/slicer-trace.so \
 		-mark-landmarks \

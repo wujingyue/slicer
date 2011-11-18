@@ -13,8 +13,8 @@ using namespace slicer;
 INITIALIZE_PASS_BEGIN(AggressiveLoopUnroll, "aggressive-loop-unroll",
 		"Aggressively unroll loops even if it contains function calls",
 		false, false)
-INITIALIZE_PASS_DEPENDENCY(LoopInfo)
 INITIALIZE_PASS_DEPENDENCY(DominatorTree)
+INITIALIZE_PASS_DEPENDENCY(LoopInfo)
 INITIALIZE_PASS_END(AggressiveLoopUnroll, "aggressive-loop-unroll",
 		"Aggressively unroll loops even if it contains function calls",
 		false, false)
@@ -23,8 +23,8 @@ char AggressiveLoopUnroll::ID = 0;
 
 /* Requires LCSSA. */
 void AggressiveLoopUnroll::getAnalysisUsage(AnalysisUsage &AU) const {
-	AU.addRequired<LoopInfo>();
 	AU.addRequired<DominatorTree>();
+	AU.addRequired<LoopInfo>();
 }
 
 AggressiveLoopUnroll::AggressiveLoopUnroll(): LoopPass(ID) {

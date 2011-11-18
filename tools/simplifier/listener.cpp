@@ -12,9 +12,7 @@ using namespace llvm;
 using namespace slicer;
 
 void SimplifierListener::passRegistered(const PassInfo *P) {
-	if (strcmp(P->getPassArgument(), "") == 0)
-		errs() << "empty arg: " << P->getPassName() << "\n";
-	dbgs() << "Pass " << P->getPassArgument() << " registered\n";
+	// dbgs() << "Pass " << P->getPassArgument() << " registered\n";
 	NameToPassInfo[P->getPassArgument()] = P;
 }
 

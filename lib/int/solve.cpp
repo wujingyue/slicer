@@ -32,8 +32,8 @@ INITIALIZE_PASS_BEGIN(SolveConstraints, "solve",
 		"Solve captured constraints using STP", false, true)
 INITIALIZE_PASS_DEPENDENCY(TargetData)
 INITIALIZE_PASS_DEPENDENCY(IDAssigner)
-INITIALIZE_PASS_DEPENDENCY(LoopInfo)
 INITIALIZE_PASS_DEPENDENCY(DominatorTree)
+INITIALIZE_PASS_DEPENDENCY(LoopInfo)
 INITIALIZE_PASS_DEPENDENCY(IntraReach)
 INITIALIZE_PASS_DEPENDENCY(CaptureConstraints)
 INITIALIZE_PASS_DEPENDENCY(CallGraphFP)
@@ -45,8 +45,8 @@ void SolveConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
 	AU.addRequiredTransitive<TargetData>();
 	AU.addRequiredTransitive<IDAssigner>();
-	AU.addRequiredTransitive<LoopInfo>();
 	AU.addRequiredTransitive<DominatorTree>();
+	AU.addRequiredTransitive<LoopInfo>();
 	AU.addRequiredTransitive<IntraReach>();
 	AU.addRequiredTransitive<CaptureConstraints>();
 	AU.addRequiredTransitive<CallGraphFP>();

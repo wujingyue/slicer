@@ -4,7 +4,7 @@ LIBRARYNAME = slicer-trace
 
 LOADABLE_MODULE = 1
 
-SOURCES = landmark-trace.cpp \
+SOURCES = landmark-trace.cpp trace.cpp \
 	  trace-manager.cpp instrument.cpp mark-landmarks.cpp \
 	  landmark-trace-builder.cpp enforcing-landmarks.cpp
 

@@ -42,8 +42,8 @@ using namespace slicer;
 INITIALIZE_PASS_BEGIN(CaptureConstraints, "capture",
 		"Capture all integer constraints", false, true)
 INITIALIZE_PASS_DEPENDENCY(TargetData)
-INITIALIZE_PASS_DEPENDENCY(LoopInfo)
 INITIALIZE_PASS_DEPENDENCY(DominatorTree)
+INITIALIZE_PASS_DEPENDENCY(LoopInfo)
 INITIALIZE_PASS_DEPENDENCY(IDAssigner)
 INITIALIZE_PASS_DEPENDENCY(IntraReach)
 INITIALIZE_PASS_DEPENDENCY(BddAliasAnalysis)
@@ -60,9 +60,9 @@ INITIALIZE_PASS_END(CaptureConstraints, "capture",
 void CaptureConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
 	AU.addRequiredTransitive<TargetData>();
-	AU.addRequiredTransitive<LoopInfo>();
 	AU.addRequiredTransitive<IDAssigner>();
 	AU.addRequiredTransitive<DominatorTree>();
+	AU.addRequiredTransitive<LoopInfo>();
 	AU.addRequiredTransitive<IntraReach>();
 	AU.addRequired<BddAliasAnalysis>(); // Only used in <setup>. 
 	AU.addRequiredTransitive<CallGraphFP>();
