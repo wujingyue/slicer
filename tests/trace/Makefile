@@ -6,8 +6,7 @@ PROG_NAMES = test-thread test-overwrite test-loop test-loop-2 test-ctxt-2 \
 	     aget-like test-array test-dep test-ctxt-4 test-global \
 	     test-overwrite-2 RADIX-like test-thread-2 test-assert \
 	     test-malloc test-ctxt test-range test-range-3 test-range-4 \
-	     aget FFT RADIX pbzip2 CHOLESKY pfscan aget-fake LU-cont \
-	     swaptions streamcluster blackscholes
+	     aget FFT RADIX pbzip2 CHOLESKY LU-cont
 PROGS_DIR = ../progs
 TRACED_PROGS = $(PROG_NAMES:=.trace)
 LANDMARK_TRACES = $(PROG_NAMES:=.lt)
@@ -21,10 +20,8 @@ full-trace: $(FULL_TRACES)
 
 %.bc1: $(PROGS_DIR)/%.id.bc
 	opt -stats -o $@ \
-		-load $(LLVM_ROOT)/install/lib/id-manager.so \
+		-load $(LLVM_ROOT)/install/lib/id.so \
 		-load $(LLVM_ROOT)/install/lib/bc2bdd.so \
-		-load $(LLVM_ROOT)/install/lib/callgraph-fp.so \
-		-load $(LLVM_ROOT)/install/lib/mbb.so \
 		-load $(LLVM_ROOT)/install/lib/cfg.so \
 		-load $(LLVM_ROOT)/install/lib/slicer-trace.so \
 		-instrument-each-bb \

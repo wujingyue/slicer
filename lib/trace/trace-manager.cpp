@@ -5,6 +5,8 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
 #include "common/IDManager.h"
+#include "common/InitializePasses.h"
+#include "slicer/InitializePasses.h"
 using namespace llvm;
 
 #include <fstream>
@@ -14,9 +16,16 @@ using namespace std;
 #include "slicer/trace-manager.h"
 using namespace slicer;
 
-static RegisterPass<TraceManager> X("trace-manager",
-		"Trace manager",
-		false, true);
+INITIALIZE_PASS_BEGIN(TraceManager, "trace-manager",
+		"Trace manager", false, true)
+INITIALIZE_PASS_DEPENDENCY(IDManager)
+INITIALIZE_PASS_END(TraceManager, "trace-manager",
+		"Trace manager", false, true)
+
+void TraceManager::getAnalysisUsage(AnalysisUsage &AU) const {
+	AU.setPreservesAll();
+	AU.addRequired<IDManager>();
+}
 
 static cl::opt<string> FullTraceFile("fulltrace",
 		cl::desc("The full trace"));
@@ -30,6 +39,10 @@ bool TraceManager::read_record(istream &fin,
 		return true;
 	else
 		return false;
+}
+
+TraceManager::TraceManager(): ModulePass(ID), n_threads(0) {
+	initializeTraceManagerPass(*PassRegistry::getPassRegistry());
 }
 
 bool TraceManager::runOnModule(Module &M) {
@@ -89,12 +102,6 @@ int TraceManager::get_normalized_tid(unsigned long raw_tid) {
 		raw_tid_to_tid[raw_tid] = new_thr_id;
 	}
 	return raw_tid_to_tid[raw_tid];
-}
-
-void TraceManager::getAnalysisUsage(AnalysisUsage &AU) const {
-	AU.setPreservesAll();
-	AU.addRequired<IDManager>();
-	ModulePass::getAnalysisUsage(AU);
 }
 
 unsigned TraceManager::get_num_records() const {

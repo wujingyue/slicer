@@ -11,14 +11,18 @@ using namespace std;
 #include "llvm/Support/CommandLine.h"
 #include "common/callgraph-fp.h"
 #include "common/util.h"
+#include "common/InitializePasses.h"
+#include "slicer/InitializePasses.h"
 using namespace llvm;
 
 #include "path-counter.h"
 using namespace slicer;
 
-static RegisterPass<PathCounter> X("count-paths",
-		"Count the paths",
-		false, true);
+INITIALIZE_PASS_BEGIN(PathCounter, "count-paths",
+		"Count the paths", false, true)
+INITIALIZE_PASS_DEPENDENCY(CallGraphFP)
+INITIALIZE_PASS_END(PathCounter, "count-paths",
+		"Count the paths", false, true)
 
 static cl::opt<int> NumIterations("iter",
 		cl::desc("Number of iterations"),
@@ -127,7 +131,6 @@ long double PathCounter::compute_num_paths(BasicBlock *x) {
 void PathCounter::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
 	AU.addRequired<CallGraphFP>();
-	ModulePass::getAnalysisUsage(AU);
 }
 
 void PathCounter::print(raw_ostream &O, const Module *M) const {

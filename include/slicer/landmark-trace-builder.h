@@ -13,7 +13,7 @@ namespace slicer {
 	struct LandmarkTraceBuilder: public ModulePass {
 		static char ID;
 
-		LandmarkTraceBuilder(): ModulePass(ID) {}
+		LandmarkTraceBuilder();
 		virtual bool runOnModule(Module &M);
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 	};

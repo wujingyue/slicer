@@ -36,29 +36,28 @@ all: $(BCS)
 # Instruction ID using IDManager
 %.iid: %.bc
 	opt -analyze \
-		-load $(LLVM_ROOT)/install/lib/id-manager.so \
+		-load $(LLVM_ROOT)/install/lib/id.so \
 		-manage-id \
 		< $< > $@
 # Instruction ID
 %.id: %.bc
 	opt -analyze \
-		-load $(LLVM_ROOT)/install/lib/id-manager.so \
+		-load $(LLVM_ROOT)/install/lib/id.so \
 		-assign-id -print-insts \
 		< $< > $@
 # Value ID
 %.vid: %.bc
 	opt -analyze \
-		-load $(LLVM_ROOT)/install/lib/id-manager.so \
+		-load $(LLVM_ROOT)/install/lib/id.so \
 		-assign-id -print-values \
 		< $< > $@
 
 # Call graph
 %.cg: %.bc
 	opt -analyze \
-		-load $(LLVM_ROOT)/install/lib/idm.so \
-		-load $(LLVM_ROOT)/install/lib/id-manager.so \
+		-load $(LLVM_ROOT)/install/lib/id.so \
 		-load $(LLVM_ROOT)/install/lib/bc2bdd.so \
-		-load $(LLVM_ROOT)/install/lib/callgraph-fp.so \
+		-load $(LLVM_ROOT)/install/lib/cfg.so \
 		-callgraph-fp \
 		< $<
 
@@ -68,7 +67,7 @@ all: $(BCS)
 # Instruction ID <==> File: Line
 %.loc: %.bc
 	opt -disable-output \
-		-load $(LLVM_ROOT)/install/lib/id-manager.so \
+		-load $(LLVM_ROOT)/install/lib/id.so \
 		-load $(LLVM_ROOT)/install/lib/src-locator.so \
 		-src-locator \
 		-input $(ARG) \

@@ -12,15 +12,32 @@
 #include "common/exec.h"
 #include "common/callgraph-fp.h"
 #include "common/IDManager.h"
+#include "common/InitializePasses.h"
+#include "slicer/InitializePasses.h"
 using namespace llvm;
 
 #include "slicer/enforcing-landmarks.h"
 #include "slicer/mark-landmarks.h"
 using namespace slicer;
 
-static RegisterPass<MarkLandmarks> X("mark-landmarks",
-		"Mark landmarks",
-		false, true); // is analysis
+INITIALIZE_PASS_BEGIN(MarkLandmarks, "mark-landmarks",
+		"Mark landmarks", false, true)
+INITIALIZE_PASS_DEPENDENCY(IDManager)
+INITIALIZE_PASS_DEPENDENCY(EnforcingLandmarks)
+INITIALIZE_PASS_DEPENDENCY(IdentifyThreadFuncs)
+INITIALIZE_PASS_DEPENDENCY(Exec)
+INITIALIZE_PASS_DEPENDENCY(CallGraphFP)
+INITIALIZE_PASS_END(MarkLandmarks, "mark-landmarks",
+		"Mark landmarks", false, true)
+
+void MarkLandmarks::getAnalysisUsage(AnalysisUsage &AU) const {
+	AU.setPreservesAll();
+	AU.addRequiredTransitive<IDManager>();
+	AU.addRequired<EnforcingLandmarks>();
+	AU.addRequired<IdentifyThreadFuncs>();
+	AU.addRequired<Exec>();
+	AU.addRequired<CallGraphFP>();
+}
 
 static cl::opt<bool> DisableDerivedLandmarks("disable-derived-landmarks",
 		cl::desc("Don't mark any derived landmarks"));
@@ -29,6 +46,10 @@ STATISTIC(NumEnforcingLandmarks, "Number of enforcing landmarks");
 STATISTIC(NumDerivedLandmarks, "Number of derived landmarks");
 
 char MarkLandmarks::ID = 0;
+
+MarkLandmarks::MarkLandmarks(): ModulePass(ID) {
+	initializeMarkLandmarksPass(*PassRegistry::getPassRegistry());
+}
 
 bool MarkLandmarks::runOnModule(Module &M) {
 	EnforcingLandmarks &EL = getAnalysis<EnforcingLandmarks>();
@@ -148,16 +169,6 @@ void MarkLandmarks::mark_enforcing_landmarks(Module &M) {
 	EnforcingLandmarks &EL = getAnalysis<EnforcingLandmarks>();
 	const InstSet &enforcing_landmarks = EL.get_enforcing_landmarks();
 	landmarks.insert(enforcing_landmarks.begin(), enforcing_landmarks.end());
-}
-
-void MarkLandmarks::getAnalysisUsage(AnalysisUsage &AU) const {
-	AU.setPreservesAll();
-	AU.addRequiredTransitive<IDManager>();
-	AU.addRequired<EnforcingLandmarks>();
-	AU.addRequired<IdentifyThreadFuncs>();
-	AU.addRequired<Exec>();
-	AU.addRequired<CallGraphFP>();
-	ModulePass::getAnalysisUsage(AU);
 }
 
 void MarkLandmarks::print(raw_ostream &O, const Module *M) const {

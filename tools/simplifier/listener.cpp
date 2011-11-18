@@ -2,6 +2,8 @@
  * Author: Jingyue
  */
 
+#define DEBUG_TYPE "simplifier"
+
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Debug.h"
 using namespace llvm;
@@ -10,7 +12,9 @@ using namespace llvm;
 using namespace slicer;
 
 void SimplifierListener::passRegistered(const PassInfo *P) {
-	DEBUG(dbgs() << "Pass " << P->getPassArgument() << " registered\n";);
+	if (strcmp(P->getPassArgument(), "") == 0)
+		errs() << "empty arg: " << P->getPassName() << "\n";
+	dbgs() << "Pass " << P->getPassArgument() << " registered\n";
 	NameToPassInfo[P->getPassArgument()] = P;
 }
 

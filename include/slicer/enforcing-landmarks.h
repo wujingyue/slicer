@@ -9,7 +9,7 @@ namespace slicer {
 	struct EnforcingLandmarks: public ModulePass {
 		static char ID;
 
-		EnforcingLandmarks(): ModulePass(ID) {}
+		EnforcingLandmarks();
 		virtual bool runOnModule(Module &M);
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 

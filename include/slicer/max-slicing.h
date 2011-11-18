@@ -23,12 +23,10 @@ using namespace llvm;
 using namespace std;
 
 namespace slicer {
-
-	const static string SLICER_SUFFIX = ".SLICER";
-	const static string OLDMAIN_SUFFIX = ".OLDMAIN";
+	static const string SLICER_SUFFIX = ".SLICER";
+	static const string OLDMAIN_SUFFIX = ".OLDMAIN";
 
 	struct MaxSlicing: public ModulePass {
-
 		enum EdgeType {
 			EDGE_CALL,
 			EDGE_INTER_BB,
@@ -43,7 +41,7 @@ namespace slicer {
 		typedef map<int, InstList> Trace;
 
 		static char ID;
-		MaxSlicing(): ModulePass(ID) {}
+		MaxSlicing();
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual bool runOnModule(Module &M);
 

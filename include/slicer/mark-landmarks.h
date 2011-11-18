@@ -10,7 +10,7 @@ namespace slicer {
 	struct MarkLandmarks: public ModulePass {
 		static char ID;
 
-		MarkLandmarks(): ModulePass(ID) {}
+		MarkLandmarks();
 		virtual bool runOnModule(Module &M);
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual void print(raw_ostream &O, const Module *M) const;

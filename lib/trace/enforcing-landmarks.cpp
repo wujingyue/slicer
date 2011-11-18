@@ -6,6 +6,7 @@
 #include "llvm/Support/CFG.h"
 #include "common/util.h"
 #include "common/identify-thread-funcs.h"
+#include "slicer/InitializePasses.h"
 using namespace llvm;
 
 #include "slicer/enforcing-landmarks.h"
@@ -55,9 +56,8 @@ static const char *DEFAULT_ENFORCING_LANDMARK_FUNCS[] = {
 	"exit"
 };
 
-static RegisterPass<EnforcingLandmarks> X("enforcing-landmarks",
-		"Identify enforcing landmarks",
-		false, true); // is analysis
+INITIALIZE_PASS(EnforcingLandmarks, "enforcing-landmarks",
+		"Identify enforcing landmarks", false, true)
 
 static cl::opt<string> EnforcingLandmarksFile("input-landmarks",
 		cl::desc("If this option is specified, MarkLandmarks uses the "
@@ -71,7 +71,10 @@ char EnforcingLandmarks::ID = 0;
 
 void EnforcingLandmarks::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
-	ModulePass::getAnalysisUsage(AU);
+}
+
+EnforcingLandmarks::EnforcingLandmarks(): ModulePass(ID) {
+	initializeEnforcingLandmarksPass(*PassRegistry::getPassRegistry());
 }
 
 bool EnforcingLandmarks::is_enforcing_landmark(const Instruction *ins) const {

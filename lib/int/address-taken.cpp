@@ -23,7 +23,6 @@ using namespace llvm;
 using namespace repair;
 
 #include "slicer/capture.h"
-#include "slicer/must-alias.h"
 #include "slicer/adv-alias.h"
 #include "slicer/landmark-trace.h"
 #include "slicer/clone-info-manager.h"
@@ -84,7 +83,7 @@ void CaptureConstraints::capture_global_vars(Module &M) {
 
 void CaptureConstraints::capture_global_var(GlobalVariable *gv) {
 	RegionManager &RM = getAnalysis<RegionManager>();
-	BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
+	AliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
 
 	assert(isa<IntegerType>(gv->getType()) || isa<PointerType>(gv->getType()));
 
@@ -961,7 +960,7 @@ bool CaptureConstraints::may_alias(const Value *v1, const Value *v2) {
 			dbgs() << (res ? "A" : "a");
 		return res;
 	} else {
-		BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
+		AliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
 		return BAA.alias(v1, 0, v2, 0) == AliasAnalysis::MayAlias;
 	}
 }

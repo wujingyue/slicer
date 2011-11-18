@@ -23,7 +23,7 @@ namespace slicer {
 	struct AdvancedAlias: public ModulePass, public AliasAnalysis {
 		static char ID;
 
-		AdvancedAlias(): ModulePass(ID) {}
+		AdvancedAlias();
 		virtual bool runOnModule(Module &M);
 		void recalculate(Module &M);
 		virtual void print(raw_ostream &O, const Module *M) const;

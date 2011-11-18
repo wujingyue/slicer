@@ -5,18 +5,23 @@
  * including function main. 
  */
 
+#include "llvm/PassRegistry.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Support/CommandLine.h"
 #include "common/identify-thread-funcs.h"
 #include "common/util.h"
+#include "common/InitializePasses.h"
+#include "slicer/InitializePasses.h"
 using namespace llvm;
 
 namespace slicer {
 	struct Preparer: public ModulePass {
 		static char ID;
 
-		Preparer(): ModulePass(ID) {}
+		Preparer(): ModulePass(ID) {
+			initializePreparerPass(*PassRegistry::getPassRegistry());
+		}
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual bool runOnModule(Module &M);
 
@@ -26,20 +31,24 @@ namespace slicer {
 }
 using namespace slicer;
 
-static RegisterPass<Preparer> X("prepare",
-		"Adds enforcing landmarks at the entry and exits of all thread functions");
+INITIALIZE_PASS_BEGIN(Preparer, "prepare",
+		"Adds enforcing landmarks at the entry and exits of all thread functions",
+		false, false)
+INITIALIZE_PASS_DEPENDENCY(IdentifyThreadFuncs)
+INITIALIZE_PASS_END(Preparer, "prepare",
+		"Adds enforcing landmarks at the entry and exits of all thread functions",
+		false, false)
+
+void Preparer::getAnalysisUsage(AnalysisUsage &AU) const {
+	AU.setPreservesCFG();
+	AU.addRequired<IdentifyThreadFuncs>();
+}
 
 static cl::list<string> OtherThreadFunctions("thread-func",
 		cl::desc("Other functions that should be treated as thread functions, "
 			"e.g. child_main in Apache"));
 
 char Preparer::ID = 0;
-
-void Preparer::getAnalysisUsage(AnalysisUsage &AU) const {
-	AU.setPreservesCFG();
-	AU.addRequired<IdentifyThreadFuncs>();
-	ModulePass::getAnalysisUsage(AU);
-}
 
 bool Preparer::is_specified_thread_function(const Function *f) const {
 	for (cl::list<string>::const_iterator itr = OtherThreadFunctions.begin();
@@ -91,3 +100,11 @@ bool Preparer::runOnModule(Module &M) {
 
 	return true;
 }
+
+struct RegisterPreparerPasses {
+	RegisterPreparerPasses() {
+		PassRegistry &reg = *PassRegistry::getPassRegistry();
+		initializePreparerPass(reg);
+	}
+};
+static RegisterPreparerPasses X;

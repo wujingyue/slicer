@@ -30,8 +30,7 @@ namespace slicer {
 	struct SolveConstraints: public ModulePass {
 		static char ID;
 
-		SolveConstraints(): ModulePass(ID), print_counterexample_(false),
-			print_asserts_(false), print_minimal_proof_set_(false) {}
+		SolveConstraints();
 		virtual bool runOnModule(Module &M);
 		virtual void print(raw_ostream &O, const Module *M) const;
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;

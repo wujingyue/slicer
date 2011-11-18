@@ -5,8 +5,7 @@ PROG_NAMES = test-loop test-reducer test-thread test-loop-2 test-ctxt-2 \
 	     test-overwrite-2 RADIX-like test-thread-2 test-global \
 	     test-malloc test-ctxt test-range \
 	     test-range-3 test-range-4 test-assert \
-	     FFT RADIX aget pbzip2 CHOLESKY aget-fake LU-cont swaptions \
-	     streamcluster blackscholes
+	     FFT RADIX aget pbzip2 CHOLESKY LU-cont
 PROGS_DIR = ../progs
 PROG_PATHS = $(addprefix $(PROGS_DIR)/, $(PROG_NAMES))
 SLICED_PROGS = $(addsuffix .slice, $(PROG_PATHS))
@@ -20,10 +19,8 @@ region: $(addsuffix .region, $(PROG_NAMES))
 # max-slicing requires ID information. 
 $(PROGS_DIR)/%.slice.bc: $(PROGS_DIR)/%.id.bc ../trace/%.lt
 	opt -stats -o $@ \
-		-load $(LLVM_ROOT)/install/lib/id-manager.so \
+		-load $(LLVM_ROOT)/install/lib/id.so \
 		-load $(LLVM_ROOT)/install/lib/bc2bdd.so \
-		-load $(LLVM_ROOT)/install/lib/callgraph-fp.so \
-		-load $(LLVM_ROOT)/install/lib/mbb.so \
 		-load $(LLVM_ROOT)/install/lib/cfg.so \
 		-load $(LLVM_ROOT)/install/lib/slicer-trace.so \
 		-load $(LLVM_ROOT)/install/lib/max-slicing.so \
@@ -34,10 +31,8 @@ $(PROGS_DIR)/%.slice.bc: $(PROGS_DIR)/%.id.bc ../trace/%.lt
 # These BC's are not used by other modules, therefore put them here locally. 
 %.region: $(PROGS_DIR)/%.slice.bc ../trace/%.lt
 	opt -disable-output \
-		-load $(LLVM_ROOT)/install/lib/id-manager.so \
+		-load $(LLVM_ROOT)/install/lib/id.so \
 		-load $(LLVM_ROOT)/install/lib/bc2bdd.so \
-		-load $(LLVM_ROOT)/install/lib/callgraph-fp.so \
-		-load $(LLVM_ROOT)/install/lib/mbb.so \
 		-load $(LLVM_ROOT)/install/lib/cfg.so \
 		-load $(LLVM_ROOT)/install/lib/slicer-trace.so \
 		-load $(LLVM_ROOT)/install/lib/max-slicing.so \

@@ -13,8 +13,7 @@ namespace slicer {
 	struct CountCtxts: public ModulePass {
 
 		static char ID;
-
-		CountCtxts(): ModulePass(ID) {}
+		CountCtxts();
 		virtual bool runOnModule(Module &M);
 		virtual void print(raw_ostream &O, const Module *M) const;
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;

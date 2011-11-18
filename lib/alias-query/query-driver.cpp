@@ -16,6 +16,9 @@ using namespace boost;
 #include "llvm/Support/Debug.h"
 #include "common/IDAssigner.h"
 #include "common/util.h"
+#include "common/InitializePasses.h"
+#include "bc2bdd/InitializePasses.h"
+#include "slicer/InitializePasses.h"
 using namespace llvm;
 
 #include "bc2bdd/BddAliasAnalysis.h"
@@ -28,10 +31,6 @@ using namespace repair;
 #include "slicer/clone-info-manager.h"
 using namespace slicer;
 
-static RegisterPass<QueryDriver> X("drive-queries",
-		"Issues alias queries to either bc2bdd or advanced-aa",
-		false, true);
-
 static cl::opt<string> QueryList("query-list",
 		cl::desc("The input query list"));
 static cl::opt<bool> UseAdvancedAA("use-adv-aa",
@@ -39,7 +38,36 @@ static cl::opt<bool> UseAdvancedAA("use-adv-aa",
 static cl::opt<bool> LoadLoad("driver-loadload",
 		cl::desc("The query driver considers load-load aliases as well"));
 
+INITIALIZE_PASS_BEGIN(QueryDriver, "drive-queries",
+		"Issues alias queries to either bc2bdd or advanced-aa", false, true)
+INITIALIZE_PASS_DEPENDENCY(IDAssigner)
+INITIALIZE_PASS_DEPENDENCY(CloneInfoManager)
+if (UseAdvancedAA) {
+	INITIALIZE_PASS_DEPENDENCY(Iterate)
+	INITIALIZE_PASS_DEPENDENCY(AdvancedAlias)
+} else {
+	INITIALIZE_PASS_DEPENDENCY(BddAliasAnalysis)
+}
+INITIALIZE_PASS_END(QueryDriver, "drive-queries",
+		"Issues alias queries to either bc2bdd or advanced-aa", false, true)
+
 char QueryDriver::ID = 0;
+
+void QueryDriver::getAnalysisUsage(AnalysisUsage &AU) const {
+	AU.setPreservesAll();
+	AU.addRequired<IDAssigner>();
+	AU.addRequired<CloneInfoManager>();
+	if (UseAdvancedAA) {
+		AU.addRequired<Iterate>();
+		AU.addRequired<AdvancedAlias>();
+	} else {
+		AU.addRequired<BddAliasAnalysis>();
+	}
+}
+
+QueryDriver::QueryDriver(): ModulePass(ID), total_time(0.0) {
+	initializeQueryTranslatorPass(*PassRegistry::getPassRegistry());
+}
 
 bool QueryDriver::runOnModule(Module &M) {
 	read_queries();
@@ -240,17 +268,4 @@ void QueryDriver::parse_contexted_ins(const string &str, ContextedIns &ci) {
 	assert(ci.callstack.size() > 0);
 	ci.ins = ci.callstack.back();
 	ci.callstack.pop_back();
-}
-
-void QueryDriver::getAnalysisUsage(AnalysisUsage &AU) const {
-	AU.setPreservesAll();
-	AU.addRequired<IDAssigner>();
-	if (UseAdvancedAA) {
-		AU.addRequired<Iterate>();
-		AU.addRequired<AdvancedAlias>();
-	} else {
-		AU.addRequired<BddAliasAnalysis>();
-	}
-	AU.addRequired<CloneInfoManager>();
-	ModulePass::getAnalysisUsage(AU);
 }

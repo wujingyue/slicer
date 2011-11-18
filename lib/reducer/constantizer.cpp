@@ -14,6 +14,7 @@ using namespace std;
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Target/TargetData.h"
 #include "common/util.h"
+#include "slicer/InitializePasses.h"
 using namespace llvm;
 
 #include "slicer/iterate.h"
@@ -23,9 +24,16 @@ using namespace llvm;
 #include "slicer/constantizer.h"
 using namespace slicer;
 
-static RegisterPass<Constantizer> X("constantize",
+INITIALIZE_PASS_BEGIN(Constantizer, "constantize",
 		"Replace variables with constants whenever possible and "
-		"remove unreachable branches according to int-constraints");
+		"remove unreachable branches according to int-constraints", false, false)
+INITIALIZE_PASS_DEPENDENCY(TargetData)
+INITIALIZE_PASS_DEPENDENCY(CaptureConstraints)
+INITIALIZE_PASS_DEPENDENCY(SolveConstraints)
+INITIALIZE_PASS_DEPENDENCY(Iterate)
+INITIALIZE_PASS_END(Constantizer, "constantize",
+		"Replace variables with constants whenever possible and "
+		"remove unreachable branches according to int-constraints", false, false)
 
 static cl::opt<bool> DisableConstantizing("disable-constantizing",
 		cl::desc("Disable constantizing"));
@@ -34,12 +42,15 @@ STATISTIC(VariablesConstantized, "Number of variables constantized");
 
 char Constantizer::ID = 0;
 
+Constantizer::Constantizer(): ModulePass(ID) {
+	initializeConstantizerPass(*PassRegistry::getPassRegistry());
+}
+
 void Constantizer::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<TargetData>();
 	AU.addRequired<Iterate>();
 	AU.addRequired<CaptureConstraints>();
 	AU.addRequired<SolveConstraints>();
-	ModulePass::getAnalysisUsage(AU);
 }
 
 bool Constantizer::constantize(Module &M) {

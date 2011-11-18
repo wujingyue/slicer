@@ -7,16 +7,30 @@ using namespace boost;
 #include "llvm/Support/CommandLine.h"
 #include "common/IDManager.h"
 #include "common/IDAssigner.h"
+#include "common/InitializePasses.h"
+#include "slicer/InitializePasses.h"
 using namespace llvm;
 
 #include "slicer/query-translator.h"
 #include "slicer/clone-info-manager.h"
 using namespace slicer;
 
-static RegisterPass<QueryTranslator> X("translate-queries",
+INITIALIZE_PASS_BEGIN(QueryTranslator, "translate-queries",
 		"Translate queries on the original program to "
-		"those on the sliced program",
-		false, true);
+		"those on the sliced program", false, true)
+INITIALIZE_PASS_DEPENDENCY(IDManager)
+INITIALIZE_PASS_DEPENDENCY(IDAssigner)
+INITIALIZE_PASS_DEPENDENCY(CloneInfoManager)
+INITIALIZE_PASS_END(QueryTranslator, "translate-queries",
+		"Translate queries on the original program to "
+		"those on the sliced program", false, true)
+
+void QueryTranslator::getAnalysisUsage(AnalysisUsage &AU) const {
+	AU.setPreservesAll();
+	AU.addRequired<IDManager>();
+	AU.addRequired<IDAssigner>();
+	AU.addRequired<CloneInfoManager>();
+}
 
 static cl::opt<string> RawQueryList("input-raw-queries",
 		cl::desc("The path to the input file containing raw queries"));
@@ -24,6 +38,10 @@ static cl::opt<string> QueryList("output-queries",
 		cl::desc("The path to the output file containing queries"));
 
 char QueryTranslator::ID = 0;
+
+QueryTranslator::QueryTranslator(): ModulePass(ID) {
+	initializeQueryTranslatorPass(*PassRegistry::getPassRegistry());
+}
 
 bool QueryTranslator::parse_raw_query(const string &line,
 		vector<DynamicInsID> &a, vector<DynamicInsID> &b) {
@@ -149,12 +167,4 @@ bool QueryTranslator::runOnModule(Module &M) {
 	}
 
 	return false;
-}
-
-void QueryTranslator::getAnalysisUsage(AnalysisUsage &AU) const {
-	AU.setPreservesAll();
-	AU.addRequired<IDManager>();
-	AU.addRequired<IDAssigner>();
-	AU.addRequired<CloneInfoManager>();
-	ModulePass::getAnalysisUsage(AU);
 }

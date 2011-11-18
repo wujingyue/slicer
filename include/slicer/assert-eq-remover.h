@@ -12,7 +12,7 @@ namespace slicer {
 	struct AssertEqRemover: public BasicBlockPass {
 		static char ID;
 
-		AssertEqRemover():BasicBlockPass(ID) {}
+		AssertEqRemover();
 		virtual bool runOnBasicBlock(BasicBlock &BB);
 	};
 }

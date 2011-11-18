@@ -2,6 +2,8 @@
 #include "common/callgraph-fp.h"
 #include "common/util.h"
 #include "common/typedefs.h"
+#include "common/InitializePasses.h"
+#include "slicer/InitializePasses.h"
 using namespace llvm;
 
 #include "slicer/ctxt.h"
@@ -9,9 +11,15 @@ using namespace slicer;
 
 #define COLLAPSE_RECURSIVE
 
-static RegisterPass<CountCtxts> X("count-ctxts",
-		"Count the number of calling contexts of each function",
-		false, true);
+INITIALIZE_PASS_BEGIN(CountCtxts, "count-ctxts",
+		"Count the number of calling contexts of each function", false, true)
+INITIALIZE_PASS_DEPENDENCY(CallGraphFP)
+INITIALIZE_PASS_END(CountCtxts, "count-ctxts",
+		"Count the number of calling contexts of each function", false, true)
+
+CountCtxts::CountCtxts(): ModulePass(ID) {
+	initializeCountCtxtsPass(*PassRegistry::getPassRegistry());
+}
 
 char CountCtxts::ID = 0;
 
@@ -80,7 +88,6 @@ void CountCtxts::print(raw_ostream &O, const Module *M) const {
 void CountCtxts::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
 	AU.addRequiredTransitive<CallGraphFP>(); // used in <num_ctxts>
-	ModulePass::getAnalysisUsage(AU);
 }
 
 unsigned long CountCtxts::num_ctxts(const Function *f) const {

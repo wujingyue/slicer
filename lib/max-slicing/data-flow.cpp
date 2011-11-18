@@ -272,7 +272,6 @@ void MaxSlicing::fix_def_use_func_call(Module &M) {
 }
 
 void MaxSlicing::fix_def_use_func_param(Module &M) {
-
 	dbgs() << "Fixing function parameters in def-use graph...\n";
 
 	forall(InstMapping, it, clone_map_r) {

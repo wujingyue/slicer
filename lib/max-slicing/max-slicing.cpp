@@ -17,6 +17,8 @@
 #include "common/IDManager.h"
 #include "common/callgraph-fp.h"
 #include "common/exec.h"
+#include "common/InitializePasses.h"
+#include "slicer/InitializePasses.h"
 using namespace llvm;
 
 #include <iostream>
@@ -30,14 +32,24 @@ using namespace std;
 #include "slicer/mark-landmarks.h"
 using namespace slicer;
 
-static RegisterPass<MaxSlicing> X("max-slicing",
-		"Slice and unroll the program according to the trace");
-
 STATISTIC(NumOrigInstructions, "Number of original instructions");
 STATISTIC(NumOrigInstructionsLeft,
 		"Number of original instructions left after slicing");
 STATISTIC(NumInstructionsInSliced,
 		"Number of all instructions in the sliced program");
+
+INITIALIZE_PASS_BEGIN(MaxSlicing, "max-slicing",
+		"Slice and unroll the program according to the trace", false, false)
+INITIALIZE_PASS_DEPENDENCY(IDManager)
+INITIALIZE_PASS_DEPENDENCY(MicroBasicBlockBuilder)
+INITIALIZE_PASS_DEPENDENCY(CallGraphFP)
+INITIALIZE_PASS_DEPENDENCY(Exec)
+INITIALIZE_PASS_DEPENDENCY(MarkLandmarks)
+INITIALIZE_PASS_DEPENDENCY(EnforcingLandmarks)
+INITIALIZE_PASS_DEPENDENCY(LandmarkTrace)
+INITIALIZE_PASS_DEPENDENCY(DominatorTree)
+INITIALIZE_PASS_END(MaxSlicing, "max-slicing",
+		"Slice and unroll the program according to the trace", false, false)
 
 void MaxSlicing::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<IDManager>();
@@ -48,7 +60,15 @@ void MaxSlicing::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<EnforcingLandmarks>();
 	AU.addRequired<LandmarkTrace>();
 	AU.addRequired<DominatorTree>();
-	ModulePass::getAnalysisUsage(AU);
+}
+
+char MaxSlicing::ID = 0;
+
+const string SLICER_SUFFIX;
+const string OLDMAIN_SUFFIX;
+
+MaxSlicing::MaxSlicing(): ModulePass(ID) {
+	initializeMaxSlicingPass(*PassRegistry::getPassRegistry());
 }
 
 void MaxSlicing::print_inst_set(raw_ostream &O, const InstSet &s) {
@@ -236,4 +256,12 @@ void MaxSlicing::volatile_landmarks(Module &M) {
 	}
 }
 
-char MaxSlicing::ID = 0;
+struct RegisterMaxSlicingPasses {
+	RegisterMaxSlicingPasses() {
+		PassRegistry &reg = *PassRegistry::getPassRegistry();
+		initializeCloneInfoManagerPass(reg);
+		initializeMaxSlicingPass(reg);
+		initializeRegionManagerPass(reg);
+	}
+};
+static RegisterMaxSlicingPasses X;

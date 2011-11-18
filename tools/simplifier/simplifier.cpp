@@ -3,7 +3,11 @@
  *
  * Borrowed most of the code from opt.cpp.
  * Follow the LLVM coding style. 
+ *
+ * Note: DEBUG is ignored until ParseCommandLineOptions. 
  */
+
+#define DEBUG_TYPE "simplifier"
 
 #include <cstdio>
 #include <memory>
@@ -116,16 +120,16 @@ int LoadPlugins() {
 	}
 	string LibDir = string(LLVMRoot) + "/install/lib";
 	PluginLoader Loader;
-	Loader = LibDir + "/libid-manager.so";
-	Loader = LibDir + "/libmbb.so";
-	Loader = LibDir + "/libbc2bdd.so";
-	Loader = LibDir + "/libcallgraph-fp.so";
-	Loader = LibDir + "/libcfg.so";
-	Loader = LibDir + "/libslicer-trace.so";
-	Loader = LibDir + "/libmax-slicing.so";
-	Loader = LibDir + "/libint.so";
-	Loader = LibDir + "/libreducer.so";
-	DEBUG(dbgs() << "# of plugins = " << Loader.getNumPlugins() << "\n";);
+	Loader = LibDir + "/id-manager.so";
+	Loader = LibDir + "/mbb.so";
+	Loader = LibDir + "/bc2bdd.so";
+	Loader = LibDir + "/callgraph-fp.so";
+	Loader = LibDir + "/cfg.so";
+	Loader = LibDir + "/slicer-trace.so";
+	Loader = LibDir + "/max-slicing.so";
+	Loader = LibDir + "/int.so";
+	Loader = LibDir + "/reducer.so";
+	dbgs() << "# of plugins = " << Loader.getNumPlugins() << "\n";
 	return 0;
 }
 

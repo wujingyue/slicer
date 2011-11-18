@@ -21,12 +21,10 @@ using namespace std;
 using namespace slicer;
 
 namespace slicer {
-
 	struct LandmarkTrace: public ModulePass {
-
 		static char ID;
 
-		LandmarkTrace(): ModulePass(ID) {}
+		LandmarkTrace();
 		virtual bool runOnModule(Module &M);
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual void print(raw_ostream &O, const Module *M) const;

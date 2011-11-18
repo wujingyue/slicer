@@ -6,7 +6,7 @@ PROG_NAMES = test-loop test-reducer test-overwrite test-loop-2 test-ctxt-2 \
 	     RADIX-like test-thread-2 test-range-2 \
 	     test-overwrite-2 test-malloc test-range \
 	     test-range-3 test-range-4 test-global \
-	     aget RADIX FFT aget-fake LU-cont swaptions blackscholes
+	     aget RADIX FFT LU-cont
 PROGS_DIR = ../progs
 PROGS = $(addprefix $(PROGS_DIR)/, $(PROG_NAMES))
 SIMPLE_PROGS = $(PROGS:=.simple)
@@ -64,10 +64,8 @@ $(PROGS_DIR)/%.simple.bc: $(PROGS_DIR)/%.slice.bc ../trace/%.lt
 
 %.loop: %.bc
 	opt -stats -analyze \
-		-load $(LLVM_ROOT)/install/lib/id-manager.so \
+		-load $(LLVM_ROOT)/install/lib/id.so \
 		-load $(LLVM_ROOT)/install/lib/bc2bdd.so \
-		-load $(LLVM_ROOT)/install/lib/callgraph-fp.so \
-		-load $(LLVM_ROOT)/install/lib/mbb.so \
 		-load $(LLVM_ROOT)/install/lib/cfg.so \
 		-load $(LLVM_ROOT)/install/lib/slicer-trace.so \
 		-load $(LLVM_ROOT)/install/lib/max-slicing.so \

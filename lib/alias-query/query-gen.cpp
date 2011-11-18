@@ -1,6 +1,8 @@
 #include "llvm/Support/CommandLine.h"
 #include "common/IDAssigner.h"
 #include "common/util.h"
+#include "common/InitializePasses.h"
+#include "slicer/InitializePasses.h"
 using namespace llvm;
 
 #include "slicer/query-gen.h"
@@ -9,13 +11,8 @@ using namespace llvm;
 #include "slicer/enforcing-landmarks.h"
 #include "slicer/landmark-trace.h"
 #include "slicer/mark-landmarks.h"
-#include "slicer/add-calling-context.h"
 #include "pointer-access.h"
 using namespace slicer;
-
-static RegisterPass<QueryGenerator> X("gen-queries",
-		"Generate alias queries from a program",
-		false, true);
 
 static cl::opt<bool> ForOriginalProgram("for-orig",
 		cl::desc("Generate alias queries for the original program instead of the "
@@ -31,7 +28,43 @@ static cl::opt<int> SampleRate("sample",
 			"be picked"),
 		cl::init(1));
 
+INITIALIZE_PASS_BEGIN(QueryGenerator, "gen-queries",
+		"Generate alias queries from a program", false, true)
+INITIALIZE_PASS_DEPENDENCY(IDAssigner)
+if (Concurrent) {
+	INITIALIZE_PASS_DEPENDENCY(RegionManager)
+	INITIALIZE_PASS_DEPENDENCY(EnforcingLandmarks)
+	INITIALIZE_PASS_DEPENDENCY(MarkLandmarks)
+	INITIALIZE_PASS_DEPENDENCY(LandmarkTrace)
+	INITIALIZE_PASS_DEPENDENCY(TraceManager)
+} else {
+	INITIALIZE_PASS_DEPENDENCY(CloneInfoManager)
+}
+INITIALIZE_PASS_END(QueryGenerator, "gen-queries",
+		"Generate alias queries from a program", false, true)
+
 char QueryGenerator::ID = 0;
+
+void QueryGenerator::getAnalysisUsage(AnalysisUsage &AU) const {
+	AU.setPreservesAll();
+	// Used in print
+	AU.addRequiredTransitive<IDAssigner>();
+	if (Concurrent) {
+		AU.addRequired<RegionManager>();
+		AU.addRequired<EnforcingLandmarks>();
+		AU.addRequired<MarkLandmarks>();
+		AU.addRequired<LandmarkTrace>();
+		AU.addRequired<TraceManager>();
+	} else {
+		// When Concurrent is true, the input bc is the original bc which
+		// does not contain any clone_info. Therefore, we shouldn't require
+		// CloneInfoManager in that situation.
+		AU.addRequiredTransitive<CloneInfoManager>();
+	}
+}
+QueryGenerator::QueryGenerator(): ModulePass(ID) {
+	initializeQueryGeneratorPass(*PassRegistry::getPassRegistry());
+}
 
 void QueryGenerator::generate_static_queries(Module &M) {
 	// Deterministic sampling to be fair.
@@ -291,24 +324,4 @@ void QueryGenerator::print_dynamic_instruction_with_context(raw_ostream &O,
 		}
 		print_dynamic_instruction(O, diwc.di);
 	}
-}
-
-void QueryGenerator::getAnalysisUsage(AnalysisUsage &AU) const {
-	AU.setPreservesAll();
-	if (Concurrent) {
-		AU.addRequired<RegionManager>();
-		AU.addRequired<EnforcingLandmarks>();
-		AU.addRequired<MarkLandmarks>();
-		AU.addRequired<LandmarkTrace>();
-		AU.addRequired<TraceManager>();
-	}
-	// Used in print
-	if (!Concurrent) {
-		// When Concurrent is true, the input bc is the original bc which
-		// does not contain any clone_info. Therefore, we shouldn't require
-		// CloneInfoManager in that situation.
-		AU.addRequiredTransitive<CloneInfoManager>();
-	}
-	AU.addRequiredTransitive<IDAssigner>();
-	ModulePass::getAnalysisUsage(AU);
 }

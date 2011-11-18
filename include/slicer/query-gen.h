@@ -78,7 +78,7 @@ namespace slicer {
 	struct QueryGenerator: public ModulePass {
 		static char ID;
 
-		QueryGenerator(): ModulePass(ID) {}
+		QueryGenerator();
 		virtual bool runOnModule(Module &M);
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual void print(raw_ostream &O, const Module *M) const;

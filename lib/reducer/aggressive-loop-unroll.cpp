@@ -4,20 +4,31 @@
 
 #include "llvm/Transforms/Utils/UnrollLoop.h"
 #include "llvm/Support/Debug.h"
+#include "slicer/InitializePasses.h"
 using namespace llvm;
 
 #include "slicer/aggressive-loop-unroll.h"
 using namespace slicer;
 
-static RegisterPass<AggressiveLoopUnroll> X("aggressive-loop-unroll",
-		"Aggressively unroll loops even if it contains function calls");
+INITIALIZE_PASS_BEGIN(AggressiveLoopUnroll, "aggressive-loop-unroll",
+		"Aggressively unroll loops even if it contains function calls",
+		false, false)
+INITIALIZE_PASS_DEPENDENCY(LoopInfo)
+INITIALIZE_PASS_DEPENDENCY(DominatorTree)
+INITIALIZE_PASS_END(AggressiveLoopUnroll, "aggressive-loop-unroll",
+		"Aggressively unroll loops even if it contains function calls",
+		false, false)
 
 char AggressiveLoopUnroll::ID = 0;
 
 /* Requires LCSSA. */
 void AggressiveLoopUnroll::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<LoopInfo>();
-	LoopPass::getAnalysisUsage(AU);
+	AU.addRequired<DominatorTree>();
+}
+
+AggressiveLoopUnroll::AggressiveLoopUnroll(): LoopPass(ID) {
+	initializeAggressiveLoopUnrollPass(*PassRegistry::getPassRegistry());
 }
 
 bool AggressiveLoopUnroll::runOnLoop(Loop *L, LPPassManager &LPM) {
@@ -27,11 +38,9 @@ bool AggressiveLoopUnroll::runOnLoop(Loop *L, LPPassManager &LPM) {
 		L->getHeader()->getName() << "\n";
 #endif
 
+	// LoopPass is a FunctionPass. Needn't specify the function. 
 	LoopInfo &LI = getAnalysis<LoopInfo>();
-
-	BasicBlock *header = L->getHeader();
-	Function *f = header->getParent();
-	DominatorTree &DT = getAnalysis<DominatorTree>(*f);
+	DominatorTree &DT = getAnalysis<DominatorTree>();
 
 	if (!L->isLCSSAForm(DT)) {
 		errs() << "not LCSSA:" << *(L->getHeader()) << "\n";

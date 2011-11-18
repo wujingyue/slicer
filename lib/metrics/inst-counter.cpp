@@ -7,6 +7,8 @@
 #include "llvm/ADT/Statistic.h"
 #include "common/IDManager.h"
 #include "common/exec-once.h"
+#include "common/InitializePasses.h"
+#include "slicer/InitializePasses.h"
 using namespace llvm;
 
 #include "slicer/clone-info-manager.h"
@@ -15,9 +17,13 @@ using namespace slicer;
 
 char InstCounter::ID = 0;
 
-static RegisterPass<InstCounter> X("count-insts",
-		"Count number of stores and loads",
-		false, true);
+INITIALIZE_PASS_BEGIN(InstCounter, "count-insts",
+		"Count number of stores and loads", false, true)
+INITIALIZE_PASS_DEPENDENCY(IDManager)
+INITIALIZE_PASS_DEPENDENCY(CloneInfoManager)
+INITIALIZE_PASS_DEPENDENCY(ExecOnce)
+INITIALIZE_PASS_END(InstCounter, "count-insts",
+		"Count number of stores and loads", false, true)
 
 STATISTIC(NumStores, "Number of stores");
 STATISTIC(NumLoads, "Number of loads");
@@ -27,7 +33,10 @@ void InstCounter::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<IDManager>();
 	AU.addRequired<CloneInfoManager>();
 	AU.addRequired<ExecOnce>();
-	ModulePass::getAnalysisUsage(AU);
+}
+
+InstCounter::InstCounter(): ModulePass(ID) {
+	initializeInstCounterPass(*PassRegistry::getPassRegistry());
 }
 
 bool InstCounter::runOnModule(Module &M) {

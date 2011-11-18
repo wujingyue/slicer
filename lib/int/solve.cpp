@@ -19,6 +19,8 @@ using namespace std;
 #include "common/intra-reach.h"
 #include "common/callgraph-fp.h"
 #include "common/exec-once.h"
+#include "common/InitializePasses.h"
+#include "slicer/InitializePasses.h"
 using namespace llvm;
 
 #include "slicer/capture.h"
@@ -26,11 +28,39 @@ using namespace llvm;
 #include "slicer/adv-alias.h"
 using namespace slicer;
 
-static RegisterPass<SolveConstraints> X("solve",
-		"Solve captured constraints using STP",
-		false, true); // is analysis
+INITIALIZE_PASS_BEGIN(SolveConstraints, "solve",
+		"Solve captured constraints using STP", false, true)
+INITIALIZE_PASS_DEPENDENCY(TargetData)
+INITIALIZE_PASS_DEPENDENCY(IDAssigner)
+INITIALIZE_PASS_DEPENDENCY(LoopInfo)
+INITIALIZE_PASS_DEPENDENCY(DominatorTree)
+INITIALIZE_PASS_DEPENDENCY(IntraReach)
+INITIALIZE_PASS_DEPENDENCY(CaptureConstraints)
+INITIALIZE_PASS_DEPENDENCY(CallGraphFP)
+INITIALIZE_PASS_DEPENDENCY(ExecOnce)
+INITIALIZE_PASS_END(SolveConstraints, "solve",
+		"Solve captured constraints using STP", false, true)
+
+void SolveConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
+	AU.setPreservesAll();
+	AU.addRequiredTransitive<TargetData>();
+	AU.addRequiredTransitive<IDAssigner>();
+	AU.addRequiredTransitive<LoopInfo>();
+	AU.addRequiredTransitive<DominatorTree>();
+	AU.addRequiredTransitive<IntraReach>();
+	AU.addRequiredTransitive<CaptureConstraints>();
+	AU.addRequiredTransitive<CallGraphFP>();
+	AU.addRequiredTransitive<ExecOnce>();
+}
 
 char SolveConstraints::ID = 0;
+
+SolveConstraints::SolveConstraints(): ModulePass(ID),
+	print_counterexample_(false),
+	print_asserts_(false), print_minimal_proof_set_(false)
+{
+	initializeSolveConstraintsPass(*PassRegistry::getPassRegistry());
+}
 
 void SolveConstraints::releaseMemory() {
 	// Principally paired with the create_vc in runOnModule. 
@@ -550,19 +580,6 @@ bool SolveConstraints::is_simple_eq(
 
 void SolveConstraints::print(raw_ostream &O, const Module *M) const {
 	// Don't know what to do. 
-}
-
-void SolveConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
-	AU.setPreservesAll();
-	AU.addRequiredTransitive<TargetData>();
-	AU.addRequiredTransitive<IDAssigner>();
-	AU.addRequiredTransitive<LoopInfo>();
-	AU.addRequiredTransitive<DominatorTree>();
-	AU.addRequiredTransitive<IntraReach>();
-	AU.addRequiredTransitive<CaptureConstraints>();
-	AU.addRequiredTransitive<CallGraphFP>();
-	AU.addRequiredTransitive<ExecOnce>();
-	ModulePass::getAnalysisUsage(AU);
 }
 
 bool SolveConstraints::satisfiable(const Clause *c) {

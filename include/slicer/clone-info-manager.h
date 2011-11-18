@@ -55,7 +55,7 @@ namespace slicer {
 	struct CloneInfoManager: public ModulePass {
 		static char ID;
 
-		CloneInfoManager(): ModulePass(ID) {}
+		CloneInfoManager();
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual bool runOnModule(Module &M);
 		

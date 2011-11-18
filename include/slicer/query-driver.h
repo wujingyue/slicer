@@ -18,7 +18,7 @@ namespace slicer {
 	struct QueryDriver: public ModulePass {
 		static char ID;
 
-		QueryDriver(): ModulePass(ID), total_time(0.0) {}
+		QueryDriver();
 		virtual bool runOnModule(Module &M);
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 		virtual void print(raw_ostream &O, const Module *M) const;

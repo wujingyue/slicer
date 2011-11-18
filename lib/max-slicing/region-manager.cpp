@@ -9,6 +9,8 @@
 #include "common/partial-icfg-builder.h"
 #include "common/reach.h"
 #include "common/callgraph-fp.h"
+#include "common/InitializePasses.h"
+#include "slicer/InitializePasses.h"
 using namespace llvm;
 
 #include "slicer/region-manager.h"
@@ -17,12 +19,18 @@ using namespace llvm;
 #include "slicer/landmark-trace.h"
 using namespace slicer;
 
-static RegisterPass<RegionManager> X("manage-region",
+INITIALIZE_PASS_BEGIN(RegionManager, "manage-region",
 		"Mark each cloned instruction with its previous enforcing landmark "
-		"and next enforcing landmark",
-		false, true);
-
-char RegionManager::ID = 0;
+		"and next enforcing landmark", false, true)
+INITIALIZE_PASS_DEPENDENCY(CloneInfoManager)
+INITIALIZE_PASS_DEPENDENCY(LandmarkTrace)
+INITIALIZE_PASS_DEPENDENCY(MicroBasicBlockBuilder)
+INITIALIZE_PASS_DEPENDENCY(ExecOnce)
+INITIALIZE_PASS_DEPENDENCY(PartialICFGBuilder)
+INITIALIZE_PASS_DEPENDENCY(CallGraphFP)
+INITIALIZE_PASS_END(RegionManager, "manage-region",
+		"Mark each cloned instruction with its previous enforcing landmark "
+		"and next enforcing landmark", false, true)
 
 void RegionManager::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
@@ -32,8 +40,9 @@ void RegionManager::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<ExecOnce>();
 	AU.addRequired<PartialICFGBuilder>();
 	AU.addRequiredTransitive<CallGraphFP>();
-	ModulePass::getAnalysisUsage(AU);
 }
+
+char RegionManager::ID = 0;
 
 bool slicer::operator<(const Region &a, const Region &b) {
 	return a.thr_id < b.thr_id || (a.thr_id == b.thr_id &&
@@ -49,6 +58,10 @@ raw_ostream &slicer::operator<<(raw_ostream &O, const Region &r) {
 	O << "(" << r.thr_id << ", " << r.prev_enforcing_landmark << ", " <<
 		r.next_enforcing_landmark << ")";
 	return O;
+}
+
+RegionManager::RegionManager(): ModulePass(ID) {
+	initializeRegionManagerPass(*PassRegistry::getPassRegistry());
 }
 
 bool RegionManager::runOnModule(Module &M) {

@@ -9,6 +9,8 @@
 #include "common/IDManager.h"
 #include "common/exec-once.h"
 #include "common/util.h"
+#include "common/InitializePasses.h"
+#include "slicer/InitializePasses.h"
 using namespace llvm;
 
 #include "slicer/trace.h"
@@ -16,9 +18,22 @@ using namespace llvm;
 #include "slicer/mark-landmarks.h"
 using namespace slicer;
 
-static RegisterPass<slicer::Instrument> X("instrument",
+INITIALIZE_PASS_BEGIN(Instrument, "instrument",
 		"Instrument the program so that it will generate a trace"
-		" when being executed");
+		" when being executed", false, false)
+INITIALIZE_PASS_DEPENDENCY(IDManager)
+INITIALIZE_PASS_DEPENDENCY(MarkLandmarks)
+INITIALIZE_PASS_DEPENDENCY(ExecOnce)
+INITIALIZE_PASS_END(Instrument, "instrument",
+		"Instrument the program so that it will generate a trace"
+		" when being executed", false, false)
+
+void Instrument::getAnalysisUsage(AnalysisUsage &AU) const {
+	AU.setPreservesCFG();
+	AU.addRequired<IDManager>();
+	AU.addRequired<MarkLandmarks>();
+	AU.addRequired<ExecOnce>();
+}
 
 static cl::opt<bool> InstrumentEachBB("instrument-each-bb",
 		cl::desc("Instrument each BB so that we can get an almost full trace"));
@@ -49,12 +64,8 @@ const static char *BLOCKING_FUNCS[] = {
 
 char Instrument::ID = 0;
 
-void Instrument::getAnalysisUsage(AnalysisUsage &AU) const {
-	AU.setPreservesCFG();
-	AU.addRequired<IDManager>();
-	AU.addRequired<MarkLandmarks>();
-	AU.addRequired<ExecOnce>();
-	ModulePass::getAnalysisUsage(AU);
+Instrument::Instrument(): ModulePass(ID) {
+	initializeInstrumentPass(*PassRegistry::getPassRegistry());
 }
 
 bool Instrument::blocks(Instruction *ins) {
@@ -125,11 +136,11 @@ bool Instrument::runOnModule(Module &M) {
 									"Cannot find the pthread_create wrapper");
 							vector<Value *> args;
 							args.push_back(ConstantInt::get(uint_type, ins_id));
-							// Arguments start from index 1. 
-							for (unsigned i = 1; i < ci->getNumOperands(); ++i)
-								args.push_back(ci->getOperand(i));
-							CallInst *new_ci = CallInst::Create(
-									pth_create_wrapper, args.begin(), args.end());
+							CallSite cs(ii);
+							for (unsigned i = 0; i < cs.arg_size(); ++i)
+								args.push_back(cs.getArgument(i));
+							CallInst *new_ci = CallInst::Create(pth_create_wrapper,
+									args.begin(), args.end());
 							ReplaceInstWithInst(ci, new_ci);
 							// Otherwise, ++ii will fail. 
 							ii = new_ci;
@@ -141,8 +152,8 @@ bool Instrument::runOnModule(Module &M) {
 				// Before the instruction if non-blocking. 
 				// After the instruction if blocking. 
 				if (!blocks(ii)) {
-					CallInst::Create(trace_inst, ConstantInt::get(uint_type, ins_id),
-							"", ii);
+					CallInst::Create(trace_inst,
+							ConstantInt::get(uint_type, ins_id), "", ii);
 				} else {
 					if (InvokeInst *inv = dyn_cast<InvokeInst>(ii)) {
 						// TODO: We don't instrument the unwind BB currently. 

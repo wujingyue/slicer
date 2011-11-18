@@ -12,12 +12,10 @@
 using namespace llvm;
 
 namespace slicer {
-
 	struct AggressivePromotion: public LoopPass {
-
 		static char ID;
 
-		AggressivePromotion(): LoopPass(ID) {}
+		AggressivePromotion();
 		// The outmost loop will be processed last. 
 		virtual bool runOnLoop(Loop *L, LPPassManager &LPM);
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;

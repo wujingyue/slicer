@@ -2,14 +2,21 @@
  * Author: Jingyue
  */
 
+#include "slicer/InitializePasses.h"
+using namespace llvm;
+
 #include "slicer/capture.h"
 #include "slicer/assert-eq-remover.h"
 using namespace slicer;
 
-static RegisterPass<AssertEqRemover> X("remove-assert-eq",
-		"Remove redundant slicer_assert_eq function calls");
+INITIALIZE_PASS(AssertEqRemover, "remove-assert-eq",
+		"Remove redundant slicer_assert_eq function calls", false, false)
 
 char AssertEqRemover::ID = 0;
+
+AssertEqRemover::AssertEqRemover(): BasicBlockPass(ID) {
+	initializeAssertEqRemoverPass(*PassRegistry::getPassRegistry());
+}
 
 bool AssertEqRemover::runOnBasicBlock(BasicBlock &BB) {
 	bool changed = false;

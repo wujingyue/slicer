@@ -3,9 +3,8 @@ LEVEL = ../..
 LIBRARYNAME = slicer-trace
 
 LOADABLE_MODULE = 1
-BUILD_ARCHIVE = 1
 
-SOURCES = add-calling-context.cpp landmark-trace.cpp omit-branch.cpp \
+SOURCES = landmark-trace.cpp \
 	  trace-manager.cpp instrument.cpp mark-landmarks.cpp \
 	  landmark-trace-builder.cpp enforcing-landmarks.cpp
 

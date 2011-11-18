@@ -5,6 +5,7 @@ using namespace repair;
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/Debug.h"
+#include "slicer/InitializePasses.h"
 using namespace llvm;
 
 #include "slicer/capture.h"
@@ -16,9 +17,20 @@ using namespace slicer;
 #include <sstream>
 using namespace std;
 
-static RegisterPass<Iterate> X("iterate",
-		"A iterator to provide more accurate analyses",
-		false, true);
+INITIALIZE_PASS_BEGIN(Iterate, "iterate",
+		"A iterator to provide more accurate analyses", false, true)
+INITIALIZE_PASS_DEPENDENCY(CaptureConstraints)
+INITIALIZE_PASS_DEPENDENCY(SolveConstraints)
+INITIALIZE_PASS_DEPENDENCY(AdvancedAlias)
+INITIALIZE_PASS_END(Iterate, "iterate",
+		"A iterator to provide more accurate analyses", false, true)
+
+void Iterate::getAnalysisUsage(AnalysisUsage &AU) const {
+	AU.setPreservesAll();
+	AU.addRequired<CaptureConstraints>();
+	AU.addRequired<SolveConstraints>();
+	AU.addRequired<AdvancedAlias>();
+}
 
 char Iterate::ID = 0;
 
@@ -54,12 +66,4 @@ bool Iterate::runOnModule(Module &M) {
 		delete timers[i];
 
 	return false;
-}
-
-void Iterate::getAnalysisUsage(AnalysisUsage &AU) const {
-	AU.setPreservesAll();
-	AU.addRequired<CaptureConstraints>();
-	AU.addRequired<SolveConstraints>();
-	AU.addRequired<AdvancedAlias>();
-	ModulePass::getAnalysisUsage(AU);
 }
