@@ -31,7 +31,7 @@ long long fake_read(char *buffer, size_t size) {
 long long fake_write(char *buffer, size_t size, size_t offset) {
 	size_t i;
 	for (i = 0; i < size; ++i)
-		fprintf(stderr, "%d: %c\n", offset + i, buffer[i]);
+		fprintf(stderr, "%lu: %c\n", offset + i, buffer[i]);
 	return size;
 }
 

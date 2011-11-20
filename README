@@ -37,26 +37,23 @@ sudo apt-get install libbdd-dev libbz2-dev openjdk-6-jdk libboost-regex-dev shto
 
 TODO
 
-Strongly recommend you to enable assertions: 
+You need enable assertions: 
 ./configure --prefix=... --enable-assertions --enable-docs=no
 
 Note: LLVM 2.9 has a bug with generating ocaml docs. Disable documents for now. 
 
-You need apply the following patches to fix some bugs in LLVM 2.7: 
-$WORKSPACE/llvm/fix-dae.patch
-$WORKSPACE/llvm/fix-fppassmanager.patch
-$WORKSPACE/llvm/fix-verifier.patch
+You need apply the following patches to fix some bugs in LLVM 2.9:
+$WORKSPACE/llvm/fix-dae-2.9.patch
 
 Some of them are fixed in later versions, but others are not. 
 
 5. Building common modules
 
-cd $LLVM_ROOT
-cd bc2bdd
+cd $BC2BDD_ROOT
+./configure --with-llvmsrc=<path to LLVM source code> --with-llvmobj=<path to LLVM object files> --prefix=<path to LLVM installation directory>
 make
 make install
-cd ..
-cd common
+cd $LLVM_COMMON_ROOT
 ./configure --with-llvmsrc=<path to LLVM source code> --with-llvmobj=<path to LLVM object files> --prefix=<path to LLVM installation directory>
 make
 make install
