@@ -48,9 +48,9 @@ Constantizer::Constantizer(): ModulePass(ID) {
 
 void Constantizer::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<TargetData>();
-	AU.addRequired<Iterate>();
 	AU.addRequired<CaptureConstraints>();
 	AU.addRequired<SolveConstraints>();
+	AU.addRequired<Iterate>();
 }
 
 bool Constantizer::constantize(Module &M) {

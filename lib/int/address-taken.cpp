@@ -423,6 +423,8 @@ Instruction *CaptureConstraints::find_latest_overwriter(
 		}
 		i1 = get_idom_ip(i1);
 	}
+	if (i1)
+		DEBUG(dbgs() << "Found:" << *i1 << "\n");
 	return i1;
 }
 
@@ -597,6 +599,7 @@ bool CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 	for (size_t k = 0; k < thr_ids.size(); ++k) {
 		if (!latest_overwriters[k])
 			continue; // ignore this overwriter
+		DEBUG(dbgs() << "latest_overwriter:" << *latest_overwriters[k] << "\n";);
 		/*
 		 * If the path from latest_overwriters[k] to
 		 * latest_preceeding_enforcing_landmarks[k] may write to <q>, 

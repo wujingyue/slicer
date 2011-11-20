@@ -42,15 +42,16 @@ INITIALIZE_PASS_END(SolveConstraints, "solve",
 		"Solve captured constraints using STP", false, true)
 
 void SolveConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
+	// LLVM 2.9 crashes if I use addRequiredTransitive. 
 	AU.setPreservesAll();
-	AU.addRequiredTransitive<TargetData>();
-	AU.addRequiredTransitive<IDAssigner>();
-	AU.addRequiredTransitive<DominatorTree>();
-	AU.addRequiredTransitive<LoopInfo>();
-	AU.addRequiredTransitive<IntraReach>();
-	AU.addRequiredTransitive<CaptureConstraints>();
-	AU.addRequiredTransitive<CallGraphFP>();
-	AU.addRequiredTransitive<ExecOnce>();
+	AU.addRequired<TargetData>();
+	AU.addRequired<IDAssigner>();
+	AU.addRequired<DominatorTree>();
+	AU.addRequired<LoopInfo>();
+	AU.addRequired<IntraReach>();
+	AU.addRequired<CaptureConstraints>();
+	AU.addRequired<CallGraphFP>();
+	AU.addRequired<ExecOnce>();
 }
 
 char SolveConstraints::ID = 0;

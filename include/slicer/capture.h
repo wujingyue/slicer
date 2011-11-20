@@ -175,7 +175,7 @@ namespace slicer {
 		void simplify_constraints();
 		void stat(Module &M);
 		void setup(Module &M);
-		void check_loop(Loop *l);
+		void check_loop(Loop *l, DominatorTree &DT);
 		void check_loops(Module &M);
 		void add_constraint(Clause *c);
 		void add_constraints(const vector<Clause *> &cs);

@@ -52,8 +52,9 @@ void CaptureConstraints::identify_fixed_integers(Module &M) {
 			continue;
 		if (!EO.executed_once(ii))
 			continue;
-		if (isa<IntegerType>(ii->getType()) || isa<PointerType>(ii->getType()))
+		if (isa<IntegerType>(ii->getType()) || isa<PointerType>(ii->getType())) {
 			fixed_integers.insert(ii);
+		}
 		// No matter reachable or not, capture its constant operands. 
 		for (unsigned i = 0; i < ii->getNumOperands(); ++i) {
 			if (Constant *c = dyn_cast<Constant>(ii->getOperand(i)))

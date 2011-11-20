@@ -45,7 +45,7 @@ run:: $(PROG_NAMES)
 		< $<
 
 %.ic: $(PROGS_DIR)/%.simple.bc ../trace/%.lt
-	opt -disable-output \
+	opt -disable-output -debug-only=int \
 		-load $(LLVM_ROOT)/install/lib/id.so \
 		-load $(LLVM_ROOT)/install/lib/bc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/cfg.so \
@@ -54,6 +54,7 @@ run:: $(PROG_NAMES)
 		-load $(LLVM_ROOT)/install/lib/int.so \
 		-load $(LLVM_ROOT)/install/lib/int-test.so \
 		-int-test \
+		-verbose \
 		-input-landmark-trace $(word 2, $^) \
 		< $< 2> $@
 

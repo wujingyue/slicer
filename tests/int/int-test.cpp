@@ -31,7 +31,7 @@ using namespace llvm;
 using namespace slicer;
 
 static RegisterPass<IntTest> X("int-test",
-		"Test the integer constraint solver");
+		"Test the integer constraint solver", false, true);
 
 // If Program == "", we dump all the integer constraints. 
 static cl::opt<string> Program("prog",
@@ -52,7 +52,6 @@ void IntTest::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<CaptureConstraints>();
 	AU.addRequired<AdvancedAlias>();
 #endif
-	ModulePass::getAnalysisUsage(AU);
 }
 
 bool IntTest::runOnModule(Module &M) {

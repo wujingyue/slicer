@@ -64,8 +64,7 @@ static cl::opt<string> EnforcingLandmarksFile("input-landmarks",
 			"landmarks from the file as enforcing landmarks."));
 static cl::opt<bool> OnlyMain("only-main",
 		cl::desc("Only mark the sync operations in main thread as "
-			"enforcing landmarks."),
-		cl::init(true));
+			"enforcing landmarks."));
 
 char EnforcingLandmarks::ID = 0;
 

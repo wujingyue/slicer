@@ -41,12 +41,12 @@ using namespace slicer;
 
 INITIALIZE_PASS_BEGIN(CaptureConstraints, "capture",
 		"Capture all integer constraints", false, true)
+INITIALIZE_PASS_DEPENDENCY(BddAliasAnalysis)
 INITIALIZE_PASS_DEPENDENCY(TargetData)
+INITIALIZE_PASS_DEPENDENCY(IDAssigner)
 INITIALIZE_PASS_DEPENDENCY(DominatorTree)
 INITIALIZE_PASS_DEPENDENCY(LoopInfo)
-INITIALIZE_PASS_DEPENDENCY(IDAssigner)
 INITIALIZE_PASS_DEPENDENCY(IntraReach)
-INITIALIZE_PASS_DEPENDENCY(BddAliasAnalysis)
 INITIALIZE_PASS_DEPENDENCY(CallGraphFP)
 INITIALIZE_PASS_DEPENDENCY(ExecOnce)
 INITIALIZE_PASS_DEPENDENCY(LandmarkTrace)
@@ -58,20 +58,21 @@ INITIALIZE_PASS_END(CaptureConstraints, "capture",
 		"Capture all integer constraints", false, true)
 
 void CaptureConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
+	// LLVM 2.9 crashes if I use addRequiredTransitive. 
 	AU.setPreservesAll();
-	AU.addRequiredTransitive<TargetData>();
-	AU.addRequiredTransitive<IDAssigner>();
-	AU.addRequiredTransitive<DominatorTree>();
-	AU.addRequiredTransitive<LoopInfo>();
-	AU.addRequiredTransitive<IntraReach>();
 	AU.addRequired<BddAliasAnalysis>(); // Only used in <setup>. 
-	AU.addRequiredTransitive<CallGraphFP>();
-	AU.addRequiredTransitive<ExecOnce>();
-	AU.addRequiredTransitive<LandmarkTrace>();
-	AU.addRequiredTransitive<CloneInfoManager>();
-	AU.addRequiredTransitive<RegionManager>();
-	AU.addRequiredTransitive<PartialICFGBuilder>();
-	AU.addRequiredTransitive<MicroBasicBlockBuilder>();
+	AU.addRequired<TargetData>();
+	AU.addRequired<IDAssigner>();
+	AU.addRequired<DominatorTree>();
+	AU.addRequired<LoopInfo>();
+	AU.addRequired<IntraReach>();
+	AU.addRequired<CallGraphFP>();
+	AU.addRequired<ExecOnce>();
+	AU.addRequired<LandmarkTrace>();
+	AU.addRequired<CloneInfoManager>();
+	AU.addRequired<RegionManager>();
+	AU.addRequired<PartialICFGBuilder>();
+	AU.addRequired<MicroBasicBlockBuilder>();
 }
 
 static cl::opt<bool> DisableAllConstraints("disable-constraints",

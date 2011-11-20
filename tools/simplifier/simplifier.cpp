@@ -225,13 +225,24 @@ int RunPasses(Module *M, const vector<Pass *> &Passes) {
 }
 
 int RunLCSSAAndLoopSimplify(Module *M) {
+	bool EverChanged;
 	int Changed;
 	do {
-		Changed = RunPasses(M, vector<Pass *>(1, createLCSSAPass()));
-		if (Changed == -1)
-			return -1;
-	} while (Changed);
-	return RunPasses(M, vector<Pass *>(1, createLoopSimplifyPass()));
+		EverChanged = false;
+		do {
+			Changed = RunPasses(M, vector<Pass *>(1, createLCSSAPass()));
+			if (Changed == -1)
+				return -1;
+			EverChanged |= (Changed == 1);
+		} while (Changed);
+		do {
+			Changed = RunPasses(M, vector<Pass *>(1, createLoopSimplifyPass()));
+			if (Changed == -1)
+				return -1;
+			EverChanged |= (Changed == 1);
+		} while (Changed);
+	} while (EverChanged);
+	return 0;
 }
 
 /*

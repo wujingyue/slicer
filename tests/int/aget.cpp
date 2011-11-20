@@ -88,7 +88,7 @@ void IntTest::test_aget(const Module &M) {
 					if (callee && callee->getName() == "pwrite") {
 						assert(ci->getNumOperands() == 5);
 						// pwrite(???, ???, len, offset)
-						const Value *offset = ci->getOperand(4);
+						const Value *offset = ci->getArgOperand(3);
 						if (const LoadInst *li = dyn_cast<LoadInst>(offset)) {
 							const GetElementPtrInst *gep =
 								dyn_cast<GetElementPtrInst>(li->getPointerOperand());
@@ -97,8 +97,9 @@ void IntTest::test_aget(const Module &M) {
 							const ConstantInt *idx = dyn_cast<ConstantInt>(gep->getOperand(2));
 							if (idx->getZExtValue() == 4) {
 								// From <offset> rather than <soffset>. 
+								// TODO: getOperandUse is subject to operand order changes. 
 								ranges[i].push_back(make_pair(
-											&ci->getOperandUse(4), &ci->getOperandUse(3)));
+											&ci->getOperandUse(3), &ci->getOperandUse(2)));
 							}
 						}
 					}
@@ -195,8 +196,8 @@ void IntTest::test_aget_like(const Module &M) {
 						// fake_write(buffer, size, offset)
 						errs() << *ci << "\n";
 						ranges.back().push_back(make_pair(
-									&ci->getOperandUse(3),
-									&ci->getOperandUse(2)));
+									&ci->getOperandUse(2),
+									&ci->getOperandUse(1)));
 					}
 				}
 			}
