@@ -206,18 +206,3 @@ void IntTest::test_fft_common(const Module &M) {
 		}
 	}
 }
-
-void IntTest::test_fft_tern(const Module &M) {
-	TestBanner X("FFT-tern");
-
-	IDAssigner &IDA = getAnalysis<IDAssigner>();
-	AdvancedAlias &AA = getAnalysis<AdvancedAlias>();
-	SolveConstraints &SC = getAnalysis<SolveConstraints>();
-
-	const Value *v1 = IDA.getValue(1364);
-	const Value *v2 = IDA.getValue(2311);
-	
-	SC.set_print_asserts(true);
-	AA.may_alias(v1, v2);
-	SC.set_print_asserts(false);
-}

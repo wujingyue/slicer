@@ -21,8 +21,6 @@ namespace slicer {
 		void test_test_overwrite_2(const Module &M);
 		void test_fft(const Module &M);
 		void test_fft_like(const Module &M);
-		void test_fft_tern(const Module &M);
-		void test_fft_tern_2(const Module &M);
 		void test_fft_common(const Module &M);
 		void test_radix(const Module &M);
 		void test_radix_like(const Module &M);

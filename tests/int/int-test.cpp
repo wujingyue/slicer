@@ -81,8 +81,6 @@ bool IntTest::runOnModule(Module &M) {
 		test_fft(M);
 	if (Program == "FFT-like")
 		test_fft_like(M);
-	if (Program == "FFT-tern")
-		test_fft_tern(M);
 	if (Program == "RADIX")
 		test_radix(M);
 	if (Program == "RADIX-like")
