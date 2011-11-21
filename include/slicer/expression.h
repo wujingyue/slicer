@@ -5,14 +5,16 @@
 #ifndef __SLICER_EXPRESSION_H
 #define __SLICER_EXPRESSION_H
 
-#include "llvm/Instruction.h"
-#include "llvm/Use.h"
-#include "common/IDAssigner.h"
-#include "common/typedefs.h"
-using namespace llvm;
-
 #include <cstdio>
 using namespace std;
+
+#include "llvm/Instruction.h"
+#include "llvm/Use.h"
+using namespace llvm;
+
+#include "common/IDAssigner.h"
+#include "common/typedefs.h"
+using namespace rcs;
 
 namespace slicer {
 	/**

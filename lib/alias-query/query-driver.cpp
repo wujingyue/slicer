@@ -22,7 +22,7 @@ using namespace boost;
 using namespace llvm;
 
 #include "bc2bdd/BddAliasAnalysis.h"
-using namespace repair;
+using namespace bc2bdd;
 
 #include "slicer/iterate.h"
 #include "slicer/query-driver.h"

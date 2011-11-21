@@ -2,16 +2,18 @@
  * Author: Jingyue
  */
 
+#include <fstream>
+#include <sstream>
+using namespace std;
+
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
-#include "common/IDManager.h"
 #include "common/InitializePasses.h"
 #include "slicer/InitializePasses.h"
 using namespace llvm;
 
-#include <fstream>
-#include <sstream>
-using namespace std;
+#include "common/IDManager.h"
+using namespace rcs;
 
 #include "slicer/trace-manager.h"
 using namespace slicer;

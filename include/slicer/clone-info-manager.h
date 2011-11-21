@@ -8,12 +8,16 @@ using namespace std;
 #include "llvm/Pass.h"
 #include "llvm/Instruction.h"
 #include "llvm/ADT/DenseSet.h"
+using namespace llvm;
+
 #include "common/typedefs.h"
 #include "common/util.h"
 #include "common/IDManager.h"
-using namespace llvm;
+using namespace rcs;
 
 #include "slicer/trace-manager.h"
+using namespace slicer;
+
 namespace slicer {
 	struct CloneInfo {
 		int thr_id;
@@ -21,7 +25,6 @@ namespace slicer {
 		unsigned orig_ins_id;
 	};
 }
-using namespace slicer;
 
 namespace llvm {
 	template <> struct DenseMapInfo<CloneInfo> {

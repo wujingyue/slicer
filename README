@@ -12,7 +12,7 @@ environmental variable.
 cd $WORKSPACE
 git clone git@repair.cs.columbia.edu llvm
 git clone git@repair.cs.columbia.edu slicer
-git clone git@repair.cs.columbia.edu llvm-common
+git clone git@repair.cs.columbia.edu rcs-common
 git clone git@repair.cs.columbia.edu bc2bdd
 
 Ask Jingyue if you don't have accesses to these repos. 
@@ -21,7 +21,7 @@ Ask Jingyue if you don't have accesses to these repos.
 
 Make sure the following variables are set correctly:
 LLVM_ROOT=$WORKSPACE/llvm
-LLVM_COMMON_ROOT=$WORKSPACE/llvm-common
+RCS_COMMON_ROOT=$WORKSPACE/rcs-common
 BC2BDD_ROOT=$WORKSPACE/bc2bdd
 SLICER_ROOT=$WORKSPACE/slicer
 APPS_DIR=$WORKSPACE/apps
@@ -53,7 +53,7 @@ cd $BC2BDD_ROOT
 ./configure --with-llvmsrc=<path to LLVM source code> --with-llvmobj=<path to LLVM object files> --prefix=<path to LLVM installation directory>
 make
 make install
-cd $LLVM_COMMON_ROOT
+cd $RCS_COMMON_ROOT
 ./configure --with-llvmsrc=<path to LLVM source code> --with-llvmobj=<path to LLVM object files> --prefix=<path to LLVM installation directory>
 make
 make install

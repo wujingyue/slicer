@@ -5,7 +5,7 @@
 #define DEBUG_TYPE "int"
 
 #include "bc2bdd/BddAliasAnalysis.h"
-using namespace repair;
+using namespace bc2bdd;
 
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"

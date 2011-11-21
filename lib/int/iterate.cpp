@@ -1,5 +1,9 @@
+/**
+ * Author: Jingyue
+ */
+
 #include "bc2bdd/BddAliasAnalysis.h"
-using namespace repair;
+using namespace bc2bdd;
 
 #include "llvm/LLVMContext.h"
 #include "llvm/Support/CommandLine.h"

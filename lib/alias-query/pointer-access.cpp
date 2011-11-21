@@ -3,8 +3,10 @@
  */
 
 #include "llvm/Instructions.h"
-#include "common/util.h"
 using namespace llvm;
+
+#include "common/util.h"
+using namespace rcs;
 
 #include "pointer-access.h"
 using namespace slicer;

@@ -7,8 +7,10 @@
 
 #include "llvm/Pass.h"
 #include "llvm/Analysis/AliasAnalysis.h"
-#include "common/typedefs.h"
 using namespace llvm;
+
+#include "common/typedefs.h"
+using namespace rcs;
 
 namespace slicer {
 	struct QueryInfo {

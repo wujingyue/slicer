@@ -22,7 +22,7 @@ using namespace llvm;
 using namespace slicer;
 
 #include "bc2bdd/BddAliasAnalysis.h"
-using namespace repair;
+using namespace bc2bdd;
 
 INITIALIZE_PASS_BEGIN(AggressivePromotion, "aggressive-promotion",
 		"A reducer running before the integer constraint solver", false, false)
