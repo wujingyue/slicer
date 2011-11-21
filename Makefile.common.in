@@ -24,5 +24,4 @@ include $(LLVM_SRC_ROOT)/Makefile.common
 AdditionalIncludes = -I$(BC2BDD_ROOT)/include -I$(RCS_COMMON_ROOT)/include -I$(PROJ_SRC_ROOT)/lib/stp/stp-svn/include
 
 CFLAGS += $(AdditionalIncludes)
-
-
+CXXFLAGS += $(AdditionalIncludes)

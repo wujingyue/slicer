@@ -15,13 +15,15 @@ using namespace std;
 #include "llvm/Support/Debug.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Target/TargetData.h"
+#include "common/InitializePasses.h"
+#include "slicer/InitializePasses.h"
+using namespace llvm;
+
 #include "common/util.h"
 #include "common/intra-reach.h"
 #include "common/callgraph-fp.h"
 #include "common/exec-once.h"
-#include "common/InitializePasses.h"
-#include "slicer/InitializePasses.h"
-using namespace llvm;
+using namespace rcs;
 
 #include "slicer/capture.h"
 #include "slicer/solve.h"
@@ -477,6 +479,7 @@ void SolveConstraints::check_consistency(Module &M) {
 	if (print_asserts_) {
 		vc_printVarDecls(vc);
 		vc_printAsserts(vc);
+		cout << "QUERY FALSE;\n";
 	}
 	VCExpr f = vc_falseExpr(vc);
 	int ret = vc_query(vc, f);
@@ -629,9 +632,9 @@ bool SolveConstraints::provable(const Clause *c) {
 	if (print_asserts_) {
 		vc_printVarDecls(vc);
 		vc_printAsserts(vc);
-		outs() << "QUERY ";
+		cout << "QUERY ";
 		vc_printExpr(vc, vce);
-		outs() << ";\n";
+		cout << ";\n";
 	}
 
 	int ret = vc_query(vc, vce);
