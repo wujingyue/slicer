@@ -87,6 +87,8 @@ bool IntTest::runOnModule(Module &M) {
 		test_radix_like(M);
 	if (Program == "LU-cont")
 		test_lu_cont(M);
+	if (Program == "blackscholes")
+		test_blackscholes(M);
 	if (Program == "test-loop")
 		test_test_loop(M);
 	if (Program == "test-loop-2")

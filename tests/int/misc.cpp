@@ -1,8 +1,14 @@
+/**
+ * Author: Jingyue
+ */
+
 #include "llvm/Module.h"
 #include "llvm/Support/Debug.h"
+using namespace llvm;
+
 #include "common/util.h"
 #include "common/exec-once.h"
-using namespace llvm;
+using namespace rcs;
 
 #include "slicer/adv-alias.h"
 #include "slicer/solve.h"

@@ -92,9 +92,13 @@ void IntTest::test_fft(const Module &M) {
 	}
 	assert(racy_store);
 
+	SC.set_print_asserts(true);
+	int n_complicated_queries = 0;
 	for (i1 = contexts.begin(); i1 != contexts.end(); ++i1) {
 		i2 = i1;
 		for (++i2; i2 != contexts.end(); ++i2) {
+			if (i1->first->getName() != "main" && i2->first->getName() != "main")
+				continue;
 			for (size_t j1 = 0; j1 < i1->second.size(); ++j1) {
 				for (size_t j2 = 0; j2 < i2->second.size(); ++j2) {
 					AdvancedAlias &AA = getAnalysis<AdvancedAlias>();
@@ -107,11 +111,15 @@ void IntTest::test_fft(const Module &M) {
 								i2->second[j2], racy_store->getPointerOperand()) ==
 							AliasAnalysis::NoAlias);
 					print_pass(errs());
+					++n_complicated_queries;
+					if (n_complicated_queries >= 5)
+						goto outside;
 				}
 			}
 		}
 	}
-
+outside:
+	SC.set_print_asserts(false);
 }
 
 void IntTest::test_fft_like(const Module &M) {

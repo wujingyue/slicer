@@ -1,0 +1,56 @@
+#!/usr/bin/env python
+
+import os, sys
+
+if __name__ == "__main__":
+    assert len(sys.argv) > 1
+
+    fins = []
+    for arg in sys.argv[1:]:
+        fins.append(open(arg, "r"))
+
+    n_commons = 0
+    while True:
+        cur = None
+        for fin in fins:
+            line = fin.readline()
+            if line == "":
+                cur = None
+                break
+            if cur == None:
+                cur = line
+            elif cur != line:
+                cur = None
+                break
+        if cur == None:
+            break
+        n_commons += 1
+
+    for fin in fins:
+        fin.close()
+
+    print >> sys.stderr, "# of common lines =", n_commons
+
+    fins = []
+    for arg in sys.argv[1:]:
+        fins.append(open(arg, "r"))
+
+    for i in range(n_commons):
+        first = True
+        for fin in fins:
+            line = fin.readline()
+            if first:
+                sys.stdout.write(line)
+                first = False
+    for fin in fins:
+        print "(push 1)"
+        line = fin.readline()
+        while line != "":
+            if line.strip() != "(exit)":
+                sys.stdout.write(line)
+            line = fin.readline()
+        print "(pop 1)"
+    print "(exit)"
+
+    for fin in fins:
+        fin.close()

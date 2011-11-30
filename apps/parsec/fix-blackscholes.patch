@@ -1,0 +1,13 @@
+--- parsec-2.1/pkgs/apps/blackscholes/src/blackscholes.c	2011-11-29 17:25:26.000000000 -0500
++++ parsec-2.1/pkgs/apps/blackscholes/src/blackscholes.c	2011-11-29 22:04:16.000000000 -0500
+@@ -310,6 +310,10 @@
+       nThreads = numOptions;
+     }
+ 
++    // Added by Jingyue: Restricts numOptions
++    if (numOptions > 1000000)
++      exit(1);
++
+ #if !defined(ENABLE_THREADS) && !defined(ENABLE_OPENMP)
+     if(nThreads != 1) {
+         printf("Error: <nthreads> must be 1 (serial version)\n");

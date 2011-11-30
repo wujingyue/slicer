@@ -14,13 +14,13 @@ PROG_NAMES = test-overwrite test-loop test-loop-2 test-ctxt-4 \
 	     test-overwrite-2 \
 	     test-thread-2 RADIX-like \
 	     test-malloc test-range \
-	     aget FFT
+	     aget FFT blackscholes
 PROGS_DIR = ../progs
 
 run:: $(PROG_NAMES)
 
 %: $(PROGS_DIR)/%.simple.bc ../trace/%.lt
-	opt -stats -disable-output \
+	opt -stats -disable-output -debug-only=int \
 		-load $(LLVM_ROOT)/install/lib/id.so \
 		-load $(LLVM_ROOT)/install/lib/bc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/cfg.so \

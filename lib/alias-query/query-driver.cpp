@@ -142,73 +142,9 @@ void QueryDriver::issue_queries() {
 		else
 			color = raw_ostream::RED;
 		errs().changeColor(color) << results.back();
-		if (results.back() == AliasAnalysis::MayAlias) {
-			CloneInfoManager &CIM = getAnalysis<CloneInfoManager>();
-			errs() << "\nIns 1: " << *i1
-			       << "\nAt function: " << i1->getParent()->getParent()->getName();
-			if (CIM.has_clone_info(i1)) {
-				CloneInfo ci = CIM.get_clone_info(i1);
-				errs() << "\nClone info: "
-				       << "thr_id = " << ci.thr_id
-				       << " trunk_id = " << ci.trunk_id
-				       << " orig_ins_id = " << ci.orig_ins_id;
-			}
-			Function::iterator it = const_cast<BasicBlock *>(i1->getParent());
-			++it;
-			BasicBlock::iterator next_ins = it->getFirstNonPHI();
-			errs() << "\n\tNext instruction: " << *next_ins;
-			if (CIM.has_clone_info(next_ins)) {
-				CloneInfo ci = CIM.get_clone_info(next_ins);
-				errs() << "\n\tClone info: "
-				       << "thr_id = " << ci.thr_id
-				       << " trunk_id = " << ci.trunk_id
-				       << " orig_ins_id = " << ci.orig_ins_id;
-			} else {
-				++it;
-				next_ins = it->getFirstNonPHI();
-				errs() << "\n\t\tNext instruction: " << *next_ins;
-				if (CIM.has_clone_info(next_ins)) {
-					CloneInfo ci = CIM.get_clone_info(next_ins);
-					errs() << "\n\t\tClone info: "
-					       << "thr_id = " << ci.thr_id
-					       << " trunk_id = " << ci.trunk_id
-					       << " orig_ins_id = " << ci.orig_ins_id;
-				}
-			}
-			errs() << "\nIns 2: " << *i2
-			       << "\nAt function: " << i2->getParent()->getParent()->getName();
-			if (CIM.has_clone_info(i2)) {
-				CloneInfo ci = CIM.get_clone_info(i2);
-				errs() << "\nClone info: "
-				       << "thr_id = " << ci.thr_id
-				       << " trunk_id = " << ci.trunk_id
-				       << " orig_ins_id = " << ci.orig_ins_id;
-			}
-			it = const_cast<BasicBlock *>(i2->getParent());
-			++it;
-			next_ins = it->getFirstNonPHI();
-			errs() << "\n\tNext instruction: " << *next_ins;
-			if (CIM.has_clone_info(next_ins)) {
-				CloneInfo ci = CIM.get_clone_info(next_ins);
-				errs() << "\n\tClone info: "
-				       << "thr_id = " << ci.thr_id
-				       << " trunk_id = " << ci.trunk_id
-				       << " orig_ins_id = " << ci.orig_ins_id;
-			} else {
-				++it;
-				next_ins = it->getFirstNonPHI();
-				errs() << "\n\t\tNext instruction: " << *next_ins;
-				if (CIM.has_clone_info(next_ins)) {
-					CloneInfo ci = CIM.get_clone_info(next_ins);
-					errs() << "\n\t\tClone info: "
-					       << "thr_id = " << ci.thr_id
-					       << " trunk_id = " << ci.trunk_id
-					       << " orig_ins_id = " << ci.orig_ins_id;
-				}
-			}
-			errs() << "\n";
-		}
 		errs().resetColor();
+		if (results.back() == AliasAnalysis::MayAlias)
+			DEBUG(dbgs() << *i1 << "\n" << *i2 << "\n";);
 		DEBUG(dbgs() << "Query " << i << ": " << results.back() << "\n";);
 	}
 	errs() << "\n";

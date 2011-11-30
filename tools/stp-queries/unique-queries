@@ -1,0 +1,22 @@
+#!/usr/bin/env python
+
+import os, sys, re
+
+if __name__ == "__main__":
+    text = " ".join([line.strip() for line in sys.stdin])
+    prog = [line + ";" for line in text.split(";") if len(line) > 0]
+
+    decls = set()
+    others = []
+    for statement in prog:
+        if re.search("BITVECTOR\(\\d+\)", statement):
+            decls.add(statement)
+        else:
+            others.append(statement)
+    sorted_decls = [decl for decl in decls]
+    sorted_decls.sort()
+
+    for decl in sorted_decls:
+        print decl
+    for other in others:
+        print other

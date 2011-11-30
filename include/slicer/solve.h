@@ -11,6 +11,7 @@
 using namespace std;
 
 #include "llvm/Support/Mutex.h"
+#include "llvm/Analysis/LoopInfo.h"
 using namespace llvm;
 
 #include "expression.h"
@@ -206,7 +207,17 @@ namespace slicer {
 		 * Realizes a function call from <ins> to <f>.
 		 * <ins> must be a CallInst/InvokeInst. 
 		 */
-		void realize(const Instruction *ins, const Function *f, unsigned context);
+		void realize_function_call(const Instruction *ins,
+				const Function *f, unsigned context);
+		/**
+		 * Realizes all dominating loops of <bb>. 
+		 */
+		void realize_dominating_loops(const BasicBlock *bb, unsigned context);
+		void realize_dominating_loop(const Loop *l, unsigned context);
+		void get_all_loops(const Function *f, vector<Loop *> &loops);
+		void get_all_loops(Loop *l, vector<Loop *> &loops);
+		/** Deprecated */
+		void realize_containing_loops(const BasicBlock *bb, unsigned context);
 		/**
 		 * Returns v's containing function if <v> is an instruction or
 		 * an argument. 

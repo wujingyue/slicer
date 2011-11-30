@@ -1,0 +1,11 @@
+--- splash2-orig/codes/kernels/fft/fft.C	2010-05-05 00:36:21.000000000 -0400
++++ splash2/codes/kernels/fft/fft.C	2011-11-28 14:10:24.000000000 -0500
+@@ -797,7 +802,7 @@
+ 
+   for (k=0; k<N; k++) {
+     j = BitReverse(M, k);
+-    if (j > k) {
++    if (j >= 0 && j < (1 << M) && j > k) {
+       SWAP_VALS(x[2*j], x[2*k]);
+       SWAP_VALS(x[2*j+1], x[2*k+1]);
+     }

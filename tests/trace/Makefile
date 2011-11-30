@@ -6,7 +6,7 @@ PROG_NAMES = test-thread test-overwrite test-loop test-loop-2 test-ctxt-2 \
 	     aget-like test-array test-dep test-ctxt-4 test-global \
 	     test-overwrite-2 RADIX-like test-thread-2 test-assert \
 	     test-malloc test-ctxt test-range test-range-3 test-range-4 \
-	     aget FFT RADIX pbzip2 CHOLESKY LU-cont
+	     aget FFT RADIX pbzip2 CHOLESKY LU-cont blackscholes
 PROGS_DIR = ../progs
 TRACED_PROGS = $(PROG_NAMES:=.trace)
 LANDMARK_TRACES = $(PROG_NAMES:=.lt)
@@ -25,6 +25,15 @@ full-trace: $(FULL_TRACES)
 		-load $(LLVM_ROOT)/install/lib/cfg.so \
 		-load $(LLVM_ROOT)/install/lib/slicer-trace.so \
 		-instrument-each-bb \
+		-instrument \
+		< $<
+
+blackscholes.bc1: $(PROGS_DIR)/blackscholes.id.bc
+	opt -stats -o $@ \
+		-load $(LLVM_ROOT)/install/lib/id.so \
+		-load $(LLVM_ROOT)/install/lib/bc2bdd.so \
+		-load $(LLVM_ROOT)/install/lib/cfg.so \
+		-load $(LLVM_ROOT)/install/lib/slicer-trace.so \
 		-instrument \
 		< $<
 

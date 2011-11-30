@@ -1,0 +1,42 @@
+#!/usr/bin/env python
+
+import re, sys
+
+def replace_hex(mo):
+    return "0hex" + mo.group(1)
+
+def replace_bin(mo):
+    return "0bin" + mo.group(1)
+
+def replace_sbvlt(mo):
+    return "BVSLT"
+
+def replace_sbvle(mo):
+    return "BVSLE"
+
+def replace_sbvgt(mo):
+    return "BVSGT"
+
+def replace_sbvge(mo):
+    return "BVSGE"
+
+def replace_bvdiv(mo):
+    return mo.group(1) + "BVUDIV("
+
+if __name__ == "__main__":
+    text = " ".join([line.strip() for line in sys.stdin])
+    prog = [line + ";" for line in text.split(";") if len(line) > 0]
+
+    new_prog = []
+    for statement in prog:
+        statement = re.sub("0x([0-9a-fA-F]+)", replace_hex, statement)
+        statement = re.sub("0b([01]+)", replace_bin, statement)
+        statement = re.sub("SBVLT", replace_sbvlt, statement)
+        statement = re.sub("SBVLE", replace_sbvle, statement)
+        statement = re.sub("SBVGT", replace_sbvgt, statement)
+        statement = re.sub("SBVGE", replace_sbvge, statement)
+        statement = re.sub("(^|[^S])BVDIV\(32,", replace_bvdiv, statement)
+        new_prog.append(statement)
+
+    for statement in new_prog:
+        print statement

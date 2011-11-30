@@ -709,11 +709,13 @@ void SolveConstraints::realize(const ConstInstList &callstack,
 	for (size_t i = 0; i < callstack.size(); ++i)
 		realize(callstack[i], context);
 	// Realize each call edge in the calling context. 
-	for (size_t i = 0; i + 1 < callstack.size(); ++i)
-		realize(callstack[i], callstack[i + 1]->getParent()->getParent(), context);
+	for (size_t i = 0; i + 1 < callstack.size(); ++i) {
+		realize_function_call(callstack[i],
+				callstack[i + 1]->getParent()->getParent(), context);
+	}
 	if (callstack.size() > 0) {
 		if (const Function *container = get_container(v))
-			realize(callstack.back(), container, context);
+			realize_function_call(callstack.back(), container, context);
 	}
 }
 
@@ -726,8 +728,114 @@ const Function *SolveConstraints::get_container(const Value *v) {
 	return NULL;
 }
 
-void SolveConstraints::realize(const Instruction *ins, const Function *f,
+void SolveConstraints::realize_dominating_loops(const BasicBlock *bb,
 		unsigned context) {
+	vector<Loop *> loops;
+	get_all_loops(bb->getParent(), loops);
+	for (size_t i = 0; i < loops.size(); ++i) {
+		errs() << "all loop: "; errs().flush();
+		errs() << loops[i]->getHeader()->getName() << "\n"; errs().flush();
+	}
+	
+	errs() << "???\n"; errs().flush();
+	vector<Loop *> dominating_loops;
+	DominatorTree &DT = getAnalysis<DominatorTree>(
+			*const_cast<Function *>(bb->getParent()));
+	for (size_t i = 0; i < loops.size(); ++i) {
+		if (DT.dominates(loops[i]->getHeader(), bb))
+			dominating_loops.push_back(loops[i]);
+	}
+	errs() << "!!!\n"; errs().flush();
+	for (size_t i = 0; i < dominating_loops.size(); ++i) {
+		errs() << "all dominating loop: " <<
+			dominating_loops[i]->getHeader()->getName() << "\n";
+	}
+	errs() << "# of dominating loops = " << dominating_loops.size() << "\n";
+	errs().flush();
+
+	for (size_t i = 0; i < dominating_loops.size(); ++i)
+		realize_dominating_loop(dominating_loops[i], context);
+}
+
+void SolveConstraints::get_all_loops(const Function *f,
+		vector<Loop *> &loops) {
+	LoopInfo &LI = getAnalysis<LoopInfo>(*const_cast<Function *>(f));
+	for (LoopInfo::iterator lii = LI.begin(); lii != LI.end(); ++lii)
+		get_all_loops(*lii, loops);
+}
+
+void SolveConstraints::get_all_loops(Loop *l, vector<Loop *> &loops) {
+	loops.push_back(l);
+	for (Loop::iterator li = l->begin(); li != l->end(); ++li)
+		get_all_loops(*li, loops);
+}
+
+void SolveConstraints::realize_dominating_loop(const Loop *l,
+		unsigned context) {
+	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
+
+	vector<Clause *> constraints_from_l;
+	CC.get_in_loop(l, constraints_from_l);
+	for (size_t i = 0; i < constraints_from_l.size(); ++i) {
+		Clause *c = constraints_from_l[i];
+		Clause *c2 = c->clone();
+		CC.attach_context(c2, context);
+		replace_with_root(c2); // Only fixed integers will be replaced. 
+
+		VCExpr vce = translate_to_vc(c2);
+		int simplified = try_to_simplify(vce);
+		assert(simplified != 0);
+		if (simplified == -1) {
+			DEBUG(dbgs() << "[realize] ";
+					print_clause(dbgs(), c2, getAnalysis<IDAssigner>());
+					dbgs() << "\n";);
+			vc_assertFormula(vc, vce);
+		}
+		vc_DeleteExpr(vce);
+
+		delete c2;
+	}
+	for (size_t i = 0; i < constraints_from_l.size(); ++i)
+		delete constraints_from_l[i];
+}
+
+void SolveConstraints::realize_containing_loops(const BasicBlock *bb,
+		unsigned context) {
+	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
+	LoopInfo &LI = getAnalysis<LoopInfo>(*const_cast<Function *>(bb->getParent()));
+
+	Loop *l = LI.getLoopFor(bb);
+	while (l) {
+		vector<Clause *> constraints_from_l;
+		CC.get_in_loop(l, constraints_from_l);
+		for (size_t i = 0; i < constraints_from_l.size(); ++i) {
+			Clause *c = constraints_from_l[i];
+			Clause *c2 = c->clone();
+			CC.attach_context(c2, context);
+			replace_with_root(c2); // Only fixed integers will be replaced. 
+
+			VCExpr vce = translate_to_vc(c2);
+			int simplified = try_to_simplify(vce);
+			assert(simplified != 0);
+			if (simplified == -1) {
+				DEBUG(dbgs() << "[realize] ";
+						print_clause(dbgs(), c2, getAnalysis<IDAssigner>());
+						dbgs() << "\n";);
+				vc_assertFormula(vc, vce);
+			}
+			vc_DeleteExpr(vce);
+
+			delete c2;
+		}
+		for (size_t i = 0; i < constraints_from_l.size(); ++i)
+			delete constraints_from_l[i];
+
+		l = l->getParentLoop();
+	}
+}
+
+void SolveConstraints::realize_function_call(const Instruction *ins,
+		const Function *f, unsigned context) {
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 
 	CallSite cs(const_cast<Instruction *>(ins));
@@ -814,46 +922,12 @@ void SolveConstraints::realize(const Instruction *ins, unsigned context) {
 		realize(call_sites[0], context);
 
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
-	LoopInfo &LI = getAnalysis<LoopInfo>(*f);
 	// TODO: Make it inter-procedural
 	IntraReach &IR = getAnalysis<IntraReach>(*f);
-	
-	// Realize each containing loop. 
-	Loop *l = LI.getLoopFor(bb);
-	while (l) {
-		vector<Clause *> constraints_from_l;
-		CC.get_in_loop(l, constraints_from_l);
-		for (size_t i = 0; i < constraints_from_l.size(); ++i) {
-			Clause *c = constraints_from_l[i];
-			Clause *c2 = c->clone();
-#if 0
-			DEBUG(dbgs() << "[realize: before attaching] ";
-					print_clause(dbgs(), c2, getAnalysis<IDAssigner>());
-					dbgs() << "\n";);
-#endif
-			CC.attach_context(c2, context);
-			replace_with_root(c2); // Only fixed integers will be replaced. 
 
-			VCExpr vce = translate_to_vc(c2);
-			int simplified = try_to_simplify(vce);
-			if (simplified == 0)
-				errs() << *ins << "\n";
-			assert(simplified != 0);
-			if (simplified == -1) {
-				DEBUG(dbgs() << "[realize] ";
-						print_clause(dbgs(), c2, getAnalysis<IDAssigner>());
-						dbgs() << "\n";);
-				vc_assertFormula(vc, vce);
-			}
-			vc_DeleteExpr(vce);
-
-			delete c2;
-		}
-		for (size_t i = 0; i < constraints_from_l.size(); ++i)
-			delete constraints_from_l[i];
-
-		l = l->getParentLoop();
-	}
+	// Realize each dominating loop.
+	// realize_dominating_loops(bb, context);
+	realize_containing_loops(bb, context);
 
 	// Realize each dominating BranchInst. 
 	BasicBlock *dom = bb;

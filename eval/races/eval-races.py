@@ -51,14 +51,13 @@ if __name__ == "__main__":
         option_sample = config.getint(benchmark, "sample")
 
         # print some rubbish
-        print >> sys.stderr, "Running benchmark", benchmark
+        print >> sys.stderr, "\n\033[1;34m" + "Running benchmark " + \
+                benchmark + "\033[m\n"
 
         # generate queries: -> .id.queries, .simple.raw_queries
         base_cmd = "opt " + \
-                "-load $LLVM_ROOT/install/lib/id-manager.so " + \
+                "-load $LLVM_ROOT/install/lib/id.so " + \
                 "-load $LLVM_ROOT/install/lib/bc2bdd.so " + \
-                "-load $LLVM_ROOT/install/lib/callgraph-fp.so " + \
-                "-load $LLVM_ROOT/install/lib/mbb.so " + \
                 "-load $LLVM_ROOT/install/lib/cfg.so " + \
                 "-load $LLVM_ROOT/install/lib/slicer-trace.so " + \
                 "-load $LLVM_ROOT/install/lib/max-slicing.so " + \
@@ -112,6 +111,7 @@ if __name__ == "__main__":
         cmd_options = "-analyze "
         landmark_trace_filename = os.path.join(PROGS_DIR, benchmark + ".lt")
         cmd_options += "-drive-queries "
+        cmd_options += "-debug-only=alias-query "
         bc_filename = os.path.join(PROGS_DIR, benchmark + ".id.bc")
         input_filename = os.path.join(PROGS_DIR, benchmark + ".id.queries")
         cmd = string.join((base_cmd, cmd_options,

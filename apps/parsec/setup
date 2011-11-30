@@ -6,6 +6,7 @@ if __name__ == "__main__":
     os.system("$APPS_DIR/parsec/setup")
     os.chdir("parsec-2.1")
     os.system("patch -p1 < ../fix-swaptions.patch")
+    os.system("patch -p1 < ../fix-blackscholes.patch")
     # os.system("patch -p1 < ../disable-parsec-barrier.patch")
     os.chdir("pkgs")
     os.system("patch -p1 < ../../streamcluster-heming.patch")

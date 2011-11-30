@@ -86,22 +86,16 @@ void IntTest::test_aget(const Module &M) {
 				if (const CallInst *ci = dyn_cast<CallInst>(ins)) {
 					const Function *callee = ci->getCalledFunction();
 					if (callee && callee->getName() == "pwrite") {
-						assert(ci->getNumOperands() == 5);
 						// pwrite(???, ???, len, offset)
-						const Value *offset = ci->getArgOperand(3);
-						if (const LoadInst *li = dyn_cast<LoadInst>(offset)) {
-							const GetElementPtrInst *gep =
-								dyn_cast<GetElementPtrInst>(li->getPointerOperand());
-							assert(gep);
-							assert(gep->getNumOperands() > 2);
-							const ConstantInt *idx = dyn_cast<ConstantInt>(gep->getOperand(2));
-							if (idx->getZExtValue() == 4) {
-								// From <offset> rather than <soffset>. 
-								// TODO: getOperandUse is subject to operand order changes. 
-								ranges[i].push_back(make_pair(
-											&ci->getOperandUse(3), &ci->getOperandUse(2)));
-							}
-						}
+						assert(ci->getNumOperands() == 5);
+						ranges[i].push_back(make_pair(
+									&ci->getOperandUse(3), &ci->getOperandUse(2)));
+					}
+					if (callee && callee->getName() == "fake_pwrite") {
+						// fake_pwrite(???, offset, len)
+						assert(ci->getNumOperands() == 4);
+						ranges[i].push_back(make_pair(
+									&ci->getOperandUse(1), &ci->getOperandUse(2)));
 					}
 				}
 			}
@@ -170,6 +164,121 @@ void IntTest::test_aget(const Module &M) {
 					errs() << "{" << i1 << ", " << j1 << "} and {" << i2 << ", " << j2 <<
 						"} are disjoint? ...";
 					assert(SC.provable(new Clause(Instruction::Or, c1, c2)));
+					print_pass(errs());
+				}
+			}
+		}
+	}
+
+	// fake_pwrite
+	// check_fake_pwrite(M);
+	check_fake_pwrite_cs(M);
+}
+
+void IntTest::check_fake_pwrite_cs(const Module &M) {
+	AdvancedAlias &AA = getAnalysis<AdvancedAlias>();
+
+	DenseMap<const Function *, ConstInstList> thread_call_sites;
+	for (Module::const_iterator f = M.begin(); f != M.end(); ++f) {
+		if (starts_with(f->getName(), "http_get.SLICER")) {
+			for (Function::const_iterator bb = f->begin(); bb != f->end(); ++bb) {
+				for (BasicBlock::const_iterator ins = bb->begin();
+						ins != bb->end(); ++ins) {
+					if (const CallInst *ci = dyn_cast<CallInst>(ins)) {
+						Function *callee = ci->getCalledFunction();
+						if (callee && callee->getName() == "fake_pwrite")
+							thread_call_sites[f].push_back(ci);
+					}
+				}
+			}
+		}
+	}
+
+	StoreInst *the_store = NULL;
+	Function *fake_pwrite = M.getFunction("fake_pwrite");
+	assert(fake_pwrite);
+	for (Function::iterator bb = fake_pwrite->begin(); bb != fake_pwrite->end();
+			++bb) {
+		for (BasicBlock::iterator ins = bb->begin(); ins != bb->end(); ++ins) {
+			if (StoreInst *si = dyn_cast<StoreInst>(ins)) {
+				assert(the_store == NULL);
+				the_store = si;
+			}
+		}
+	}
+	assert(the_store);
+
+	for (DenseMap<const Function *, ConstInstList>::iterator
+			i1 = thread_call_sites.begin(); i1 != thread_call_sites.end(); ++i1) {
+		DenseMap<const Function *, ConstInstList>::iterator i2 = i1;
+		for (++i2; i2 != thread_call_sites.end(); ++i2) {
+			for (size_t j1 = 0; j1 < i1->second.size(); ++j1) {
+				for (size_t j2 = 0; j2 < i2->second.size(); ++j2) {
+					errs() << "CS " << j1 << ", " << j2 << ": ";
+					assert(AA.alias(
+								ConstInstList(1, i1->second[j1]),
+								the_store->getPointerOperand(),
+								ConstInstList(1, i2->second[j2]),
+								the_store->getPointerOperand()) == AliasAnalysis::NoAlias);
+					print_pass(errs());
+				}
+			}
+		}
+	}
+}
+
+void IntTest::check_fake_pwrite(const Module &M) {
+	AliasAnalysis &AA = getAnalysis<AdvancedAlias>();
+
+	Value *fake_buffer = M.getNamedGlobal("fake_buffer");
+	assert(fake_buffer);
+	
+	InstList loads;
+	for (Value::use_iterator ui = fake_buffer->use_begin();
+			ui != fake_buffer->use_end(); ++ui) {
+		if (LoadInst *li = dyn_cast<LoadInst>(*ui))
+			loads.push_back(li);
+	}
+
+	InstList geps;
+	for (size_t i = 0; i < loads.size(); ++i) {
+		Instruction *li = loads[i];
+		for (Value::use_iterator ui = li->use_begin(); ui != li->use_end(); ++ui) {
+			if (GetElementPtrInst *gep = dyn_cast<GetElementPtrInst>(*ui))
+				geps.push_back(gep);
+		}
+	}
+
+	InstList stores;
+	for (size_t i = 0; i < geps.size(); ++i) {
+		Instruction *gep = geps[i];
+		for (Value::use_iterator ui = gep->use_begin(); ui != gep->use_end(); ++ui) {
+			if (StoreInst *si = dyn_cast<StoreInst>(*ui))
+				stores.push_back(si);
+		}
+	}
+
+	DenseMap<Function *, InstList> thread_stores;
+	for (size_t i = 0; i < stores.size(); ++i) {
+		Function *f = stores[i]->getParent()->getParent();
+		if (starts_with(f->getName(), "http_get.SLICER")) {
+			thread_stores[f].push_back(stores[i]);
+			dbgs() << "Store: " << f->getName() << ":" << *stores[i] << "\n";
+		}
+	}
+
+	for (DenseMap<Function *, InstList>::iterator i1 = thread_stores.begin();
+			i1 != thread_stores.end(); ++i1) {
+		DenseMap<Function *, InstList>::iterator i2 = i1;
+		for (++i2; i2 != thread_stores.end(); ++i2) {
+			for (size_t j1 = 0; j1 < i1->second.size(); ++j1) {
+				for (size_t j2 = 0; j2 < i2->second.size(); ++j2) {
+					StoreInst *s1 = dyn_cast<StoreInst>(i1->second[j1]);
+					StoreInst *s2 = dyn_cast<StoreInst>(i2->second[j2]);
+					assert(s1 && s2);
+					AliasAnalysis::AliasResult res = AA.alias(
+							s1->getPointerOperand(), s2->getPointerOperand());
+					assert(res == AliasAnalysis::NoAlias);
 					print_pass(errs());
 				}
 			}

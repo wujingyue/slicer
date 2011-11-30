@@ -31,7 +31,7 @@ diff -ruN aget-0.4.1/Download.c aget-0.4.1-new/Download.c
  unsigned int bwritten = 0;
  pthread_mutex_t bwritten_mutex = PTHREAD_MUTEX_INITIALIZER;
  
-+void fake_pwrite(char *, long long, long long) __attribute__((always_inline));
++void fake_pwrite(char *, long long, long long) __attribute__((noinline));
 +void fake_pwrite(char *buf, long long offset, long long len) {
 +	long long i;
 +	for (i = 0; i < len; ++i)

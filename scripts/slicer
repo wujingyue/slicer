@@ -9,10 +9,8 @@ import timeit
 
 def get_base_cmd():
     return "opt " + \
-            "-load $LLVM_ROOT/install/lib/id-manager.so " + \
+            "-load $LLVM_ROOT/install/lib/id.so " + \
             "-load $LLVM_ROOT/install/lib/bc2bdd.so " + \
-            "-load $LLVM_ROOT/install/lib/callgraph-fp.so " + \
-            "-load $LLVM_ROOT/install/lib/mbb.so " + \
             "-load $LLVM_ROOT/install/lib/cfg.so " + \
             "-load $LLVM_ROOT/install/lib/preparer.so " + \
             "-load $LLVM_ROOT/install/lib/slicer-trace.so " + \
