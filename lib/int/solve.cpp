@@ -730,28 +730,19 @@ const Function *SolveConstraints::get_container(const Value *v) {
 
 void SolveConstraints::realize_dominating_loops(const BasicBlock *bb,
 		unsigned context) {
-	vector<Loop *> loops;
-	get_all_loops(bb->getParent(), loops);
-	for (size_t i = 0; i < loops.size(); ++i) {
-		errs() << "all loop: "; errs().flush();
-		errs() << loops[i]->getHeader()->getName() << "\n"; errs().flush();
-	}
-	
-	errs() << "???\n"; errs().flush();
-	vector<Loop *> dominating_loops;
+	// Run DominatorTree before running LoopInfo; otherwise, LoopInfo
+	// would be invalidated. 
 	DominatorTree &DT = getAnalysis<DominatorTree>(
 			*const_cast<Function *>(bb->getParent()));
+
+	vector<Loop *> loops;
+	get_all_loops(bb->getParent(), loops);
+	
+	vector<Loop *> dominating_loops;
 	for (size_t i = 0; i < loops.size(); ++i) {
 		if (DT.dominates(loops[i]->getHeader(), bb))
 			dominating_loops.push_back(loops[i]);
 	}
-	errs() << "!!!\n"; errs().flush();
-	for (size_t i = 0; i < dominating_loops.size(); ++i) {
-		errs() << "all dominating loop: " <<
-			dominating_loops[i]->getHeader()->getName() << "\n";
-	}
-	errs() << "# of dominating loops = " << dominating_loops.size() << "\n";
-	errs().flush();
 
 	for (size_t i = 0; i < dominating_loops.size(); ++i)
 		realize_dominating_loop(dominating_loops[i], context);
@@ -921,15 +912,22 @@ void SolveConstraints::realize(const Instruction *ins, unsigned context) {
 	if (call_sites.size() == 1)
 		realize(call_sites[0], context);
 
+	// Realize each dominating loop.
+	realize_dominating_loops(bb, context);
+	// realize_containing_loops(bb, context);
+
+	// Realize each dominating BranchInst. 
+	realize_dominating_branches(bb, context);
+}
+
+void SolveConstraints::realize_dominating_branches(BasicBlock *bb,
+		unsigned context) {
+	Function *f = bb->getParent();
+
 	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 	// TODO: Make it inter-procedural
 	IntraReach &IR = getAnalysis<IntraReach>(*f);
 
-	// Realize each dominating loop.
-	// realize_dominating_loops(bb, context);
-	realize_containing_loops(bb, context);
-
-	// Realize each dominating BranchInst. 
 	BasicBlock *dom = bb;
 	while (dom != &f->getEntryBlock()) {
 		BasicBlock *p = get_idom(dom); assert(p);

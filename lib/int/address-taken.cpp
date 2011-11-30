@@ -352,10 +352,10 @@ void CaptureConstraints::capture_must_assign(Module &M) {
 		for (Function::iterator bb = f->begin(); bb != f->end(); ++bb) {
 			for (BasicBlock::iterator ins = bb->begin(); ins != bb->end(); ++ins) {
 				if (LoadInst *i2 = dyn_cast<LoadInst>(ins)) {
-					print_progress(dbgs(), cur_load, n_loads);
 					const Type *i2_type = i2->getType();
 					// We don't capture equalities on real numbers. 
 					if (isa<IntegerType>(i2_type) || isa<PointerType>(i2_type)) {
+						print_progress(dbgs(), cur_load, n_loads);
 						bool captured = capture_overwriting_to(i2);
 						++(captured ? n_captured : n_uncaptured);
 						++cur_load;

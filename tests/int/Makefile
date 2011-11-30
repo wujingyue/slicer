@@ -20,7 +20,7 @@ PROGS_DIR = ../progs
 run:: $(PROG_NAMES)
 
 %: $(PROGS_DIR)/%.simple.bc ../trace/%.lt
-	opt -stats -disable-output -debug-only=int \
+	opt -stats -disable-output \
 		-load $(LLVM_ROOT)/install/lib/id.so \
 		-load $(LLVM_ROOT)/install/lib/bc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/cfg.so \
@@ -45,7 +45,7 @@ run:: $(PROG_NAMES)
 		< $<
 
 %.ic: $(PROGS_DIR)/%.simple.bc ../trace/%.lt
-	opt -disable-output -debug-only=int \
+	opt -disable-output \
 		-load $(LLVM_ROOT)/install/lib/id.so \
 		-load $(LLVM_ROOT)/install/lib/bc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/cfg.so \
