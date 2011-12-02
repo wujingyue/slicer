@@ -83,10 +83,11 @@ void CaptureConstraints::capture_global_vars(Module &M) {
 
 void CaptureConstraints::capture_global_var(GlobalVariable *gv) {
 	RegionManager &RM = getAnalysis<RegionManager>();
-	AliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
 
 	assert(isa<IntegerType>(gv->getType()) || isa<PointerType>(gv->getType()));
 
+	// key: an overwriting region
+	// value: the value stored. NULL if unknown. 
 	DenseMap<Region, ConstValueList> overwriting_regions;
 	// Consider <gv>'s initializer as well. 
 	if (gv->hasInitializer()) {
@@ -97,49 +98,15 @@ void CaptureConstraints::capture_global_var(GlobalVariable *gv) {
 	for (Module::iterator f = m->begin(); f != m->end(); ++f) {
 		for (Function::iterator bb = f->begin(); bb != f->end(); ++bb) {
 			for (BasicBlock::iterator ins = bb->begin(); ins != bb->end(); ++ins) {
-				if (StoreInst *si = dyn_cast<StoreInst>(ins)) {
-					if (BAA.alias(gv, 0, si->getPointerOperand(), 0)) {
-						vector<Region> regions;
-						RM.get_containing_regions(si, regions);
-						for (size_t i = 0; i < regions.size(); ++i)
-							overwriting_regions[regions[i]].push_back(si->getOperand(0));
-					}
-				}
-				// TODO: summary, and use may_write functions etc. 
-				CallSite cs(ins);
-				if (cs.getInstruction()) {
-					Function *callee = cs.getCalledFunction();
-					if (callee && callee->getName().find("isoc99_scanf") != string::npos) {
-						assert(cs.arg_size() >= 1);
-						bool may_overwrite = false;
-						for (unsigned arg_no = 1; arg_no < cs.arg_size(); ++arg_no) {
-							if (BAA.alias(gv, 0, cs.getArgument(arg_no), 0)) {
-								may_overwrite = true;
-								break;
-							}
-						}
-						if (may_overwrite) {
-							vector<Region> regions;
-							RM.get_containing_regions(ins, regions);
-							for (size_t i = 0; i < regions.size(); ++i)
-								overwriting_regions[regions[i]].push_back(NULL);
-						}
-					}
-					if (callee && callee->getName() == "fscanf") {
-						assert(cs.arg_size() >= 2);
-						bool may_overwrite = false;
-						for (unsigned arg_no = 2; arg_no < cs.arg_size(); ++arg_no) {
-							if (BAA.alias(gv, 0, cs.getArgument(arg_no), 0)) {
-								may_overwrite = true;
-								break;
-							}
-						}
-						if (may_overwrite) {
-							vector<Region> regions;
-							RM.get_containing_regions(ins, regions);
-							for (size_t i = 0; i < regions.size(); ++i)
-								overwriting_regions[regions[i]].push_back(NULL);
-						}
+				ConstFuncSet visited_funcs;
+				if (may_write(ins, gv, visited_funcs, false)) {
+					vector<Region> regions;
+					RM.get_containing_regions(ins, regions);
+					for (size_t i = 0; i < regions.size(); ++i) {
+						Value *the_value = NULL;
+						if (StoreInst *si = dyn_cast<StoreInst>(ins))
+							the_value = si->getValueOperand();
+						overwriting_regions[regions[i]].push_back(the_value);
 					}
 				}
 			}
@@ -196,14 +163,8 @@ void CaptureConstraints::capture_global_var(GlobalVariable *gv) {
 		Clause *disj = NULL;
 		for (DenseMap<Region, ConstValueList>::iterator
 				i = overwriting_regions.begin(); i != overwriting_regions.end(); ++i) {
-			bool may_equal_unknown = false;
-			for (size_t k = 0; k < i->second.size(); ++k) {
-				if (i->second[k] == NULL) {
-					may_equal_unknown = true;
-					break;
-				}
-			}
-			if (may_equal_unknown) {
+			if (find(i->second.begin(), i->second.end(), (const Value *)NULL) !=
+					i->second.end()) {
 				delete disj;
 				disj = NULL;
 				break;
@@ -222,114 +183,15 @@ void CaptureConstraints::capture_global_var(GlobalVariable *gv) {
 	}
 }
 
-#if 0
-void CaptureConstraints::capture_may_assign(Module &M) {
-	ExecOnce &EO = getAnalysis<ExecOnce>();
-
-	// Find all loads and stores. 
-	vector<const LoadInst *> all_loads;
-	// <value, pointer>
-	// <all_stores> includes global variable initializers as well. 
-	// Therefore, not always a StoreInst. 
-	vector<pair<const Value *, const Value *> > all_stores;
-	// Scan through all loads and stores. 
-	// NOTE: We don't guarantee these stores and loads are constant. 
-	// Actually, we need consider non-constant stores here, because any
-	// instruction that loads from it may end up loading anything. 
-	forallinst(M, ii) {
-		if (EO.not_executed(ii))
-			continue;
-		Value *v = get_value_operand(ii);
-		if (!v)
-			continue;
-		if (isa<IntegerType>(v->getType()) || isa<PointerType>(v->getType())) {
-			if (StoreInst *si = dyn_cast<StoreInst>(ii))
-				all_stores.push_back(make_pair(v, si->getPointerOperand()));
-			if (LoadInst *li = dyn_cast<LoadInst>(ii))
-				all_loads.push_back(li);
-		}
-	}
-	
-	// Scan through all global variables. 
-	for (Module::global_iterator gi = M.global_begin();
-			gi != M.global_end(); ++gi) {
-		// FIXME: We ignore pointers here. They are usually initialized as NULL.
-		// <gi> itself must be a pointer. 
-		assert(isa<PointerType>(gi->getType()));
-		const Type *ele_type =
-			dyn_cast<PointerType>(gi->getType())->getElementType();
-		if (!isa<IntegerType>(ele_type))
-			continue;
-		if (gi->hasInitializer()) {
-			// TODO: To handle ConstantAggregateZero
-			if (ConstantInt *ci = dyn_cast<ConstantInt>(gi->getInitializer()))
-				all_stores.push_back(make_pair(ci, gi));
-		}
-	}
-	dbgs() << "=== Capturing may assignments === ";
-	dbgs() << "loads = " << all_loads.size() << "; ";
-	dbgs() << "stores = " << all_stores.size() << "\n";
-
-	for (size_t i = 0; i < all_loads.size(); ++i) {
-		print_progress(dbgs(), i, all_loads.size());
-
-		// TODO: Capture constant => non-constant assignments as well. 
-		if (!EO.executed_once(all_loads[i]))
-			continue;
-
-		Clause *disj = NULL;
-		unsigned n_terms = 0;
-		for (size_t j = 0; j < all_stores.size(); ++j) {
-			if (may_alias(all_loads[i]->getPointerOperand(), all_stores[j].second)) {
-				// If the stored value is not constant, the loaded value
-				// can be anything. So, no constraint will be captured in
-				// this case. 
-				if (const Instruction *si = dyn_cast<Instruction>(all_stores[j].first)) {
-					if (!EO.executed_once(si)) {
-						// dbgs() << "[Warning] Stores a variable\n";
-						if (disj) {
-							delete disj;
-							disj = NULL;
-						}
-						break;
-					}
-				}
-				Clause *c = new Clause(new BoolExpr(
-							CmpInst::ICMP_EQ,
-							new Expr(all_loads[i]),
-							new Expr(all_stores[j].first)));
-				if (!disj)
-					disj = c;
-				else {
-					assert(disj != c);
-					disj = new Clause(Instruction::Or, disj, c);
-				}
-				++n_terms;
-			}
-		} // for store
-#if 0
-		if (n_terms != 1 && disj) {
-			delete disj;
-			disj = NULL;
-		}
-#endif
-		add_constraint(disj);
-	}
-
-	// Finish the progress bar. 
-	print_progress(dbgs(), all_loads.size(), all_loads.size());
-	dbgs() << "\n";
-}
-#endif
-
 void CaptureConstraints::capture_must_assign(Module &M) {
 	ExecOnce &EO = getAnalysis<ExecOnce>();
 
+	// Compute <n_loads> in order to print the progress bar. 
 	unsigned n_loads = 0;
 	for (Module::iterator f = M.begin(); f != M.end(); ++f) {
 		if (!f->isDeclaration() && !EO.not_executed(f)) {
-			forall(Function, bb, *f) {
-				forall(BasicBlock, ins, *bb) {
+			for (Function::iterator bb = f->begin(); bb != f->end(); ++bb) {
+				for (BasicBlock::iterator ins = bb->begin(); ins != bb->end(); ++ins) {
 					if (isa<LoadInst>(ins)) {
 						const Type *ty = ins->getType();
 						if (isa<IntegerType>(ty) || isa<PointerType>(ty))
@@ -435,14 +297,13 @@ bool CaptureConstraints::region_may_write(const Region &r, const Value *q) {
 		return false;
 
 	const ConstInstList &insts_in_r = RM.get_insts_in_region(r);
+	// A region already includes exec-once functions. 
+	ConstFuncSet visited_funcs;
 	for (size_t i = 0; i < insts_in_r.size(); ++i) {
-		// TODO: Trace into functions. 
-		if (const StoreInst *si = dyn_cast<StoreInst>(insts_in_r[i])) {
-			DEBUG(dbgs() << "region_may_write?" << *si << "\n";);
-			if (may_alias(si->getPointerOperand(), q)) {
-				DEBUG(dbgs() << "region_may_write:" << *si << "\n";);
-				return true;
-			}
+		if (may_write(insts_in_r[i], q, visited_funcs)) {
+			DEBUG(dbgs() << "Region " << r << "may write to <q>:\n";);
+			DEBUG(dbgs() << *insts_in_r[i] << "\n";);
+			return true;
 		}
 	}
 
@@ -455,11 +316,19 @@ void CaptureConstraints::add_constraints(const vector<Clause *> &cs) {
 }
 
 bool CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
+	DEBUG(dbgs() << "** capture_overwriting_to:" << *i2 << "\n";);
+	DEBUG(dbgs() << "vid = " << getAnalysis<IDAssigner>().getValueID(i2) << "\n";);
+
 	// Check cache. 
 	if (captured_loads.count(i2)) {
+		DEBUG(dbgs() << "cache hit\n";);
 		vector<Clause *> to_be_added = captured_loads.lookup(i2);
-		for (size_t i = 0; i < to_be_added.size(); ++i)
+		for (size_t i = 0; i < to_be_added.size(); ++i) {
+			DEBUG(dbgs() << "cached constraint: ";);
+			DEBUG(print_clause(dbgs(), to_be_added[i], getAnalysis<IDAssigner>()));
+			DEBUG(dbgs() << "\n";);
 			add_constraint(to_be_added[i]->clone());
+		}
 		return true;
 	}
 
@@ -468,19 +337,21 @@ bool CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 	RegionManager &RM = getAnalysis<RegionManager>();
 	ExecOnce &EO = getAnalysis<ExecOnce>();
 
-	Value *q = i2->getPointerOperand();
 	// We only handle the case that <i2> is executed once for now. 
 	// TODO: Change to is_fixed_integer? 
-	if (!EO.executed_once(i2))
+	if (!EO.executed_once(i2)) {
+		DEBUG(dbgs() << "will not be executed. give up\n";);
 		return false;
+	}
 	
 	vector<Region> cur_regions;
 	RM.get_containing_regions(i2, cur_regions);
-	if (cur_regions.size() != 1)
+	if (cur_regions.size() != 1) {
+		DEBUG(dbgs() << "contained in multiple regions. give up\n");
 		return false;
-#if 0
-	errs() << "cur_region = " << cur_regions[0] << "\n";
-#endif
+	}
+	DEBUG(dbgs() << "containing region = " << cur_regions[0] << "\n";);
+
 	int cur_thr_id = cur_regions[0].thr_id;
 	size_t prev_enforcing = cur_regions[0].prev_enforcing_landmark;
 	// The preparer instruments the entry of each thread function
@@ -488,19 +359,14 @@ bool CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 	// landmark. 
 	assert(prev_enforcing != (size_t)-1);
 	
-	DEBUG(dbgs() << "capture_overwriting_to (vid = " <<
-			getAnalysis<IDAssigner>().getValueID(i2) << "): " << cur_thr_id <<
-			' ' << prev_enforcing << ":" << *i2 << "\n";);
 	if (Verbose)
 		dbgs() << "|";
 
 	// If any store is concurrent with cur_regions[0], return
+	Value *q = i2->getPointerOperand();
 	vector<Region> concurrent_regions;
 	RM.get_concurrent_regions(cur_regions[0], concurrent_regions);
-	DEBUG(dbgs() << "# of concurrent regions = " <<
-			concurrent_regions.size() << "\n");
 	for (size_t i = 0; i < concurrent_regions.size(); ++i) {
-		DEBUG(dbgs() << concurrent_regions[i] << "\n";);
 		if (region_may_write(concurrent_regions[i], q)) {
 			DEBUG(dbgs() << concurrent_regions[i] <<
 					" may write to this pointer\n";);
@@ -599,7 +465,7 @@ bool CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 	for (size_t k = 0; k < thr_ids.size(); ++k) {
 		if (!latest_overwriters[k])
 			continue; // ignore this overwriter
-		DEBUG(dbgs() << "latest_overwriter:" << *latest_overwriters[k] << "\n";);
+		DEBUG(dbgs() << "potential def:" << *latest_overwriters[k] << "\n";);
 		/*
 		 * If the path from latest_overwriters[k] to
 		 * latest_preceeding_enforcing_landmarks[k] may write to <q>, 
@@ -642,8 +508,9 @@ bool CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 		
 		// TODO: Cache the region_may_write results. 
 		bool overwritten_by_concurrent_regions = false;
-		forall(DenseSet<Region>, it, concurrent_regions) {
-			DEBUG(dbgs() << "Potential overwriter:" << *it << "\n";);
+		for (DenseSet<Region>::iterator it = concurrent_regions.begin();
+				it != concurrent_regions.end(); ++it) {
+			DEBUG(dbgs() << "killed by " << *it << "\n";);
 			if (region_may_write(*it, q)) {
 				overwritten_by_concurrent_regions = true;
 				break;
@@ -656,16 +523,15 @@ bool CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 					CmpInst::ICMP_EQ,
 					new Expr(i2),
 					new Expr(get_value_operand(latest_overwriters[k]))));
-		DEBUG(dbgs() << "Valid overwriter [" << cur_thr_id << "<="
-				<< thr_ids[k] << "]:"
-				<< *latest_overwriters[k] << "\n";);
-		DEBUG(dbgs() << "From overwriting: ";
-				print_clause(dbgs(), c, getAnalysis<IDAssigner>());
-				dbgs() << "\n";);
 		final_constraints.push_back(c);
+
+		DEBUG(dbgs() << "valid def:" << *latest_overwriters[k] << "\n";);
+		DEBUG(dbgs() << "constraint: ";);
+		DEBUG(print_clause(dbgs(), c, getAnalysis<IDAssigner>()););
+		DEBUG(dbgs() << "\n";);
 	}
 
-	DEBUG(dbgs() << "# of overwriters = " << final_constraints.size() << "\n";);
+	DEBUG(dbgs() << "# of valid defs = " << final_constraints.size() << "\n";);
 	if (final_constraints.empty())
 		return false;
 
@@ -677,60 +543,93 @@ bool CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 	return true;
 }
 
-bool CaptureConstraints::may_write(
-		const Instruction *i, const Value *q, ConstFuncSet &visited_funcs) {
+bool CaptureConstraints::may_write(const Instruction *i,
+		const Value *q, ConstFuncSet &visited_funcs, bool trace_callee) {
 	if (const StoreInst *si = dyn_cast<StoreInst>(i)) {
-		if (may_alias(si->getPointerOperand(), q))
+		if (may_alias(si->getPointerOperand(), q)) {
+			DEBUG(dbgs() << "may_write: ";);
+			DEBUG(dbgs() << "[" << si->getParent()->getParent()->getName() << "]";);
+			DEBUG(dbgs() << *si << "\n";);
 			return true;
+		}
 	}
-	if (is_call(i)) {
-		CallSite cs(const_cast<Instruction *>(i));
-		assert(cs.getInstruction());
-		Function *callee = cs.getCalledFunction();
-		if (callee && callee->getName() == "fscanf") {
+
+	CallSite cs(const_cast<Instruction *>(i));
+	if (cs.getInstruction() && !is_pthread_create(i)) {
+		CallGraphFP &CG = getAnalysis<CallGraphFP>();
+		FuncList callees = CG.get_called_functions(i);
+		for (size_t j = 0; j < callees.size(); ++j) {
+			Function *callee = callees[j];
+			if (callee->isDeclaration()) {
+				if (libcall_may_write(cs, q)) {
+					DEBUG(dbgs() << "may_write:" << *i << "\n";);
+					return true;
+				}
+			} else {
+				// <callee> is an internal function. 
+				if (trace_callee) {
+					ExecOnce &EO = getAnalysis<ExecOnce>();
+					// Don't trace into exec-once functions, because they are already
+					// included in the partical ICFG and potentially included in the path. 
+					if (!EO.not_executed(callee) && !EO.executed_once(callee)) {
+						if (may_write(callee, q, visited_funcs))
+							return true;
+					}
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+bool CaptureConstraints::libcall_may_write(const CallSite &cs, const Value *q) {
+	assert(cs.getInstruction());
+
+	if (Function *callee = cs.getCalledFunction()) {
+		if (callee->getName() == "fscanf") {
 			assert(cs.arg_size() >= 2);
 			for (unsigned arg_no = 2; arg_no < cs.arg_size(); ++arg_no) {
 				if (may_alias(cs.getArgument(arg_no), q))
 					return true;
 			}
 		}
-		if (callee && callee->isDeclaration() && (
-					callee->getName() == "BZ2_bzReadOpen" ||
-					callee->getName() == "BZ2_bzRead" ||
-					callee->getName() == "BZ2_bzReadGetUnused" ||
-					callee->getName() == "BZ2_bzReadClose")) {
+		if (callee->getName() == "BZ2_bzReadOpen" ||
+				callee->getName() == "BZ2_bzRead" ||
+				callee->getName() == "BZ2_bzReadGetUnused" ||
+				callee->getName() == "BZ2_bzReadClose") {
 			assert(cs.arg_size() >= 1);
 			if (may_alias(cs.getArgument(0), q))
 				return true;
 		}
-	}
-	// If <i> is a function call, go into the function. 
-	if (is_call(i)) {
-		CallGraphFP &CG = getAnalysis<CallGraphFP>();
-		FuncList callees = CG.get_called_functions(i);
-		for (size_t j = 0; j < callees.size(); ++j) {
-			if (may_write(callees[j], q, visited_funcs))
-				return true;
+		if (callee->getName().find("isoc99_scanf") != string::npos) {
+			assert(cs.arg_size() >= 1);
+			for (unsigned arg_no = 1; arg_no < cs.arg_size(); ++arg_no) {
+				if (may_alias(q, cs.getArgument(arg_no)))
+					return true;
+			}
 		}
 	}
+
 	return false;
 }
 
 bool CaptureConstraints::may_write(const Function *f,
-		const Value *q, ConstFuncSet &visited_funcs) {
+		const Value *q, ConstFuncSet &visited_funcs, bool trace_callee) {
 	if (visited_funcs.count(f))
 		return false;
 	visited_funcs.insert(f);
-	// FIXME: need function summary
-	// For now, we assume external functions don't write to <q>. 
+
 	if (f->isDeclaration())
 		return false;
+	
 	for (Function::const_iterator bi = f->begin(); bi != f->end(); ++bi) {
 		for (BasicBlock::const_iterator ii = bi->begin(); ii != bi->end(); ++ii) {
-			if (may_write(ii, q, visited_funcs))
+			if (may_write(ii, q, visited_funcs, trace_callee))
 				return true;
 		}
 	}
+	
 	return false;
 }
 
@@ -775,7 +674,7 @@ bool CaptureConstraints::path_may_write(int thr_id, size_t trunk_id,
 	}
 	assert(reached_sink && "<i1> should dominate <i2>");
 
-	return blocks_may_write(visited, landmarks,
+	return mbbs_may_write(visited, landmarks,
 			InstList(1, const_cast<Instruction *>(i2)), q);
 }
 
@@ -820,46 +719,65 @@ bool CaptureConstraints::path_may_write(const Instruction *i1,
 	}
 	assert(reached_sink && "<i2> should post-dominate <i1>");
 
-	return blocks_may_write(visited,
+	return mbbs_may_write(visited,
 			InstList(1, const_cast<Instruction *>(i1)),
 			landmarks, q);
 }
 
-bool CaptureConstraints::blocks_may_write(
-		const DenseSet<const ICFGNode *> &blocks,
+bool CaptureConstraints::mbbs_may_write(const DenseSet<const ICFGNode *> &mbbs,
 		const InstList &starts, const InstList &ends, const Value *q) {
-	// Functions visited in <may_write>s. 
-	// In order to handle recursive functions. 
-	// FIXME: Trace into functions that don't appear in the ICFG. 
-	forallconst(DenseSet<const ICFGNode *>, it, blocks) {
+	for (DenseSet<const ICFGNode *>::const_iterator it = mbbs.begin();
+			it != mbbs.end(); ++it) {
 		const MicroBasicBlock *mbb = (*it)->getMBB();
-		BasicBlock::const_iterator s = mbb->end();
-		while (s != mbb->begin()) {
-			--s;
-			if (find(starts.begin(), starts.end(), s) != starts.end()) {
-				++s;
-				break;
-			}
-		}
-		BasicBlock::const_iterator e = mbb->begin();
-		while (e != mbb->end()) {
-			if (find(ends.begin(), ends.end(), e) != ends.end())
-				break;
-			++e;
-		}
-		for (BasicBlock::const_iterator i = s; i != e; ++i) {
-			if (const StoreInst *si = dyn_cast<StoreInst>(i)) {
-				if (may_alias(si->getPointerOperand(), q))
-					return true;
-			}
-		}
+		if (mbb_may_write(mbb, starts, ends, q))
+			return true;
 	}
- 	return false;
+
+	return false;
 }
 
-bool CaptureConstraints::path_may_write(
-		const Instruction *i1, const Instruction *i2, const Value *q) {
-	DEBUG(dbgs() << "path_may_write:" << *i1 << "\n" << *i2 << "\n";);
+bool CaptureConstraints::mbb_may_write(const MicroBasicBlock *mbb,
+		const InstList &starts, const InstList &ends, const Value *q) {
+	// The starting point may not be the entry of <mbb>. It may be one of the
+	// instructions in <starts>. 
+	BasicBlock::const_iterator s = mbb->end();
+	while (s != mbb->begin()) {
+		--s;
+		if (find(starts.begin(), starts.end(), s) != starts.end()) {
+			++s;
+			break;
+		}
+	}
+	
+	// The ending point may not be the exit of <mbb>. It may be one of the
+	// instructions in <ends>. 
+	BasicBlock::const_iterator e = mbb->begin();
+	while (e != mbb->end()) {
+		if (find(ends.begin(), ends.end(), e) != ends.end())
+			break;
+		++e;
+	}
+
+	// Trace into functions that don't appear in the ICFG. 
+	ConstFuncSet visited_funcs;
+	for (BasicBlock::const_iterator i = s; i != e; ++i) {
+		if (may_write(i, q, visited_funcs))
+			return true;
+	}
+ 	
+	return false;
+}
+
+bool CaptureConstraints::path_may_write(const Instruction *i1,
+		const Instruction *i2, const Value *q) {
+	DEBUG(dbgs() << "path_may_write:\n");
+	DEBUG(dbgs() << "  start: ";);
+	DEBUG(dbgs() << "[" << i1->getParent()->getParent()->getName() << "]";);
+	DEBUG(dbgs() << *i1 << "\n";);
+	DEBUG(dbgs() << "  end: ";);
+	DEBUG(dbgs() << "[" << i2->getParent()->getParent()->getName() << "]";);
+	DEBUG(dbgs() << *i2 << "\n";);
+
 	MicroBasicBlockBuilder &MBBB = getAnalysis<MicroBasicBlockBuilder>();
 	MicroBasicBlock *m1 = MBBB.parent(i1), *m2 = MBBB.parent(i2);
 
@@ -872,37 +790,10 @@ bool CaptureConstraints::path_may_write(
 	sink.insert(n1);
 	IR.floodfill_r(n2, sink, visited);
 	assert(visited.count(n1) && "<i1> should dominate <i2>");
-	// Functions visited in <may_write>s. 
-	// In order to handle recursive functions. 
-	// FIXME: Trace into functions that don't appear in the ICFG. 
-	forall(DenseSet<const ICFGNode *>, it, visited) {
-		const MicroBasicBlock *mbb = (*it)->getMBB();
-		BasicBlock::const_iterator s = mbb->begin(), e = mbb->end();
-		if (m1 == mbb) {
-			s = i1;
-			++s;
-		}
-		if (m2 == mbb)
-			e = i2;
-		for (BasicBlock::const_iterator i = s; i != e; ++i) {
-			if (const StoreInst *si = dyn_cast<StoreInst>(i)) {
-				DEBUG(dbgs() << "Potential overwriter:" << *i << "\n";);
-				if (may_alias(si->getPointerOperand(), q))
-					return true;
-			}
-			if (is_call(i) && !is_pthread_create(i)) {
-				const Instruction *const_i = i;
-				CallSite cs(const_cast<Instruction *>(const_i));
-				Function *callee = cs.getCalledFunction();
-				if (callee && callee->isDeclaration()) {
-					ConstFuncSet visited_funcs;
-					if (may_write(i, q, visited_funcs))
-						return true;
-				}
-			}
-		}
-	}
- 	return false;
+
+	return mbbs_may_write(visited,
+			InstList(1, const_cast<Instruction *>(i1)),
+			InstList(1, const_cast<Instruction *>(i2)), q);
 }
 
 BasicBlock *CaptureConstraints::get_idom(BasicBlock *bb) {

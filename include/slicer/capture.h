@@ -135,16 +135,6 @@ namespace slicer {
 		
 		// Address taken variables. 
 		void capture_addr_taken(Module &M);
-#if 0
-		/*
-		 * store v1, p (including global variable initializers)
-		 * v2 = load q
-		 * p and q may alias
-		 * =>
-		 * v2 may = v1
-		 */
-		void capture_may_assign(Module &M);
-#endif
 		void capture_must_assign(Module &M);
 		void capture_global_vars(Module &M);
 		void capture_global_var(GlobalVariable *gv);
@@ -162,21 +152,38 @@ namespace slicer {
 		// <i1> must dominate <i2>, and they are in the same function. 
 		// We don't consider <i1> and <i2> in the path, i.e. the path is an
 		// exclusive region (i1, i2). 
-		bool path_may_write(
-				const Instruction *i1, const Instruction *i2, const Value *q);
+		bool path_may_write(const Instruction *i1, const Instruction *i2,
+				const Value *q);
+		/**
+		 * Similar to path_may_write(i1, i2, ...), but instead of <i1>, the
+		 * starting points are begin(thr_id, trunk_id).
+		 */
 		bool path_may_write(int thr_id, size_t trunk_id,
 				const Instruction *i2, const Value *q);
+		/**
+		 * Similar to path_may_write(i1, i2, ...), but instead of <i2>, the 
+		 * ending points are begin(thr_id, trunk_id). 
+		 */
 		bool path_may_write(const Instruction *i1,
 				int thr_id, size_t trunk_id, const Value *q);
-		bool blocks_may_write(
-				const DenseSet<const ICFGNode *> &blocks,
+		bool mbbs_may_write(const DenseSet<const ICFGNode *> &blocks,
+				const InstList &starts, const InstList &ends, const Value *q);
+		bool mbb_may_write(const MicroBasicBlock *mbb,
 				const InstList &starts, const InstList &ends, const Value *q);
 		bool region_may_write(const Region &r, const Value *q);
-		// Check if instruction <i> may write to <q>. 
-		bool may_write(
-				const Instruction *i, const Value *q, ConstFuncSet &visited_funcs);
-		bool may_write(
-				const Function *f, const Value *q, ConstFuncSet &visited_funcs);
+		/**
+		 * Check if instruction <i> may write to <q>. 
+		 * If <i> is a call instruction, the function may trace into the callee
+		 * depending on flag <trace_callee>.
+		 * Note that this function never traces into an exec-once function,
+		 * becuase doing so is incorrect when used in <path_may_write> or
+		 * <region_may_write>. 
+		 */
+		bool may_write(const Instruction *i, const Value *q,
+				ConstFuncSet &visited_funcs, bool trace_callee = true);
+		bool may_write(const Function *f, const Value *q,
+				ConstFuncSet &visited_funcs, bool trace_callee = true);
+		bool libcall_may_write(const CallSite &cs, const Value *q);
 		
 		// General functions. 
 		void simplify_constraints();

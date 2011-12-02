@@ -1,8 +1,10 @@
 #include "llvm/Module.h"
 #include "llvm/Support/Debug.h"
+using namespace llvm;
+
 #include "common/util.h"
 #include "common/exec-once.h"
-using namespace llvm;
+using namespace rcs;
 
 #include "slicer/adv-alias.h"
 #include "slicer/test-utils.h"
@@ -18,13 +20,13 @@ void IntTest::radix_like(Module &M) {
 	DenseMap<Function *, ValueList> accesses_to_me;
 	vector<Value *> accesses_to_ff;
 	ExecOnce &EO = getAnalysis<ExecOnce>();
-	forall(Module, f, M) {
+	for (Module::iterator f = M.begin(); f != M.end(); ++f) {
 		if (EO.not_executed(f))
 			continue;
 
 		// Identify accesses to <rank_me>. 
-		forall(Function, bb, *f) {
-			forall(BasicBlock, ins, *bb) {
+		for (Function::iterator bb = f->begin(); bb != f->end(); ++bb) {
+			for (BasicBlock::iterator ins = bb->begin(); ins != bb->end(); ++ins) {
 				CallSite cs(ins);
 				if (cs.getInstruction()) {
 					Function *callee = cs.getCalledFunction();
@@ -54,8 +56,8 @@ void IntTest::radix_like(Module &M) {
 		// Identify accesses to <rank_ff>. 
 		// Look at all "store 0". Not all of them are accesses to <rank_ff>,
 		// but doesn't affect the result. 
-		forall(Function, bb, *f) {
-			forall(BasicBlock, ins, *bb) {
+		for (Function::iterator bb = f->begin(); bb != f->end(); ++bb) {
+			for (BasicBlock::iterator ins = bb->begin(); ins != bb->end(); ++ins) {
 				if (StoreInst *si = dyn_cast<StoreInst>(ins)) {
 					if (ConstantInt *ci = dyn_cast<ConstantInt>(si->getOperand(0))) {
 						if (ci->isZero()) {
@@ -91,7 +93,7 @@ void IntTest::radix_like(Module &M) {
 				for (size_t j2 = 0; j2 < i2->second.size(); ++j2) {
 					errs() << "{" << i1->first->getName() << ":" << j1 << "} != {" <<
 						i2->first->getName() << ":" << j2 << "}? ...";
-					assert(AA.alias(i1->second[j1], 0, i2->second[j2], 0) ==
+					assert(AA.alias(i1->second[j1], i2->second[j2]) ==
 							AliasAnalysis::NoAlias);
 					print_pass(errs());
 				}
@@ -199,4 +201,22 @@ void IntTest::radix_common(Module &M) {
 			print_pass(errs());
 		}
 	}
+
+	Clause *disj = NULL;
+	const IntegerType *int_type = IntegerType::get(M.getContext(), 32);
+	for (size_t i = 0; i < local_ids.size(); ++i) {
+		Clause *c = new Clause(new BoolExpr(CmpInst::ICMP_EQ,
+					new Expr(local_ids[i]), new Expr(ConstantInt::get(int_type, 1))));
+		if (disj)
+			disj = new Clause(Instruction::Or, disj, c);
+		else
+			disj = c;
+	}
+	assert(disj);
+
+	// local_ids starts from 1. 
+	errs() << "At least one of the local_ids is 1? ...";
+	assert(SC.provable(disj));
+	delete disj;
+	print_pass(errs());
 }
