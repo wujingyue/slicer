@@ -14,7 +14,6 @@ namespace slicer {
 
 	private:
 		void setup(Module &M);
-		static bool blocks(Instruction *ins);
 		bool should_instrument(Instruction *ins) const;
 
 		const Type *uint_type, *bool_type;

@@ -16,6 +16,58 @@ using namespace rcs;
 #include "int-test.h"
 using namespace slicer;
 
+void IntTest::test_test_barrier(Module &M) {
+	TestBanner X("test-barrier");
+
+	SolveConstraints &SC = getAnalysis<SolveConstraints>();
+	const IntegerType *int_type = IntegerType::get(M.getContext(), 32);
+	
+	Function *print = M.getFunction("printf"); assert(print);
+	for (Value::use_iterator ui = print->use_begin(); ui != print->use_end();
+			++ui) {
+		if (CallInst *ci = dyn_cast<CallInst>(*ui)) {
+			unsigned n_args = ci->getNumArgOperands();
+			assert(n_args > 0);
+			errs() << "printed value = 2? ...";
+			assert(SC.provable(CmpInst::ICMP_EQ,
+						ConstInstList(), ci->getArgOperand(n_args - 1),
+						ConstInstList(), dyn_cast<Value>(ConstantInt::get(int_type, 2))));
+			print_pass(errs());
+		}
+	}
+}
+
+void IntTest::test_test_lcssa(Module &M) {
+	TestBanner X("test-lcssa");
+
+	SolveConstraints &SC = getAnalysis<SolveConstraints>();
+	const IntegerType *int_type = IntegerType::get(M.getContext(), 32);
+
+	for (Module::iterator f = M.begin(); f != M.end(); ++f) {
+		for (Function::iterator bb = f->begin(); bb != f->end(); ++bb) {
+			for (BasicBlock::iterator ins = bb->begin(); ins != bb->end(); ++ins) {
+				if (CallInst *ci = dyn_cast<CallInst>(ins)) {
+					Function *callee = ci->getCalledFunction();
+					if (callee && callee->getName() == "printf") {
+						unsigned n_args = ci->getNumArgOperands();
+						assert(n_args > 0);
+						Value *arg = ci->getArgOperand(n_args - 1);
+						if (isa<PHINode>(arg)) {
+							errs() << "lcssa >= 0? ...";
+							assert(SC.provable(CmpInst::ICMP_SGE,
+										ConstInstList(),
+										arg,
+										ConstInstList(),
+										dyn_cast<Value>(ConstantInt::get(int_type, 0))));
+							print_pass(errs());
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 void IntTest::test_test_ctxt_4(const Module &M) {
 	TestBanner X("test-ctxt-4");
 

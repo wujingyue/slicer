@@ -118,6 +118,7 @@ int LoadPlugins() {
 		errs() << "Environment variable LLVM_ROOT is not set\n";
 		return -1;
 	}
+	
 	string LibDir = string(LLVMRoot) + "/install/lib";
 	PluginLoader Loader;
 	Loader = LibDir + "/id.so";
@@ -127,7 +128,7 @@ int LoadPlugins() {
 	Loader = LibDir + "/max-slicing.so";
 	Loader = LibDir + "/int.so";
 	Loader = LibDir + "/reducer.so";
-	dbgs() << "# of plugins = " << Loader.getNumPlugins() << "\n";
+
 	return 0;
 }
 

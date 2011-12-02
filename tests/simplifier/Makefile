@@ -3,10 +3,10 @@
 PROG_NAMES = test-loop test-reducer test-overwrite test-loop-2 test-ctxt-2 \
 	     test-bound FFT-like test-dep test-ctxt-4 \
 	     aget-like test-array test-thread test-assert \
-	     RADIX-like test-thread-2 test-range-2 \
+	     RADIX-like test-thread-2 test-range-2 test-barrier \
 	     test-overwrite-2 test-malloc test-range \
-	     test-range-3 test-range-4 test-global \
-	     aget RADIX FFT LU-cont blackscholes
+	     test-range-3 test-range-4 test-global test-lcssa \
+	     aget RADIX LU-cont blackscholes FFT
 PROGS_DIR = ../progs
 PROGS = $(addprefix $(PROGS_DIR)/, $(PROG_NAMES))
 SIMPLE_PROGS = $(PROGS:=.simple)

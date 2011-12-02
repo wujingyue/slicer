@@ -121,5 +121,9 @@ bool IntTest::runOnModule(Module &M) {
 		test_test_ctxt_4(M);
 	if (Program == "test-global")
 		test_test_global(M);
+	if (Program == "test-lcssa")
+		test_test_lcssa(M);
+	if (Program == "test-barrier")
+		test_test_barrier(M);
 	return false;
 }

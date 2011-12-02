@@ -14,6 +14,47 @@ void IntTest::test_fft(const Module &M) {
 	TestBanner X("FFT");
 	test_fft_common(M);
 	
+	// check_transpose(M);
+	check_fft1donce(const_cast<Module &>(M));
+}
+
+void IntTest::check_fft1donce(Module &M) {
+	Function *fft1donce = M.getFunction("FFT1DOnce");
+	assert(fft1donce);
+
+	ConstInstList contexts;
+	for (Value::use_iterator ui = fft1donce->use_begin();
+			ui != fft1donce->use_end(); ++ui) {
+		if (CallInst *ci = dyn_cast<CallInst>(*ui)) {
+			// Make sure FFT1DOnce is the called function instead of an argument.
+			if (ci->getCalledFunction() == fft1donce) {
+				Function *caller = ci->getParent()->getParent();
+				if (caller->getName().startswith("SlaveStart.SLICER"))
+					contexts.push_back(ci);
+			}
+		}
+	}
+	assert(contexts.size() >= 2 && "Not enough calling contexts to test");
+
+	AdvancedAlias &AAA = getAnalysis<AdvancedAlias>();
+	for (Function::iterator bb = fft1donce->begin();
+			bb != fft1donce->end(); ++bb) {
+		for (BasicBlock::iterator ins = bb->begin(); ins != bb->end(); ++ins) {
+			if (StoreInst *si = dyn_cast<StoreInst>(ins)) {
+				errs() << *si << "? ...";
+				AliasAnalysis::AliasResult res = AAA.alias(
+						ConstInstList(1, contexts[0]), si->getPointerOperand(),
+						ConstInstList(1, contexts[1]), si->getPointerOperand());
+				if (res == AliasAnalysis::NoAlias)
+					print_pass(errs());
+				else
+					print_fail(errs());
+			}
+		}
+	}
+}
+
+void IntTest::check_transpose(const Module &M) {
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	// The ranges in Transpose under different contexts are disjoint. 
 	const Function *transpose = M.getFunction("Transpose");
@@ -92,8 +133,6 @@ void IntTest::test_fft(const Module &M) {
 	}
 	assert(racy_store);
 
-	SC.set_print_asserts(true);
-	int n_complicated_queries = 0;
 	for (i1 = contexts.begin(); i1 != contexts.end(); ++i1) {
 		i2 = i1;
 		for (++i2; i2 != contexts.end(); ++i2) {
@@ -111,15 +150,10 @@ void IntTest::test_fft(const Module &M) {
 								i2->second[j2], racy_store->getPointerOperand()) ==
 							AliasAnalysis::NoAlias);
 					print_pass(errs());
-					++n_complicated_queries;
-					if (n_complicated_queries >= 5)
-						goto outside;
 				}
 			}
 		}
 	}
-outside:
-	SC.set_print_asserts(false);
 }
 
 void IntTest::test_fft_like(const Module &M) {

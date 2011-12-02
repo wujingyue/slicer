@@ -215,6 +215,7 @@ namespace slicer {
 		void realize_dominating_loops(const BasicBlock *bb, unsigned context);
 		void realize_dominating_loop(const Loop *l, unsigned context);
 		void realize_dominating_branches(BasicBlock *bb, unsigned context);
+		void realize_dominating_loop_exits(BasicBlock *bb, unsigned context);
 		void get_all_loops(const Function *f, vector<Loop *> &loops);
 		void get_all_loops(Loop *l, vector<Loop *> &loops);
 		/** Deprecated */

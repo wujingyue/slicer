@@ -918,6 +918,44 @@ void SolveConstraints::realize(const Instruction *ins, unsigned context) {
 
 	// Realize each dominating BranchInst. 
 	realize_dominating_branches(bb, context);
+
+	// PHI edges from inside of loops to outside of loops. 
+	realize_dominating_loop_exits(bb, context);
+}
+
+void SolveConstraints::realize_dominating_loop_exits(BasicBlock *bb,
+		unsigned context) {
+	CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
+
+	while (bb != bb->getParent()->begin()) {
+		for (BasicBlock::iterator ins = bb->begin();
+				bb->getFirstNonPHI() != ins; ++ins) {
+			PHINode *phi = dyn_cast<PHINode>(ins); assert(phi);
+			// TODO: Can we do the similar thing for multiple incoming edges? 
+			// So far it's necessary because we want the incoming block to
+			// dominate the current BB. 
+			if (phi->getNumIncomingValues() == 1) {
+				if (!CC.comes_from_shallow(phi->getIncomingBlock(0), bb)) {
+					Clause *c = new Clause(new BoolExpr(CmpInst::ICMP_EQ,
+								new Expr(phi), new Expr(phi->getIncomingValue(0))));
+					CC.attach_context(c, context);
+					replace_with_root(c);
+
+					VCExpr vce = translate_to_vc(c);
+					if (try_to_simplify(vce) != 1) {
+						DEBUG(dbgs() << "[realize] ";
+								print_clause(dbgs(), c, getAnalysis<IDAssigner>());
+								dbgs() << "\n";);
+						vc_assertFormula(vc, vce);
+					}
+					vc_DeleteExpr(vce);
+
+					delete c;
+				}
+			}
+		}
+		bb = get_idom(bb); assert(bb);
+	}
 }
 
 void SolveConstraints::realize_dominating_branches(BasicBlock *bb,

@@ -44,8 +44,12 @@ namespace slicer {
 		void test_test_ctxt_2(const Module &M);
 		void test_test_ctxt_4(const Module &M);
 		void test_test_global(const Module &M);
+		void test_test_lcssa(Module &M);
+		void test_test_barrier(Module &M);
 
 		void check_fake_pwrite(const Module &M);
 		void check_fake_pwrite_cs(const Module &M);
+		void check_transpose(const Module &M);
+		void check_fft1donce(Module &M);
 	};
 }

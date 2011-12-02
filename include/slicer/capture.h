@@ -94,6 +94,13 @@ namespace slicer {
 		void attach_context(Clause *c, unsigned context);
 		void attach_context(BoolExpr *be, unsigned context);
 		void attach_context(Expr *e, unsigned context);
+		/**
+		 * Returns true if
+		 * 1. x is shallower than y OR
+		 * 2. x and y are at the same level, but x => y is a backedge of
+		 *    their containing loop. 
+		 */
+		bool comes_from_shallow(const BasicBlock *x, const BasicBlock *y);
 
 	private:
 		// Utility functions. 
@@ -204,13 +211,6 @@ namespace slicer {
 		Clause *get_in_binary(const User *user, unsigned opcode);
 		Clause *get_in_gep(const User *user);
 		Clause *get_in_phi(const PHINode *phi);
-		/**
-		 * Returns true if
-		 * 1. x is shallower than y OR
-		 * 2. x and y are at the same level, but x => y is a backedge of
-		 *    their containing loop. 
-		 */
-		bool comes_from_shallow(const BasicBlock *x, const BasicBlock *y);
 		/* Constraints from unreachable blocks. */
 		void capture_unreachable(Module &M);
 		/**

@@ -110,8 +110,8 @@ if __name__ == "__main__":
         # drive queries: .id.queries, .slice.queries, .simple.queries ->
         cmd_options = "-analyze "
         landmark_trace_filename = os.path.join(PROGS_DIR, benchmark + ".lt")
-        cmd_options += "-drive-queries "
         cmd_options += "-debug-only=alias-query "
+        cmd_options += "-drive-queries "
         bc_filename = os.path.join(PROGS_DIR, benchmark + ".id.bc")
         input_filename = os.path.join(PROGS_DIR, benchmark + ".id.queries")
         cmd = string.join((base_cmd, cmd_options,

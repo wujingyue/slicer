@@ -116,4 +116,12 @@ void CaptureConstraints::capture_libcall(const CallSite &cs) {
 			}
 		}
 	}
+	if (name == "rand") {
+		// ret >= 0
+		const Value *ret = cs.getInstruction();
+		if (is_reachable_integer(ret)) {
+			add_constraint(new Clause(new BoolExpr(CmpInst::ICMP_SGE,
+							new Expr(ret), new Expr(ConstantInt::get(int_type, 0)))));
+		}
+	}
 }

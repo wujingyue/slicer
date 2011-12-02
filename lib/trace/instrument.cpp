@@ -6,16 +6,19 @@
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Support/CallSite.h"
 #include "llvm/Support/CommandLine.h"
-#include "common/IDManager.h"
-#include "common/exec-once.h"
-#include "common/util.h"
 #include "common/InitializePasses.h"
 #include "slicer/InitializePasses.h"
 using namespace llvm;
 
+#include "common/IDManager.h"
+#include "common/exec-once.h"
+#include "common/util.h"
+using namespace rcs;
+
 #include "slicer/trace.h"
 #include "slicer/instrument.h"
 #include "slicer/mark-landmarks.h"
+#include "slicer/enforcing-landmarks.h"
 using namespace slicer;
 
 INITIALIZE_PASS_BEGIN(Instrument, "instrument",
@@ -24,6 +27,7 @@ INITIALIZE_PASS_BEGIN(Instrument, "instrument",
 INITIALIZE_PASS_DEPENDENCY(IDManager)
 INITIALIZE_PASS_DEPENDENCY(MarkLandmarks)
 INITIALIZE_PASS_DEPENDENCY(ExecOnce)
+INITIALIZE_PASS_DEPENDENCY(EnforcingLandmarks)
 INITIALIZE_PASS_END(Instrument, "instrument",
 		"Instrument the program so that it will generate a trace"
 		" when being executed", false, false)
@@ -33,6 +37,7 @@ void Instrument::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<IDManager>();
 	AU.addRequired<MarkLandmarks>();
 	AU.addRequired<ExecOnce>();
+	AU.addRequired<EnforcingLandmarks>();
 }
 
 static cl::opt<bool> InstrumentEachBB("instrument-each-bb",
@@ -41,46 +46,10 @@ static cl::opt<bool> InstrumentEachBB("instrument-each-bb",
 static cl::opt<bool> MultiProcessed("multi-processed",
 		cl::desc("Whether the program is multi-processed"));
 
-const static char *BLOCKING_FUNCS[] = {
-	"pthread_mutex_lock",
-	"pthread_mutex_trylock",
-	"pthread_join",
-	"pthread_cond_wait",
-	"pthread_cond_timedwait",
-	"pthread_barrier_wait",
-	"pthread_rwlock_wrlock",
-	"pthread_rwlock_rdlock",
-	"pthread_rwlock_trywrlock",
-	"pthread_rwlock_tryrdlock",
-	"sleep",
-	"usleep",
-	"nanosleep",
-	"accept",
-	"select",
-	"sigwait",
-	"sem_wait",
-	"epoll_wait"
-};
-
 char Instrument::ID = 0;
 
 Instrument::Instrument(): ModulePass(ID) {
 	initializeInstrumentPass(*PassRegistry::getPassRegistry());
-}
-
-bool Instrument::blocks(Instruction *ins) {
-	CallSite cs(ins);
-	if (!cs.getInstruction())
-		return false;
-	Function *callee = cs.getCalledFunction();
-	if (!callee)
-		return false;
-	const size_t len = sizeof(BLOCKING_FUNCS) / sizeof(BLOCKING_FUNCS[0]);
-	for (size_t i = 0; i < len; ++i) {
-		if (callee->getNameStr() == BLOCKING_FUNCS[i])
-			return true;
-	}
-	return false;
 }
 
 bool Instrument::should_instrument(Instruction *ins) const {
@@ -104,6 +73,7 @@ bool Instrument::should_instrument(Instruction *ins) const {
 bool Instrument::runOnModule(Module &M) {
 	IDManager &IDM = getAnalysis<IDManager>();
 	ExecOnce &EO = getAnalysis<ExecOnce>();
+	EnforcingLandmarks &EL = getAnalysis<EnforcingLandmarks>();
 
 	setup(M);
 	
@@ -151,7 +121,7 @@ bool Instrument::runOnModule(Module &M) {
 
 				// Before the instruction if non-blocking. 
 				// After the instruction if blocking. 
-				if (!blocks(ii)) {
+				if (!EL.is_blocking_enforcing_landmark(ii)) {
 					CallInst::Create(trace_inst,
 							ConstantInt::get(uint_type, ins_id), "", ii);
 				} else {

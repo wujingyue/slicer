@@ -273,7 +273,6 @@ Clause *CaptureConstraints::get_in_icmp(const ICmpInst *icmp) {
 }
 
 Clause *CaptureConstraints::get_in_phi(const PHINode *phi) {
-
 	// Check the loop depths. 
 	// Each incoming edge must be from a shallower loop or a loop from
 	// the same depth but not a backedge. 

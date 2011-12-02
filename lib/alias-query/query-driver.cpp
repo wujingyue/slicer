@@ -14,8 +14,6 @@ using namespace boost;
 
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
-#include "common/IDAssigner.h"
-#include "common/util.h"
 #include "common/InitializePasses.h"
 #include "bc2bdd/InitializePasses.h"
 #include "slicer/InitializePasses.h"
@@ -24,11 +22,16 @@ using namespace llvm;
 #include "bc2bdd/BddAliasAnalysis.h"
 using namespace bc2bdd;
 
+#include "common/IDAssigner.h"
+#include "common/util.h"
+using namespace rcs;
+
 #include "slicer/iterate.h"
 #include "slicer/query-driver.h"
 #include "slicer/adv-alias.h"
-#include "pointer-access.h"
+#include "slicer/solve.h"
 #include "slicer/clone-info-manager.h"
+#include "pointer-access.h"
 using namespace slicer;
 
 static cl::opt<string> QueryList("query-list",
@@ -45,6 +48,7 @@ INITIALIZE_PASS_DEPENDENCY(CloneInfoManager)
 if (UseAdvancedAA) {
 	INITIALIZE_PASS_DEPENDENCY(Iterate)
 	INITIALIZE_PASS_DEPENDENCY(AdvancedAlias)
+	INITIALIZE_PASS_DEPENDENCY(SolveConstraints)
 } else {
 	INITIALIZE_PASS_DEPENDENCY(BddAliasAnalysis)
 }
@@ -60,6 +64,7 @@ void QueryDriver::getAnalysisUsage(AnalysisUsage &AU) const {
 	if (UseAdvancedAA) {
 		AU.addRequired<Iterate>();
 		AU.addRequired<AdvancedAlias>();
+		AU.addRequired<SolveConstraints>();
 	} else {
 		AU.addRequired<BddAliasAnalysis>();
 	}

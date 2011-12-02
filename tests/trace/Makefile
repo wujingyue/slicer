@@ -6,6 +6,7 @@ PROG_NAMES = test-thread test-overwrite test-loop test-loop-2 test-ctxt-2 \
 	     aget-like test-array test-dep test-ctxt-4 test-global \
 	     test-overwrite-2 RADIX-like test-thread-2 test-assert \
 	     test-malloc test-ctxt test-range test-range-3 test-range-4 \
+	     test-lcssa test-barrier \
 	     aget FFT RADIX pbzip2 CHOLESKY LU-cont blackscholes
 PROGS_DIR = ../progs
 TRACED_PROGS = $(PROG_NAMES:=.trace)
@@ -28,6 +29,7 @@ full-trace: $(FULL_TRACES)
 		-instrument \
 		< $<
 
+# Instrumenting each BB takes too long for blackscholes.
 blackscholes.bc1: $(PROGS_DIR)/blackscholes.id.bc
 	opt -stats -o $@ \
 		-load $(LLVM_ROOT)/install/lib/id.so \
@@ -66,6 +68,10 @@ test-range-2.ft: test-range-2.trace
 
 test-range-3.ft: test-range-3.trace
 	./$< 2 10
+	mv /tmp/fulltrace $@
+
+test-lcssa.ft: test-lcssa.trace
+	./$< 1 2 3
 	mv /tmp/fulltrace $@
 
 test-dep.ft: test-dep.trace
