@@ -70,60 +70,60 @@ bool IntTest::runOnModule(Module &M) {
 	 * to the program name. 
 	 */
 	if (Program == "aget")
-		test_aget(M);
+		aget(M);
 	if (Program == "aget-like")
-		test_aget_like(M);
+		aget_like(M);
 	if (Program == "test-overwrite")
-		test_test_overwrite(M);
+		test_overwrite(M);
 	if (Program == "test-overwrite-2")
-		test_test_overwrite_2(M);
+		test_overwrite_2(M);
 	if (Program == "FFT")
-		test_fft(M);
+		fft(M);
 	if (Program == "FFT-like")
-		test_fft_like(M);
+		fft_like(M);
 	if (Program == "RADIX")
-		test_radix(M);
+		radix(M);
 	if (Program == "RADIX-like")
-		test_radix_like(M);
+		radix_like(M);
 	if (Program == "LU-cont")
-		test_lu_cont(M);
+		lu_cont(M);
 	if (Program == "blackscholes")
-		test_blackscholes(M);
+		blackscholes(M);
 	if (Program == "test-loop")
-		test_test_loop(M);
+		test_loop(M);
 	if (Program == "test-loop-2")
-		test_test_loop_2(M);
+		test_loop_2(M);
 	if (Program == "test-reducer")
-		test_test_reducer(M);
+		test_reducer(M);
 	if (Program == "test-bound")
-		test_test_bound(M);
+		test_bound(M);
 	if (Program == "test-thread")
-		test_test_thread(M);
+		test_thread(M);
 	if (Program == "test-thread-2")
-		test_test_thread_2(M);
+		test_thread_2(M);
 	if (Program == "test-array")
-		test_test_array(M);
+		test_array(M);
 	if (Program == "test-malloc")
-		test_test_malloc(M);
+		test_malloc(M);
 	if (Program == "test-range")
-		test_test_range(M);
+		test_range(M);
 	if (Program == "test-range-2")
-		test_test_range_2(M);
+		test_range_2(M);
 	if (Program == "test-range-3")
-		test_test_range_3(M);
+		test_range_3(M);
 	if (Program == "test-range-4")
-		test_test_range_4(M);
+		test_range_4(M);
 	if (Program == "test-dep")
-		test_test_dep(M);
+		test_dep(M);
 	if (Program == "test-ctxt-2")
-		test_test_ctxt_2(M);
+		test_ctxt_2(M);
 	if (Program == "test-ctxt-4")
-		test_test_ctxt_4(M);
+		test_ctxt_4(M);
 	if (Program == "test-global")
-		test_test_global(M);
+		test_global(M);
 	if (Program == "test-lcssa")
-		test_test_lcssa(M);
+		test_lcssa(M);
 	if (Program == "test-barrier")
-		test_test_barrier(M);
+		test_barrier(M);
 	return false;
 }

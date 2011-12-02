@@ -11,29 +11,28 @@ using namespace llvm;
 #include "int-test.h"
 using namespace slicer;
 
-void IntTest::test_lu_cont(const Module &M) {
+void IntTest::lu_cont(Module &M) {
 	TestBanner X("LU");
 
 	AliasAnalysis &AA = getAnalysis<AdvancedAlias>();
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	ExecOnce &EO = getAnalysis<ExecOnce>();
 
-	DenseMap<const Function *, const StoreInst *> accesses;
-	for (Module::const_iterator f = M.begin(); f != M.end(); ++f) {
+	DenseMap<Function *, StoreInst *> accesses;
+	for (Module::iterator f = M.begin(); f != M.end(); ++f) {
 		if (EO.not_executed(f))
 			continue;
 		if (!starts_with(f->getName(), "SlaveStart.SLICER"))
 			continue;
 
 		bool found = false;
-		LoopInfo &LI = getAnalysis<LoopInfo>(
-				*const_cast<Function *>((const Function *)f));
-		for (Function::const_iterator bb = f->begin(); bb != f->end(); ++bb) {
+		LoopInfo &LI = getAnalysis<LoopInfo>(*f);
+		for (Function::iterator bb = f->begin(); bb != f->end(); ++bb) {
 			if (LI.getLoopDepth(bb) == 0)
 				continue;
-			for (BasicBlock::const_iterator ins = bb->begin();
+			for (BasicBlock::iterator ins = bb->begin();
 					ins != bb->end(); ++ins) {
-				if (const StoreInst *si = dyn_cast<StoreInst>(ins)) {
+				if (StoreInst *si = dyn_cast<StoreInst>(ins)) {
 					if (si->getOperand(0)->getType()->isDoubleTy()) {
 						accesses[f] = si;
 						found = true;
@@ -47,9 +46,9 @@ void IntTest::test_lu_cont(const Module &M) {
 		assert(found);
 	}
 
-	for (DenseMap<const Function *, const StoreInst *>::iterator
+	for (DenseMap<Function *, StoreInst *>::iterator
 			i = accesses.begin(); i != accesses.end(); ++i) {
-		DenseMap<const Function *, const StoreInst *>::iterator j = i;
+		DenseMap<Function *, StoreInst *>::iterator j = i;
 		for (++j; j != accesses.end(); ++j) {
 			errs() << i->first->getName() << " and " << j->first->getName()
 				<< " access disjoint regions?... ";

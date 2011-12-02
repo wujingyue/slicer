@@ -10,19 +10,19 @@ using namespace llvm;
 #include "int-test.h"
 using namespace slicer;
 
-void IntTest::test_fft(const Module &M) {
+void IntTest::fft(Module &M) {
 	TestBanner X("FFT");
-	test_fft_common(M);
+	fft_common(M);
 	
-	// check_transpose(M);
-	check_fft1donce(const_cast<Module &>(M));
+	check_transpose(M);
+	check_fft1donce(M);
 }
 
 void IntTest::check_fft1donce(Module &M) {
 	Function *fft1donce = M.getFunction("FFT1DOnce");
 	assert(fft1donce);
 
-	ConstInstList contexts;
+	DenseMap<Function *, InstList> thread_contexts;
 	for (Value::use_iterator ui = fft1donce->use_begin();
 			ui != fft1donce->use_end(); ++ui) {
 		if (CallInst *ci = dyn_cast<CallInst>(*ui)) {
@@ -30,21 +30,27 @@ void IntTest::check_fft1donce(Module &M) {
 			if (ci->getCalledFunction() == fft1donce) {
 				Function *caller = ci->getParent()->getParent();
 				if (caller->getName().startswith("SlaveStart.SLICER"))
-					contexts.push_back(ci);
+					thread_contexts[caller].push_back(ci);
 			}
 		}
 	}
-	assert(contexts.size() >= 2 && "Not enough calling contexts to test");
+	assert(thread_contexts.size() >= 2 && "Not enough calling contexts to test");
 
+	Instruction *context0 = thread_contexts.begin()->second[0];
+	Instruction *context1 = (++thread_contexts.begin())->second[0];
+	errs() << "context0 is in function " <<
+		context0->getParent()->getParent()->getName() << "\n";
+	errs() << "context1 is in function " <<
+		context1->getParent()->getParent()->getName() << "\n";
 	AdvancedAlias &AAA = getAnalysis<AdvancedAlias>();
 	for (Function::iterator bb = fft1donce->begin();
 			bb != fft1donce->end(); ++bb) {
 		for (BasicBlock::iterator ins = bb->begin(); ins != bb->end(); ++ins) {
 			if (StoreInst *si = dyn_cast<StoreInst>(ins)) {
-				errs() << *si << "? ...";
+				errs() << "FFT1DOnce:" << *si << "? ...";
 				AliasAnalysis::AliasResult res = AAA.alias(
-						ConstInstList(1, contexts[0]), si->getPointerOperand(),
-						ConstInstList(1, contexts[1]), si->getPointerOperand());
+						ConstInstList(1, context0), si->getPointerOperand(),
+						ConstInstList(1, context1), si->getPointerOperand());
 				if (res == AliasAnalysis::NoAlias)
 					print_pass(errs());
 				else
@@ -54,13 +60,13 @@ void IntTest::check_fft1donce(Module &M) {
 	}
 }
 
-void IntTest::check_transpose(const Module &M) {
+void IntTest::check_transpose(Module &M) {
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	// The ranges in Transpose under different contexts are disjoint. 
-	const Function *transpose = M.getFunction("Transpose");
+	Function *transpose = M.getFunction("Transpose");
 	assert(transpose);
-	const Value *my_first = NULL, *my_last = NULL;
-	for (Function::const_arg_iterator ai = transpose->arg_begin();
+	Value *my_first = NULL, *my_last = NULL;
+	for (Function::arg_iterator ai = transpose->arg_begin();
 			ai != transpose->arg_end(); ++ai) {
 		if (ai->getName() == "MyFirst")
 			my_first = ai;
@@ -70,11 +76,11 @@ void IntTest::check_transpose(const Module &M) {
 	assert(my_first && my_last);
 
 	// Collect all contexts of function Transpose. 
-	DenseMap<const Function *, vector<ConstInstList> > contexts;
-	forallconst(Module, f, M) {
-		forallconst(Function, bb, *f) {
-			forallconst(BasicBlock, ins, *bb) {
-				CallSite cs(const_cast<Instruction *>((const Instruction *)ins));
+	DenseMap<Function *, vector<ConstInstList> > contexts;
+	forall(Module, f, M) {
+		forall(Function, bb, *f) {
+			forall(BasicBlock, ins, *bb) {
+				CallSite cs(ins);
 				if (!cs.getInstruction())
 					continue;
 				if (cs.getCalledFunction() == transpose) {
@@ -87,7 +93,7 @@ void IntTest::check_transpose(const Module &M) {
 	}
 
 	// Ask if the ranges [MyFirst, MyLast) are disjoint under different contexts.
-	DenseMap<const Function *, vector<ConstInstList> >::iterator i1, i2;
+	DenseMap<Function *, vector<ConstInstList> >::iterator i1, i2;
 	for (i1 = contexts.begin(); i1 != contexts.end(); ++i1) {
 		i2 = i1;
 		for (++i2; i2 != contexts.end(); ++i2) {
@@ -117,11 +123,11 @@ void IntTest::check_transpose(const Module &M) {
 		}
 	}
 
-	const StoreInst *racy_store = NULL;
-	for (Function::const_iterator bb = transpose->begin();
+	StoreInst *racy_store = NULL;
+	for (Function::iterator bb = transpose->begin();
 			bb != transpose->end(); ++bb) {
-		for (BasicBlock::const_iterator ins = bb->begin(); ins != bb->end(); ++ins) {
-			if (const StoreInst *si = dyn_cast<StoreInst>(ins)) {
+		for (BasicBlock::iterator ins = bb->begin(); ins != bb->end(); ++ins) {
+			if (StoreInst *si = dyn_cast<StoreInst>(ins)) {
 				if (si->getOperand(0)->getType()->isDoubleTy()) {
 					racy_store = si;
 					break;
@@ -156,25 +162,25 @@ void IntTest::check_transpose(const Module &M) {
 	}
 }
 
-void IntTest::test_fft_like(const Module &M) {
+void IntTest::fft_like(Module &M) {
 	TestBanner X("FFT-like");
-	test_fft_common(M);
+	fft_common(M);
 }
 
-void IntTest::test_fft_common(const Module &M) {
+void IntTest::fft_common(Module &M) {
 	// MyNum's are distinct. 
-	vector<const Value *> local_ids;
-	forallconst(Module, f, M) {
+	vector<Value *> local_ids;
+	forall(Module, f, M) {
 		if (getAnalysis<ExecOnce>().not_executed(f))
 			continue;
 		if (!starts_with(f->getName(), "SlaveStart.SLICER"))
 			continue;
 
-		const Instruction *start = NULL;
-		for (BasicBlock::const_iterator ins = f->getEntryBlock().begin();
+		Instruction *start = NULL;
+		for (BasicBlock::iterator ins = f->getEntryBlock().begin();
 				ins != f->getEntryBlock().end(); ++ins) {
-			if (const CallInst *ci = dyn_cast<CallInst>(ins)) {
-				const Function *callee = ci->getCalledFunction();
+			if (CallInst *ci = dyn_cast<CallInst>(ins)) {
+				Function *callee = ci->getCalledFunction();
 				if (callee && callee->getName() == "pthread_mutex_lock") {
 					start = ci;
 					break;
@@ -183,8 +189,8 @@ void IntTest::test_fft_common(const Module &M) {
 		}
 		assert(start && "Cannot find a pthread_mutex_lock in the entry block");
 
-		const Value *local_id = NULL;
-		for (BasicBlock::const_iterator ins = start;
+		Value *local_id = NULL;
+		for (BasicBlock::iterator ins = start;
 				ins != f->getEntryBlock().end(); ++ins) {
 			if (isa<StoreInst>(ins)) {
 				local_id = ins->getOperand(0);
@@ -207,14 +213,14 @@ void IntTest::test_fft_common(const Module &M) {
 	}
 	
 	// The ranges passed to Transpose are disjoint. 
-	DenseMap<const Function *, vector<ConstValuePair> > function_ranges;
-	forallconst(Module, f, M) {
-		forallconst(Function, bb, *f) {
-			forallconst(BasicBlock, ins, *bb) {
-				CallSite cs(const_cast<Instruction *>((const Instruction *)ins));
+	DenseMap<Function *, vector<ValuePair> > function_ranges;
+	forall(Module, f, M) {
+		forall(Function, bb, *f) {
+			forall(BasicBlock, ins, *bb) {
+				CallSite cs(ins);
 				if (!cs.getInstruction())
 					continue;
-				const Function *callee = cs.getCalledFunction();
+				Function *callee = cs.getCalledFunction();
 				if (callee && callee->getName() == "Transpose") {
 					assert(cs.arg_size() == 7);
 					dbgs() << f->getName() << ":" << *ins << "\n";
@@ -225,7 +231,7 @@ void IntTest::test_fft_common(const Module &M) {
 		}
 	}
 
-	DenseMap<const Function *, vector<ConstValuePair> >::iterator i1, i2;
+	DenseMap<Function *, vector<ValuePair> >::iterator i1, i2;
 	for (i1 = function_ranges.begin(); i1 != function_ranges.end(); ++i1) {
 		for (i2 = i1, ++i2; i2 != function_ranges.end(); ++i2) {
 			for (size_t j1 = 0; j1 < i1->second.size(); ++j1) {

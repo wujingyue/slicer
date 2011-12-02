@@ -10,11 +10,11 @@ using namespace llvm;
 #include "int-test.h"
 using namespace slicer;
 
-void IntTest::test_aget(const Module &M) {
+void IntTest::aget(Module &M) {
 	TestBanner X("aget");
 
-	vector<const Function *> thr_funcs;
-	forallconst(Module, f, M) {
+	vector<Function *> thr_funcs;
+	forall(Module, f, M) {
 		if (starts_with(f->getName(), "http_get.SLICER"))
 			thr_funcs.push_back(f);
 	}
@@ -23,15 +23,15 @@ void IntTest::test_aget(const Module &M) {
 		dbgs() << " " << thr_funcs[i]->getName();
 	dbgs() << "\n";
 	
-	vector<const Value *> soffsets(thr_funcs.size(), NULL);
-	vector<const Value *> foffsets(thr_funcs.size(), NULL);
+	vector<Value *> soffsets(thr_funcs.size(), NULL);
+	vector<Value *> foffsets(thr_funcs.size(), NULL);
 	for (size_t i = 0; i < thr_funcs.size(); ++i) {
-		const Function *f = thr_funcs[i];
+		Function *f = thr_funcs[i];
 		assert(distance(f->arg_begin(), f->arg_end()) == 1);
-		const Value *td = f->arg_begin();
-		for (Value::const_use_iterator ui = td->use_begin();
+		Value *td = f->arg_begin();
+		for (Value::use_iterator ui = td->use_begin();
 				ui != td->use_end(); ++ui) {
-			if (const GetElementPtrInst *gep = dyn_cast<GetElementPtrInst>(*ui)) {
+			if (GetElementPtrInst *gep = dyn_cast<GetElementPtrInst>(*ui)) {
 				if (gep->getNumOperands() >= 3 && gep->getOperand(0) == td) {
 					const ConstantInt *op1 = dyn_cast<ConstantInt>(gep->getOperand(1));
 					const ConstantInt *op2 = dyn_cast<ConstantInt>(gep->getOperand(2));
@@ -42,7 +42,7 @@ void IntTest::test_aget(const Module &M) {
 						// 3: foffset
 						// 4: offset
 						if (index == 2 && soffsets[i] == NULL) {
-							for (Value::const_use_iterator ui2 = gep->use_begin();
+							for (Value::use_iterator ui2 = gep->use_begin();
 									ui2 != gep->use_end(); ++ui2) {
 								if (isa<LoadInst>(*ui2)) {
 									soffsets[i] = *ui2;
@@ -51,7 +51,7 @@ void IntTest::test_aget(const Module &M) {
 							}
 						}
 						if (index == 3 && foffsets[i] == NULL) {
-							for (Value::const_use_iterator ui2 = gep->use_begin();
+							for (Value::use_iterator ui2 = gep->use_begin();
 									ui2 != gep->use_end(); ++ui2) {
 								if (isa<LoadInst>(*ui2)) {
 									foffsets[i] = *ui2;
@@ -77,14 +77,14 @@ void IntTest::test_aget(const Module &M) {
 			dbgs() << "  <null>\n";
 	}
 
-	vector<vector<ConstUsePair> > ranges;
+	vector<vector<UsePair> > ranges;
 	ranges.resize(thr_funcs.size());
 	for (size_t i = 0; i < thr_funcs.size(); ++i) {
-		const Function *f = thr_funcs[i];
-		forallconst(Function, bb, *f) {
-			forallconst(BasicBlock, ins, *bb) {
-				if (const CallInst *ci = dyn_cast<CallInst>(ins)) {
-					const Function *callee = ci->getCalledFunction();
+		Function *f = thr_funcs[i];
+		forall(Function, bb, *f) {
+			forall(BasicBlock, ins, *bb) {
+				if (CallInst *ci = dyn_cast<CallInst>(ins)) {
+					Function *callee = ci->getCalledFunction();
 					if (callee && callee->getName() == "pwrite") {
 						// pwrite(???, ???, len, offset)
 						assert(ci->getNumOperands() == 5);
@@ -102,7 +102,7 @@ void IntTest::test_aget(const Module &M) {
 		}
 		dbgs() << "Ranges in thread " << i << ":\n";
 		for (size_t j = 0; j < ranges[i].size(); ++j) {
-			const User *user = ranges[i][j].first->getUser();
+			User *user = ranges[i][j].first->getUser();
 			assert(user == ranges[i][j].second->getUser());
 			dbgs() << *user << "\n";
 		}
@@ -114,7 +114,8 @@ void IntTest::test_aget(const Module &M) {
 		if (soffsets[i] && foffsets[i]) {
 			errs() << "soffsets[" << i << "] <= foffsets[" << i << "]? ...";
 			assert(SC.provable(CmpInst::ICMP_SLE,
-						ConstInstList(), soffsets[i], ConstInstList(), foffsets[i]));
+						ConstInstList(), soffsets[i],
+						ConstInstList(), foffsets[i]));
 			print_pass(errs());
 		}
 	}
@@ -175,16 +176,16 @@ void IntTest::test_aget(const Module &M) {
 	check_fake_pwrite_cs(M);
 }
 
-void IntTest::check_fake_pwrite_cs(const Module &M) {
+void IntTest::check_fake_pwrite_cs(Module &M) {
 	AdvancedAlias &AA = getAnalysis<AdvancedAlias>();
 
-	DenseMap<const Function *, ConstInstList> thread_call_sites;
-	for (Module::const_iterator f = M.begin(); f != M.end(); ++f) {
+	DenseMap<Function *, InstList> thread_call_sites;
+	for (Module::iterator f = M.begin(); f != M.end(); ++f) {
 		if (starts_with(f->getName(), "http_get.SLICER")) {
-			for (Function::const_iterator bb = f->begin(); bb != f->end(); ++bb) {
-				for (BasicBlock::const_iterator ins = bb->begin();
+			for (Function::iterator bb = f->begin(); bb != f->end(); ++bb) {
+				for (BasicBlock::iterator ins = bb->begin();
 						ins != bb->end(); ++ins) {
-					if (const CallInst *ci = dyn_cast<CallInst>(ins)) {
+					if (CallInst *ci = dyn_cast<CallInst>(ins)) {
 						Function *callee = ci->getCalledFunction();
 						if (callee && callee->getName() == "fake_pwrite")
 							thread_call_sites[f].push_back(ci);
@@ -208,9 +209,9 @@ void IntTest::check_fake_pwrite_cs(const Module &M) {
 	}
 	assert(the_store);
 
-	for (DenseMap<const Function *, ConstInstList>::iterator
+	for (DenseMap<Function *, InstList>::iterator
 			i1 = thread_call_sites.begin(); i1 != thread_call_sites.end(); ++i1) {
-		DenseMap<const Function *, ConstInstList>::iterator i2 = i1;
+		DenseMap<Function *, InstList>::iterator i2 = i1;
 		for (++i2; i2 != thread_call_sites.end(); ++i2) {
 			for (size_t j1 = 0; j1 < i1->second.size(); ++j1) {
 				for (size_t j2 = 0; j2 < i2->second.size(); ++j2) {
@@ -227,7 +228,7 @@ void IntTest::check_fake_pwrite_cs(const Module &M) {
 	}
 }
 
-void IntTest::check_fake_pwrite(const Module &M) {
+void IntTest::check_fake_pwrite(Module &M) {
 	AliasAnalysis &AA = getAnalysis<AdvancedAlias>();
 
 	Value *fake_buffer = M.getNamedGlobal("fake_buffer");
@@ -286,21 +287,20 @@ void IntTest::check_fake_pwrite(const Module &M) {
 	}
 }
 
-void IntTest::test_aget_like(const Module &M) {
+void IntTest::aget_like(Module &M) {
 	TestBanner X("aget-like");
 
-	vector<vector<ConstUsePair> > ranges;
-	forallconst(Module, f, M) {
-		
+	vector<vector<UsePair> > ranges;
+	forall(Module, f, M) {
 		if (!starts_with(f->getName(), "http_get.SLICER"))
 			continue;
 		errs() << "=== Function " << f->getName() << " ===\n";
 		
-		ranges.push_back(vector<ConstUsePair>());
-		forallconst(Function, bb, *f) {
-			forallconst(BasicBlock, ins, *bb) {
-				if (const CallInst *ci = dyn_cast<CallInst>(ins)) {
-					const Function *callee = ci->getCalledFunction();
+		ranges.push_back(vector<UsePair>());
+		forall(Function, bb, *f) {
+			forall(BasicBlock, ins, *bb) {
+				if (CallInst *ci = dyn_cast<CallInst>(ins)) {
+					Function *callee = ci->getCalledFunction();
 					if (callee && callee->getName() == "fake_write") {
 						// fake_write(buffer, size, offset)
 						errs() << *ci << "\n";

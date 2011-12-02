@@ -16,7 +16,7 @@ using namespace rcs;
 #include "int-test.h"
 using namespace slicer;
 
-void IntTest::test_test_barrier(Module &M) {
+void IntTest::test_barrier(Module &M) {
 	TestBanner X("test-barrier");
 
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
@@ -37,7 +37,7 @@ void IntTest::test_test_barrier(Module &M) {
 	}
 }
 
-void IntTest::test_test_lcssa(Module &M) {
+void IntTest::test_lcssa(Module &M) {
 	TestBanner X("test-lcssa");
 
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
@@ -68,21 +68,21 @@ void IntTest::test_test_lcssa(Module &M) {
 	}
 }
 
-void IntTest::test_test_ctxt_4(const Module &M) {
+void IntTest::test_ctxt_4(Module &M) {
 	TestBanner X("test-ctxt-4");
 
 	ExecOnce &EO = getAnalysis<ExecOnce>();
 	AdvancedAlias &AA = getAnalysis<AdvancedAlias>();
 
-	const Function *access = M.getFunction("access");
+	Function *access = M.getFunction("access");
 	ConstInstList call_sites;
-	for (Module::const_iterator f = M.begin(); f != M.end(); ++f) {
+	for (Module::iterator f = M.begin(); f != M.end(); ++f) {
 		if (EO.not_executed(f))
 			continue;
-		for (Function::const_iterator bb = f->begin(); bb != f->end(); ++bb) {
-			for (BasicBlock::const_iterator ins = bb->begin();
+		for (Function::iterator bb = f->begin(); bb != f->end(); ++bb) {
+			for (BasicBlock::iterator ins = bb->begin();
 					ins != bb->end(); ++ins) {
-				if (const CallInst *ci = dyn_cast<CallInst>(ins)) {
+				if (CallInst *ci = dyn_cast<CallInst>(ins)) {
 					if (ci->getCalledFunction() == access)
 						call_sites.push_back(ci);
 				}
@@ -90,11 +90,11 @@ void IntTest::test_test_ctxt_4(const Module &M) {
 		}
 	}
 
-	const Value *loc = NULL;
-	for (Function::const_iterator bb = access->begin();
+	Value *loc = NULL;
+	for (Function::iterator bb = access->begin();
 			bb != access->end(); ++bb) {
-		for (BasicBlock::const_iterator ins = bb->begin(); ins != bb->end(); ++ins) {
-			if (const StoreInst *si = dyn_cast<StoreInst>(ins)) {
+		for (BasicBlock::iterator ins = bb->begin(); ins != bb->end(); ++ins) {
+			if (StoreInst *si = dyn_cast<StoreInst>(ins)) {
 				assert(!loc);
 				loc = si->getPointerOperand();
 			}
@@ -112,16 +112,16 @@ void IntTest::test_test_ctxt_4(const Module &M) {
 	}
 }
 
-void IntTest::test_test_ctxt_2(const Module &M) {
+void IntTest::test_ctxt_2(Module &M) {
 	TestBanner X("test-ctxt-2");
 
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 
-	const Function *foo = M.getFunction("foo");
+	Function *foo = M.getFunction("foo");
 	assert(foo && "Cannot find function <foo>");
-	const Value *b = NULL;
-	forallconst(Function, bb, *foo) {
-		forallconst(BasicBlock, ins, *bb) {
+	Value *b = NULL;
+	forall(Function, bb, *foo) {
+		forall(BasicBlock, ins, *bb) {
 			if (ins->getOpcode() == Instruction::Add) {
 				assert(!b && "Multiple variable <b>");
 				b = ins;
@@ -140,19 +140,19 @@ void IntTest::test_test_ctxt_2(const Module &M) {
 	print_pass(errs());
 }
 
-void IntTest::test_test_dep(const Module &M) {
+void IntTest::test_dep(Module &M) {
 	TestBanner X("test-dep");
-	test_test_dep_common(M);
+	test_dep_common(M);
 }
 
-void IntTest::test_test_range_4(const Module &M) {
+void IntTest::test_range_4(Module &M) {
 	TestBanner X("test-range-4");
 
-	const PHINode *phi = NULL;
-	forallconst(Module, f, M) {
-		forallconst(Function, bb, *f) {
-			forallconst(BasicBlock, ins, *bb) {
-				if (const PHINode *p = dyn_cast<PHINode>(ins)) {
+	PHINode *phi = NULL;
+	forall(Module, f, M) {
+		forall(Function, bb, *f) {
+			forall(BasicBlock, ins, *bb) {
+				if (PHINode *p = dyn_cast<PHINode>(ins)) {
 					assert(!phi);
 					phi = p;
 				}
@@ -171,20 +171,20 @@ void IntTest::test_test_range_4(const Module &M) {
 				ConstInstList(), dyn_cast<Value>(ConstantInt::get(int_type, 110))));
 }
 
-void IntTest::test_test_dep_common(const Module &M) {
+void IntTest::test_dep_common(Module &M) {
 	ExecOnce &EO = getAnalysis<ExecOnce>();
 	AliasAnalysis &AA = getAnalysis<AdvancedAlias>();
 
-	DenseMap<const Function *, ConstValueList> accesses;
-	forallconst(Module, f, M) {
+	DenseMap<Function *, ValueList> accesses;
+	forall(Module, f, M) {
 		if (EO.not_executed(f))
 			continue;
 		if (!starts_with(f->getName(), "slave_sort.SLICER"))
 			continue;
-		forallconst(Function, bb, *f) {
-			forallconst(BasicBlock, ins, *bb) {
-				if (const StoreInst *si = dyn_cast<StoreInst>(ins)) {
-					if (const ConstantInt *ci =
+		forall(Function, bb, *f) {
+			forall(BasicBlock, ins, *bb) {
+				if (StoreInst *si = dyn_cast<StoreInst>(ins)) {
+					if (ConstantInt *ci =
 							dyn_cast<ConstantInt>(si->getOperand(0))) {
 						if (ci->isZero()) {
 							errs() << f->getName() << "." << bb->getName() << ":" <<
@@ -198,7 +198,7 @@ void IntTest::test_test_dep_common(const Module &M) {
 	}
 	assert(accesses.size() == 2);
 
-	DenseMap<const Function *, ConstValueList>::iterator i1, i2;
+	DenseMap<Function *, ValueList>::iterator i1, i2;
 	i1 = accesses.begin();
 	i2 = i1; ++i2;
 
@@ -213,19 +213,19 @@ void IntTest::test_test_dep_common(const Module &M) {
 	}
 }
 
-void IntTest::test_test_range_3(const Module &M) {
+void IntTest::test_range_3(Module &M) {
 	TestBanner X("test-range-3");
 
 	ExecOnce &EO = getAnalysis<ExecOnce>();
-	DenseMap<const Function *, ConstValueList> accesses;
-	forallconst(Module, f, M) {
+	DenseMap<Function *, ValueList> accesses;
+	forall(Module, f, M) {
 		if (EO.not_executed(f))
 			continue;
 		if (is_main(f))
 			continue;
-		forallconst(Function, bb, *f) {
-			forallconst(BasicBlock, ins, *bb) {
-				if (const StoreInst *si = dyn_cast<StoreInst>(ins)) {
+		forall(Function, bb, *f) {
+			forall(BasicBlock, ins, *bb) {
+				if (StoreInst *si = dyn_cast<StoreInst>(ins)) {
 					if (si->getOperand(0)->getType()->isDoubleTy()) {
 						errs() << f->getName() << "." << bb->getName() << ":" <<
 							*ins << "\n";
@@ -237,7 +237,7 @@ void IntTest::test_test_range_3(const Module &M) {
 	}
 	assert(accesses.size() == 2);
 
-	DenseMap<const Function *, ConstValueList>::iterator i1, i2;
+	DenseMap<Function *, ValueList>::iterator i1, i2;
 	i1 = accesses.begin();
 	i2 = i1; ++i2;
 
@@ -253,19 +253,19 @@ void IntTest::test_test_range_3(const Module &M) {
 	}
 }
 
-void IntTest::test_test_range_2(const Module &M) {
+void IntTest::test_range_2(Module &M) {
 	TestBanner X("test-range-2");
 
 	ExecOnce &EO = getAnalysis<ExecOnce>();
-	vector<const Value *> accesses;
-	forallconst(Module, f, M) {
+	vector<Value *> accesses;
+	forall(Module, f, M) {
 		if (EO.not_executed(f))
 			continue;
 		if (is_main(f))
 			continue;
-		forallconst(Function, bb, *f) {
-			forallconst(BasicBlock, ins, *bb) {
-				if (const StoreInst *si = dyn_cast<StoreInst>(ins)) {
+		forall(Function, bb, *f) {
+			forall(BasicBlock, ins, *bb) {
+				if (StoreInst *si = dyn_cast<StoreInst>(ins)) {
 					if (si->getOperand(0)->getType()->isDoubleTy()) {
 						errs() << f->getName() << "." << bb->getName() << ":" <<
 							*ins << "\n";
@@ -288,19 +288,19 @@ void IntTest::test_test_range_2(const Module &M) {
 	}
 }
 
-void IntTest::test_test_range(const Module &M) {
+void IntTest::test_range(Module &M) {
 	TestBanner X("test-range");
 
 	ExecOnce &EO = getAnalysis<ExecOnce>();
-	vector<const Value *> accesses;
-	forallconst(Module, f, M) {
+	vector<Value *> accesses;
+	forall(Module, f, M) {
 		if (EO.not_executed(f))
 			continue;
 		if (is_main(f))
 			continue;
-		forallconst(Function, bb, *f) {
-			forallconst(BasicBlock, ins, *bb) {
-				if (const StoreInst *si = dyn_cast<StoreInst>(ins)) {
+		forall(Function, bb, *f) {
+			forall(BasicBlock, ins, *bb) {
+				if (StoreInst *si = dyn_cast<StoreInst>(ins)) {
 					if (si->getOperand(0)->getType()->isDoubleTy()) {
 						errs() << f->getName() << "." << bb->getName() << ":" <<
 							*ins << "\n";
@@ -323,18 +323,18 @@ void IntTest::test_test_range(const Module &M) {
 	}
 }
 
-void IntTest::test_test_malloc(const Module &M) {
+void IntTest::test_malloc(Module &M) {
 	TestBanner X("test-malloc");
 
 	ExecOnce &EO = getAnalysis<ExecOnce>();
-	vector<const Value *> accesses;
-	forallconst(Module, f, M) {
+	vector<Value *> accesses;
+	forall(Module, f, M) {
 		if (EO.not_executed(f))
 			continue;
-		forallconst(Function, bb, *f) {
-			forallconst(BasicBlock, ins, *bb) {
-				if (const StoreInst *si = dyn_cast<StoreInst>(ins)) {
-					if (const ConstantInt *ci = dyn_cast<ConstantInt>(si->getOperand(0))) {
+		forall(Function, bb, *f) {
+			forall(BasicBlock, ins, *bb) {
+				if (StoreInst *si = dyn_cast<StoreInst>(ins)) {
+					if (ConstantInt *ci = dyn_cast<ConstantInt>(si->getOperand(0))) {
 						if (ci->equalsInt(5))
 							accesses.push_back(si->getPointerOperand());
 					}
@@ -356,29 +356,34 @@ void IntTest::test_test_malloc(const Module &M) {
 	}
 }
 
-void IntTest::test_test_array(const Module &M) {
+void IntTest::test_array(Module &M) {
 	TestBanner X("test-array");
 
-	for (Module::const_global_iterator gi = M.global_begin();
+	bool found = false;
+	for (Module::global_iterator gi = M.global_begin();
 			gi != M.global_end(); ++gi) {
 		if (gi->getName() == "global_arr") {
-			errs() << "Found global_arr\n";
+			found = true;
 			assert(gi->hasInitializer());
 			assert(isa<ConstantAggregateZero>(gi->getInitializer()));
 		}
 	}
+
+	errs() << "Found global_arr? ...";
+	assert(found);
+	print_pass(errs());
 }
 
-void IntTest::test_test_thread_2(const Module &M) {
+void IntTest::test_thread_2(Module &M) {
 	TestBanner X("test-thread-2");
 	print_pass(errs());
 }
 
-void IntTest::test_test_thread(const Module &M) {
+void IntTest::test_thread(Module &M) {
 	TestBanner X("test-thread");
 
-	vector<const Value *> local_ids;
-	forallconst(Module, f, M) {
+	vector<Value *> local_ids;
+	forall(Module, f, M) {
 		if (starts_with(f->getName(), "sub_routine.SLICER")) {
 			assert(f->arg_size() == 1);
 			local_ids.push_back(f->arg_begin());
@@ -396,16 +401,16 @@ void IntTest::test_test_thread(const Module &M) {
 	}
 }
 
-void IntTest::test_test_bound(const Module &M) {
+void IntTest::test_bound(Module &M) {
 	TestBanner X("test-bound");
 
-	forallconst(Module, f, M) {
+	forall(Module, f, M) {
 		if (f->getName() != "main")
 			continue;
-		const GetElementPtrInst *gep1 = NULL, *gep2 = NULL;
-		forallconst(Function, bb, *f) {
-			forallconst(BasicBlock, ins, *bb) {
-				if (const GetElementPtrInst *gep = dyn_cast<GetElementPtrInst>(ins)) {
+		GetElementPtrInst *gep1 = NULL, *gep2 = NULL;
+		forall(Function, bb, *f) {
+			forall(BasicBlock, ins, *bb) {
+				if (GetElementPtrInst *gep = dyn_cast<GetElementPtrInst>(ins)) {
 					// Look at GEPs from <arr> only. 
 					if (gep->getOperand(0)->getName() != "arr")
 						continue;
@@ -436,20 +441,20 @@ void IntTest::test_test_bound(const Module &M) {
 	}
 }
 
-void IntTest::test_test_reducer(const Module &M) {
+void IntTest::test_reducer(Module &M) {
 	TestBanner X("test-reducer");
 
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 
-	forallconst(Module, f, M) {
+	forall(Module, f, M) {
 		if (f->getName() != "main")
 			continue;
-		forallconst(Function, bb, *f) {
-			forallconst(BasicBlock, ins, *bb) {
-				if (const CallInst *ci = dyn_cast<CallInst>(ins)) {
-					const Function *callee = ci->getCalledFunction();
+		forall(Function, bb, *f) {
+			forall(BasicBlock, ins, *bb) {
+				if (CallInst *ci = dyn_cast<CallInst>(ins)) {
+					Function *callee = ci->getCalledFunction();
 					if (callee && callee->getName() == "printf") {
-						BasicBlock::const_iterator gep = ins;
+						BasicBlock::iterator gep = ins;
 						for (gep = bb->begin(); gep != ins; ++gep) {
 							if (isa<GetElementPtrInst>(gep))
 								break;
@@ -471,15 +476,15 @@ void IntTest::test_test_reducer(const Module &M) {
 	}
 }
 
-void IntTest::test_test_loop_2(const Module &M) {
+void IntTest::test_loop_2(Module &M) {
 	TestBanner X("test-loop-2");
 
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	
-	const Instruction *indvar = NULL;
-	forallconst(Module, f, M) {
-		forallconst(Function, bb, *f) {
-			forallconst(BasicBlock, ins, *bb) {
+	Instruction *indvar = NULL;
+	forall(Module, f, M) {
+		forall(Function, bb, *f) {
+			forall(BasicBlock, ins, *bb) {
 				if (isa<PHINode>(ins)) {
 					assert(!indvar);
 					indvar = ins;
@@ -489,7 +494,7 @@ void IntTest::test_test_loop_2(const Module &M) {
 	}
 	assert(indvar);
 
-	BasicBlock::const_iterator next = indvar; 
+	BasicBlock::iterator next = indvar; 
 	while (next != next->getParent()->end()) {
 		if (next->getOpcode() == Instruction::Add)
 			break;
@@ -500,23 +505,23 @@ void IntTest::test_test_loop_2(const Module &M) {
 	errs() << "Shouldn't be able to prove indvar != next? ...";
 	assert(!SC.provable(CmpInst::ICMP_NE,
 				ConstInstList(), dyn_cast<Value>(indvar),
-				ConstInstList(), dyn_cast<Value>((const Instruction *)next)));
+				ConstInstList(), dyn_cast<Value>((Instruction *)next)));
 	print_pass(errs());
 }
 
-void IntTest::test_test_loop(const Module &M) {
+void IntTest::test_loop(Module &M) {
 	TestBanner X("test-loop");
 
 	ExecOnce &EO = getAnalysis<ExecOnce>();
 
 	unsigned n_printfs = 0;
-	forallconst(Module, f, M) {
+	forall(Module, f, M) {
 		if (EO.not_executed(f))
 			continue;
-		forallconst(Function, bb, *f) {
-			forallconst(BasicBlock, ins, *bb) {
-				if (const CallInst *ci = dyn_cast<CallInst>(ins)) {
-					const Function *callee = ci->getCalledFunction();
+		forall(Function, bb, *f) {
+			forall(BasicBlock, ins, *bb) {
+				if (CallInst *ci = dyn_cast<CallInst>(ins)) {
+					Function *callee = ci->getCalledFunction();
 					if (callee && callee->getName() == "printf")
 						++n_printfs;
 				}
@@ -528,20 +533,20 @@ void IntTest::test_test_loop(const Module &M) {
 	print_pass(errs());
 }
 
-void IntTest::test_test_overwrite_2(const Module &M) {
+void IntTest::test_overwrite_2(Module &M) {
 	TestBanner X("test-overwrite-2");
 
 	ExecOnce &EO = getAnalysis<ExecOnce>();
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 
-	vector<const LoadInst *> loads;
-	forallconst(Module, f, M) {
+	vector<LoadInst *> loads;
+	forall(Module, f, M) {
 		if (EO.not_executed(f))
 			continue;
-		forallconst(Function, bb, *f) {
-			forallconst(BasicBlock, ins, *bb) {
-				if (const LoadInst *li = dyn_cast<LoadInst>(ins)) {
-					const Value *p = li->getPointerOperand();
+		forall(Function, bb, *f) {
+			forall(BasicBlock, ins, *bb) {
+				if (LoadInst *li = dyn_cast<LoadInst>(ins)) {
+					Value *p = li->getPointerOperand();
 					if (p->getName() == "n")
 						loads.push_back(li);
 				}
@@ -558,18 +563,18 @@ void IntTest::test_test_overwrite_2(const Module &M) {
 	}
 }
 
-void IntTest::test_test_overwrite(const Module &M) {
+void IntTest::test_overwrite(Module &M) {
 	TestBanner X("test-overwrite");
 
 	ExecOnce &EO = getAnalysis<ExecOnce>();
 
-	const Value *v1 = NULL, *v2 = NULL;
-	forallconst(Module, f, M) {
+	Value *v1 = NULL, *v2 = NULL;
+	forall(Module, f, M) {
 		if (EO.not_executed(f))
 			continue;
-		forallconst(Function, bb, *f) {
-			forallconst(BasicBlock, ins, *bb) {
-				if (const LoadInst *li = dyn_cast<LoadInst>(ins)) {
+		forall(Function, bb, *f) {
+			forall(BasicBlock, ins, *bb) {
+				if (LoadInst *li = dyn_cast<LoadInst>(ins)) {
 					if (li->isVolatile()) {
 						if (v1 == NULL)
 							v1 = li;
@@ -592,22 +597,22 @@ void IntTest::test_test_overwrite(const Module &M) {
 	print_pass(errs());
 }
 
-void IntTest::test_test_global(const Module &M) {
+void IntTest::test_global(Module &M) {
 	TestBanner X("test-global");
 
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	ExecOnce &EO = getAnalysis<ExecOnce>();
 
-	const Function *transpose = M.getFunction("transpose");
+	Function *transpose = M.getFunction("transpose");
 	assert(transpose);
-	const Instruction *the_call = NULL;
-	for (Module::const_iterator f = M.begin(); f != M.end(); ++f) {
+	Instruction *the_call = NULL;
+	for (Module::iterator f = M.begin(); f != M.end(); ++f) {
 		if (EO.not_executed(f))
 			continue;
-		for (Function::const_iterator bb = f->begin(); bb != f->end(); ++bb) {
-			for (BasicBlock::const_iterator ins = bb->begin();
+		for (Function::iterator bb = f->begin(); bb != f->end(); ++bb) {
+			for (BasicBlock::iterator ins = bb->begin();
 					ins != bb->end(); ++ins) {
-				if (const CallInst *ci = dyn_cast<CallInst>(ins)) {
+				if (CallInst *ci = dyn_cast<CallInst>(ins)) {
 					if (ci->getCalledFunction() == transpose) {
 						the_call = ci;
 						break;
@@ -622,16 +627,16 @@ void IntTest::test_test_global(const Module &M) {
 	}
 	assert(the_call);
 
-	for (Module::const_iterator f = M.begin(); f != M.end(); ++f) {
-		for (Function::const_iterator bb = f->begin(); bb != f->end(); ++bb) {
-			for (BasicBlock::const_iterator ins = bb->begin();
+	for (Module::iterator f = M.begin(); f != M.end(); ++f) {
+		for (Function::iterator bb = f->begin(); bb != f->end(); ++bb) {
+			for (BasicBlock::iterator ins = bb->begin();
 					ins != bb->end(); ++ins) {
-				CallSite cs(const_cast<Instruction *>((const Instruction *)ins));
+				CallSite cs(ins);
 				if (cs.getInstruction()) {
 					Function *callee = cs.getCalledFunction();
 					if (callee && callee->getName() == "printf") {
 						assert(cs.arg_size() > 0);
-						const Value *v = cs.getArgument(cs.arg_size() - 1);
+						Value *v = cs.getArgument(cs.arg_size() - 1);
 						const IntegerType *int_type = IntegerType::get(M.getContext(), 32);
 						errs() << "a + delta <= 3? ...";
 						assert(SC.provable(CmpInst::ICMP_SLE,

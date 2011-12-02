@@ -16,7 +16,7 @@ using namespace rcs;
 #include "int-test.h"
 using namespace slicer;
 
-void IntTest::test_blackscholes(Module &M) {
+void IntTest::blackscholes(Module &M) {
 	AliasAnalysis &AA = getAnalysis<AdvancedAlias>();
 
 	Value *prices = M.getNamedGlobal("prices");
