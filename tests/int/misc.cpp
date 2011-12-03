@@ -16,11 +16,40 @@ using namespace rcs;
 #include "int-test.h"
 using namespace slicer;
 
+void IntTest::test_path_2(Module &M) {
+	TestBanner X("test-path-2");
+
+	Function *main = M.getFunction("main"); assert(main);
+	CallInst *the_printf = NULL;
+	for (Function::iterator bb = main->begin(); bb != main->end(); ++bb) {
+		for (BasicBlock::iterator ins = bb->begin(); ins != bb->end(); ++ins) {
+			if (CallInst *ci = dyn_cast<CallInst>(ins)) {
+				Function *callee = ci->getCalledFunction();
+				if (callee && callee->getName() == "printf") {
+					assert(the_printf == NULL);
+					the_printf = ci;
+				}
+			}
+		}
+	}
+	assert(the_printf);
+
+	unsigned n_args = the_printf->getNumArgOperands();
+	assert(n_args > 0);
+	Value *arg = the_printf->getArgOperand(n_args - 1);
+
+	SolveConstraints &SC = getAnalysis<SolveConstraints>();
+	errs() << "printed value = 1? ...";
+	assert(SC.provable(CmpInst::ICMP_EQ,
+				ConstInstList(), arg,
+				ConstInstList(), dyn_cast<Value>(ConstantInt::get(int_type, 1))));
+	print_pass(errs());
+}
+
 void IntTest::test_barrier(Module &M) {
 	TestBanner X("test-barrier");
 
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
-	const IntegerType *int_type = IntegerType::get(M.getContext(), 32);
 	
 	Function *print = M.getFunction("printf"); assert(print);
 	for (Value::use_iterator ui = print->use_begin(); ui != print->use_end();
@@ -41,7 +70,6 @@ void IntTest::test_lcssa(Module &M) {
 	TestBanner X("test-lcssa");
 
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
-	const IntegerType *int_type = IntegerType::get(M.getContext(), 32);
 
 	for (Module::iterator f = M.begin(); f != M.end(); ++f) {
 		for (Function::iterator bb = f->begin(); bb != f->end(); ++bb) {
@@ -130,7 +158,6 @@ void IntTest::test_ctxt_2(Module &M) {
 	}
 	assert(b && "Cannot find variable <b>");
 
-	const IntegerType *int_type = IntegerType::get(M.getContext(), 32);
 	errs() << "b == 2 or 3? ...";
 	assert(SC.provable(new Clause(Instruction::Or,
 					new Clause(new BoolExpr(CmpInst::ICMP_EQ,
@@ -162,7 +189,6 @@ void IntTest::test_range_4(Module &M) {
 	assert(phi);
 
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
-	const IntegerType *int_type = IntegerType::get(M.getContext(), 32);
 	assert(SC.provable(CmpInst::ICMP_SGE,
 				ConstInstList(), dyn_cast<Value>(phi),
 				ConstInstList(), dyn_cast<Value>(ConstantInt::get(int_type, 0))));
@@ -462,7 +488,6 @@ void IntTest::test_reducer(Module &M) {
 						assert(isa<GetElementPtrInst>(gep) &&
 								"Cannot find a GEP before the printf");
 						errs() << "GEP:" << *gep << "\n";
-						const IntegerType *int_type = IntegerType::get(M.getContext(), 32);
 						errs() << "argc - 1 >= 0? ...";
 						assert(SC.provable(CmpInst::ICMP_SGT,
 									ConstInstList(), &gep->getOperandUse(1),
@@ -637,7 +662,6 @@ void IntTest::test_global(Module &M) {
 					if (callee && callee->getName() == "printf") {
 						assert(cs.arg_size() > 0);
 						Value *v = cs.getArgument(cs.arg_size() - 1);
-						const IntegerType *int_type = IntegerType::get(M.getContext(), 32);
 						errs() << "a + delta <= 3? ...";
 						assert(SC.provable(CmpInst::ICMP_SLE,
 									ConstInstList(1, the_call), v,

@@ -5,7 +5,7 @@ PROG_NAMES = test-thread test-overwrite test-loop test-ctxt-2 test-loop-3 \
 	     test-overwrite-2 RADIX-like test-thread-2 \
 	     test-malloc test-ctxt test-range test-barrier \
 	     test-range-2 test-range-3 test-range-4 \
-	     test-loop-2 test-assert test-lcssa \
+	     test-loop-2 test-assert test-lcssa test-path-2 \
 	     aget FFT RADIX pbzip2 CHOLESKY LU-cont blackscholes
 PROGS_DIR = ../progs
 PROGS = $(addprefix $(PROGS_DIR)/, $(PROG_NAMES))

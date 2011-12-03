@@ -9,7 +9,7 @@ include $(LEVEL)/Makefile.common
 PROG_NAMES = test-overwrite test-loop test-loop-2 test-ctxt-4 \
 	     test-reducer test-global \
 	     test-bound FFT-like \
-	     test-thread \
+	     test-thread test-path-2 \
 	     test-array aget-like \
 	     test-overwrite-2 \
 	     test-thread-2 RADIX-like \

@@ -203,7 +203,6 @@ void IntTest::radix_common(Module &M) {
 	}
 
 	Clause *disj = NULL;
-	const IntegerType *int_type = IntegerType::get(M.getContext(), 32);
 	for (size_t i = 0; i < local_ids.size(); ++i) {
 		Clause *c = new Clause(new BoolExpr(CmpInst::ICMP_EQ,
 					new Expr(local_ids[i]), new Expr(ConstantInt::get(int_type, 1))));

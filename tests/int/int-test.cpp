@@ -54,7 +54,13 @@ void IntTest::getAnalysisUsage(AnalysisUsage &AU) const {
 #endif
 }
 
+void IntTest::setup(Module &M) {
+	int_type = IntegerType::get(M.getContext(), 32);
+}
+
 bool IntTest::runOnModule(Module &M) {
+	setup(M);
+
 	if (Program == "") {
 		CaptureConstraints &CC = getAnalysis<CaptureConstraints>();
 		CC.print(errs(), &M);
@@ -125,5 +131,7 @@ bool IntTest::runOnModule(Module &M) {
 		test_lcssa(M);
 	if (Program == "test-barrier")
 		test_barrier(M);
+	if (Program == "test-path-2")
+		test_path_2(M);
 	return false;
 }
