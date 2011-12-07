@@ -26,6 +26,7 @@ using namespace bc2bdd;
 
 INITIALIZE_PASS_BEGIN(AggressivePromotion, "aggressive-promotion",
 		"A reducer running before the integer constraint solver", false, false)
+INITIALIZE_PASS_DEPENDENCY(DominatorTree)
 INITIALIZE_PASS_DEPENDENCY(LoopInfo)
 INITIALIZE_PASS_DEPENDENCY(LandmarkTrace)
 INITIALIZE_PASS_DEPENDENCY(CloneInfoManager)
@@ -42,6 +43,7 @@ INITIALIZE_PASS_END(AggressivePromotion, "aggressive-promotion",
  */
 void AggressivePromotion::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesCFG(); // Are you sure? 
+	AU.addRequired<DominatorTree>();
 	AU.addRequired<LoopInfo>();
 	AU.addRequired<LandmarkTrace>();
 	AU.addRequired<CloneInfoManager>();
@@ -56,52 +58,75 @@ AggressivePromotion::AggressivePromotion(): LoopPass(ID) {
 char AggressivePromotion::ID = 0;
 
 bool AggressivePromotion::runOnLoop(Loop *L, LPPassManager &LPM) {
-	LoopInfo &LI = getAnalysis<LoopInfo>();
+	DT = &getAnalysis<DominatorTree>();
+	LI = &getAnalysis<LoopInfo>();
 
+	assert(L->getHeader());
 	BasicBlock *preheader = L->getLoopPreheader();
 	if (!preheader)
 		return false;
-	
-	InstList to_promote;
-	for (Loop::block_iterator bi = L->block_begin(); bi != L->block_end(); ++bi) {
-		BasicBlock *bb = *bi;
-		// Ignore blocks in subloops.
-		if (LI.getLoopFor(bb) == L) {
-			for (BasicBlock::iterator ins = bb->begin(); ins != bb->end(); ++ins) {
-				if (LoadInst *li = dyn_cast<LoadInst>(ins)) {
-					// Try hoisting this load instruction. 
-					if (should_promote(li, L))
-						to_promote.push_back(li);
-				}
-			}
-		}
-	}
 
-	for (size_t i = 0; i < to_promote.size(); ++i) {
-		// Promote to_promote[i] to <preheader>. 
-		// Copied from LICM.cpp, around Line 607. 
-		Instruction *ins = to_promote[i];
-		DEBUG(dbgs() << "=== Promoting " << *ins << " ===\n";);
-		ins->removeFromParent();
-		preheader->getInstList().insert(preheader->getTerminator(), ins);
-	}
-
-	return to_promote.size() > 0;
+	return hoist_region(L, DT->getNode(L->getHeader()));
 }
 
-bool AggressivePromotion::should_promote(LoadInst *li, Loop *L) {
-	Value *p = li->getPointerOperand();
-#if 0
-	// TODO: For performance sake, we work on global variables only. 
-	if (!isa<GlobalVariable>(p))
+bool AggressivePromotion::hoist_region(Loop *L, DomTreeNode *node) {
+	BasicBlock *bb = node->getBlock();
+	if (!L->contains(bb))
 		return false;
-#endif
-	
-	// Check whether the loop itself will write to <p>. 
-	if (may_write(L, p))
+
+	// Skip <bb> if it is in a subloop. Already handled by previous passes. 
+	if (LI->getLoopFor(bb) != L)
 		return false;
-	
-	// TODO: Check concurrent regions. 
+
+	bool changed = false;
+	for (BasicBlock::iterator ins = bb->begin(); ins != bb->end(); ) {
+		// inv->moveBefore invalidates the next pointer in <ins>. 
+		BasicBlock::iterator next = ins; ++next;
+		if (can_hoist(L, ins)) {
+			DEBUG(dbgs() << "Hoisting" << *ins << "\n");
+			ins->moveBefore(L->getLoopPreheader()->getTerminator());
+			changed = true;
+		}
+		ins = next;
+	}
+
+	const vector<DomTreeNode *> &children = node->getChildren();
+	for (unsigned i = 0; i < children.size(); ++i)
+		changed |= hoist_region(L, children[i]);
+	return changed;
+}
+
+bool AggressivePromotion::can_hoist(Loop *L, Instruction *ins) {
+	// Cannot hoist <ins> if not all its operands are loop invariants. 
+	assert(ins);
+	if (!L->hasLoopInvariantOperands(ins))
+		return false;
+
+	if (!is_safe_to_execute_unconditionally(L, ins))
+		return false;
+
+	if (LoadInst *li = dyn_cast<LoadInst>(ins))
+		return !may_write(L, li->getPointerOperand());
+
+	return isa<BinaryOperator>(ins) || isa<CastInst>(ins) ||
+		isa<SelectInst>(ins) || isa<GetElementPtrInst>(ins) || isa<CmpInst>(ins) ||
+		isa<InsertElementInst>(ins) || isa<ExtractElementInst>(ins) ||
+		isa<ShuffleVectorInst>(ins);
+}
+
+bool AggressivePromotion::is_safe_to_execute_unconditionally(
+		Loop *L, Instruction *ins) {
+	if (ins->isSafeToSpeculativelyExecute())
+		return true;
+
+	// return true if it dominates all loop exits.
+	SmallVector<BasicBlock *, 8> exits;
+	L->getExitBlocks(exits);
+	for (unsigned i = 0; i < exits.size(); ++i) {
+		if (!DT->dominates(ins->getParent(), exits[i]))
+			return false;
+	}
+
 	return true;
 }
 
@@ -155,11 +180,5 @@ bool AggressivePromotion::may_write(
 				return true;
 		}
 	}
-	return false;
-}
-
-bool AggressivePromotion::path_may_write(
-		const Instruction *i1, const Instruction *i2, const Value *p) {
-	// TODO: To implement
 	return false;
 }

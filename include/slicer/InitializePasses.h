@@ -17,6 +17,8 @@ namespace llvm {
 	void initializeSolveConstraintsPass(PassRegistry &);
 	void initializeIteratePass(PassRegistry &);
 	void initializeCountCtxtsPass(PassRegistry &);
+	void initializeMayWriteAnalyzerPass(PassRegistry &);
+	void initializeStratifyLoadsPass(PassRegistry &);
 	
 	void initializeCloneInfoManagerPass(PassRegistry &);
 	void initializeMaxSlicingPass(PassRegistry &);

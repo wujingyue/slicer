@@ -49,6 +49,7 @@ namespace slicer {
 		void test_lcssa(Module &M);
 		void test_barrier(Module &M);
 		void test_path_2(Module &M);
+		void test_alloca(Module &M);
 
 		void check_fake_pwrite(Module &M);
 		void check_fake_pwrite_cs(Module &M);

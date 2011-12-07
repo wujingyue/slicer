@@ -27,6 +27,7 @@ using namespace bc2bdd;
 #include "slicer/landmark-trace.h"
 #include "slicer/clone-info-manager.h"
 #include "slicer/region-manager.h"
+#include "slicer/may-write-analyzer.h"
 using namespace slicer;
 
 static cl::opt<bool> DisableAdvancedAA("disable-advanced-aa",
@@ -83,6 +84,7 @@ void CaptureConstraints::capture_global_vars(Module &M) {
 
 void CaptureConstraints::capture_global_var(GlobalVariable *gv) {
 	RegionManager &RM = getAnalysis<RegionManager>();
+	MayWriteAnalyzer &MWA = getAnalysis<MayWriteAnalyzer>();
 
 	assert(isa<IntegerType>(gv->getType()) || isa<PointerType>(gv->getType()));
 
@@ -99,7 +101,7 @@ void CaptureConstraints::capture_global_var(GlobalVariable *gv) {
 		for (Function::iterator bb = f->begin(); bb != f->end(); ++bb) {
 			for (BasicBlock::iterator ins = bb->begin(); ins != bb->end(); ++ins) {
 				ConstFuncSet visited_funcs;
-				if (may_write(ins, gv, visited_funcs, false)) {
+				if (MWA.may_write(ins, gv, visited_funcs, false)) {
 					vector<Region> regions;
 					RM.get_containing_regions(ins, regions);
 					for (size_t i = 0; i < regions.size(); ++i) {
@@ -292,6 +294,7 @@ Instruction *CaptureConstraints::find_latest_overwriter(
 
 bool CaptureConstraints::region_may_write(const Region &r, const Value *q) {
 	RegionManager &RM = getAnalysis<RegionManager>();
+	MayWriteAnalyzer &MWA = getAnalysis<MayWriteAnalyzer>();
 
 	if (!RM.region_has_insts(r))
 		return false;
@@ -300,7 +303,7 @@ bool CaptureConstraints::region_may_write(const Region &r, const Value *q) {
 	// A region already includes exec-once functions. 
 	ConstFuncSet visited_funcs;
 	for (size_t i = 0; i < insts_in_r.size(); ++i) {
-		if (may_write(insts_in_r[i], q, visited_funcs)) {
+		if (MWA.may_write(insts_in_r[i], q, visited_funcs)) {
 			DEBUG(dbgs() << "Region " << r << "may write to <q>:\n";);
 			DEBUG(dbgs() << *insts_in_r[i] << "\n";);
 			return true;
@@ -543,96 +546,6 @@ bool CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 	return true;
 }
 
-bool CaptureConstraints::may_write(const Instruction *i,
-		const Value *q, ConstFuncSet &visited_funcs, bool trace_callee) {
-	if (const StoreInst *si = dyn_cast<StoreInst>(i)) {
-		if (may_alias(si->getPointerOperand(), q)) {
-			DEBUG(dbgs() << "may_write: ";);
-			DEBUG(dbgs() << "[" << si->getParent()->getParent()->getName() << "]";);
-			DEBUG(dbgs() << *si << "\n";);
-			return true;
-		}
-	}
-
-	CallSite cs(const_cast<Instruction *>(i));
-	if (cs.getInstruction() && !is_pthread_create(i)) {
-		CallGraphFP &CG = getAnalysis<CallGraphFP>();
-		FuncList callees = CG.get_called_functions(i);
-		for (size_t j = 0; j < callees.size(); ++j) {
-			Function *callee = callees[j];
-			if (callee->isDeclaration()) {
-				if (libcall_may_write(cs, q)) {
-					DEBUG(dbgs() << "may_write:" << *i << "\n";);
-					return true;
-				}
-			} else {
-				// <callee> is an internal function. 
-				if (trace_callee) {
-					ExecOnce &EO = getAnalysis<ExecOnce>();
-					// Don't trace into exec-once functions, because they are already
-					// included in the partical ICFG and potentially included in the path. 
-					if (!EO.not_executed(callee) && !EO.executed_once(callee)) {
-						if (may_write(callee, q, visited_funcs))
-							return true;
-					}
-				}
-			}
-		}
-	}
-
-	return false;
-}
-
-bool CaptureConstraints::libcall_may_write(const CallSite &cs, const Value *q) {
-	assert(cs.getInstruction());
-
-	if (Function *callee = cs.getCalledFunction()) {
-		if (callee->getName() == "fscanf") {
-			assert(cs.arg_size() >= 2);
-			for (unsigned arg_no = 2; arg_no < cs.arg_size(); ++arg_no) {
-				if (may_alias(cs.getArgument(arg_no), q))
-					return true;
-			}
-		}
-		if (callee->getName() == "BZ2_bzReadOpen" ||
-				callee->getName() == "BZ2_bzRead" ||
-				callee->getName() == "BZ2_bzReadGetUnused" ||
-				callee->getName() == "BZ2_bzReadClose") {
-			assert(cs.arg_size() >= 1);
-			if (may_alias(cs.getArgument(0), q))
-				return true;
-		}
-		if (callee->getName().find("isoc99_scanf") != string::npos) {
-			assert(cs.arg_size() >= 1);
-			for (unsigned arg_no = 1; arg_no < cs.arg_size(); ++arg_no) {
-				if (may_alias(q, cs.getArgument(arg_no)))
-					return true;
-			}
-		}
-	}
-
-	return false;
-}
-
-bool CaptureConstraints::may_write(const Function *f,
-		const Value *q, ConstFuncSet &visited_funcs, bool trace_callee) {
-	if (visited_funcs.count(f))
-		return false;
-	visited_funcs.insert(f);
-
-	if (f->isDeclaration())
-		return false;
-	
-	for (Function::const_iterator bi = f->begin(); bi != f->end(); ++bi) {
-		for (BasicBlock::const_iterator ii = bi->begin(); ii != bi->end(); ++ii) {
-			if (may_write(ii, q, visited_funcs, trace_callee))
-				return true;
-		}
-	}
-	
-	return false;
-}
-
 bool CaptureConstraints::path_may_write(int thr_id, size_t trunk_id,
 		const Instruction *i2, const Value *q) {
 	DEBUG(dbgs() << "path_may_write:" << *i2 << "\n";
@@ -738,6 +651,8 @@ bool CaptureConstraints::mbbs_may_write(const DenseSet<const ICFGNode *> &mbbs,
 
 bool CaptureConstraints::mbb_may_write(const MicroBasicBlock *mbb,
 		const InstList &starts, const InstList &ends, const Value *q) {
+	MayWriteAnalyzer &MWA = getAnalysis<MayWriteAnalyzer>();
+
 	// The starting point may not be the entry of <mbb>. It may be one of the
 	// instructions in <starts>. 
 	BasicBlock::const_iterator s = mbb->end();
@@ -761,7 +676,7 @@ bool CaptureConstraints::mbb_may_write(const MicroBasicBlock *mbb,
 	// Trace into functions that don't appear in the ICFG. 
 	ConstFuncSet visited_funcs;
 	for (BasicBlock::const_iterator i = s; i != e; ++i) {
-		if (may_write(i, q, visited_funcs))
+		if (MWA.may_write(i, q, visited_funcs))
 			return true;
 	}
  	

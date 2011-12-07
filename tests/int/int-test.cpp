@@ -133,5 +133,7 @@ bool IntTest::runOnModule(Module &M) {
 		test_barrier(M);
 	if (Program == "test-path-2")
 		test_path_2(M);
+	if (Program == "test-alloca")
+		test_alloca(M);
 	return false;
 }

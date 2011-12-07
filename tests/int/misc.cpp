@@ -16,6 +16,39 @@ using namespace rcs;
 #include "int-test.h"
 using namespace slicer;
 
+void IntTest::test_alloca(Module &M) {
+	TestBanner X("test-alloca");
+
+	Function *worker1 = M.getFunction("worker1.SLICER"); assert(worker1);
+	Function *worker2 = M.getFunction("worker2.SLICER"); assert(worker2);
+
+	Value *p1 = NULL, *p2 = NULL;
+	for (Function::iterator bb = worker1->begin(); bb != worker1->end(); ++bb) {
+		for (BasicBlock::iterator ins = bb->begin(); ins != bb->end(); ++ins) {
+			if (StoreInst *si = dyn_cast<StoreInst>(ins)) {
+				assert(!p1);
+				p1 = si->getPointerOperand();
+			}
+		}
+	}
+	for (Function::iterator bb = worker2->begin(); bb != worker2->end(); ++bb) {
+		for (BasicBlock::iterator ins = bb->begin(); ins != bb->end(); ++ins) {
+			if (StoreInst *si = dyn_cast<StoreInst>(ins)) {
+				assert(!p2);
+				p2 = si->getPointerOperand();
+			}
+		}
+	}
+	assert(p1 && p2);
+
+	SolveConstraints &SC = getAnalysis<SolveConstraints>();
+	errs() << "p1 != p2? ...";
+	assert(SC.provable(CmpInst::ICMP_NE,
+			ConstInstList(), p1,
+			ConstInstList(), p2));
+	print_pass(errs());
+}
+
 void IntTest::test_path_2(Module &M) {
 	TestBanner X("test-path-2");
 

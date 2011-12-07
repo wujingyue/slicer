@@ -2,8 +2,11 @@
  * Author: Jingyue
  */
 
-#include "common/util.h"
+#include "llvm/Target/TargetData.h"
 using namespace llvm;
+
+#include "common/util.h"
+using namespace rcs;
 
 #include "slicer/capture.h"
 using namespace slicer;
@@ -12,16 +15,19 @@ void CaptureConstraints::capture_function_summaries(Module &M) {
 	// Capture all memory allocations along the way. 
 	vector<pair<Expr *, Expr *> > blocks;
 	
-	forallinst(M, ii) {
-		CallSite cs(ii);
-		if (!cs.getInstruction())
-			continue;
-		
-		capture_libcall(cs);
-
-		Expr *start = NULL, *size = NULL;
-		if (capture_memory_allocation(cs, start, size))
-			blocks.push_back(make_pair(start, size));
+	for (Module::iterator f = M.begin(); f != M.end(); ++f) {
+		for (Function::iterator bb = f->begin(); bb != f->end(); ++bb) {
+			for (BasicBlock::iterator ins = bb->begin(); ins != bb->end(); ++ins) {
+				// memory allocations. e.g. alloca, malloc, valloc, calloc. 
+				Expr *start = NULL, *size = NULL;
+				if (capture_memory_allocation(ins, start, size))
+					blocks.push_back(make_pair(start, size));
+				// libcall summaries
+				CallSite cs(ins);
+				if (cs.getInstruction())
+					capture_libcall(cs);
+			}
+		}
 	}
 
 	// Handle memory allocations. 
@@ -40,15 +46,32 @@ void CaptureConstraints::capture_function_summaries(Module &M) {
 	}
 }
 
-bool CaptureConstraints::capture_memory_allocation(
-		const CallSite &cs, Expr *&start, Expr *&size) {
+bool CaptureConstraints::capture_memory_allocation(Instruction *ins,
+		Expr *&start, Expr *&size) {
+	// alloca: they are not function calls
+	if (AllocaInst *ai = dyn_cast<AllocaInst>(ins)) {
+		if (!is_reachable_integer(ins))
+			return false;
+		TargetData &TD = getAnalysis<TargetData>();
+		uint64_t size_in_bits = TD.getTypeSizeInBits(ai->getAllocatedType());
+		assert(size_in_bits % 8 == 0);
+		start = new Expr(ai);
+		size = new Expr(ConstantInt::get(int_type, size_in_bits / 8));
+		return true;
+	}
 
-	const Function *callee = cs.getCalledFunction();
+	CallSite cs(ins);
+	if (!cs.getInstruction())
+		return false;
+
+	Function *callee = cs.getCalledFunction();
 	if (!callee)
 		return false;
 	
-	const string &name = callee->getNameStr();
+	string name = callee->getName();
 	if (name == "malloc" || name == "valloc") {
+		if (!is_reachable_integer(ins))
+			return false;
 		// TODO: valloc also guarantees the block is page-aligned. 
 		assert(cs.arg_size() == 1);
 		start = new Expr(cs.getInstruction());
@@ -57,6 +80,8 @@ bool CaptureConstraints::capture_memory_allocation(
 	} 
 	
 	if (name == "calloc") {
+		if (!is_reachable_integer(ins))
+			return false;
 		assert(cs.arg_size() == 2);
 		start = new Expr(cs.getInstruction());
 		size = new Expr(Instruction::Mul,
@@ -68,11 +93,11 @@ bool CaptureConstraints::capture_memory_allocation(
 	return false;
 }
 
-void CaptureConstraints::capture_libcall(const CallSite &cs) {
-	const Function *callee = cs.getCalledFunction();
+void CaptureConstraints::capture_libcall(CallSite &cs) {
+	Function *callee = cs.getCalledFunction();
 	if (!callee)
 		return;
-	const string &name = callee->getNameStr();
+	string name = callee->getName();
 	
 	Constant *zero = ConstantInt::get(int_type, 0);
 	Constant *minus_one = ConstantInt::getSigned(int_type, -1);
@@ -81,11 +106,11 @@ void CaptureConstraints::capture_libcall(const CallSite &cs) {
 		// ret >= 0
 		// if len >= 0, ret <= len
 		// FIXME: >= -1. But aget has a bug no checking its return value. 
-		const Instruction *ret = cs.getInstruction();
+		Instruction *ret = cs.getInstruction();
 		if (is_reachable_integer(ret)) {
 			add_constraint(new Clause(new BoolExpr(CmpInst::ICMP_SGE,
 							new Expr(ret), new Expr(minus_one))));
-			const Value *len = cs.getArgument(2);
+			Value *len = cs.getArgument(2);
 			if (is_reachable_integer(len)) {
 				// len >= 0 ==> ret <= len
 				// i.e
@@ -102,9 +127,9 @@ void CaptureConstraints::capture_libcall(const CallSite &cs) {
 		// ret = recv(???, ???, len, ???)
 		// ret >= -1
 		// len >= 0 ==> ret <= len i.e. len < 0 or ret <= len
-		const Value *ret = cs.getInstruction();
+		Value *ret = cs.getInstruction();
 		if (is_reachable_integer(ret)) {
-			const Value *len = cs.getArgument(2);
+			Value *len = cs.getArgument(2);
 			add_constraint(new Clause(new BoolExpr(CmpInst::ICMP_SGE,
 							new Expr(ret), new Expr(minus_one))));
 			if (is_reachable_integer(len)) {
@@ -118,7 +143,7 @@ void CaptureConstraints::capture_libcall(const CallSite &cs) {
 	}
 	if (name == "rand") {
 		// ret >= 0
-		const Value *ret = cs.getInstruction();
+		Value *ret = cs.getInstruction();
 		if (is_reachable_integer(ret)) {
 			add_constraint(new Clause(new BoolExpr(CmpInst::ICMP_SGE,
 							new Expr(ret), new Expr(ConstantInt::get(int_type, 0)))));

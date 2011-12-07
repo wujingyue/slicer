@@ -20,8 +20,8 @@
 #include "common/icfg.h"
 #include "common/exec-once.h"
 #include "common/partial-icfg-builder.h"
-#include "common/InitializePasses.h"
 #include "bc2bdd/InitializePasses.h"
+#include "common/InitializePasses.h"
 #include "slicer/InitializePasses.h"
 using namespace llvm;
 
@@ -37,6 +37,7 @@ using namespace std;
 #include "slicer/landmark-trace.h"
 #include "slicer/clone-info-manager.h"
 #include "slicer/region-manager.h"
+#include "slicer/may-write-analyzer.h"
 using namespace slicer;
 
 INITIALIZE_PASS_BEGIN(CaptureConstraints, "capture",
@@ -54,11 +55,12 @@ INITIALIZE_PASS_DEPENDENCY(CloneInfoManager)
 INITIALIZE_PASS_DEPENDENCY(RegionManager)
 INITIALIZE_PASS_DEPENDENCY(PartialICFGBuilder)
 INITIALIZE_PASS_DEPENDENCY(MicroBasicBlockBuilder)
+INITIALIZE_PASS_DEPENDENCY(MayWriteAnalyzer)
 INITIALIZE_PASS_END(CaptureConstraints, "capture",
 		"Capture all integer constraints", false, true)
 
 void CaptureConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
-	// LLVM 2.9 crashes if I use addRequiredTransitive. 
+	// LLVM 2.9 crashes if I addRequiredTransitive FunctionPasses.
 	AU.setPreservesAll();
 	AU.addRequired<BddAliasAnalysis>(); // Only used in <setup>. 
 	AU.addRequired<TargetData>();
@@ -73,6 +75,7 @@ void CaptureConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<RegionManager>();
 	AU.addRequired<PartialICFGBuilder>();
 	AU.addRequired<MicroBasicBlockBuilder>();
+	AU.addRequired<MayWriteAnalyzer>();
 }
 
 static cl::opt<bool> DisableAllConstraints("disable-constraints",
@@ -83,7 +86,9 @@ STATISTIC(num_pointers, "Number of pointers");
 
 char CaptureConstraints::ID = 0;
 
-CaptureConstraints::CaptureConstraints(): ModulePass(ID), IDT(false) {}
+CaptureConstraints::CaptureConstraints(): ModulePass(ID), IDT(false) {
+	initializeCaptureConstraintsPass(*PassRegistry::getPassRegistry());
+}
 
 CaptureConstraints::~CaptureConstraints() {
 	clear_constraints();

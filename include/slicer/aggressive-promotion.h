@@ -21,17 +21,17 @@ namespace slicer {
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 	
 	private:
-		// TODO: Refactor. Similar code used in Capturer as well. 
-		bool path_may_write(
-				const Instruction *i1, const Instruction *i2, const Value *p);
+		bool hoist_region(Loop *L, DomTreeNode *node);
+		bool can_hoist(Loop *L, Instruction *ins);
+		bool is_safe_to_execute_unconditionally(Loop *L, Instruction *ins);
 		bool may_write(const Loop *L, const Value *p);
 		bool may_write(
 				const Instruction *i, const Value *q, ConstFuncSet &visited_funcs);
 		bool may_write(
 				const Function *f, const Value *q, ConstFuncSet &visited_funcs);
-		// <li> must be directly contained in loop <L>.
-		// i.e. not in any subloop of <L>.
-		bool should_promote(LoadInst *li, Loop *L);
+
+		DominatorTree *DT;
+		LoopInfo *LI;
 	};
 }
 

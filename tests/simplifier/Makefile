@@ -1,7 +1,7 @@
 # simplifier only works on sliced programs 
 
 PROG_NAMES = test-loop test-reducer test-overwrite test-loop-2 test-ctxt-2 \
-	     test-bound FFT-like test-dep test-ctxt-4 \
+	     test-bound FFT-like test-dep test-ctxt-4 test-alloca \
 	     aget-like test-array test-thread test-assert \
 	     RADIX-like test-thread-2 test-range-2 test-barrier \
 	     test-overwrite-2 test-malloc test-range test-path-2 \

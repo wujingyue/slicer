@@ -11,7 +11,7 @@ PROG_NAMES = test-overwrite test-loop test-loop-2 test-ctxt-4 \
 	     test-bound FFT-like \
 	     test-thread test-path-2 \
 	     test-array aget-like \
-	     test-overwrite-2 \
+	     test-overwrite-2 test-alloca \
 	     test-thread-2 RADIX-like \
 	     test-malloc test-range \
 	     aget blackscholes FFT

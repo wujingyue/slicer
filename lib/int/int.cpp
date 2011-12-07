@@ -10,6 +10,8 @@ struct RegisterIntPasses {
 		initializeSolveConstraintsPass(reg);
 		initializeIteratePass(reg);
 		initializeCountCtxtsPass(reg);
+		initializeMayWriteAnalyzerPass(reg);
+		initializeStratifyLoadsPass(reg);
 	}
 };
 static RegisterIntPasses X;

@@ -171,19 +171,6 @@ namespace slicer {
 		bool mbb_may_write(const MicroBasicBlock *mbb,
 				const InstList &starts, const InstList &ends, const Value *q);
 		bool region_may_write(const Region &r, const Value *q);
-		/**
-		 * Check if instruction <i> may write to <q>. 
-		 * If <i> is a call instruction, the function may trace into the callee
-		 * depending on flag <trace_callee>.
-		 * Note that this function never traces into an exec-once function,
-		 * becuase doing so is incorrect when used in <path_may_write> or
-		 * <region_may_write>. 
-		 */
-		bool may_write(const Instruction *i, const Value *q,
-				ConstFuncSet &visited_funcs, bool trace_callee = true);
-		bool may_write(const Function *f, const Value *q,
-				ConstFuncSet &visited_funcs, bool trace_callee = true);
-		bool libcall_may_write(const CallSite &cs, const Value *q);
 		
 		// General functions. 
 		void simplify_constraints();
@@ -227,9 +214,8 @@ namespace slicer {
 				vector<Clause *> &unreachable_constraints);
 		/* Function summaries. */
 		void capture_function_summaries(Module &M);
-		void capture_libcall(const CallSite &cs);
-		bool capture_memory_allocation(
-				const CallSite &cs, Expr *&start, Expr *&size);
+		void capture_libcall(CallSite &cs);
+		bool capture_memory_allocation(Instruction *ins, Expr *&start, Expr *&size);
 
 		// Data members. 
 		vector<Clause *> constraints;
