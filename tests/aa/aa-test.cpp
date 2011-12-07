@@ -29,7 +29,7 @@ using namespace slicer;
 static RegisterPass<AATest> X("aa-test",
 		"Test alias analysis", false, true);
 static cl::opt<bool> ValueID("value",
-		"Use value IDs instead of instruction IDs");
+		cl::desc("Use value IDs instead of instruction IDs"));
 static cl::opt<unsigned> ID1("id1", cl::desc("the first ID"),
 		cl::init(IDAssigner::INVALID_ID));
 static cl::opt<unsigned> ID2("id2", cl::desc("the second ID"),

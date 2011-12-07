@@ -1,0 +1,223 @@
+--- parsec-2.1-orig/config/llvm.bldconf	1969-12-31 19:00:00.000000000 -0500
++++ parsec-2.1/config/llvm.bldconf	2011-12-05 18:09:46.000000000 -0500
+@@ -0,0 +1,121 @@
++#!/bin/bash
++#
++# llvm.bldconf - file containing global information necessary to build
++#               PARSEC with llvm
++#
++# Copyright (C) 2006-2009 Princeton University
++# Written by Christian Bienia (Initial version)
++#            Christian Fensch (Sparc/Solaris port)
++
++# Compilation and linking options
++# These are the global options we'll use to build the benchmark suite. Each
++# package also has a local build configuration file defining the exact
++# arguments and environment to use.
++
++
++# Determine OS-specific paths and prefixes
++# We first determine the various directories typically used for the GNU
++# binaries, then we use that information to define the binary locations.
++# The values for Linux are at the end and also the default values.
++
++case "${OSTYPE}" in
++*solaris*)
++  # Solaris case
++
++  # Solaris-specific variables
++  # SFW_HOME is installation root of SFW (Solaris FreeWare)
++  export SFW_HOME="/usr/sfw"
++
++  # CC_HOME is installation root of the C compiler
++  export CC_HOME="/usr"
++  # BINUTIL_HOME is installation root of the GNU binutils
++  export BINUTIL_HOME="/usr/local"
++  # GNUTOOL_HOME is installation root of the GNU tools
++  export GNUTOOL_HOME="${SFW_HOME}"
++  # BINARY_PREFIX is the string which is used as prefix for the GNU binaries
++  export BINARY_PREFIX="g"
++;;
++*)
++  # Linux + default case
++
++  # CC_HOME is installation root of the C compiler
++  export CC_HOME="/usr"
++  # BINUTIL_HOME is installation root of the GNU binutils
++  export BINUTIL_HOME="/usr/local"
++  # GNUTOOL_HOME is installation root of the GNU tools
++  export GNUTOOL_HOME="/usr"
++  # BINARY_PREFIX is the string which is used as prefix for the GNU binaries
++  export BINARY_PREFIX=""
++;;
++esac
++
++# Compilers and preprocessors
++export CC="llgcc"
++export CXX="llg++"
++export CPP="llg++"
++export CXXCPP=""
++
++# GNU Binutils
++export LD="llvm-ld"
++export AS="llvm-as"
++export AR="llvm-ar"
++export RANLIB="llvm-ranlib"
++export STRIP="${BINUTIL_HOME}/bin/${BINARY_PREFIX}strip"
++
++# GNU Tools
++export M4="${GNUTOOL_HOME}/bin/${BINARY_PREFIX}m4"
++export MAKE="${GNUTOOL_HOME}/bin/${BINARY_PREFIX}make"
++
++# Flags for increased portability of binaries
++PORTABILITY_FLAGS="-static-libgcc -Wl,--hash-style=both,--as-needed"
++
++# Arguments to use
++export CFLAGS="-g -O3 -funroll-loops -fprefetch-loop-arrays ${PORTABILITY_FLAGS}"
++export CXXFLAGS="-g -O3 -funroll-loops -fprefetch-loop-arrays -fpermissive -fno-exceptions ${PORTABILITY_FLAGS}"
++export CPPFLAGS=""
++export CXXCPPFLAGS=""
++export LDFLAGS="-L${CC_HOME}/lib64 -L${CC_HOME}/lib"
++export LIBS=""
++export EXTRA_LIBS=""
++
++# OS-specific arguments
++case "${OSTYPE}" in
++*solaris*)
++  CFLAGS="${CFLAGS} -I${SFW_HOME}/include"
++  CXXFLAGS="${CXXFLAGS} -I${SFW_HOME}/include"
++  LDFLAGS="${LDFLAGS} -L${SFW_HOME}/lib"
++  ;;
++esac
++
++# Add PARSEC version to compiler flags
++if [ -f "${PARSECDIR}/version" ]; then
++  CFLAGS="${CFLAGS} -DPARSEC_VERSION=$(${CAT} ${PARSECDIR}/version)"
++  CXXFLAGS="${CXXFLAGS} -DPARSEC_VERSION=$(${CAT} ${PARSECDIR}/version)"
++fi
++
++# Java
++export JAVA_HOME="/usr"
++export JAVAC="${JAVA_HOME}/bin/javac"
++
++# Version numbers
++if [ -x ${CC} ]; then
++  CC_ver=$(${CC} --version)
++else
++  CC_ver=""
++fi
++if [ -x ${CXX} ]; then
++  CXX_ver=$(${CXX} --version)
++else
++  CXX_ver=""
++fi
++if [ -x ${LD} ]; then
++  LD_ver=$(${LD} --version)
++else
++  LD_ver=""
++fi
++if [ -x ${JAVAC} ]; then
++  JAVAC_ver=$(${JAVAC} -version 2>&1)
++else
++  JAVAC_ver=""
++fi
++
+--- parsec-2.1-orig/pkgs/apps/blackscholes/parsec/llvm.bldconf	1969-12-31 19:00:00.000000000 -0500
++++ parsec-2.1/pkgs/apps/blackscholes/parsec/llvm.bldconf	2011-12-05 17:53:00.000000000 -0500
+@@ -0,0 +1,30 @@
++#!/bin/bash
++#
++# llvm.bldconf - file containing information necessary to build a
++#                        specific program of the PARSEC benchmark suite
++#                        with llvm and pthreads
++#
++# Copyright (C) 2007-2008 Princeton University
++# Written by Christian Bienia
++
++# Compilation and linking options.
++# This is the configuration we'll use to build the program. Each package of the
++# benchmark suite has such a file with information that will be added to the
++# global configuration. All variables set in the global configuration files can
++# be referenced here.
++
++
++# Package dependencies
++build_deps=""
++
++# Environment to use for configure script and Makefile
++build_env="version=pthreads"
++
++# Whether the build system supports only in-place compilation.
++# If TRUE, then all sources will be copied to the build directory before we
++# start building the package. Required for older build systems which don't
++# support VPATH.
++build_inplace="TRUE"
++
++# Arguments to pass to the configure script, if it exists
++build_conf=""
+--- parsec-2.1-orig/pkgs/kernels/streamcluster/parsec/llvm.bldconf	1969-12-31 19:00:00.000000000 -0500
++++ parsec-2.1/pkgs/kernels/streamcluster/parsec/llvm.bldconf	2011-12-05 18:14:40.000000000 -0500
+@@ -0,0 +1,30 @@
++#!/bin/bash
++#
++# llvm.bldconf - file containing information necessary to build a
++#                        specific program of the PARSEC benchmark suite
++#                        with llvm and pthreads
++#
++# Copyright (C) 2007-2008 Princeton University
++# Written by Christian Bienia
++
++# Compilation and linking options.
++# This is the configuration we'll use to build the program. Each package of the
++# benchmark suite has such a file with information that will be added to the
++# global configuration. All variables set in the global configuration files can
++# be referenced here.
++
++
++# Package dependencies
++build_deps=""
++
++# Environment to use for configure script and Makefile
++build_env="version=pthreads"
++
++# Whether the build system supports only in-place compilation.
++# If TRUE, then all sources will be copied to the build directory before we
++# start building the package. Required for older build systems which don't
++# support VPATH.
++build_inplace="TRUE"
++
++# Arguments to pass to the configure script, if it exists
++build_conf=""
+--- parsec-2.1-orig/pkgs/apps/swaptions/parsec/llvm.bldconf	1969-12-31 19:00:00.000000000 -0500
++++ parsec-2.1/pkgs/apps/swaptions/parsec/llvm.bldconf	2011-12-05 18:14:40.000000000 -0500
+@@ -0,0 +1,30 @@
++#!/bin/bash
++#
++# llvm.bldconf - file containing information necessary to build a
++#                        specific program of the PARSEC benchmark suite
++#                        with llvm and pthreads
++#
++# Copyright (C) 2007-2008 Princeton University
++# Written by Christian Bienia
++
++# Compilation and linking options.
++# This is the configuration we'll use to build the program. Each package of the
++# benchmark suite has such a file with information that will be added to the
++# global configuration. All variables set in the global configuration files can
++# be referenced here.
++
++
++# Package dependencies
++build_deps=""
++
++# Environment to use for configure script and Makefile
++build_env="version=pthreads"
++
++# Whether the build system supports only in-place compilation.
++# If TRUE, then all sources will be copied to the build directory before we
++# start building the package. Required for older build systems which don't
++# support VPATH.
++build_inplace="TRUE"
++
++# Arguments to pass to the configure script, if it exists
++build_conf=""

@@ -412,7 +412,7 @@ int main(int argc, char *argv[]) {
 		Tmrs.push_back(TmrIter);
 		TmrIter->startTimer();
 
-		dbgs() << "=== Starting Iteration " << IterNo << "... ===\n";
+		dbgs() << "=== simplifier is starting Iteration " << IterNo << "... ===\n";
 		int Changed = DoOneIteration(M, IterNo);
 		dbgs() << "=== Iteration " << IterNo << " finished === ";
 

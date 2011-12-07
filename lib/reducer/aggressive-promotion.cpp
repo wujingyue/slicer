@@ -90,11 +90,12 @@ bool AggressivePromotion::runOnLoop(Loop *L, LPPassManager &LPM) {
 }
 
 bool AggressivePromotion::should_promote(LoadInst *li, Loop *L) {
-
 	Value *p = li->getPointerOperand();
+#if 0
 	// TODO: For performance sake, we work on global variables only. 
 	if (!isa<GlobalVariable>(p))
 		return false;
+#endif
 	
 	// Check whether the loop itself will write to <p>. 
 	if (may_write(L, p))

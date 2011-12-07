@@ -1,12 +1,12 @@
---- parsec-2.1-orig/pkgs/kernels/streamcluster/src/streamcluster.cpp	2011-10-10 20:46:05.000000000 -0400
-+++ parsec-2.1/pkgs/kernels/streamcluster/src/streamcluster.cpp	2011-10-17 13:56:14.000000000 -0400
-@@ -18,7 +18,8 @@
+--- parsec-2.1-orig/pkgs/kernels/streamcluster/src/parsec_barrier.hpp	2009-07-30 17:27:45.000000000 -0400
++++ parsec-2.1/pkgs/kernels/streamcluster/src/parsec_barrier.hpp	2011-12-05 20:25:08.000000000 -0500
+@@ -20,7 +20,8 @@
+ //use the parsec_barrier* replacement calls without the need to touch the source
+ //code (other than including this header file), but it makes it harder to understand
+ //what is going on
+-#define ENABLE_AUTOMATIC_DROPIN
++// Commented out by Jingyue. Disable parsec_barrier
++// #define ENABLE_AUTOMATIC_DROPIN
  
- #ifdef ENABLE_THREADS
- #include <pthread.h>
--#include "parsec_barrier.hpp"
-+// Commented out by Jingyue
-+// #include "parsec_barrier.hpp"
- #endif
- 
- #ifdef TBB_VERSION
+ //Whether to allow the use of spinning. If enabled then the barrier implementation
+ //will busy-wait on a flag first. After a pre-determined amount of time has passed

@@ -2,5 +2,30 @@
 
 import os
 
+def build_blackscholes():
+    os.chdir("pkgs/apps/blackscholes/src")
+    os.system("CXX=llg++ CXXFLAGS='-g -O3 -funroll-loops -fprefetch-loop-arrays -fpermissive -fno-exceptions -static-libgcc -Wl,--hash-style=both,--as-needed' M4=m4 version=pthreads make")
+    os.system("cp blackscholes.bc ../../../../../")
+    os.chdir("../../../..")
+
+def build_swaptions():
+    os.chdir("pkgs/apps/swaptions/src")
+    os.system("CXX=llg++ CXXFLAGS='-g -O3 -funroll-loops -fprefetch-loop-arrays -fpermissive -fno-exceptions -static-libgcc -Wl,--hash-style=both,--as-needed' M4=m4 version=pthreads make")
+    os.system("cp swaptions.bc ../../../../../")
+    os.chdir("../../../..")
+
+def build_streamcluster():
+    os.chdir("pkgs/kernels/streamcluster/src")
+    os.system("CXX=llg++ CXXFLAGS='-g -O0 -funroll-loops -fprefetch-loop-arrays -fpermissive -fno-exceptions -static-libgcc -Wl,--hash-style=both,--as-needed' M4=m4 version=pthreads make")
+    os.system("cp streamcluster.bc ../../../../../")
+    os.chdir("../../../..")
+
 if __name__ == "__main__":
-    os.system("$APPS_DIR/parsec/mk-llvm")
+    # TODO: Support target clean and uninstall
+    os.chdir("parsec-2.1")
+    # build_blackscholes()
+    # build_swaptions()
+    # build_streamcluster()
+    os.system("bin/parsecmgmt -a build -c llvm -p blackscholes")
+    os.system("bin/parsecmgmt -a build -c llvm -p swaptions")
+    os.system("bin/parsecmgmt -a build -c llvm -p streamcluster")
