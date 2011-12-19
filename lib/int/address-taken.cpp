@@ -28,6 +28,7 @@ using namespace bc2bdd;
 #include "slicer/clone-info-manager.h"
 #include "slicer/region-manager.h"
 #include "slicer/may-write-analyzer.h"
+#include "slicer/stratify-loads.h"
 using namespace slicer;
 
 static cl::opt<bool> DisableAdvancedAA("disable-advanced-aa",
@@ -319,7 +320,7 @@ void CaptureConstraints::add_constraints(const vector<Clause *> &cs) {
 }
 
 bool CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
-	DEBUG(dbgs() << "** capture_overwriting_to:" << *i2 << "\n";);
+	DEBUG(dbgs() << "### capture_overwriting_to:" << *i2 << "\n";);
 	DEBUG(dbgs() << "vid = " << getAnalysis<IDAssigner>().getValueID(i2) << "\n";);
 
 	// Check cache. 
@@ -343,7 +344,7 @@ bool CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 	// We only handle the case that <i2> is executed once for now. 
 	// TODO: Change to is_fixed_integer? 
 	if (!EO.executed_once(i2)) {
-		DEBUG(dbgs() << "will not be executed. give up\n";);
+		DEBUG(dbgs() << "will be executed more than once. give up\n";);
 		return false;
 	}
 	
@@ -763,7 +764,10 @@ Instruction *CaptureConstraints::get_idom_ip(Instruction *ins) {
 
 bool CaptureConstraints::may_alias(const Value *v1, const Value *v2) {
 	AdvancedAlias *AAA = getAnalysisIfAvailable<AdvancedAlias>();
-	if (!DisableAdvancedAA && AAA) {
+	StratifyLoads &SL = getAnalysis<StratifyLoads>();
+
+	unsigned l1 = SL.get_level(v1), l2 = SL.get_level(v2);
+	if (!DisableAdvancedAA && AAA && l1 <= current_level && l2 <= current_level) {
 		bool res = AAA->may_alias(v1, v2);
 		if (Verbose)
 			dbgs() << (res ? "A" : "a");
@@ -776,7 +780,10 @@ bool CaptureConstraints::may_alias(const Value *v1, const Value *v2) {
 
 bool CaptureConstraints::must_alias(const Value *v1, const Value *v2) {
 	AdvancedAlias *AAA = getAnalysisIfAvailable<AdvancedAlias>();
-	if (!DisableAdvancedAA && AAA) {
+	StratifyLoads &SL = getAnalysis<StratifyLoads>();
+
+	unsigned l1 = SL.get_level(v1), l2 = SL.get_level(v2);
+	if (!DisableAdvancedAA && AAA && l1 <= current_level && l2 <= current_level) {
 		bool res = AAA->must_alias(v1, v2);
 		if (Verbose)
 			dbgs() << (res ? "U" : "u");
@@ -784,6 +791,11 @@ bool CaptureConstraints::must_alias(const Value *v1, const Value *v2) {
 	} else {
 		return v1 == v2;
 	}
+}
+
+void CaptureConstraints::set_current_level(unsigned level) {
+	dbgs() << "The current level is set to be " << level << "\n";
+	current_level = level;
 }
 
 bool CaptureConstraints::is_using_advanced_alias() {

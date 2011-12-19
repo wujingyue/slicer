@@ -38,6 +38,7 @@ using namespace std;
 #include "slicer/clone-info-manager.h"
 #include "slicer/region-manager.h"
 #include "slicer/may-write-analyzer.h"
+#include "slicer/stratify-loads.h"
 using namespace slicer;
 
 INITIALIZE_PASS_BEGIN(CaptureConstraints, "capture",
@@ -56,6 +57,7 @@ INITIALIZE_PASS_DEPENDENCY(RegionManager)
 INITIALIZE_PASS_DEPENDENCY(PartialICFGBuilder)
 INITIALIZE_PASS_DEPENDENCY(MicroBasicBlockBuilder)
 INITIALIZE_PASS_DEPENDENCY(MayWriteAnalyzer)
+INITIALIZE_PASS_DEPENDENCY(StratifyLoads)
 INITIALIZE_PASS_END(CaptureConstraints, "capture",
 		"Capture all integer constraints", false, true)
 
@@ -76,6 +78,7 @@ void CaptureConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<PartialICFGBuilder>();
 	AU.addRequired<MicroBasicBlockBuilder>();
 	AU.addRequired<MayWriteAnalyzer>();
+	AU.addRequired<StratifyLoads>();
 }
 
 static cl::opt<bool> DisableAllConstraints("disable-constraints",
@@ -86,7 +89,9 @@ STATISTIC(num_pointers, "Number of pointers");
 
 char CaptureConstraints::ID = 0;
 
-CaptureConstraints::CaptureConstraints(): ModulePass(ID), IDT(false) {
+CaptureConstraints::CaptureConstraints():
+	ModulePass(ID), IDT(false), current_level((unsigned)-1)
+{
 	initializeCaptureConstraintsPass(*PassRegistry::getPassRegistry());
 }
 
@@ -135,7 +140,7 @@ const Clause *CaptureConstraints::get_constraint(unsigned i) const {
 }
 
 void CaptureConstraints::stat(Module &M) {
-	forallfunc(M, fi) {
+	for (Module::iterator fi = M.begin(); fi != M.end(); ++fi) {
 		for (Function::arg_iterator ai = fi->arg_begin();
 				ai != fi->arg_end(); ++ai) {
 			if (isa<IntegerType>(ai->getType()))

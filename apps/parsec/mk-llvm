@@ -1,31 +1,37 @@
 #!/usr/bin/env python
 
-import os
-
-def build_blackscholes():
-    os.chdir("pkgs/apps/blackscholes/src")
-    os.system("CXX=llg++ CXXFLAGS='-g -O3 -funroll-loops -fprefetch-loop-arrays -fpermissive -fno-exceptions -static-libgcc -Wl,--hash-style=both,--as-needed' M4=m4 version=pthreads make")
-    os.system("cp blackscholes.bc ../../../../../")
-    os.chdir("../../../..")
-
-def build_swaptions():
-    os.chdir("pkgs/apps/swaptions/src")
-    os.system("CXX=llg++ CXXFLAGS='-g -O3 -funroll-loops -fprefetch-loop-arrays -fpermissive -fno-exceptions -static-libgcc -Wl,--hash-style=both,--as-needed' M4=m4 version=pthreads make")
-    os.system("cp swaptions.bc ../../../../../")
-    os.chdir("../../../..")
-
-def build_streamcluster():
-    os.chdir("pkgs/kernels/streamcluster/src")
-    os.system("CXX=llg++ CXXFLAGS='-g -O0 -funroll-loops -fprefetch-loop-arrays -fpermissive -fno-exceptions -static-libgcc -Wl,--hash-style=both,--as-needed' M4=m4 version=pthreads make")
-    os.system("cp streamcluster.bc ../../../../../")
-    os.chdir("../../../..")
+import os, sys
 
 if __name__ == "__main__":
-    # TODO: Support target clean and uninstall
+    action = ""
+    if len(sys.argv) >= 2:
+        action = sys.argv[1]
+
     os.chdir("parsec-2.1")
-    # build_blackscholes()
-    # build_swaptions()
-    # build_streamcluster()
-    os.system("bin/parsecmgmt -a build -c llvm -p blackscholes")
-    os.system("bin/parsecmgmt -a build -c llvm -p swaptions")
-    os.system("bin/parsecmgmt -a build -c llvm -p streamcluster")
+    if action == "clean":
+        os.system("bin/parsecmgmt -a fullclean -c llvm -p blackscholes")
+        os.system("bin/parsecmgmt -a fullclean -c llvm -p swaptions")
+        os.system("bin/parsecmgmt -a fullclean -c llvm -p streamcluster")
+        os.system("bin/parsecmgmt -a fullclean -c llvm -p canneal")
+        os.system("bin/parsecmgmt -a fullclean -c llvm -p fluidanimate")
+        # os.system("bin/parsecmgmt -a fullclean -c llvm -p dedup")
+        os.system("bin/parsecmgmt -a fullclean -c llvm -p ferret")
+        # os.system("bin/parsecmgmt -a fullclean -c llvm -p facesim")
+    elif action == "uninstall":
+        os.system("bin/parsecmgmt -a fulluninstall -c llvm -p blackscholes")
+        os.system("bin/parsecmgmt -a fulluninstall -c llvm -p swaptions")
+        os.system("bin/parsecmgmt -a fulluninstall -c llvm -p streamcluster")
+        os.system("bin/parsecmgmt -a fulluninstall -c llvm -p canneal")
+        os.system("bin/parsecmgmt -a fulluninstall -c llvm -p fluidanimate")
+        # os.system("bin/parsecmgmt -a fulluninstall -c llvm -p dedup")
+        os.system("bin/parsecmgmt -a fulluninstall -c llvm -p ferret")
+        # os.system("bin/parsecmgmt -a fulluninstall -c llvm -p facesim")
+    else:
+        os.system("bin/parsecmgmt -a build -c llvm -p blackscholes")
+        os.system("bin/parsecmgmt -a build -c llvm -p swaptions")
+        os.system("bin/parsecmgmt -a build -c llvm -p streamcluster")
+        os.system("bin/parsecmgmt -a build -c llvm -p canneal")
+        os.system("bin/parsecmgmt -a build -c llvm -p fluidanimate")
+        # os.system("bin/parsecmgmt -a build -c llvm -p dedup")
+        os.system("bin/parsecmgmt -a build -c llvm -p ferret")
+        # os.system("PHYSBAM=`pwd`/pkgs/apps/facesim/obj/amd64-linux.llvm bin/parsecmgmt -a build -c llvm -p facesim")

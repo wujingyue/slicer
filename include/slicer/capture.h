@@ -43,6 +43,7 @@ namespace slicer {
 
 		unsigned get_num_constraints() const;
 		const Clause *get_constraint(unsigned i) const;
+		void set_current_level(unsigned level);
 		/**
 		 * Compute a finger print of all the constraints captured. 
 		 * Used to check whether the iterative process should stop. 
@@ -223,6 +224,7 @@ namespace slicer {
 		ValueSet fixed_integers;
 		const Type *int_type;
 		DominatorTreeBase<ICFGNode> IDT;
+		unsigned current_level;
 	};
 }
 

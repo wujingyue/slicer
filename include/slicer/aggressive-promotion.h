@@ -24,11 +24,7 @@ namespace slicer {
 		bool hoist_region(Loop *L, DomTreeNode *node);
 		bool can_hoist(Loop *L, Instruction *ins);
 		bool is_safe_to_execute_unconditionally(Loop *L, Instruction *ins);
-		bool may_write(const Loop *L, const Value *p);
-		bool may_write(
-				const Instruction *i, const Value *q, ConstFuncSet &visited_funcs);
-		bool may_write(
-				const Function *f, const Value *q, ConstFuncSet &visited_funcs);
+		bool loop_may_write(const Loop *L, const Value *p);
 
 		DominatorTree *DT;
 		LoopInfo *LI;

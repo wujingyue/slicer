@@ -82,7 +82,6 @@ void SolveConstraints::recalculate(Module &M) {
 }
 
 void SolveConstraints::calculate(Module &M) {
-
 	// Reinitialize the STP solver. 
 	destroy_vc();
 	create_vc();
