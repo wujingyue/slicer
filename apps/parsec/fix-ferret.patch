@@ -1,0 +1,14 @@
+--- parsec-2.1-orig/pkgs/apps/ferret/src/Makefile	2009-02-05 22:34:15.000000000 -0500
++++ parsec-2.1/pkgs/apps/ferret/src/Makefile	2011-12-27 14:41:29.000000000 -0500
+@@ -14,9 +14,9 @@
+ LIBDIR = $(ROOT)/$(ARCH)/lib
+ OBJDIR = $(ROOT)/$(ARCH)/obj
+ 
+-CFLAGS += -I$(INCDIR) 
++CFLAGS += -I$(INCDIR) -I/usr/include/ImageMagick
+ LDFLAGS += -L$(LIBDIR)
+-LDLIBS += -lcass -lgsl -lgslcblas
++LDLIBS += -lcass -lgsl -lgslcblas -lMagickCore
+ 
+ IMAGE_LDFLAGS += 
+ IMAGE_LDLIBS += `$(PARSECDIR)/pkgs/libs/imagick/inst/$(PARSECPLAT)/bin/Magick-config --libs`

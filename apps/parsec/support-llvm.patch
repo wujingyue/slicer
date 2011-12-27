@@ -53,10 +53,10 @@
 +esac
 +
 +# Compilers and preprocessors
-+export CC="llgcc"
-+export CXX="llg++"
-+export CPP="llg++"
-+export CXXCPP=""
++export CC="clcc"
++export CXX="cl++"
++export CPP="cl++"
++export CXXCPP="cl++"
 +
 +# GNU Binutils
 +export LD="llvm-ld"
