@@ -13,7 +13,7 @@ include $(LEVEL)/Makefile.common
 all:: tracing.bc
 
 tracing.bc: tracing.cpp
-	llvm-g++ $< -o $@ -emit-llvm -c -MMD -I$(LEVEL)/include
+	clang++ $< -o $@ -emit-llvm -c -MMD -I$(LEVEL)/include
 
 clean::
 	rm -f tracing.bc tracing.d

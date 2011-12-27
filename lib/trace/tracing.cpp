@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <pthread.h>
 
+#include <cstdlib>
 #include <iostream>
 #include <fstream>
 #include <sstream>
