@@ -35,15 +35,26 @@ sudo apt-get install libbdd-dev libbz2-dev openjdk-6-jdk libboost-regex-dev shto
 
 4. Building LLVM 2.9
 
-TODO
+cd LLVM_ROOT
+wget http://llvm.org/releases/2.9/llvm-2.9.tgz
+wget http://llvm.org/releases/2.9/clang-2.9.tgz
+tar xzvf llvm-2.9.tgz
+cd llvm-2.9/tools
+tar xzvf ../../clang-2.9.tgz
+mv clang-2.9 clang
 
-You need enable assertions: 
-./configure --prefix=... --enable-assertions --enable-docs=no
+cd LLVM_ROOT/llvm-2.9
+./configure --prefix=$LLVM_ROOT/install --enable-assertions --enable-docs=no
+make (you may use -jx to run it with multiple cores)
+make install 
 
-Note: LLVM 2.9 has a bug with generating ocaml docs. Disable documents for now. 
+Note: Option --enable-assertions enables "assert" function calls, which is
+necessary to slicer. We disable generating ocaml docs by --enable-docs=no
+because LLVM 2.9 has a bug with generating ocaml docs.
 
 You need apply the following patches to fix some bugs in LLVM 2.9:
 $WORKSPACE/llvm/fix-dae-2.9.patch
+$WORKSPACE/llvm/fix-toolchains-2.9.patch
 
 Some of them are fixed in later versions, but others are not. 
 
