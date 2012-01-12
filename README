@@ -1,7 +1,8 @@
 Notes:
 
 * The slicer is not guaranteed to work with gcc-4.2 or earlier versions. 
-* Don't use make -jx. The makefiles use global temporary files.
+* When building bc2bdd, rcs-common, and slicer, don't use make -jx. The
+  makefiles use global temporary files.
 
 1. Check out source code from the git server
 
