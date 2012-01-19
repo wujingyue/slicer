@@ -30,6 +30,9 @@ APPS_DIR=$WORKSPACE/apps
 To make your life easier, add $LLVM_ROOT/install/bin and $LLVM_ROOT/scripts
 to PATH. 
 
+I recommend you setting these variables in .bashrc so that terminals will load
+them automatically on start up. 
+
 3. Install libraries
 
 sudo apt-get install libbdd-dev libbz2-dev openjdk-6-jdk libboost-regex-dev shtool subversion zip libzip-dev flex bison
