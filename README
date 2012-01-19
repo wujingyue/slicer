@@ -27,8 +27,7 @@ BC2BDD_ROOT=$WORKSPACE/bc2bdd
 SLICER_ROOT=$WORKSPACE/slicer
 APPS_DIR=$WORKSPACE/apps
 
-To make your life easier, add $LLVM_ROOT/install/bin and $LLVM_ROOT/scripts
-to PATH. 
+Add $LLVM_ROOT/install/bin and $LLVM_ROOT/scripts to PATH. 
 
 I recommend you setting these variables in .bashrc so that terminals will load
 them automatically on start up. 
@@ -65,18 +64,18 @@ Some of them are fixed in later versions, but others are not.
 5. Building common modules
 
 cd $BC2BDD_ROOT
-./configure --with-llvmsrc=<path to LLVM source code> --with-llvmobj=<path to LLVM object files> --prefix=<path to LLVM installation directory>
+./configure --with-llvmsrc=$LLVM_ROOT/llvm-2.9 --with-llvmobj=$LLVM_ROOT/llvm-2.9 --prefix=$LLVM_ROOT/install
 make
 make install
 cd $RCS_COMMON_ROOT
-./configure --with-llvmsrc=<path to LLVM source code> --with-llvmobj=<path to LLVM object files> --prefix=<path to LLVM installation directory>
+./configure --with-llvmsrc=$LLVM_ROOT/llvm-2.9 --with-llvmobj=$LLVM_ROOT/llvm-2.9 --prefix=$LLVM_ROOT/install
 make
 make install
 
 6. Building Slicer
 
 cd $SLICER_ROOT
-./configure --with-llvmsrc=<path to LLVM source code> --with-llvmobj=<path to LLVM object files> --prefix=<path to LLVM installation directory>
+./configure --with-llvmsrc=$LLVM_ROOT/llvm-2.9 --with-llvmobj=$LLVM_ROOT/llvm-2.9 --prefix=$LLVM_ROOT/install
 make
 make install
 
