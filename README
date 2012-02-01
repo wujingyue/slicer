@@ -57,6 +57,7 @@ because LLVM 2.9 has a bug with generating ocaml docs.
 
 You need apply the following patches to fix some bugs in LLVM 2.9:
 $WORKSPACE/llvm/fix-dae-2.9.patch
+$WORKSPACE/llvm/fix-fppassmanager-2.9.patch
 $WORKSPACE/llvm/fix-toolchains-2.9.patch
 
 Some of them are fixed in later versions, but others are not. 

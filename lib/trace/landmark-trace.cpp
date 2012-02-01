@@ -187,6 +187,7 @@ size_t LandmarkTrace::get_latest_happens_before(
 	extend_until_enforce(tid_2, s_2, e_2);
 	if (!is_enforcing_landmark(tid_2, s_2))
 		return (size_t)-1;
+	assert(s_2 < get_n_trunks(tid_2));
 	return s_2;
 }
 

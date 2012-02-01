@@ -397,6 +397,7 @@ bool CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 			latest_doms.push_back(NULL);
 			continue;
 		}
+		assert(j < LT.get_n_trunks(i));
 		
 		// TraceManager is still looking at the trace for the original program.
 		// But, we should use the cloned instruction.
@@ -437,6 +438,13 @@ bool CaptureConstraints::capture_overwriting_to(LoadInst *i2) {
 			latest_overwriters.push_back(NULL);
 			overwriter_regions.push_back(DenseMapInfo<Region>::getTombstoneKey());
 		} else {
+			if (regions[0].thr_id != thr_ids[k]) {
+				errs() << regions[0].thr_id << "\n";
+				errs() << thr_ids[k] << "\n";
+				errs() << latest_overwriter->getParent()->getParent()->getName() << "\n";
+				errs() << *latest_overwriter << "\n";
+			}
+			assert(regions[0].thr_id == thr_ids[k]);
 			latest_overwriters.push_back(latest_overwriter);
 			overwriter_regions.push_back(regions[0]);
 		}

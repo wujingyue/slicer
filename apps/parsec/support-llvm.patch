@@ -1,6 +1,6 @@
 --- parsec-2.1-orig/config/llvm.bldconf	1969-12-31 19:00:00.000000000 -0500
 +++ parsec-2.1/config/llvm.bldconf	2011-12-05 18:09:46.000000000 -0500
-@@ -0,0 +1,119 @@
+@@ -0,0 +1,120 @@
 +#!/bin/bash
 +#
 +# llvm.bldconf - file containing global information necessary to build
@@ -61,6 +61,7 @@
 +# GNU Binutils
 +export LD="llvm-ld"
 +export AS="llvm-as"
++export AR="clar"
 +export STRIP="${BINUTIL_HOME}/bin/${BINARY_PREFIX}strip"
 +
 +# GNU Tools

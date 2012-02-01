@@ -145,7 +145,6 @@ void RegionManager::mark_region(
 	DenseSet<const ICFGNode *> visited;
 	const ICFGNode *fake_root = PIB[NULL];
 	if (s_insts.empty() && e_insts.empty()) {
-		
 		// Both the start instruction and the end instruction are unknown. 
 		// Find any instruction from this thread, and floodfill
 		// forwards and backwards. 
@@ -175,7 +174,6 @@ void RegionManager::mark_region(
 			}
 		} // if (ins)
 	} else {
-
 		Reach<ICFGNode> IR;
 		DenseSet<const ICFGNode *> src, sink;
 		forallconst(InstList, it, s_insts) {
@@ -240,15 +238,22 @@ void RegionManager::mark_region(
 				e = e_ins;
 		}
 		for (BasicBlock::const_iterator i = s; i != e; ++i) {
+			// No harm to mark unreachable BBs. 
+			// Sometimes necessary, because the compiler merges other BBs with the
+			// unreachable BB. 
+#if 0
 			// Unreachable BBs are added by MaxSlicing. 
 			// They don't belong to any region. 
 			if (MaxSlicing::is_unreachable(i->getParent()))
 				continue;
+			// An instruction in the unreachable BB can be contained in multiple 
+			// regions actually. 
 			if (ins_region.count(i)) {
 				errs() << *i << "\n";
 				errs() << "already appeared in " << ins_region.find(i)->second << "\n";
 			}
 			assert(!ins_region.count(i));
+#endif
 			Region r(thr_id, s_tr, e_tr);
 			ins_region.insert(make_pair(i, r));
 			region_insts[r].push_back(i);
@@ -286,8 +291,10 @@ void RegionManager::search_containing_regions(
 	CallGraphFP &CG = getAnalysis<CallGraphFP>();
 	const Function *f = ins->getParent()->getParent();
 	InstList call_sites = CG.get_call_sites(f);
-	forall(InstList, it, call_sites)
-		search_containing_regions(*it, visited, regions);
+	forall(InstList, it, call_sites) {
+		if (!is_pthread_create(*it))
+			search_containing_regions(*it, visited, regions);
+	}
 }
 
 bool RegionManager::happens_before(const Region &a, const Region &b) const {
