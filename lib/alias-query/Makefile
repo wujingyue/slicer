@@ -8,3 +8,4 @@ include $(LEVEL)/Makefile.common
 
 # Must be put after the include
 LIBS += -lboost_regex
+CXXFLAGS += -frtti

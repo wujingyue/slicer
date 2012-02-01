@@ -1,0 +1,37 @@
+#!/usr/bin/env python
+
+import os, sys
+
+if __name__ == "__main__":
+    action = ""
+    if len(sys.argv) >= 2:
+        action = sys.argv[1]
+
+    os.chdir("parsec-2.1")
+    if action == "clean":
+        os.system("bin/parsecmgmt -a fullclean -c gcc -p blackscholes")
+        os.system("bin/parsecmgmt -a fullclean -c gcc -p swaptions")
+        os.system("bin/parsecmgmt -a fullclean -c gcc -p streamcluster")
+        os.system("bin/parsecmgmt -a fullclean -c gcc -p canneal")
+        os.system("bin/parsecmgmt -a fullclean -c gcc -p fluidanimate")
+        # os.system("bin/parsecmgmt -a fullclean -c gcc -p dedup")
+        os.system("bin/parsecmgmt -a fullclean -c gcc -p ferret")
+        # os.system("bin/parsecmgmt -a fullclean -c gcc -p facesim")
+    elif action == "uninstall":
+        os.system("bin/parsecmgmt -a fulluninstall -c gcc -p blackscholes")
+        os.system("bin/parsecmgmt -a fulluninstall -c gcc -p swaptions")
+        os.system("bin/parsecmgmt -a fulluninstall -c gcc -p streamcluster")
+        os.system("bin/parsecmgmt -a fulluninstall -c gcc -p canneal")
+        os.system("bin/parsecmgmt -a fulluninstall -c gcc -p fluidanimate")
+        # os.system("bin/parsecmgmt -a fulluninstall -c gcc -p dedup")
+        os.system("bin/parsecmgmt -a fulluninstall -c gcc -p ferret")
+        # os.system("bin/parsecmgmt -a fulluninstall -c gcc -p facesim")
+    else:
+        os.system("bin/parsecmgmt -a build -c gcc -p blackscholes")
+        os.system("bin/parsecmgmt -a build -c gcc -p swaptions")
+        os.system("bin/parsecmgmt -a build -c gcc -p streamcluster")
+        os.system("bin/parsecmgmt -a build -c gcc -p canneal")
+        os.system("bin/parsecmgmt -a build -c gcc -p fluidanimate")
+        # os.system("bin/parsecmgmt -a build -c gcc -p dedup")
+        os.system("bin/parsecmgmt -a build -c gcc -p ferret")
+        # os.system("PHYSBAM=`pwd`/pkgs/apps/facesim/obj/amd64-linux.gcc bin/parsecmgmt -a build -c gcc -p facesim")

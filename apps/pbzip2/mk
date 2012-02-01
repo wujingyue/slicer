@@ -1,0 +1,3 @@
+#!/bin/bash
+
+$APPS_DIR/pbzip2/mk $*
