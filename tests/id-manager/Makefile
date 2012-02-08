@@ -2,7 +2,7 @@ PROG_NAMES = test-thread test-overwrite test-loop test-ctxt-2 test-loop-3 \
 	     test-reducer test-recursive test-ret test-ctxt-3 test-ctxt-4 \
 	     test-phi test-bound FFT-like test-dep test-loop-4 \
 	     aget-like test-array test-pointer test-global \
-	     test-overwrite-2 RADIX-like test-thread-2 \
+	     test-overwrite-2 RADIX-like test-thread-2 pbzip2-like \
 	     test-malloc test-ctxt test-range test-barrier \
 	     test-range-2 test-range-3 test-range-4 test-alloca \
 	     test-loop-2 test-assert test-lcssa test-path-2 \

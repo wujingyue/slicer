@@ -6,7 +6,7 @@ PROG_NAMES = test-thread test-overwrite test-loop test-loop-2 test-ctxt-2 \
 	     aget-like test-array test-dep test-ctxt-4 test-global \
 	     test-overwrite-2 RADIX-like test-thread-2 test-assert \
 	     test-malloc test-ctxt test-range test-range-3 test-range-4 \
-	     test-lcssa test-barrier test-path-2 test-alloca \
+	     test-lcssa test-barrier test-path-2 test-alloca pbzip2-like \
 	     aget FFT RADIX pbzip2 CHOLESKY LU-cont blackscholes
 PROGS_DIR = ../progs
 TRACED_PROGS = $(PROG_NAMES:=.trace)
@@ -115,6 +115,10 @@ aget-fake.ft: aget-fake.trace
 pbzip2.ft: pbzip2.trace
 	# Providing input from stdin enforces pbzip2 to use multiple threads. 
 	./$< -p8 -dkvf < ../progs/inputs/pbzip2-test.bz2 > /dev/null
+	mv /tmp/fulltrace $@
+
+pbzip2-like.ft: pbzip2-like.trace
+	./$< 4
 	mv /tmp/fulltrace $@
 
 CHOLESKY.ft: CHOLESKY.trace

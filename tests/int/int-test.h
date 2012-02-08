@@ -3,6 +3,7 @@
  */
 
 #include "llvm/Pass.h"
+#include "llvm/Module.h"
 using namespace llvm;
 
 namespace slicer {
@@ -28,6 +29,7 @@ namespace slicer {
 		void radix_like(Module &M);
 		void radix_common(Module &M);
 		void lu_cont(Module &M);
+		void pbzip2_like(Module &M);
 		void blackscholes(Module &M);
 		void test_loop(Module &M);
 		void test_loop_2(Module &M);

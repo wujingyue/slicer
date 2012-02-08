@@ -1,8 +1,10 @@
 #include "llvm/Module.h"
 #include "llvm/Support/Debug.h"
+using namespace llvm;
+
 #include "common/util.h"
 #include "common/exec-once.h"
-using namespace llvm;
+using namespace rcs;
 
 #include "slicer/adv-alias.h"
 #include "slicer/solve.h"
@@ -291,7 +293,7 @@ void IntTest::aget_like(Module &M) {
 	TestBanner X("aget-like");
 
 	vector<vector<UsePair> > ranges;
-	forall(Module, f, M) {
+	for (Module::iterator f = M.begin(); f != M.end(); ++f) {
 		if (!starts_with(f->getName(), "http_get.SLICER"))
 			continue;
 		errs() << "=== Function " << f->getName() << " ===\n";

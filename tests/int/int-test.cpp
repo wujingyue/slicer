@@ -93,6 +93,8 @@ bool IntTest::runOnModule(Module &M) {
 		radix_like(M);
 	if (Program == "LU-cont")
 		lu_cont(M);
+	if (Program == "pbzip2-like")
+		pbzip2_like(M);
 	if (Program == "blackscholes")
 		blackscholes(M);
 	if (Program == "test-loop")

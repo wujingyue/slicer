@@ -17,7 +17,7 @@ using namespace slicer;
 using namespace std;
 
 /*
- * Default enforcing landmark function names. 
+ * Default enforcing landmark function names and whether they are blocking. 
  */
 static const char *DEFAULT_ENFORCING_LANDMARK_FUNCS[][2] = {
 	{"pthread_mutex_init",            "n"},

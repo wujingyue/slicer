@@ -69,7 +69,7 @@ bool CaptureConstraints::capture_memory_allocation(Instruction *ins,
 		return false;
 	
 	string name = callee->getName();
-	if (name == "malloc" || name == "valloc") {
+	if (name == "malloc" || name == "valloc" || name == "_Znam") {
 		if (!is_reachable_integer(ins))
 			return false;
 		// TODO: valloc also guarantees the block is page-aligned. 
@@ -77,7 +77,7 @@ bool CaptureConstraints::capture_memory_allocation(Instruction *ins,
 		start = new Expr(cs.getInstruction());
 		size = new Expr(cs.getArgument(0));
 		return true;
-	} 
+	}
 	
 	if (name == "calloc") {
 		if (!is_reachable_integer(ins))

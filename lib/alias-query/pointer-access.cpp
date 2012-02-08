@@ -31,6 +31,9 @@ namespace slicer {
 				if (callee->getName() == "write") {
 					result.push_back(PointerAccess(ins, cs.getArgument(1), false));
 				}
+				if (callee->getName() == "BZ2_bzBuffToBuffDecompress") {
+					result.push_back(PointerAccess(ins, cs.getArgument(0), true));
+				}
 			}
 		}
 		return result;

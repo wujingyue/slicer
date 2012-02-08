@@ -7,7 +7,7 @@ LOADABLE_MODULE = 1
 include $(LEVEL)/Makefile.common
 
 PROG_NAMES = test-overwrite test-loop test-loop-2 test-ctxt-4 \
-	     test-reducer test-global \
+	     test-reducer test-global pbzip2-like \
 	     test-bound FFT-like \
 	     test-thread test-path-2 \
 	     test-array aget-like \

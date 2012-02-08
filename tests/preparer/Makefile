@@ -5,7 +5,7 @@ PROG_NAMES = test-thread test-path test-overwrite test-ctxt test-recursive \
 	     test-range test-dep test-range-2 test-range-3 test-range-4 \
 	     test-loop-2 test-ctxt-2 test-loop-3 test-ctxt-3 test-loop-4 \
 	     test-assert test-ctxt-4 test-global test-lcssa test-barrier \
-	     test-path-2 test-alloca \
+	     test-path-2 test-alloca pbzip2-like \
 	     aget FFT RADIX pbzip2 CHOLESKY LU-cont blackscholes
 PROGS_DIR = ../progs
 
@@ -22,6 +22,7 @@ all: $(PROGS:=.prep.bc)
 		-load $(LLVM_ROOT)/install/lib/cfg.so \
 		-load $(LLVM_ROOT)/install/lib/slicer-trace.so \
 		-load $(LLVM_ROOT)/install/lib/preparer.so \
+		-break-crit-edges \
 		-prepare \
 		< $<
 

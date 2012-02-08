@@ -35,6 +35,7 @@ def prepare(config, section, bc, prep_bc):
         return
     customized_thread_funcs = config.get(section, "customized-thread-funcs")
     cmd = get_base_cmd()
+    cmd += "-break-crit-edges "
     cmd += "-prepare "
     if section == "CHOLESKY":
         cmd += "-replace-mymalloc "
