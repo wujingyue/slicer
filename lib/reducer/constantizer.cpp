@@ -154,6 +154,7 @@ bool Constantizer::constantize(Module &M) {
 		bool locally_changed = false;
 		for (size_t j = 0; j < local.size(); ++j) {
 			const Type *type = local[j]->get()->getType();
+			User *user = local[j]->getUser();
 			if (const IntegerType *int_type = dyn_cast<IntegerType>(type)) {
 #if 0
 				/*
@@ -165,17 +166,21 @@ bool Constantizer::constantize(Module &M) {
 					continue;
 #endif
 				// Signed values. 
-				int64_t svalue = c->getSExtValue();
-				DEBUG(dbgs() << *local[j]->getUser() << "\n";);
-				local[j]->set(ConstantInt::getSigned(int_type, svalue));
-				locally_changed = true;
-				DEBUG(dbgs() << "afterwards:" << *local[j]->getUser() << "\n";);
+				// FIXME: A quick hack. Don't replace the operands of PHINodes. 
+				// They may come from the LCSSA pass and 
+				if (!isa<PHINode>(user)) {
+					int64_t svalue = c->getSExtValue();
+					DEBUG(dbgs() << *user << "\n";);
+					local[j]->set(ConstantInt::getSigned(int_type, svalue));
+					locally_changed = true;
+					DEBUG(dbgs() << "afterwards:" << *user << "\n";);
+				}
 			} else if (const PointerType *ptr_type = dyn_cast<PointerType>(type)) {
-				if (c->isZero()) {
-					DEBUG(dbgs() << *local[j]->getUser() << "\n";);
+				if (c->isZero() && !isa<PHINode>(user)) {
+					DEBUG(dbgs() << *user << "\n";);
 					local[j]->set(ConstantPointerNull::get(ptr_type));
 					locally_changed = true;
-					DEBUG(dbgs() << "afterwards:" << *local[j]->getUser() << "\n";);
+					DEBUG(dbgs() << "afterwards:" << *user << "\n";);
 				}
 			} else {
 				assert(false && "This value is neither an integer or a pointer");

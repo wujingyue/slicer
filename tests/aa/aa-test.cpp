@@ -11,23 +11,24 @@ using namespace rcs;
 #include "bc2bdd/BddAliasAnalysis.h"
 using namespace bc2bdd;
 
+#include "slicer/adv-alias.h"
+#include "slicer/iterate.h"
+
 namespace slicer {
 	struct AATest: public ModulePass {
 		static char ID;
 
 		AATest(): ModulePass(ID) {}
 		virtual bool runOnModule(Module &M);
-		virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-			AU.setPreservesAll();
-			AU.addRequired<IDAssigner>();
-			AU.addRequired<BddAliasAnalysis>();
-		}
+		virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 	};
 }
 using namespace slicer;
 
 static RegisterPass<AATest> X("aa-test",
 		"Test alias analysis", false, true);
+static cl::opt<bool> UseAdvancedAA("use-adv-aa",
+		cl::desc("Use the advanced AA if turned on"));
 static cl::opt<bool> ValueID("value",
 		cl::desc("Use value IDs instead of instruction IDs"));
 static cl::opt<unsigned> ID1("id1", cl::desc("the first ID"),
@@ -37,9 +38,24 @@ static cl::opt<unsigned> ID2("id2", cl::desc("the second ID"),
 
 char AATest::ID = 0;
 
+void AATest::getAnalysisUsage(AnalysisUsage &AU) const {
+	AU.setPreservesAll();
+	AU.addRequired<IDAssigner>();
+	if (UseAdvancedAA) {
+		AU.addRequired<Iterate>();
+		AU.addRequired<AdvancedAlias>();
+	} else {
+		AU.addRequired<BddAliasAnalysis>();
+	}
+}
+
 bool AATest::runOnModule(Module &M) {
 	IDAssigner &IDA = getAnalysis<IDAssigner>();
-	AliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
+	AliasAnalysis *AA = NULL;
+	if (UseAdvancedAA)
+		AA = &getAnalysis<AdvancedAlias>();
+	else
+		AA = &getAnalysis<BddAliasAnalysis>();
 
 	const Value *v1 = NULL, *v2 = NULL;
 	if (ValueID) {
@@ -63,6 +79,6 @@ bool AATest::runOnModule(Module &M) {
 	assert(v1 && v2);
 
 	errs() << *v1 << "\n" << *v2 << "\n";
-	errs() << BAA.alias(v1, v2) << "\n";
+	errs() << AA->alias(v1, v2) << "\n";
 	return false;
 }

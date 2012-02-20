@@ -1,12 +1,13 @@
 # Author: Jingyue
 
 PROG_NAMES = test-thread test-overwrite test-loop test-loop-2 test-ctxt-2 \
-	     test-reducer test-pointer test-range-2 test-loop-3 \
+	     test-reducer test-pointer test-range-2 test-loop-3 test-lcssa-2 \
 	     test-recursive test-bound FFT-like test-ctxt-3 test-loop-4 \
 	     aget-like test-array test-dep test-ctxt-4 test-global \
 	     test-overwrite-2 RADIX-like test-thread-2 test-assert \
 	     test-malloc test-ctxt test-range test-range-3 test-range-4 \
 	     test-lcssa test-barrier test-path-2 test-alloca pbzip2-like \
+	     ferret-like \
 	     aget FFT RADIX pbzip2 CHOLESKY LU-cont blackscholes
 PROGS_DIR = ../progs
 TRACED_PROGS = $(PROG_NAMES:=.trace)
@@ -74,6 +75,10 @@ test-lcssa.ft: test-lcssa.trace
 	./$< 1 2 3
 	mv /tmp/fulltrace $@
 
+test-lcssa-2.ft: test-lcssa-2.trace
+	./$< 1 1 1 1
+	mv /tmp/fulltrace $@
+
 test-dep.ft: test-dep.trace
 	./$< 100
 	mv /tmp/fulltrace $@
@@ -118,6 +123,10 @@ pbzip2.ft: pbzip2.trace
 	mv /tmp/fulltrace $@
 
 pbzip2-like.ft: pbzip2-like.trace
+	./$< 4
+	mv /tmp/fulltrace $@
+
+ferret-like.ft: ferret-like.trace
 	./$< 4
 	mv /tmp/fulltrace $@
 

@@ -29,7 +29,7 @@ void CaptureConstraints::capture_function_summaries(Module &M) {
 			}
 		}
 	}
-
+	
 	// Handle memory allocations. 
 	for (size_t i = 0; i < blocks.size(); ++i) {
 		add_constraint(new Clause(new BoolExpr(CmpInst::ICMP_SLE,

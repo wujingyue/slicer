@@ -56,6 +56,7 @@ necessary to slicer. We disable generating ocaml docs by --enable-docs=no
 because LLVM 2.9 has a bug with generating ocaml docs.
 
 You need apply the following patches to fix some bugs in LLVM 2.9:
+$WORKSPACE/llvm/disable-i8.patch
 $WORKSPACE/llvm/fix-dae-2.9.patch
 $WORKSPACE/llvm/fix-fppassmanager-2.9.patch
 $WORKSPACE/llvm/fix-toolchains-2.9.patch
