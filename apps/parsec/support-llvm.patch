@@ -385,3 +385,23 @@
 +
 +# Arguments to pass to the configure script, if it exists
 +build_conf=""
+--- parsec-2.1-orig/config/gcc.bldconf	2009-08-11 18:40:40.000000000 -0400
++++ parsec-2.1/config/gcc.bldconf	2012-02-21 11:49:56.000000000 -0500
+@@ -27,7 +27,7 @@
+   export SFW_HOME="/usr/sfw"
+ 
+   # CC_HOME is installation root of the C compiler
+-  export CC_HOME="/n/fs/parsec/local/gcc-4.4.0-static"
++  export CC_HOME="/usr"
+   # BINUTIL_HOME is installation root of the GNU binutils
+   export BINUTIL_HOME="/usr/local"
+   # GNUTOOL_HOME is installation root of the GNU tools
+@@ -39,7 +39,7 @@
+   # Linux + default case
+ 
+   # CC_HOME is installation root of the C compiler
+-  export CC_HOME="/n/fs/parsec/local/gcc-4.4.0-static"
++  export CC_HOME="/usr"
+   # BINUTIL_HOME is installation root of the GNU binutils
+   export BINUTIL_HOME="/usr/local"
+   # GNUTOOL_HOME is installation root of the GNU tools

@@ -127,7 +127,7 @@ pbzip2-like.ft: pbzip2-like.trace
 	mv /tmp/fulltrace $@
 
 ferret-like.ft: ferret-like.trace
-	./$< 4
+	./$< 4 
 	mv /tmp/fulltrace $@
 
 CHOLESKY.ft: CHOLESKY.trace

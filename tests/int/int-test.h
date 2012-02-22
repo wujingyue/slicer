@@ -31,6 +31,7 @@ namespace slicer {
 		void lu_cont(Module &M);
 		void pbzip2_like(Module &M);
 		void blackscholes(Module &M);
+		void ferret_like(Module &M);
 
 		void test_loop(Module &M);
 		void test_loop_2(Module &M);

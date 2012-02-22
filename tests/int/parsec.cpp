@@ -7,6 +7,9 @@
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
+#include "bc2bdd/BddAliasAnalysis.h"
+using namespace bc2bdd;
+
 #include "common/typedefs.h"
 using namespace rcs;
 
@@ -46,6 +49,68 @@ void IntTest::blackscholes(Module &M) {
 		for (size_t j = i + 1; j < geps.size(); ++j) {
 			errs() << "Gep " << i << " != Gep " << j << "? ...";
 			AliasAnalysis::AliasResult res = AA.alias(geps[i], geps[j]);
+			assert(res == AliasAnalysis::NoAlias);
+			print_pass(errs());
+		}
+	}
+}
+
+void IntTest::ferret_like(Module &M) {
+	TestBanner X("ferret-like");
+
+	vector<StoreInst *> writes;
+	Function *f_rand = M.getFunction("rand");
+	assert(f_rand);
+	Function *f_producer = M.getFunction("producer.SLICER");
+	assert(f_producer);
+	// Search along the CFG. We need to make sure reads and writes are in
+	// a consistent order. 
+	for (Function::iterator bb = f_producer->begin();
+			bb != f_producer->end(); ++bb) {
+		for (BasicBlock::iterator ins = bb->begin(); ins != bb->end(); ++ins) {
+			if (CallInst *ci = dyn_cast<CallInst>(ins)) {
+				if (ci->getCalledFunction() == f_rand) {
+					for (BasicBlock::iterator j = bb->begin(); j != bb->end(); ++j) {
+						if (StoreInst *si = dyn_cast<StoreInst>(j))
+							writes.push_back(si);
+					}
+				}
+			}
+		}
+	}
+	errs() << "=== writes ===\n";
+	for (size_t i = 0; i < writes.size(); ++i) {
+		errs() << *writes[i] << "\n";
+	}
+
+	vector<LoadInst *> reads;
+	Function *f_consumer = M.getFunction("consumer.SLICER");
+	assert(f_consumer);
+	for (Function::iterator bb = f_consumer->begin();
+			bb != f_consumer->end(); ++bb) {
+		for (BasicBlock::iterator ins = bb->begin(); ins != bb->end(); ++ins) {
+			if (ins->getOpcode() == Instruction::Add &&
+					ins->getType()->isIntegerTy(8)) {
+				LoadInst *li = dyn_cast<LoadInst>(ins->getOperand(0));
+				assert(li);
+				reads.push_back(li);
+			}
+		}
+	}
+	errs() << "=== reads ===\n";
+	for (size_t i = 0; i < reads.size(); ++i) {
+		errs() << *reads[i] << "\n";
+	}
+
+	assert(writes.size() == reads.size());
+	AliasAnalysis &AA = getAnalysis<AdvancedAlias>();
+	// AliasAnalysis &AA = getAnalysis<BddAliasAnalysis>();
+	for (size_t i = 0; i < writes.size(); ++i) {
+		for (size_t j = i + 1; j < reads.size(); ++j) {
+			errs() << "i = " << i << ", j = " << j << "... ";
+			AliasAnalysis::AliasResult res = AA.alias(
+					writes[i]->getPointerOperand(),
+					reads[j]->getPointerOperand());
 			assert(res == AliasAnalysis::NoAlias);
 			print_pass(errs());
 		}

@@ -34,7 +34,7 @@ struct Node *queue_dequeue(struct Queue *q) {
 	cur = q->head;
 	q->head = cur->next;
 	cur->next = NULL;
-	if (q->head == NULL)
+	if (q->count == 0)
 		q->tail = NULL;
 	return cur;
 }
@@ -42,7 +42,7 @@ struct Node *queue_dequeue(struct Queue *q) {
 void queue_enqueue(struct Queue *q, struct Node *n) {
 	assert(q->count < max_n_nodes);
 	++q->count;
-	if (q->tail == NULL) {
+	if (q->count == 1) {
 		q->head = q->tail = n;
 	} else {
 		q->tail->next = n;
@@ -50,7 +50,7 @@ void queue_enqueue(struct Queue *q, struct Node *n) {
 	}
 }
 
-struct Queue q;
+struct Queue tasks;
 
 void *producer(void *arg) {
 	long n_blocks = (long)arg;
@@ -64,12 +64,12 @@ void *producer(void *arg) {
 		for (j = 0; j < buf_size; ++j)
 			node->buf[j] = rand() % 26 + 'a';
 
-		pthread_mutex_lock(&q.mutex);
-		while (q.count >= max_n_nodes)
-			pthread_cond_wait(&q.not_full, &q.mutex);
-		queue_enqueue(&q, node);
-		pthread_mutex_unlock(&q.mutex);
-		pthread_cond_signal(&q.not_empty);
+		pthread_mutex_lock(&tasks.mutex);
+		while (tasks.count >= max_n_nodes)
+			pthread_cond_wait(&tasks.not_full, &tasks.mutex);
+		queue_enqueue(&tasks, node);
+		pthread_mutex_unlock(&tasks.mutex);
+		pthread_cond_signal(&tasks.not_empty);
 	}
 
 	return NULL;
@@ -84,12 +84,12 @@ void *consumer(void *arg) {
 		int j;
 		struct Node *node;
 
-		pthread_mutex_lock(&q.mutex);
-		while (q.count == 0)
-			pthread_cond_wait(&q.not_empty, &q.mutex);
-		node = queue_dequeue(&q);
-		pthread_mutex_unlock(&q.mutex);
-		pthread_cond_signal(&q.not_full);
+		pthread_mutex_lock(&tasks.mutex);
+		while (tasks.count == 0)
+			pthread_cond_wait(&tasks.not_empty, &tasks.mutex);
+		node = queue_dequeue(&tasks);
+		pthread_mutex_unlock(&tasks.mutex);
+		pthread_cond_signal(&tasks.not_full);
 		for (j = 0; j < buf_size; ++j)
 			result += node->buf[j];
 
@@ -108,7 +108,7 @@ int main(int argc, char *argv[]) {
 	assert(argc > 1);
 	n_blocks = atol(argv[1]);
 
-	queue_init(&q);
+	queue_init(&tasks);
 	pthread_create(&t_producer, NULL, producer, (void *)n_blocks);
 	pthread_create(&t_consumer, NULL, consumer, (void *)n_blocks);
 	pthread_join(t_producer, NULL);

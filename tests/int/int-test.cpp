@@ -17,9 +17,14 @@ using namespace std;
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Debug.h"
+using namespace llvm;
+
+#include "bc2bdd/BddAliasAnalysis.h"
+using namespace bc2bdd;
+
 #include "common/util.h"
 #include "common/exec-once.h"
-using namespace llvm;
+using namespace rcs;
 
 #include "slicer/iterate.h"
 #include "slicer/capture.h"
@@ -47,6 +52,7 @@ void IntTest::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<IDAssigner>();
 	AU.addRequired<LoopInfo>();
 #ifndef IDENTIFY_ONLY
+	AU.addRequired<BddAliasAnalysis>();
 	AU.addRequired<Iterate>();
 	AU.addRequired<SolveConstraints>();
 	AU.addRequired<CaptureConstraints>();
@@ -97,6 +103,8 @@ bool IntTest::runOnModule(Module &M) {
 		pbzip2_like(M);
 	if (Program == "blackscholes")
 		blackscholes(M);
+	if (Program == "ferret-like")
+		ferret_like(M);
 	if (Program == "test-loop")
 		test_loop(M);
 	if (Program == "test-loop-2")
