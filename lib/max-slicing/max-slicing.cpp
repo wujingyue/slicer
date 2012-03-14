@@ -174,7 +174,9 @@ bool MaxSlicing::runOnModule(Module &M) {
 	dbgs() << "Dumping module...\n";
 	M.dump();
 #endif
-	check_dominance(M);
+	// verifyModule already checks dominance. Besides, check_dominance has 
+	// a bug when dealing with InvokeInst. 
+	// check_dominance(M);
 	verifyModule(M);
 
 	// Calculate the number of original instructions left. 
@@ -190,7 +192,7 @@ bool MaxSlicing::runOnModule(Module &M) {
 }
 
 void MaxSlicing::check_dominance(Module &M) {
-	forallfunc(M, f) {
+	for (Module::iterator f = M.begin(); f != M.end(); ++f) {
 		if (f->isDeclaration())
 			continue;
 		DominatorTree &DT = getAnalysis<DominatorTree>(*f);

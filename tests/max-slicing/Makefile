@@ -1,10 +1,11 @@
 PROG_NAMES = test-loop test-reducer test-thread test-loop-2 test-ctxt-2 \
 	     test-overwrite test-recursive test-dep test-loop-3 pbzip2-like \
-	     test-bound FFT-like aget-like test-ctxt-3 test-loop-4 \
+	     test-bound FFT-like aget-like test-ctxt-3 test-loop-4 test-loop-5 \
 	     test-array test-pointer test-range-2 test-ctxt-4 test-alloca \
 	     test-overwrite-2 RADIX-like test-thread-2 test-global ferret-like \
 	     test-malloc test-ctxt test-range test-lcssa test-path-2 \
 	     test-range-3 test-range-4 test-assert test-barrier test-lcssa-2 \
+	     raytrace-like \
 	     FFT RADIX aget pbzip2 CHOLESKY LU-cont blackscholes
 PROGS_DIR = ../progs
 PROG_PATHS = $(addprefix $(PROGS_DIR)/, $(PROG_NAMES))

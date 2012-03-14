@@ -7,7 +7,7 @@ PROG_NAMES = test-thread test-overwrite test-loop test-loop-2 test-ctxt-2 \
 	     test-overwrite-2 RADIX-like test-thread-2 test-assert \
 	     test-malloc test-ctxt test-range test-range-3 test-range-4 \
 	     test-lcssa test-barrier test-path-2 test-alloca pbzip2-like \
-	     ferret-like \
+	     ferret-like raytrace-like test-loop-5 \
 	     aget FFT RADIX pbzip2 CHOLESKY LU-cont blackscholes
 PROGS_DIR = ../progs
 TRACED_PROGS = $(PROG_NAMES:=.trace)
@@ -91,6 +91,10 @@ test-loop.ft: test-loop.trace
 	./$< 3
 	mv /tmp/fulltrace $@
 
+test-loop-5.ft: test-loop-5.trace
+	./$< 900
+	mv /tmp/fulltrace $@
+
 test-bound.ft: test-bound.trace
 	./$< 5 10 15
 	mv /tmp/fulltrace $@
@@ -128,6 +132,10 @@ pbzip2-like.ft: pbzip2-like.trace
 
 ferret-like.ft: ferret-like.trace
 	./$< 4 
+	mv /tmp/fulltrace $@
+
+raytrace-like.ft: raytrace-like.trace
+	./$< 64 64 2
 	mv /tmp/fulltrace $@
 
 CHOLESKY.ft: CHOLESKY.trace

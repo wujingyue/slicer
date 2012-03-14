@@ -32,9 +32,11 @@ namespace slicer {
 		void pbzip2_like(Module &M);
 		void blackscholes(Module &M);
 		void ferret_like(Module &M);
+		void raytrace_like(Module &M);
 
 		void test_loop(Module &M);
 		void test_loop_2(Module &M);
+		void test_loop_5(Module &M);
 		void test_reducer(Module &M);
 		void test_bound(Module &M);
 		void test_thread(Module &M);

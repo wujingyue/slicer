@@ -105,10 +105,14 @@ bool IntTest::runOnModule(Module &M) {
 		blackscholes(M);
 	if (Program == "ferret-like")
 		ferret_like(M);
+	if (Program == "raytrace-like")
+		raytrace_like(M);
 	if (Program == "test-loop")
 		test_loop(M);
 	if (Program == "test-loop-2")
 		test_loop_2(M);
+	if (Program == "test-loop-5")
+		test_loop_5(M);
 	if (Program == "test-reducer")
 		test_reducer(M);
 	if (Program == "test-bound")

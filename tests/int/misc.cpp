@@ -534,15 +534,51 @@ void IntTest::test_reducer(Module &M) {
 	}
 }
 
+void IntTest::test_loop_5(Module &M) {
+	TestBanner X("test-loop-5");
+
+	SolveConstraints &SC = getAnalysis<SolveConstraints>();
+
+	Instruction *indvar = NULL, *n = NULL;
+	for (Module::iterator f = M.begin(); f != M.end(); ++f) {
+		for (Function::iterator bb = f->begin(); bb != f->end(); ++bb) {
+			for (BasicBlock::iterator ins = bb->begin(); ins != bb->end(); ++ins) {
+				if (isa<PHINode>(ins)) {
+					assert(!indvar);
+					indvar = ins;
+				}
+				if (CallInst *ci = dyn_cast<CallInst>(ins)) {
+					Function *callee = ci->getCalledFunction();
+					if (callee && callee->getName() == "atoi") {
+						assert(!n);
+						n = ins;
+					}
+				}
+			}
+		}
+	}
+	assert(indvar && n);
+
+	const Value *three = ConstantInt::get(int_type, 3);
+	errs() << "i <= n / 3? ...";
+	SC.set_print_counterexample(true);
+	bool res = SC.provable(new Clause(new BoolExpr(CmpInst::ICMP_SLE,
+					new Expr(indvar),
+					new Expr(Instruction::SDiv, new Expr(n), new Expr(three)))));
+	SC.set_print_counterexample(false);
+	assert(res);
+	print_pass(errs());
+}
+
 void IntTest::test_loop_2(Module &M) {
 	TestBanner X("test-loop-2");
 
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	
 	Instruction *indvar = NULL;
-	forall(Module, f, M) {
-		forall(Function, bb, *f) {
-			forall(BasicBlock, ins, *bb) {
+	for (Module::iterator f = M.begin(); f != M.end(); ++f) {
+		for (Function::iterator bb = f->begin(); bb != f->end(); ++bb) {
+			for (BasicBlock::iterator ins = bb->begin(); ins != bb->end(); ++ins) {
 				if (isa<PHINode>(ins)) {
 					assert(!indvar);
 					indvar = ins;

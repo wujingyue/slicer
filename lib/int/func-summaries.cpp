@@ -90,6 +90,16 @@ bool CaptureConstraints::capture_memory_allocation(Instruction *ins,
 		return true;
 	}
 
+	// memalign(align, size)
+	if (name == "memalign") {
+		if (!is_reachable_integer(ins))
+			return false;
+		assert(cs.arg_size() == 2);
+		start = new Expr(cs.getInstruction());
+		size = new Expr(cs.getArgument(1));
+		return true;
+	}
+
 	return false;
 }
 

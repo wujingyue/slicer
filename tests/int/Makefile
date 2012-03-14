@@ -20,7 +20,7 @@ PROGS_DIR = ../progs
 run:: $(PROG_NAMES)
 
 %: $(PROGS_DIR)/%.simple.bc ../trace/%.lt
-	opt -stats -disable-output \
+	opt -debug-only=int -stats -disable-output \
 		-load $(LLVM_ROOT)/install/lib/id.so \
 		-load $(LLVM_ROOT)/install/lib/bc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/cfg.so \

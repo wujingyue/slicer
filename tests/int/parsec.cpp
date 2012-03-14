@@ -55,6 +55,59 @@ void IntTest::blackscholes(Module &M) {
 	}
 }
 
+void IntTest::raytrace_like(Module &M) {
+	TestBanner X("raytrace-like");
+
+	DenseMap<Function *, InstList> writes;
+	for (Module::iterator f = M.begin(); f != M.end(); ++f) {
+		if (f->getName().find("task") != string::npos &&
+				f->getName().find(".SLICER") != string::npos) {
+			for (Function::iterator bb = f->begin(); bb != f->end(); ++bb) {
+				for (BasicBlock::iterator ins = bb->begin(); ins != bb->end(); ++ins) {
+					if (StoreInst *si = dyn_cast<StoreInst>(ins)) {
+						if (isa<LoadInst>(si->getValueOperand()))
+							writes[f].push_back(si);
+					}
+				}
+			}
+		}
+	}
+
+	size_t n_writes = 0;
+	for (DenseMap<Function *, InstList>::iterator i = writes.begin();
+			i != writes.end(); ++i) {
+		n_writes += i->second.size();
+	}
+	errs() << "# of writes = " << n_writes << "\n";
+
+	AliasAnalysis &AA = getAnalysis<AdvancedAlias>();
+	SolveConstraints &SC = getAnalysis<SolveConstraints>();
+	DenseMap<Function *, InstList>::iterator i1, i2;
+	for (i1 = writes.begin(); i1 != writes.end(); ++i1) {
+		i2 = i1;
+		for (++i2; i2 != writes.end(); ++i2) {
+			for (size_t j1 = 0; j1 < min(4, i1->second.size()); ++j1) {
+				for (size_t j2 = 0; j2 < min(4, i2->second.size()); ++j2) {
+					errs() << "Store: {" << i1->first->getName() << ":" << j1 <<
+						"} and {" << i2->first->getName() << ":" << j2 <<
+						"} are disjoint? ...";
+					Instruction *ins1 = i1->second[j1];
+					Instruction *ins2 = i2->second[j2];
+					StoreInst *s1 = dyn_cast<StoreInst>(ins1);
+					StoreInst *s2 = dyn_cast<StoreInst>(ins2);
+					SC.set_print_counterexample(true);
+					AliasAnalysis::AliasResult res = AA.alias(
+							s1->getPointerOperand(),
+							s2->getPointerOperand());
+					SC.set_print_counterexample(false);
+					assert(res == AliasAnalysis::NoAlias);
+					print_pass(errs());
+				}
+			}
+		}
+	}
+}
+
 void IntTest::ferret_like(Module &M) {
 	TestBanner X("ferret-like");
 

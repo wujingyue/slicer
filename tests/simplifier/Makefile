@@ -6,6 +6,7 @@ PROG_NAMES = test-loop test-reducer test-overwrite test-loop-2 test-ctxt-2 \
 	     RADIX-like test-thread-2 test-range-2 test-barrier ferret-like \
 	     test-overwrite-2 test-malloc test-range test-path-2 \
 	     test-range-3 test-range-4 test-global test-lcssa test-lcssa-2 \
+	     raytrace-like test-loop-5 \
 	     aget RADIX LU-cont blackscholes FFT
 PROGS_DIR = ../progs
 PROGS = $(addprefix $(PROGS_DIR)/, $(PROG_NAMES))
@@ -49,7 +50,7 @@ $(PROGS_DIR)/aget.simple.bc: $(PROGS_DIR)/aget.slice.bc ../trace/aget.lt
 	simplifier -o $@ -input-landmark-trace $(word 2, $^) -p -funit-at-a-time=false < $<
 
 $(PROGS_DIR)/%.simple.bc: $(PROGS_DIR)/%.slice.bc ../trace/%.lt
-	simplifier -o $@ -debug-only=reducer -input-landmark-trace $(word 2, $^) -p < $<
+	simplifier -o $@ -input-landmark-trace $(word 2, $^) -p < $<
 
 %.s: %.bc
 	llc $< -o $@
