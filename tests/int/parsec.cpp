@@ -86,8 +86,8 @@ void IntTest::raytrace_like(Module &M) {
 	for (i1 = writes.begin(); i1 != writes.end(); ++i1) {
 		i2 = i1;
 		for (++i2; i2 != writes.end(); ++i2) {
-			for (size_t j1 = 0; j1 < min(4, i1->second.size()); ++j1) {
-				for (size_t j2 = 0; j2 < min(4, i2->second.size()); ++j2) {
+			for (size_t j1 = 0; j1 < min(4ul, i1->second.size()); ++j1) {
+				for (size_t j2 = 0; j2 < min(4ul, i2->second.size()); ++j2) {
 					errs() << "Store: {" << i1->first->getName() << ":" << j1 <<
 						"} and {" << i2->first->getName() << ":" << j2 <<
 						"} are disjoint? ...";
