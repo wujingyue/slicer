@@ -55,8 +55,8 @@
 +# Compilers and preprocessors
 +export CC="clcc"
 +export CXX="cl++"
-+export CPP="cl++"
-+export CXXCPP="cl++"
++export CPP=""
++export CXXCPP=""
 +
 +# GNU Binutils
 +export LD="llvm-ld"
@@ -406,3 +406,48 @@
 -  export BINUTIL_HOME="/usr/local"
 +  export BINUTIL_HOME="/usr"
    # GNUTOOL_HOME is installation root of the GNU tools
+--- parsec-2.1-orig/pkgs/apps/bodytrack/src/TrackingBenchmark/ParticleFilterPthread.h	2008-07-22 11:00:25.000000000 -0400
++++ parsec-2.1/pkgs/apps/bodytrack/src/TrackingBenchmark/ParticleFilterPthread.h	2012-03-15 11:33:38.000000000 -0400
+@@ -133,7 +133,7 @@
+ 			for(i = ticket; i < mNParticles && i < ticket + WORKUNIT_SIZE_NEWPARTICLES; i++) {
+ 				//add new particle for each entry in each bin distributed randomly about duplicated particle
+ 				mNewParticles[i] = mParticles[mIndex[i]];
+-				AddGaussianNoise(mNewParticles[i], mModel->StdDevs()[annealing_parameter], mRnd[i]);
++				this->AddGaussianNoise(mNewParticles[i], mModel->StdDevs()[annealing_parameter], mRnd[i]);
+ 			}
+ 			ticket = particleTickets.getTicket();
+ 		}
+--- parsec-2.1-orig/pkgs/apps/bodytrack/parsec/llvm.bldconf	1969-12-31 19:00:00.000000000 -0500
++++ parsec-2.1/pkgs/apps/bodytrack/parsec/llvm.bldconf	2012-03-15 11:25:20.000000000 -0400
+@@ -0,0 +1,31 @@
++#!/bin/bash
++#
++# llvm.bldconf - file containing information necessary to build a
++#                        specific program of the PARSEC benchmark suite with
++#                        llvm and pthreads
++#
++# Copyright (C) 2007-2008 Princeton University
++# Written by Christian Bienia
++
++# Compilation and linking options.
++# This is the configuration we'll use to build the program. Each package of the
++# benchmark suite has such a file with information that will be added to the
++# global configuration. All variables set in the global configuration files can
++# be referenced here.
++
++
++# Package dependencies
++build_deps=""
++
++# Environment to use for configure script and Makefile
++build_env="CXXFLAGS=\"${CXXFLAGS} -fexceptions\""
++
++# Whether the build system supports only in-place compilation.
++# If TRUE, then all sources will be copied to the build directory before we
++# start building the package. Required for older build systems which don't
++# support VPATH.
++build_inplace="FALSE"
++
++# Arguments to pass to the configure script, if it exists
++build_conf="--enable-threads --disable-openmp --disable-tbb"
++

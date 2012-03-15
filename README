@@ -63,6 +63,11 @@ $WORKSPACE/llvm/fix-toolchains-2.9.patch
 
 Some of them are fixed in later versions, but others are not. 
 
+fix-toolchains-2.9.patch adds some include paths to clang's default include
+paths, and lets clang recognize later versions of Ubuntu. If you are using a
+Linux distribution other than Ubuntu, you may need to make similar changes by
+yourself. 
+
 5. Building common modules
 
 cd $BC2BDD_ROOT
