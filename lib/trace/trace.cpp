@@ -11,6 +11,7 @@ struct RegisterTracePasses {
 		initializeLandmarkTracePass(reg);
 		initializeMarkLandmarksPass(reg);
 		initializeTraceManagerPass(reg);
+		initializeValidityCheckerPass(reg);
 	}
 };
 static RegisterTracePasses X;

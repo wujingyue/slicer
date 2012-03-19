@@ -37,6 +37,7 @@ namespace llvm {
 	void initializeLandmarkTracePass(PassRegistry &);
 	void initializeMarkLandmarksPass(PassRegistry &);
 	void initializeTraceManagerPass(PassRegistry &);
+	void initializeValidityCheckerPass(PassRegistry &);
 
 	void initializeBackEdgePass(PassRegistry &);
 	void initializeInstCounterPass(PassRegistry &);
