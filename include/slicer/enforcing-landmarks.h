@@ -20,6 +20,7 @@ namespace slicer {
 	private:
 		void insert_enforcing_landmark_func(const string &func_name,
 				const string &is_blocking);
+		void filter_enforcing_landmarks();
 
 		DenseSet<string> enforcing_landmark_funcs;
 		DenseSet<string> blocking_enforcing_landmark_funcs;

@@ -65,6 +65,9 @@ static cl::opt<string> EnforcingLandmarksFile("input-landmarks",
 static cl::opt<bool> OnlyMain("only-main",
 		cl::desc("Only mark the sync operations in main thread as "
 			"enforcing landmarks."));
+static cl::opt<int> PruningRate("pruning-rate",
+		cl::desc("Pruning rate of enforcing landmarks: pr/100 will be pruned."),
+		cl::init(0));
 
 char EnforcingLandmarks::ID = 0;
 
@@ -93,6 +96,23 @@ bool EnforcingLandmarks::is_blocking_enforcing_landmark(
 
 const InstSet &EnforcingLandmarks::get_enforcing_landmarks() const {
 	return enforcing_landmarks;
+}
+
+void EnforcingLandmarks::filter_enforcing_landmarks() {
+    for (InstSet::iterator ins = enforcing_landmarks.begin(); ins != enforcing_landmarks.end(); ++ins) {
+        CallSite cs(*ins);
+        Function *callee = cs.getCalledFunction();
+        StringRef functionName = callee->getName();
+        if (functionName.startswith("pthread_mutex")
+           || functionName.startswith("pthread_cond")
+           || functionName.startswith("pthread_barrier")
+           || functionName.startswith("pthread_rwlock")
+           || functionName.startswith("pthread_spin")) {
+            if (rand() % 100 < PruningRate) {
+                enforcing_landmarks.erase(ins);
+            }
+        }
+    }
 }
 
 bool EnforcingLandmarks::runOnModule(Module &M) {
@@ -136,6 +156,8 @@ bool EnforcingLandmarks::runOnModule(Module &M) {
 			}
 		}
 	}
+
+	filter_enforcing_landmarks();
 
 	return false;
 }
