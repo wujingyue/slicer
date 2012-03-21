@@ -98,23 +98,6 @@ const InstSet &EnforcingLandmarks::get_enforcing_landmarks() const {
 	return enforcing_landmarks;
 }
 
-void EnforcingLandmarks::filter_enforcing_landmarks() {
-    for (InstSet::iterator ins = enforcing_landmarks.begin(); ins != enforcing_landmarks.end(); ++ins) {
-        CallSite cs(*ins);
-        Function *callee = cs.getCalledFunction();
-        StringRef functionName = callee->getName();
-        if (functionName.startswith("pthread_mutex")
-           || functionName.startswith("pthread_cond")
-           || functionName.startswith("pthread_barrier")
-           || functionName.startswith("pthread_rwlock")
-           || functionName.startswith("pthread_spin")) {
-            if (rand() % 100 < PruningRate) {
-                enforcing_landmarks.erase(ins);
-            }
-        }
-    }
-}
-
 bool EnforcingLandmarks::runOnModule(Module &M) {
 	if (EnforcingLandmarksFile == "") {
 		const static size_t len = sizeof(DEFAULT_ENFORCING_LANDMARK_FUNCS) /
@@ -146,18 +129,24 @@ bool EnforcingLandmarks::runOnModule(Module &M) {
 				CallSite cs(ins);
 				if (cs.getInstruction()) {
 					Function *callee = cs.getCalledFunction();
-					if (callee && enforcing_landmark_funcs.count(callee->getName())) {
-						if (OnlyMain && callee->getName() != "pthread_self" &&
+					StringRef calleeName = callee->getName();
+					if (callee && enforcing_landmark_funcs.count(calleeName)) {
+						if (OnlyMain && calleeName != "pthread_self" &&
 								f->getName() != "main")
 							continue;
+						if (calleeName.startswith("pthread_mutex")
+						    || calleeName.startswith("pthread_cond")
+						    || calleeName.startswith("pthread_barrier")
+						    || calleeName.startswith("pthread_rwlock")
+						    || calleeName.startswith("pthread_spin")) {
+							if (rand() % 100 < PruningRate) continue;
+						}
 						enforcing_landmarks.insert(ins);
 					}
 				}
 			}
 		}
 	}
-
-	filter_enforcing_landmarks();
 
 	return false;
 }
