@@ -128,20 +128,22 @@ bool EnforcingLandmarks::runOnModule(Module &M) {
 			for (BasicBlock::iterator ins = bb->begin(); ins != bb->end(); ++ins) {
 				CallSite cs(ins);
 				if (cs.getInstruction()) {
-					Function *callee = cs.getCalledFunction();
-					StringRef calleeName = callee->getName();
-					if (callee && enforcing_landmark_funcs.count(calleeName)) {
-						if (OnlyMain && calleeName != "pthread_self" &&
-								f->getName() != "main")
-							continue;
-						if (calleeName.startswith("pthread_mutex")
-						    || calleeName.startswith("pthread_cond")
-						    || calleeName.startswith("pthread_barrier")
-						    || calleeName.startswith("pthread_rwlock")
-						    || calleeName.startswith("pthread_spin")) {
-							if (rand() % 100 < PruningRate) continue;
+					if (Function *callee = cs.getCalledFunction()) {
+						StringRef callee_name = callee->getName();
+						if (enforcing_landmark_funcs.count(callee_name)) {
+							if (OnlyMain && callee_name != "pthread_self" &&
+									f->getName() != "main")
+								continue;
+							if (callee_name.startswith("pthread_mutex")
+									|| callee_name.startswith("pthread_cond")
+									|| callee_name.startswith("pthread_barrier")
+									|| callee_name.startswith("pthread_rwlock")
+									|| callee_name.startswith("pthread_spin")) {
+								if (rand() % 100 < PruningRate)
+									continue;
+							}
+							enforcing_landmarks.insert(ins);
 						}
-						enforcing_landmarks.insert(ins);
 					}
 				}
 			}
