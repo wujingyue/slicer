@@ -33,6 +33,7 @@ namespace slicer {
 		void blackscholes(Module &M);
 		void ferret_like(Module &M);
 		void raytrace_like(Module &M);
+		void bodytrack_like(Module &M);
 
 		void test_loop(Module &M);
 		void test_loop_2(Module &M);

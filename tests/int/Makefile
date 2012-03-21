@@ -7,7 +7,7 @@ LOADABLE_MODULE = 1
 include $(LEVEL)/Makefile.common
 
 PROG_NAMES = test-overwrite test-loop test-loop-2 test-ctxt-4 \
-	     test-reducer test-global pbzip2-like ferret-like \
+	     test-reducer test-global pbzip2-like ferret-like bodytrack-like \
 	     test-bound FFT-like \
 	     test-thread test-path-2 \
 	     test-array aget-like \
@@ -20,7 +20,7 @@ PROGS_DIR = ../progs
 run:: $(PROG_NAMES)
 
 %: $(PROGS_DIR)/%.simple.bc ../trace/%.lt
-	opt -debug-only=int -stats -disable-output \
+	opt -stats -disable-output \
 		-load $(LLVM_ROOT)/install/lib/id.so \
 		-load $(LLVM_ROOT)/install/lib/bc2bdd.so \
 		-load $(LLVM_ROOT)/install/lib/cfg.so \

@@ -109,6 +109,13 @@ bool StratifyLoads::try_calculating_levels(Module &M) {
 			continue;
 		if (!EO.not_executed(f) && EO.executed_once(f)) {
 			InstList call_sites = CG.get_call_sites(f);
+			// Not all call sites are reachable. 
+			for (size_t i = 0; i < call_sites.size(); ) {
+				if (EO.not_executed(call_sites[i]))
+					call_sites.erase(call_sites.begin() + i);
+				else
+					++i;
+			}
 			if (call_sites.size() > 1) {
 				errs() << f->getName() << " has "
 					<< call_sites.size() << " call sites.\n";
