@@ -103,14 +103,11 @@ def gen_traces(config, section, id_bc, trace_exec, full_trace, landmark_trace):
     input_landmarks = config.get(section, "input-landmarks")
     if input_landmarks.strip() != "":
         cmd += "-input-landmarks " + input_landmarks + " "
-<<<<<<< HEAD
     extra_call_edges = config.get(section, "extra-call-edges")
     if extra_call_edges != "":
         cmd += "-fptrace " + extra_call_edges + " "
-=======
     pruning_rate = config.get(section, "pruning-rate")
     cmd += "-pruning-rate " + pruning_rate + " "
->>>>>>> d8eaaff95d7f03bd3f7355d23b59f2b79dff03c8
     cmd += "-disable-output < " + id_bc
     invoke(cmd)
 
@@ -122,14 +119,11 @@ def max_slicing(config, section, id_bc, landmark_trace, slice_bc):
     input_landmarks = config.get(section, "input-landmarks")
     if input_landmarks.strip() != "":
         cmd += "-input-landmarks " + input_landmarks + " "
-<<<<<<< HEAD
     extra_call_edges = config.get(section, "extra-call-edges")
     if extra_call_edges != "":
         cmd += "-fptrace " + extra_call_edges + " "
-=======
     pruning_rate = config.get(section, "pruning-rate")
     cmd += "-pruning-rate " + pruning_rate + " "
->>>>>>> d8eaaff95d7f03bd3f7355d23b59f2b79dff03c8
     cmd += "-o " + slice_bc + " < " + id_bc
     t = timeit.Timer(lambda: invoke(cmd))
     print "Time for max_slicing:", t.timeit(1), "seconds"
@@ -156,11 +150,8 @@ def read_config(config_file_name):
         "build-flags": "",
         "disable-prepare": "0",
         "simplify-flags": "",
-<<<<<<< HEAD
-        "extra-call-edges": ""})
-=======
+        "extra-call-edges": "",
         "pruning-rate": "0"})
->>>>>>> d8eaaff95d7f03bd3f7355d23b59f2b79dff03c8
     config.read(config_file_name)
     return config
 
