@@ -28,7 +28,8 @@ if __name__ == "__main__":
     config = ConfigParser.ConfigParser({"cs": "0",
                                         "concurrent": "0",
                                         "adv-aa": "0",
-                                        "sample": "0"})
+                                        "sample": "0",
+                                        "pruning-rate": "0"})
     config.read(args.f)
     benchmarks = config.sections()
     specified_benchmark = args.program
@@ -49,6 +50,7 @@ if __name__ == "__main__":
         option_concurrent = config.getboolean(benchmark, "concurrent")
         option_adv_aa = config.getboolean(benchmark, "adv-aa")
         option_sample = config.getint(benchmark, "sample")
+        pruning_rate = config.get(benchmark, "pruning-rate")
 
         # print some rubbish
         print >> sys.stderr, "\n\033[1;34m" + "Running benchmark " + \
@@ -78,6 +80,7 @@ if __name__ == "__main__":
             cmd_options += "-fulltrace " + full_trace_filename + " "
             cmd_options += "-input-landmark-trace " + landmark_trace_filename + " "
             cmd_options += "-concurrent "
+        cmd_options += "-pruning-rate " + pruning_rate + " "
         cmd_options += "-gen-queries "
         output_filename = os.path.join(PROGS_DIR, benchmark + ".id.queries")
         cmd = string.join((base_cmd, cmd_options, "-for-orig",

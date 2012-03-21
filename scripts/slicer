@@ -41,6 +41,8 @@ def prepare(config, section, bc, prep_bc):
         cmd += "-replace-mymalloc "
     for customized_thread_func in customized_thread_funcs.split():
         cmd += "-thread-func " + customized_thread_func + " "
+    pruning_rate = config.get(section, "pruning-rate")
+    cmd += "-pruning-rate " + pruning_rate + " "
     cmd += "-o " + prep_bc + " < " + bc
     invoke(cmd)
 
@@ -65,6 +67,8 @@ def instrument(config, section, id_bc, trace_exec):
     input_landmarks = config.get(section, "input-landmarks")
     if input_landmarks.strip() != "":
         cmd += "-input-landmarks " + input_landmarks + " "
+    pruning_rate = config.get(section, "pruning-rate")
+    cmd += "-pruning-rate " + pruning_rate + " "
     cmd += "-o " + main_file_name + ".bc1 < " + id_bc
     invoke(cmd)
     invoke("llvm-ld " + \
@@ -95,6 +99,8 @@ def gen_traces(config, section, id_bc, trace_exec, full_trace, landmark_trace):
     input_landmarks = config.get(section, "input-landmarks")
     if input_landmarks.strip() != "":
         cmd += "-input-landmarks " + input_landmarks + " "
+    pruning_rate = config.get(section, "pruning-rate")
+    cmd += "-pruning-rate " + pruning_rate + " "
     cmd += "-disable-output < " + id_bc
     invoke(cmd)
 
@@ -106,6 +112,8 @@ def max_slicing(config, section, id_bc, landmark_trace, slice_bc):
     input_landmarks = config.get(section, "input-landmarks")
     if input_landmarks.strip() != "":
         cmd += "-input-landmarks " + input_landmarks + " "
+    pruning_rate = config.get(section, "pruning-rate")
+    cmd += "-pruning-rate " + pruning_rate + " "
     cmd += "-o " + slice_bc + " < " + id_bc
     t = timeit.Timer(lambda: invoke(cmd))
     print "Time for max_slicing:", t.timeit(1), "seconds"
@@ -132,7 +140,8 @@ def read_config(config_file_name):
         "run-flags": "",
         "build-flags": "",
         "disable-prepare": "0",
-        "simplify-flags": ""})
+        "simplify-flags": "",
+        "pruning-rate": "0"})
     config.read(config_file_name)
     return config
 
