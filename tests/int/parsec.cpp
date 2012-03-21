@@ -81,13 +81,12 @@ void IntTest::raytrace_like(Module &M) {
 	errs() << "# of writes = " << n_writes << "\n";
 
 	AliasAnalysis &AA = getAnalysis<AdvancedAlias>();
-	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 	DenseMap<Function *, InstList>::iterator i1, i2;
 	for (i1 = writes.begin(); i1 != writes.end(); ++i1) {
 		i2 = i1;
 		for (++i2; i2 != writes.end(); ++i2) {
-			for (size_t j1 = 0; j1 < min(4ul, i1->second.size()); ++j1) {
-				for (size_t j2 = 0; j2 < min(4ul, i2->second.size()); ++j2) {
+			for (size_t j1 = 0; j1 < min(4UL, i1->second.size()); ++j1) {
+				for (size_t j2 = 0; j2 < min(4UL, i2->second.size()); ++j2) {
 					errs() << "Store: {" << i1->first->getName() << ":" << j1 <<
 						"} and {" << i2->first->getName() << ":" << j2 <<
 						"} are disjoint? ...";
@@ -95,11 +94,9 @@ void IntTest::raytrace_like(Module &M) {
 					Instruction *ins2 = i2->second[j2];
 					StoreInst *s1 = dyn_cast<StoreInst>(ins1);
 					StoreInst *s2 = dyn_cast<StoreInst>(ins2);
-					SC.set_print_counterexample(true);
 					AliasAnalysis::AliasResult res = AA.alias(
 							s1->getPointerOperand(),
 							s2->getPointerOperand());
-					SC.set_print_counterexample(false);
 					assert(res == AliasAnalysis::NoAlias);
 					print_pass(errs());
 				}
@@ -166,6 +163,60 @@ void IntTest::ferret_like(Module &M) {
 					reads[j]->getPointerOperand());
 			assert(res == AliasAnalysis::NoAlias);
 			print_pass(errs());
+		}
+	}
+}
+
+void IntTest::bodytrack_like(Module &M) {
+	TestBanner X("bodytrack-like");
+
+	DenseMap<Function *, vector<StoreInst *> > writes;
+	Function *f_rand = M.getFunction("rand");
+	assert(f_rand);
+
+	for (Module::iterator f = M.begin(); f != M.end(); ++f) {
+		if (f->getName().find("thread_entry") != string::npos &&
+				f->getName().find(".SLICER") != string::npos) {
+			for (Function::iterator bb = f->begin(); bb != f->end(); ++bb) {
+				for (BasicBlock::iterator ins = bb->begin(); ins != bb->end(); ++ins) {
+					if (CallInst *ci = dyn_cast<CallInst>(ins)) {
+						if (ci->getCalledFunction() == f_rand) {
+							for (Value::use_iterator ui = ci->use_begin();
+									ui != ci->use_end(); ++ui) {
+								assert(isa<StoreInst>(*ui));
+								writes[f].push_back(cast<StoreInst>(*ui));
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	errs() << "# of thread functions = " << writes.size() << "\n";
+
+	AliasAnalysis &AA = getAnalysis<AdvancedAlias>();
+	SolveConstraints &SC = getAnalysis<SolveConstraints>();
+	DenseMap<Function *, vector<StoreInst *> >::iterator i1, i2;
+	for (i1 = writes.begin(); i1 != writes.end(); ++i1) {
+		i2 = i1;
+		for (++i2; i2 != writes.end(); ++i2) {
+			for (size_t j1 = 0; j1 < min(4UL, i1->second.size()); ++j1) {
+				for (size_t j2 = 0; j2 < min(4UL, i2->second.size()); ++j2) {
+					errs() << "Store: {" << i1->first->getName() << ":" << j1 <<
+						"} and {" << i2->first->getName() << ":" << j2 <<
+						"} are disjoint? ...";
+					StoreInst *s1 = i1->second[j1];
+					StoreInst *s2 = i2->second[j2];
+					SC.set_print_counterexample(true);
+					AliasAnalysis::AliasResult res = AA.alias(
+							s1->getPointerOperand(),
+							s2->getPointerOperand());
+					SC.set_print_counterexample(false);
+					assert(res == AliasAnalysis::NoAlias);
+					print_pass(errs());
+				}
+			}
 		}
 	}
 }

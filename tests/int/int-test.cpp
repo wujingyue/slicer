@@ -107,6 +107,8 @@ bool IntTest::runOnModule(Module &M) {
 		ferret_like(M);
 	if (Program == "raytrace-like")
 		raytrace_like(M);
+	if (Program == "bodytrack-like")
+		bodytrack_like(M);
 	if (Program == "test-loop")
 		test_loop(M);
 	if (Program == "test-loop-2")

@@ -6,7 +6,7 @@ PROGS = test-thread test-path test-overwrite test-ctxt test-recursive \
 	test-range-4 test-loop-2 test-ctxt-2 test-ctxt-3 test-loop-4 \
 	test-ctxt-4 test-lcssa test-barrier test-path-2 test-lcssa-2 \
 	test-no-slice test-global test-assert test-alloca pbzip2-like \
-	raytrace-like test-loop-5
+	raytrace-like test-loop-5 bodytrack-like
 BCS = $(PROGS:=.bc)
 
 # Better not use -O here; otherwise difficult to construct examples.
@@ -22,12 +22,11 @@ all: $(BCS)
 %.bc: %.cpp
 	clang++ $< -o $@ -c -emit-llvm $(CXXFLAGS)
 
-%.s: %.bc
-	llc $< -o $@
 # pthread may not always be necessary, but does no harm
 # Also, most of our test programs are multi-threaded
-%: %.s
-	$(CXX) $< -o $@ -pthread
+%: %.bc
+	clang++ $< -o $@ -pthread
+
 # Cancel the implicit rules from *.c to *
 %: %.c
 # Cancel the implicit rules from *.cpp to *

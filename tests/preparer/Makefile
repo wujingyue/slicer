@@ -6,7 +6,7 @@ PROG_NAMES = test-thread test-path test-overwrite test-ctxt test-recursive \
 	     test-loop-2 test-ctxt-2 test-loop-3 test-ctxt-3 test-loop-4 \
 	     test-assert test-ctxt-4 test-global test-lcssa test-barrier \
 	     test-path-2 test-alloca pbzip2-like test-lcssa-2 ferret-like \
-	     test-loop-5 \
+	     test-loop-5 bodytrack-like \
 	     aget FFT RADIX pbzip2 CHOLESKY LU-cont blackscholes raytrace-like
 PROGS_DIR = ../progs
 

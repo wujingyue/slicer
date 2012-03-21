@@ -8,7 +8,7 @@ import argparse
 import timeit
 
 def get_base_cmd():
-    return "opt " + \
+    base_cmd = "opt " + \
             "-load $LLVM_ROOT/install/lib/id.so " + \
             "-load $LLVM_ROOT/install/lib/bc2bdd.so " + \
             "-load $LLVM_ROOT/install/lib/cfg.so " + \
@@ -16,6 +16,7 @@ def get_base_cmd():
             "-load $LLVM_ROOT/install/lib/preparer.so " + \
             "-load $LLVM_ROOT/install/lib/max-slicing.so " + \
             "-load $LLVM_ROOT/install/lib/int.so "
+    return base_cmd
 
 def print_banner(msg):
     # Print the command in blue.
@@ -65,6 +66,9 @@ def instrument(config, section, id_bc, trace_exec):
     input_landmarks = config.get(section, "input-landmarks")
     if input_landmarks.strip() != "":
         cmd += "-input-landmarks " + input_landmarks + " "
+    extra_call_edges = config.get(section, "extra-call-edges")
+    if extra_call_edges != "":
+        cmd += "-fptrace " + extra_call_edges + " "
     cmd += "-o " + main_file_name + ".bc1 < " + id_bc
     invoke(cmd)
     invoke("llvm-ld " + \
@@ -95,6 +99,9 @@ def gen_traces(config, section, id_bc, trace_exec, full_trace, landmark_trace):
     input_landmarks = config.get(section, "input-landmarks")
     if input_landmarks.strip() != "":
         cmd += "-input-landmarks " + input_landmarks + " "
+    extra_call_edges = config.get(section, "extra-call-edges")
+    if extra_call_edges != "":
+        cmd += "-fptrace " + extra_call_edges + " "
     cmd += "-disable-output < " + id_bc
     invoke(cmd)
 
@@ -106,6 +113,9 @@ def max_slicing(config, section, id_bc, landmark_trace, slice_bc):
     input_landmarks = config.get(section, "input-landmarks")
     if input_landmarks.strip() != "":
         cmd += "-input-landmarks " + input_landmarks + " "
+    extra_call_edges = config.get(section, "extra-call-edges")
+    if extra_call_edges != "":
+        cmd += "-fptrace " + extra_call_edges + " "
     cmd += "-o " + slice_bc + " < " + id_bc
     t = timeit.Timer(lambda: invoke(cmd))
     print "Time for max_slicing:", t.timeit(1), "seconds"
@@ -118,7 +128,6 @@ def simplify(config, section, slice_bc, landmark_trace, simple_bc):
     if input_landmarks.strip() != "":
         cmd += "-input-landmarks " + input_landmarks + " "
     cmd += config.get(section, "simplify-flags") + " "
-    cmd += "-debug-only=reducer "
     cmd += "-p "
     cmd += "-o " + simple_bc + " < " + slice_bc
     invoke(cmd)
@@ -132,7 +141,8 @@ def read_config(config_file_name):
         "run-flags": "",
         "build-flags": "",
         "disable-prepare": "0",
-        "simplify-flags": ""})
+        "simplify-flags": "",
+        "extra-call-edges": ""})
     config.read(config_file_name)
     return config
 

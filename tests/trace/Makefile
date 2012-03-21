@@ -7,7 +7,7 @@ PROG_NAMES = test-thread test-overwrite test-loop test-loop-2 test-ctxt-2 \
 	     test-overwrite-2 RADIX-like test-thread-2 test-assert \
 	     test-malloc test-ctxt test-range test-range-3 test-range-4 \
 	     test-lcssa test-barrier test-path-2 test-alloca pbzip2-like \
-	     ferret-like raytrace-like test-loop-5 \
+	     ferret-like raytrace-like test-loop-5 bodytrack-like \
 	     aget FFT RADIX pbzip2 CHOLESKY LU-cont blackscholes
 PROGS_DIR = ../progs
 TRACED_PROGS = $(PROG_NAMES:=.trace)
@@ -185,6 +185,10 @@ blackscholes.ft: blackscholes.trace
 
 rmdir.ft: rmdir.trace
 	./$< 
+
+bodytrack-like.ft: bodytrack-like.trace
+	./$< $(SLICER_ROOT)/evals/progs/inputs/sequenceB_1 4 1 100 3 4
+	mv /tmp/fulltrace $@
 
 # Most programs don't need any special command line. 
 %.ft: %.trace

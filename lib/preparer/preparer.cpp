@@ -18,6 +18,8 @@ using namespace llvm;
 using namespace rcs;
 
 #include "slicer/enforcing-landmarks.h"
+using namespace slicer;
+
 namespace slicer {
 	struct Preparer: public ModulePass {
 		static char ID;
@@ -32,7 +34,6 @@ namespace slicer {
 		bool is_specified_thread_function(const Function *f) const;
 	};
 }
-using namespace slicer;
 
 INITIALIZE_PASS_BEGIN(Preparer, "prepare",
 		"Adds enforcing landmarks at the entry and exits of all thread functions",
