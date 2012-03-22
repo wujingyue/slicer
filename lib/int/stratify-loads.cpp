@@ -220,6 +220,9 @@ bool StratifyLoads::runOnModule(Module &M) {
 }
 
 unsigned StratifyLoads::get_max_level() const {
+	if (DisableStratifying)
+		return 0;
+
 	unsigned max_level = 0;
 	for (DenseMap<Value *, unsigned>::const_iterator it = level.begin();
 			it != level.end(); ++it) {

@@ -112,13 +112,13 @@ aget-like.ft: aget-like.trace
 	mv /tmp/fulltrace $@
 
 aget.ft: aget.trace
-	./$< -n2 -f http://www.cs.columbia.edu/~jingyue/index.html
+	# ./$< -n2 -f http://www.cs.columbia.edu/~jingyue/index.html
+	./$< -n2 -f http://www.cs.columbia.edu/~ty/test
 	# ./$< -n8 -f http://www.cs.columbia.edu/~heming/unlink/dragonegg-2.7-bak0.tgz
 	mv /tmp/fulltrace $@
 
 aget-fake.ft: aget-fake.trace
 	./$< -n2 -f http://www.cs.columbia.edu/~jingyue/index.html
-	# ./$< -n8 -f http://www.cs.columbia.edu/~heming/unlink/dragonegg-2.7-bak0.tgz
 	mv /tmp/fulltrace $@
 
 pbzip2.ft: pbzip2.trace

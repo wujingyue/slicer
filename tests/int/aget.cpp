@@ -127,10 +127,12 @@ void IntTest::aget(Module &M) {
 			errs() << "Range {" << i << ", " << j << "}\n";
 			if (soffsets[i]) {
 				errs() << "  soffsets <= offset? ...";
+				SC.set_print_asserts(true);
 				SC.set_print_counterexample(true);
 				assert(SC.provable(CmpInst::ICMP_SLE,
 							ConstInstList(), soffsets[i],
 							ConstInstList(), ranges[i][j].first));
+				SC.set_print_asserts(false);
 				SC.set_print_counterexample(false);
 				print_pass(errs());
 			}
