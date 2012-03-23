@@ -59,6 +59,7 @@ bool Iterate::runOnModule(Module &M) {
 	vector<Timer *> timers;
 
 	unsigned max_level = SL.get_max_level();
+	errs() << "max_level = " << max_level << "\n";
 	for (unsigned iter_no = 1; ; ++iter_no) {
 		ostringstream oss; oss << "Iteration " << iter_no;
 		Timer *timer = new Timer(oss.str(), tg);
@@ -71,6 +72,8 @@ bool Iterate::runOnModule(Module &M) {
 		CC.recalculate(M);
 		timer->stopTimer();
 		AAA.print(dbgs(), &M); // Print stats in AAA. 
+		errs() << "Old fingerprint = " << fingerprint << "\n";
+		errs() << "New fingerprint = " << CC.get_fingerprint() << "\n";
 		if (CC.get_fingerprint() == fingerprint && iter_no >= max_level)
 			break;
 		SC.recalculate(M);
