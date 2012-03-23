@@ -125,6 +125,7 @@ if __name__ == "__main__":
         input_filename = os.path.join(PROGS_DIR, benchmark + ".slice.queries")
         cmd = string.join((base_cmd, cmd_options,
                            "-query-list", input_filename,
+                           "-cloned",
                            "<", bc_filename))
         invoke(cmd)
         if option_adv_aa:
@@ -134,5 +135,6 @@ if __name__ == "__main__":
         input_filename = os.path.join(PROGS_DIR, benchmark + ".simple.queries")
         cmd = string.join((base_cmd, cmd_options,
                            "-query-list", input_filename,
+                           "-cloned",
                            "<", bc_filename))
         invoke(cmd)

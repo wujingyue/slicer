@@ -1,3 +1,7 @@
+/**
+ * Author: Jingyue
+ */
+
 #ifndef __SLICER_CLONE_INFO_MANAGER_H
 #define __SLICER_CLONE_INFO_MANAGER_H
 

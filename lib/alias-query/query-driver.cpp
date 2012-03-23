@@ -38,6 +38,8 @@ static cl::opt<string> QueryList("query-list",
 		cl::desc("The input query list"));
 static cl::opt<bool> UseAdvancedAA("use-adv-aa",
 		cl::desc("Use the advanced AA if turned on"));
+static cl::opt<bool> Cloned("cloned",
+		cl::desc("Whether the input program is a sliced/simplified program"));
 static cl::opt<bool> LoadLoad("driver-loadload",
 		cl::desc("The query driver considers load-load aliases as well"));
 
@@ -91,6 +93,7 @@ void QueryDriver::issue_queries() {
 
 	errs() << "# of queries = " << queries.size() << "\n";
 
+	DenseSet<pair<unsigned, unsigned> > race_reports;
 	for (size_t i = 0; i < queries.size(); ++i) {
 		const Instruction *i1 = queries[i].first.ins, *i2 = queries[i].second.ins;
 		if (!i1 || !i2) {
@@ -137,6 +140,21 @@ void QueryDriver::issue_queries() {
 						}
 					}
 				}
+			} // if UseAdvancedAA
+			if (results.back() != AliasAnalysis::NoAlias) {
+				// Add it into the race report. 
+				unsigned ins_id_1, ins_id_2;
+				if (Cloned) {
+					CloneInfoManager &CIM = getAnalysis<CloneInfoManager>();
+					assert(CIM.has_clone_info(i1) && CIM.has_clone_info(i2));
+					ins_id_1 = CIM.get_clone_info(i1).orig_ins_id;
+					ins_id_2 = CIM.get_clone_info(i2).orig_ins_id;
+				} else {
+					IDAssigner &IDA = getAnalysis<IDAssigner>();
+					ins_id_1 = IDA.getInstructionID(i1);
+					ins_id_2 = IDA.getInstructionID(i2);
+				}
+				race_reports.insert(make_pair(ins_id_1, ins_id_2));
 			}
 		}
 		raw_ostream::Colors color;
@@ -153,6 +171,9 @@ void QueryDriver::issue_queries() {
 		DEBUG(dbgs() << "Query " << i << ": " << results.back() << "\n";);
 	}
 	errs() << "\n";
+	
+	// Print out the race reports
+	errs() << "# of unique race reports = " << race_reports.size() << "\n";
 }
 
 void QueryDriver::print(raw_ostream &O, const Module *M) const {
