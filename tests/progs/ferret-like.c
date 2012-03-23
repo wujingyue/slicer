@@ -61,7 +61,7 @@ void *producer(void *arg) {
 		int j;
 
 		node->next = NULL;
-		for (j = 0; j < buf_size; ++j)
+		for (j = 0; j < BUF_SIZE; ++j)
 			node->buf[j] = rand() % 26 + 'a';
 
 		pthread_mutex_lock(&tasks.mutex);
@@ -90,7 +90,7 @@ void *consumer(void *arg) {
 		node = queue_dequeue(&tasks);
 		pthread_mutex_unlock(&tasks.mutex);
 		pthread_cond_signal(&tasks.not_full);
-		for (j = 0; j < buf_size; ++j)
+		for (j = 0; j < BUF_SIZE; ++j)
 			result += node->buf[j];
 
 		free(node);
