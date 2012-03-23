@@ -3,11 +3,11 @@
 #include <stdlib.h>
 #include <pthread.h>
 
-const int buf_size = 1024;
-const int max_n_nodes = 1024;
+#define BUF_SIZE (1024)
+#define MAX_N_NODES (1024)
 
 struct Node {
-	char buf[buf_size];
+	char buf[BUF_SIZE];
 	struct Node *next;
 };
 
@@ -40,7 +40,7 @@ struct Node *queue_dequeue(struct Queue *q) {
 }
 
 void queue_enqueue(struct Queue *q, struct Node *n) {
-	assert(q->count < max_n_nodes);
+	assert(q->count < MAX_N_NODES);
 	++q->count;
 	if (q->count == 1) {
 		q->head = q->tail = n;
@@ -65,7 +65,7 @@ void *producer(void *arg) {
 			node->buf[j] = rand() % 26 + 'a';
 
 		pthread_mutex_lock(&tasks.mutex);
-		while (tasks.count >= max_n_nodes)
+		while (tasks.count >= MAX_N_NODES)
 			pthread_cond_wait(&tasks.not_full, &tasks.mutex);
 		queue_enqueue(&tasks, node);
 		pthread_mutex_unlock(&tasks.mutex);
