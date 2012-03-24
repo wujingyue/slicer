@@ -1,7 +1,7 @@
 dnl **************************************************************************
 dnl * Initialize
 dnl **************************************************************************
-AC_INIT([[[llvm-common]]],[[[0.10]]],[jingyue@cs.columbia.edu])
+AC_INIT([[[slicer]]],[[[0.10]]],[jingyue@cs.columbia.edu])
 
 dnl Compile-time options
 AC_CONFIG_HEADERS([config.h])
