@@ -46,6 +46,7 @@ static cl::opt<bool> LoadLoad("driver-loadload",
 INITIALIZE_PASS_BEGIN(QueryDriver, "drive-queries",
 		"Issues alias queries to either bc2bdd or advanced-aa", false, true)
 INITIALIZE_PASS_DEPENDENCY(IDAssigner)
+INITIALIZE_PASS_DEPENDENCY(IDManager)
 INITIALIZE_PASS_DEPENDENCY(CloneInfoManager)
 if (UseAdvancedAA) {
 	INITIALIZE_PASS_DEPENDENCY(Iterate)
@@ -62,6 +63,7 @@ char QueryDriver::ID = 0;
 void QueryDriver::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
 	AU.addRequired<IDAssigner>();
+	AU.addRequired<IDManager>();
 	AU.addRequired<CloneInfoManager>();
 	if (UseAdvancedAA) {
 		AU.addRequired<Iterate>();
@@ -146,9 +148,15 @@ void QueryDriver::issue_queries() {
 				unsigned ins_id_1, ins_id_2;
 				if (Cloned) {
 					CloneInfoManager &CIM = getAnalysis<CloneInfoManager>();
-					assert(CIM.has_clone_info(i1) && CIM.has_clone_info(i2));
-					ins_id_1 = CIM.get_clone_info(i1).orig_ins_id;
-					ins_id_2 = CIM.get_clone_info(i2).orig_ins_id;
+					IDManager &IDM = getAnalysis<IDManager>();
+					if (CIM.has_clone_info(i1))
+						ins_id_1 = CIM.get_clone_info(i1).orig_ins_id;
+					else
+						ins_id_1 = IDM.getInstructionID(i1);
+					if (CIM.has_clone_info(i2))
+						ins_id_2 = CIM.get_clone_info(i2).orig_ins_id;
+					else
+						ins_id_2 = IDM.getInstructionID(i2);
 				} else {
 					IDAssigner &IDA = getAnalysis<IDAssigner>();
 					ins_id_1 = IDA.getInstructionID(i1);
