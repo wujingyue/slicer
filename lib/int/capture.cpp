@@ -215,7 +215,9 @@ void CaptureConstraints::calculate(Module &M) {
 	capture_function_summaries(M);
 
 	simplify_constraints();
-	DEBUG(dbgs() << "# of constraints = " << get_num_constraints() << "\n";);
+	dbgs() << "# of constraints = " << get_num_constraints() << "\n";
+	if (DisableAllConstraints)
+		constraints.clear();
 }
 
 void CaptureConstraints::simplify_constraints() {
@@ -263,8 +265,6 @@ bool CaptureConstraints::print_progress(
 }
 
 void CaptureConstraints::add_constraint(Clause *c) {
-	if (DisableAllConstraints)
-		return;
 	// TODO: Simplify the clause. 
 	// e.g. Split the conjuction. 
 	if (c)
