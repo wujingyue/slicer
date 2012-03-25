@@ -80,9 +80,13 @@ def instrument(config, section, id_bc, trace_exec):
             "$SLICER_ROOT/lib/trace/tracing.bc " + \
             "-b " + main_file_name + ".trace.bc " + \
             "-link-as-library -disable-opt")
-    invoke("clang++ " + main_file_name + ".trace.bc " + \
+    invoke("llc " + \
+            main_file_name + ".trace.bc " + \
+            "-o " + main_file_name + ".trace.s " + \
+            "-O0")
+    invoke("g++ " + \
+            main_file_name + ".trace.s " + \
             "-o " + trace_exec + " " + \
-            "-O0 " + \
             config.get(section, "build-flags"))
 
 def gen_traces(config, section, id_bc, trace_exec, full_trace, landmark_trace):
