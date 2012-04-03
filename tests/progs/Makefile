@@ -6,7 +6,7 @@ PROGS = test-thread test-path test-overwrite test-ctxt test-recursive \
 	test-range-4 test-loop-2 test-ctxt-2 test-ctxt-3 test-loop-4 \
 	test-ctxt-4 test-lcssa test-barrier test-path-2 test-lcssa-2 \
 	test-no-slice test-global test-assert test-alloca pbzip2-like \
-	raytrace-like test-loop-5 bodytrack-like
+	raytrace-like test-loop-5 bodytrack-like running-example
 BCS = $(PROGS:=.bc)
 
 # Better not use -O here; otherwise difficult to construct examples.

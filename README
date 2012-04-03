@@ -16,8 +16,6 @@ git clone git@repair.cs.columbia.edu slicer
 git clone git@repair.cs.columbia.edu rcs-common
 git clone git@repair.cs.columbia.edu bc2bdd
 
-Ask Jingyue if you don't have accesses to these repos. 
-
 2. Set environmental variables
 
 Make sure the following variables are set correctly:
