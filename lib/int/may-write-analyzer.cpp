@@ -146,3 +146,4 @@ bool MayWriteAnalyzer::may_alias(const Value *v1, const Value *v2) {
 		return BAA.alias(v1, 0, v2, 0) == AliasAnalysis::MayAlias;
 	}
 }
+
