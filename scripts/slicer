@@ -201,3 +201,4 @@ if __name__ == "__main__":
         simplify(config, section, slice_bc, landmark_trace, simple_bc)
     if simple_bc != args.output_bc:
         invoke("cp " + simple_bc + " " + args.output_bc)
+
