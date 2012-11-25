@@ -16,7 +16,7 @@ namespace slicer {
 		void setup(Module &M);
 		bool should_instrument(Instruction *ins) const;
 
-		const Type *uint_type, *bool_type;
+		Type *uint_type, *bool_type;
 		Function *init_trace, *trace_inst, *pth_create_wrapper;
 	};
 }

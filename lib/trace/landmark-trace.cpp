@@ -9,14 +9,16 @@ using namespace std;
 
 #include "llvm/Support/CommandLine.h"
 #include "llvm/ADT/Statistic.h"
-#include "slicer/InitializePasses.h"
 using namespace llvm;
 
 #include "slicer/landmark-trace.h"
 using namespace slicer;
 
-INITIALIZE_PASS(LandmarkTrace, "manage-landmark-trace",
-		"Reads from the landmark trace file, and manages it", false, true)
+static RegisterPass<LandmarkTrace> X(
+    "manage-landmark-trace",
+		"Reads from the landmark trace file, and manages it",
+    false,
+    true);
 
 static cl::opt<string> LandmarkTraceFile("input-landmark-trace",
 		cl::desc("The input landmark trace file"),
@@ -31,9 +33,7 @@ void LandmarkTrace::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
 }
 
-LandmarkTrace::LandmarkTrace(): ModulePass(ID) {
-	initializeLandmarkTracePass(*PassRegistry::getPassRegistry());
-}
+LandmarkTrace::LandmarkTrace(): ModulePass(ID) {}
 
 vector<int> LandmarkTrace::get_thr_ids() const {
 	map<int, vector<LandmarkTraceRecord> >::const_iterator it;

@@ -1,5 +1,4 @@
 #include "llvm/Support/CommandLine.h"
-#include "slicer/InitializePasses.h"
 using namespace llvm;
 
 #include "slicer/landmark-trace-record.h"
@@ -12,13 +11,11 @@ using namespace slicer;
 #include <fstream>
 using namespace std;
 
-INITIALIZE_PASS_BEGIN(LandmarkTraceBuilder, "build-landmark-trace",
-		"Generates the landmark trace", false, false)
-INITIALIZE_PASS_DEPENDENCY(TraceManager)
-INITIALIZE_PASS_DEPENDENCY(EnforcingLandmarks)
-INITIALIZE_PASS_DEPENDENCY(MarkLandmarks)
-INITIALIZE_PASS_END(LandmarkTraceBuilder, "build-landmark-trace",
-		"Generates the landmark trace", false, false)
+static RegisterPass<LandmarkTraceBuilder> X(
+    "build-landmark-trace",
+		"Generates the landmark trace",
+    false,
+    false);
 
 static cl::opt<string> LandmarkTraceFile("output-landmark-trace",
 		cl::desc("The output landmark trace"));
@@ -32,9 +29,7 @@ void LandmarkTraceBuilder::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<MarkLandmarks>();
 }
 
-LandmarkTraceBuilder::LandmarkTraceBuilder(): ModulePass(ID) {
-	initializeLandmarkTraceBuilderPass(*PassRegistry::getPassRegistry());
-}
+LandmarkTraceBuilder::LandmarkTraceBuilder(): ModulePass(ID) {}
 
 bool LandmarkTraceBuilder::runOnModule(Module &M) {
 	TraceManager &TM = getAnalysis<TraceManager>();

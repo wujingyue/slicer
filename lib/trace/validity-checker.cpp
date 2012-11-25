@@ -8,8 +8,6 @@
 #define DEBUG_TYPE "trace"
 
 #include "llvm/Support/raw_ostream.h"
-#include "common/InitializePasses.h"
-#include "slicer/InitializePasses.h"
 using namespace llvm;
 
 #include "common/exec-once.h"

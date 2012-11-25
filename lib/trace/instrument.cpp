@@ -3,15 +3,14 @@
  */
 
 #include "llvm/LLVMContext.h"
+#include "llvm/Constants.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Support/CallSite.h"
 #include "llvm/Support/CommandLine.h"
-#include "common/InitializePasses.h"
-#include "slicer/InitializePasses.h"
 using namespace llvm;
 
 #include "common/IDManager.h"
-#include "common/exec-once.h"
+#include "common/ExecOnce.h"
 #include "common/util.h"
 using namespace rcs;
 
@@ -21,16 +20,12 @@ using namespace rcs;
 #include "slicer/enforcing-landmarks.h"
 using namespace slicer;
 
-INITIALIZE_PASS_BEGIN(Instrument, "instrument",
+static RegisterPass<Instrument> X(
+    "instrument",
 		"Instrument the program so that it will generate a trace"
-		" when being executed", false, false)
-INITIALIZE_PASS_DEPENDENCY(IDManager)
-INITIALIZE_PASS_DEPENDENCY(MarkLandmarks)
-INITIALIZE_PASS_DEPENDENCY(ExecOnce)
-INITIALIZE_PASS_DEPENDENCY(EnforcingLandmarks)
-INITIALIZE_PASS_END(Instrument, "instrument",
-		"Instrument the program so that it will generate a trace"
-		" when being executed", false, false)
+		" when being executed",
+    false,
+    false);
 
 void Instrument::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesCFG();
@@ -40,17 +35,17 @@ void Instrument::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<EnforcingLandmarks>();
 }
 
-static cl::opt<bool> InstrumentEachBB("instrument-each-bb",
+static cl::opt<bool> InstrumentEachBB(
+    "instrument-each-bb",
 		cl::desc("Instrument each BB so that we can get an almost full trace"));
 
-static cl::opt<bool> MultiProcessed("multi-processed",
+static cl::opt<bool> MultiProcessed(
+    "multi-processed",
 		cl::desc("Whether the program is multi-processed"));
 
 char Instrument::ID = 0;
 
-Instrument::Instrument(): ModulePass(ID) {
-	initializeInstrumentPass(*PassRegistry::getPassRegistry());
-}
+Instrument::Instrument(): ModulePass(ID) {}
 
 bool Instrument::should_instrument(Instruction *ins) const {
 	MarkLandmarks &ML = getAnalysis<MarkLandmarks>();
@@ -109,8 +104,7 @@ bool Instrument::runOnModule(Module &M) {
 							CallSite cs(ii);
 							for (unsigned i = 0; i < cs.arg_size(); ++i)
 								args.push_back(cs.getArgument(i));
-							CallInst *new_ci = CallInst::Create(pth_create_wrapper,
-									args.begin(), args.end());
+							CallInst *new_ci = CallInst::Create(pth_create_wrapper, args);
 							ReplaceInstWithInst(ci, new_ci);
 							// Otherwise, ++ii will fail. 
 							ii = new_ci;
@@ -172,17 +166,17 @@ void Instrument::setup(Module &M) {
 
 	FunctionType *trace_inst_fty = FunctionType::get(
 			Type::getVoidTy(M.getContext()),
-			vector<const Type *>(1, uint_type), false);
+			uint_type, false);
 	FunctionType *init_trace_fty = FunctionType::get(
 			Type::getVoidTy(M.getContext()),
-			vector<const Type *>(1, bool_type), false);
+			bool_type, false);
 	
 	trace_inst = dyn_cast<Function>(
 			M.getOrInsertFunction("trace_inst", trace_inst_fty));
 	init_trace = dyn_cast<Function>(
 			M.getOrInsertFunction("init_trace", init_trace_fty));
 	if (Function *pth_create = M.getFunction("pthread_create")) {
-		vector<const Type *> params;
+		vector<Type *> params;
 		// ins_id
 		params.push_back(uint_type);
 		// old parameters of pthread_create

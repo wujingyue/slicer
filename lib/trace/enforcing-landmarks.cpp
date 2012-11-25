@@ -5,8 +5,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/CFG.h"
 #include "common/util.h"
-#include "common/identify-thread-funcs.h"
-#include "slicer/InitializePasses.h"
+#include "common/IdentifyThreadFuncs.h"
 using namespace llvm;
 
 #include "slicer/enforcing-landmarks.h"
@@ -56,16 +55,22 @@ static const char *DEFAULT_ENFORCING_LANDMARK_FUNCS[][2] = {
 	{"exit",                          "n"}
 };
 
-INITIALIZE_PASS(EnforcingLandmarks, "enforcing-landmarks",
-		"Identify enforcing landmarks", false, true)
+static RegisterPass<EnforcingLandmarks> X(
+    "enforcing-landmarks",
+		"Identify enforcing landmarks",
+    false,
+    true);
 
-static cl::opt<string> EnforcingLandmarksFile("input-landmarks",
+static cl::opt<string> EnforcingLandmarksFile(
+    "input-landmarks",
 		cl::desc("If this option is specified, MarkLandmarks uses the "
 			"landmarks from the file as enforcing landmarks."));
-static cl::opt<bool> OnlyMain("only-main",
+static cl::opt<bool> OnlyMain(
+    "only-main",
 		cl::desc("Only mark the sync operations in main thread as "
 			"enforcing landmarks."));
-static cl::opt<int> PruningRate("pruning-rate",
+static cl::opt<int> PruningRate(
+    "pruning-rate",
 		cl::desc("Pruning rate of enforcing landmarks: pr/100 will be pruned."),
 		cl::init(0));
 
@@ -75,9 +80,7 @@ void EnforcingLandmarks::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
 }
 
-EnforcingLandmarks::EnforcingLandmarks(): ModulePass(ID) {
-	initializeEnforcingLandmarksPass(*PassRegistry::getPassRegistry());
-}
+EnforcingLandmarks::EnforcingLandmarks(): ModulePass(ID) {}
 
 bool EnforcingLandmarks::is_enforcing_landmark(const Instruction *ins) const {
 	return enforcing_landmarks.count(const_cast<Instruction *>(ins));

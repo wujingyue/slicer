@@ -8,8 +8,6 @@ using namespace std;
 
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
-#include "common/InitializePasses.h"
-#include "slicer/InitializePasses.h"
 using namespace llvm;
 
 #include "common/IDManager.h"
@@ -18,18 +16,16 @@ using namespace rcs;
 #include "slicer/trace-manager.h"
 using namespace slicer;
 
-INITIALIZE_PASS_BEGIN(TraceManager, "trace-manager",
-		"Trace manager", false, true)
-INITIALIZE_PASS_DEPENDENCY(IDManager)
-INITIALIZE_PASS_END(TraceManager, "trace-manager",
-		"Trace manager", false, true)
+static RegisterPass<TraceManager> X("trace-manager",
+                                    "Trace manager", false, true);
 
 void TraceManager::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
 	AU.addRequired<IDManager>();
 }
 
-static cl::opt<string> FullTraceFile("fulltrace",
+static cl::opt<string> FullTraceFile(
+    "fulltrace",
 		cl::desc("The full trace"));
 
 char TraceManager::ID = 0;
@@ -43,9 +39,7 @@ bool TraceManager::read_record(istream &fin,
 		return false;
 }
 
-TraceManager::TraceManager(): ModulePass(ID), n_threads(0) {
-	initializeTraceManagerPass(*PassRegistry::getPassRegistry());
-}
+TraceManager::TraceManager(): ModulePass(ID), n_threads(0) {}
 
 bool TraceManager::runOnModule(Module &M) {
 	records.clear();
