@@ -6,7 +6,7 @@ using namespace std;
 
 #include "llvm/Instructions.h"
 #include "llvm/Pass.h"
-#include "common/typedefs.h"
+#include "rcs/typedefs.h"
 using namespace llvm;
 
 namespace slicer {

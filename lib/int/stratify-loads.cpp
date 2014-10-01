@@ -6,29 +6,20 @@
 
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/CommandLine.h"
-#include "common/InitializePasses.h"
-#include "slicer/InitializePasses.h"
 using namespace llvm;
 
-#include "common/util.h"
-#include "common/callgraph-fp.h"
-#include "common/exec-once.h"
+#include "rcs/util.h"
+#include "rcs/FPCallGraph.h"
+#include "rcs/ExecOnce.h"
 using namespace rcs;
 
 #include "slicer/stratify-loads.h"
 using namespace slicer;
 
-INITIALIZE_PASS_BEGIN(StratifyLoads, "stratify-loads",
-		"Stratify load instructions", false, true)
-INITIALIZE_PASS_DEPENDENCY(ExecOnce)
-INITIALIZE_PASS_DEPENDENCY(CallGraphFP)
-INITIALIZE_PASS_END(StratifyLoads, "stratify-loads",
-		"Stratify load instructions", false, true)
-
 void StratifyLoads::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
 	AU.addRequiredTransitive<ExecOnce>();
-	AU.addRequired<CallGraphFP>();
+	AU.addRequired<FPCallGraph>();
 }
 
 static cl::opt<bool> DisableStratifying("disable-stratifying",
@@ -38,12 +29,11 @@ static cl::opt<bool> DisableStratifying("disable-stratifying",
 char StratifyLoads::ID = 0;
 
 StratifyLoads::StratifyLoads(): ModulePass(ID) {
-	initializeStratifyLoadsPass(*PassRegistry::getPassRegistry());
 }
 
 bool StratifyLoads::try_calculating_levels(Module &M) {
 	ExecOnce &EO = getAnalysis<ExecOnce>();
-	CallGraphFP &CG = getAnalysis<CallGraphFP>();
+	FPCallGraph &CG = getAnalysis<FPCallGraph>();
 
 	bool changed = false;
 	
@@ -64,7 +54,7 @@ bool StratifyLoads::try_calculating_levels(Module &M) {
 						}
 					} else if (is_call(ins)) {
 						unsigned max_level = 0;
-						FuncList callees = CG.get_called_functions(ins);
+						FuncList callees = CG.getCalledFunctions(ins);
 						for (unsigned i = 0; i < callees.size(); ++i) {
 							Function *callee = callees[i];
 							if (callee->isDeclaration()) {
@@ -108,7 +98,7 @@ bool StratifyLoads::try_calculating_levels(Module &M) {
 		if (f->isDeclaration())
 			continue;
 		if (!EO.not_executed(f) && EO.executed_once(f)) {
-			InstList call_sites = CG.get_call_sites(f);
+			InstList call_sites = CG.getCallSites(f);
 			// Not all call sites are reachable. 
 			for (size_t i = 0; i < call_sites.size(); ) {
 				if (EO.not_executed(call_sites[i]))

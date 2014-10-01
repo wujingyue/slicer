@@ -11,16 +11,13 @@
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/CommandLine.h"
-#include "common/callgraph-fp.h"
-#include "common/icfg.h"
-#include "common/intra-reach.h"
-#include "common/exec-once.h"
-#include "common/partial-icfg-builder.h"
-#include "common/reach.h"
+#include "rcs/FPCallGraph.h"
+#include "rcs/ICFG.h"
+#include "rcs/IntraReach.h"
+#include "rcs/ExecOnce.h"
+#include "rcs/PartialICFGBuilder.h"
+#include "rcs/Reach.h"
 using namespace llvm;
-
-#include "bc2bdd/BddAliasAnalysis.h"
-using namespace bc2bdd;
 
 #include "slicer/capture.h"
 #include "slicer/adv-alias.h"
@@ -781,7 +778,7 @@ bool CaptureConstraints::may_alias(const Value *v1, const Value *v2) {
 			dbgs() << (res ? "A" : "a");
 		return res;
 	} else {
-		AliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
+		AliasAnalysis &BAA = getAnalysis<AliasAnalysis>();
 		return BAA.alias(v1, 0, v2, 0) == AliasAnalysis::MayAlias;
 	}
 }

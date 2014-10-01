@@ -2,7 +2,7 @@
 #define __SLICER_ENFORCING_LANDMARKS_H
 
 #include "llvm/Pass.h"
-#include "common/typedefs.h"
+#include "rcs/typedefs.h"
 using namespace llvm;
 
 namespace slicer {

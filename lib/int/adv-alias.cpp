@@ -4,16 +4,10 @@
 
 #define DEBUG_TYPE "int"
 
-#include "bc2bdd/BddAliasAnalysis.h"
-using namespace bc2bdd;
-
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/ADT/Statistic.h"
-#include "common/IDAssigner.h"
-#include "common/InitializePasses.h"
-#include "bc2bdd/InitializePasses.h"
-#include "slicer/InitializePasses.h"
+#include "rcs/IDAssigner.h"
 using namespace llvm;
 
 #include "slicer/capture.h"
@@ -29,25 +23,14 @@ using namespace std;
 STATISTIC(NumCacheHits, "Number of cache hits");
 STATISTIC(NumCacheMisses, "Number of cache misses");
 
-INITIALIZE_PASS_BEGIN(AdvancedAlias, "adv-alias",
-		"Iterative alias analysis", false, true)
-INITIALIZE_PASS_DEPENDENCY(IDAssigner)
-INITIALIZE_AG_DEPENDENCY(AliasAnalysis)
-INITIALIZE_PASS_DEPENDENCY(BddAliasAnalysis)
-INITIALIZE_PASS_DEPENDENCY(SolveConstraints)
-INITIALIZE_PASS_END(AdvancedAlias, "adv-alias",
-		"Iterative alias analysis", false, true)
-
 void AdvancedAlias::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
 	AU.addRequiredTransitive<IDAssigner>();
 	AU.addRequiredTransitive<AliasAnalysis>();
-	AU.addRequiredTransitive<BddAliasAnalysis>();
 	AU.addRequiredTransitive<SolveConstraints>();
 }
 
 AdvancedAlias::AdvancedAlias(): ModulePass(ID) {
-	initializeAdvancedAliasPass(*PassRegistry::getPassRegistry());
 }
 
 char AdvancedAlias::ID = 0;
@@ -132,7 +115,7 @@ void AdvancedAlias::print(raw_ostream &O, const Module *M) const {
 }
 
 bool AdvancedAlias::must_alias(const Use *u1, const Use *u2) {
-	AliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
+	AliasAnalysis &BAA = getAnalysis<AliasAnalysis>();
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 
 	const Value *v1 = u1->get(), *v2 = u2->get();
@@ -150,7 +133,7 @@ bool AdvancedAlias::must_alias(const Use *u1, const Use *u2) {
 }
 
 bool AdvancedAlias::must_alias(const Value *v1, const Value *v2) {
-	AliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
+	AliasAnalysis &BAA = getAnalysis<AliasAnalysis>();
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 
 	if (BAA.alias(v1, 0, v2, 0) == NoAlias)
@@ -171,7 +154,7 @@ bool AdvancedAlias::must_alias(const Value *v1, const Value *v2) {
 }
 
 bool AdvancedAlias::may_alias(const Use *u1, const Use *u2) {
-	AliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
+	AliasAnalysis &BAA = getAnalysis<AliasAnalysis>();
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 
 	const Value *v1 = u1->get(), *v2 = u2->get();
@@ -189,7 +172,7 @@ bool AdvancedAlias::may_alias(const Use *u1, const Use *u2) {
 }
 
 bool AdvancedAlias::may_alias(const Value *v1, const Value *v2) {
-	AliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
+	AliasAnalysis &BAA = getAnalysis<AliasAnalysis>();
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 
 	if (BAA.alias(v1, 0, v2, 0) == NoAlias)
@@ -212,19 +195,7 @@ bool AdvancedAlias::may_alias(const Value *v1, const Value *v2) {
 AliasAnalysis::AliasResult AdvancedAlias::alias(
 		const ConstInstList &c1, const Value *v1,
 		const ConstInstList &c2, const Value *v2) {
-	BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
-
-	// Try context-sensitive BddAliasAnalysis first. 
-	if (BAA.isAnalysisContextSensitive()) {
-		vector<User *> ctxt1, ctxt2;
-		for (size_t i = 0; i < c1.size(); ++i)
-			ctxt1.push_back(const_cast<Instruction *>(c1[i]));
-		for (size_t i = 0; i < c2.size(); ++i)
-			ctxt2.push_back(const_cast<Instruction *>(c2[i]));
-		if (BAA.alias(&ctxt1, v1, 0, &ctxt2, v2, 0) == NoAlias)
-			return NoAlias;
-	}
 
 	// Context-insensitive version is much faster. 
 	if (AliasAnalysis::alias(v1, 0, v2, 0) == NoAlias)
@@ -243,7 +214,7 @@ AliasAnalysis::AliasResult AdvancedAlias::alias(
 	const Value *v1 = L1.Ptr, *v2 = L2.Ptr;
 	uint64_t v1_size = L1.Size, v2_size = L2.Size;
 
-	AliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
+	AliasAnalysis &BAA = getAnalysis<AliasAnalysis>();
 	SolveConstraints &SC = getAnalysis<SolveConstraints>();
 
 	if (BAA.alias(v1, v1_size, v2, v2_size) == NoAlias)

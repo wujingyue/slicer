@@ -10,7 +10,7 @@
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
-#include "common/exec-once.h"
+#include "rcs/ExecOnce.h"
 using namespace rcs;
 
 #include "slicer/trace-manager.h"
@@ -26,15 +26,7 @@ namespace slicer {
 	};
 }
 
-INITIALIZE_PASS_BEGIN(ValidityChecker, "check-validity",
-		"Validity checker", false, true)
-INITIALIZE_PASS_DEPENDENCY(TraceManager)
-INITIALIZE_PASS_DEPENDENCY(ExecOnce)
-INITIALIZE_PASS_END(ValidityChecker, "check-validity",
-		"Validity checker", false, true)
-
 ValidityChecker::ValidityChecker(): ModulePass(ID) {
-	initializeValidityCheckerPass(*PassRegistry::getPassRegistry());
 }
 
 void ValidityChecker::getAnalysisUsage(AnalysisUsage &AU) const {

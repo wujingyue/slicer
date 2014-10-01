@@ -1,30 +1,23 @@
 #include "llvm/ADT/SCCIterator.h"
-#include "common/callgraph-fp.h"
-#include "common/util.h"
-#include "common/typedefs.h"
-#include "common/InitializePasses.h"
-#include "slicer/InitializePasses.h"
 using namespace llvm;
+
+#include "rcs/FPCallGraph.h"
+#include "rcs/util.h"
+#include "rcs/typedefs.h"
+using namespace rcs;
 
 #include "slicer/ctxt.h"
 using namespace slicer;
 
 #define COLLAPSE_RECURSIVE
 
-INITIALIZE_PASS_BEGIN(CountCtxts, "count-ctxts",
-		"Count the number of calling contexts of each function", false, true)
-INITIALIZE_PASS_DEPENDENCY(CallGraphFP)
-INITIALIZE_PASS_END(CountCtxts, "count-ctxts",
-		"Count the number of calling contexts of each function", false, true)
-
 CountCtxts::CountCtxts(): ModulePass(ID) {
-	initializeCountCtxtsPass(*PassRegistry::getPassRegistry());
 }
 
 char CountCtxts::ID = 0;
 
 bool CountCtxts::runOnModule(Module &M) {
-	CallGraphFP &CG = getAnalysis<CallGraphFP>();
+	FPCallGraph &CG = getAnalysis<FPCallGraph>();
 	CallGraph &raw_CG = CG;
 	// scc_iterator iterates all SCCs in a reverse topological order. 
 	vector<scc_iterator<CallGraph *> > topo_order;
@@ -76,7 +69,7 @@ void CountCtxts::print(raw_ostream &O, const Module *M) const {
 	sort(ans.begin(), ans.end(),
 			greater<pair<unsigned long, const Function *> >());
 	for (size_t i = 0; i < ans.size(); ++i) {
-		O << ans[i].second->getNameStr() << ": ";
+		O << ans[i].second->getName() << ": ";
 		if (ans[i].first == ULONG_MAX)
 			O << "oo";
 		else
@@ -87,11 +80,11 @@ void CountCtxts::print(raw_ostream &O, const Module *M) const {
 
 void CountCtxts::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
-	AU.addRequiredTransitive<CallGraphFP>(); // used in <num_ctxts>
+	AU.addRequiredTransitive<FPCallGraph>(); // used in <num_ctxts>
 }
 
 unsigned long CountCtxts::num_ctxts(const Function *f) const {
-	const CallGraphFP &CG = getAnalysis<CallGraphFP>();
+	const FPCallGraph &CG = getAnalysis<FPCallGraph>();
 	const CallGraphNode *node = CG[f];
 	assert(node);
 	if (!node_to_scc.count(node)) {

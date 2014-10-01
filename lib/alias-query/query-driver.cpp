@@ -14,16 +14,10 @@ using namespace boost;
 
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
-#include "common/InitializePasses.h"
-#include "bc2bdd/InitializePasses.h"
-#include "slicer/InitializePasses.h"
 using namespace llvm;
 
-#include "bc2bdd/BddAliasAnalysis.h"
-using namespace bc2bdd;
-
-#include "common/IDAssigner.h"
-#include "common/util.h"
+#include "rcs/IDAssigner.h"
+#include "rcs/util.h"
 using namespace rcs;
 
 #include "slicer/iterate.h"
@@ -43,21 +37,6 @@ static cl::opt<bool> Cloned("cloned",
 static cl::opt<bool> LoadLoad("driver-loadload",
 		cl::desc("The query driver considers load-load aliases as well"));
 
-INITIALIZE_PASS_BEGIN(QueryDriver, "drive-queries",
-		"Issues alias queries to either bc2bdd or advanced-aa", false, true)
-INITIALIZE_PASS_DEPENDENCY(IDAssigner)
-INITIALIZE_PASS_DEPENDENCY(IDManager)
-INITIALIZE_PASS_DEPENDENCY(CloneInfoManager)
-if (UseAdvancedAA) {
-	INITIALIZE_PASS_DEPENDENCY(Iterate)
-	INITIALIZE_PASS_DEPENDENCY(AdvancedAlias)
-	INITIALIZE_PASS_DEPENDENCY(SolveConstraints)
-} else {
-	INITIALIZE_PASS_DEPENDENCY(BddAliasAnalysis)
-}
-INITIALIZE_PASS_END(QueryDriver, "drive-queries",
-		"Issues alias queries to either bc2bdd or advanced-aa", false, true)
-
 char QueryDriver::ID = 0;
 
 void QueryDriver::getAnalysisUsage(AnalysisUsage &AU) const {
@@ -70,12 +49,11 @@ void QueryDriver::getAnalysisUsage(AnalysisUsage &AU) const {
 		AU.addRequired<AdvancedAlias>();
 		AU.addRequired<SolveConstraints>();
 	} else {
-		AU.addRequired<BddAliasAnalysis>();
+		AU.addRequired<AliasAnalysis>();
 	}
 }
 
 QueryDriver::QueryDriver(): ModulePass(ID), total_time(0.0) {
-	initializeQueryTranslatorPass(*PassRegistry::getPassRegistry());
 }
 
 bool QueryDriver::runOnModule(Module &M) {
@@ -118,7 +96,7 @@ void QueryDriver::issue_queries() {
 					}
 				}
 			} else {
-				BddAliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
+				AliasAnalysis &BAA = getAnalysis<AliasAnalysis>();
 				vector<User *> ctxt1, ctxt2;
 				for (size_t j = 0; j < queries[i].first.callstack.size(); ++j) {
 					const Instruction *frame = queries[i].first.callstack[j];
@@ -135,8 +113,8 @@ void QueryDriver::issue_queries() {
 						if (LoadLoad || racy(accesses1[j1], accesses2[j2])) {
 							ftime(&start_time);
 							results.push_back(BAA.alias(
-										&ctxt1, accesses1[j1].loc ,0,
-										&ctxt2, accesses2[j2].loc, 0));
+										accesses1[j1].loc ,0,
+										accesses2[j2].loc, 0));
 							ftime(&end_time);
 							total_time += time_diff(end_time, start_time);
 						}

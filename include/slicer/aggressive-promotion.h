@@ -8,7 +8,7 @@
 #define __SLICER_AGGRESIVE_PROMOTION_H
 
 #include "llvm/Analysis/LoopPass.h"
-#include "common/typedefs.h"
+#include "rcs/typedefs.h"
 using namespace llvm;
 
 namespace slicer {

@@ -35,10 +35,10 @@ using namespace std;
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/PluginLoader.h"
 #include "llvm/Support/PrettyStackTrace.h"
-#include "llvm/Support/StandardPasses.h"
 #include "llvm/Support/SystemUtils.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Transforms/IPO/PassManagerBuilder.h"
 #include "llvm/LinkAllPasses.h"
 #include "llvm/LinkAllVMCore.h"
 using namespace llvm;
@@ -80,31 +80,16 @@ void AddPass(PassManager &PM, Pass *P) {
  */
 void AddOptimizationPasses(PassManager &MPM, FunctionPassManager &FPM,
 		unsigned OptLevel) {
-	createStandardFunctionPasses(&FPM, OptLevel);
+  llvm::PassManagerBuilder builder;
+  builder.OptLevel = OptLevel;
 
-	llvm::Pass *InliningPass = 0;
-	if (OptLevel) {
-		unsigned Threshold = 200;
-		if (OptLevel > 2)
-			Threshold = 250;
-		InliningPass = createFunctionInliningPass(Threshold);
-	} else {
-		InliningPass = createAlwaysInlinerPass();
-	}
-	/*
-	 * We need to preserve all the cloned landmarks, therefore we disable
-	 * simplifying lib calls. 
-	 */
-	/*
-	 * We set UnitAtATime to be false to prevent opt from changing the types.
-	 */
-	createStandardModulePasses(&MPM, OptLevel,
-			/*OptimizeSize=*/ false,
-			/*UnitAtATime=*/ UnitAtATime,
-			/*UnrollLoops=*/ OptLevel > 1,
-			/*SimplifyLibCalls=*/ false,
-			/*HaveExceptions=*/ true,
-			InliningPass);
+  builder.Inliner = llvm::createFunctionInliningPass();
+
+  builder.DisableUnitAtATime = false;
+  builder.DisableUnrollLoops = OptLevel == 0;
+
+  builder.populateFunctionPassManager(FPM);
+  builder.populateModulePassManager(MPM);
 }
 
 /**
@@ -167,8 +152,6 @@ Module *LoadModuleFromStdin() {
 	// Load the input module...
 	SMDiagnostic Err;
 	Module *M = ParseIRFile("-", Err, getGlobalContext());
-	if (!M)
-		Err.Print("simplifier", errs());
 	return M;
 }
 

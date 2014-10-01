@@ -5,10 +5,8 @@
 #define DEBUG_TYPE "metrics"
 
 #include "llvm/ADT/Statistic.h"
-#include "common/IDManager.h"
-#include "common/exec-once.h"
-#include "common/InitializePasses.h"
-#include "slicer/InitializePasses.h"
+#include "rcs/IDManager.h"
+#include "rcs/ExecOnce.h"
 using namespace llvm;
 
 #include "slicer/clone-info-manager.h"
@@ -16,14 +14,6 @@ using namespace llvm;
 using namespace slicer;
 
 char InstCounter::ID = 0;
-
-INITIALIZE_PASS_BEGIN(InstCounter, "count-insts",
-		"Count number of stores and loads", false, true)
-INITIALIZE_PASS_DEPENDENCY(IDManager)
-INITIALIZE_PASS_DEPENDENCY(CloneInfoManager)
-INITIALIZE_PASS_DEPENDENCY(ExecOnce)
-INITIALIZE_PASS_END(InstCounter, "count-insts",
-		"Count number of stores and loads", false, true)
 
 STATISTIC(NumStores, "Number of stores");
 STATISTIC(NumLoads, "Number of loads");
@@ -36,7 +26,6 @@ void InstCounter::getAnalysisUsage(AnalysisUsage &AU) const {
 }
 
 InstCounter::InstCounter(): ModulePass(ID) {
-	initializeInstCounterPass(*PassRegistry::getPassRegistry());
 }
 
 bool InstCounter::runOnModule(Module &M) {

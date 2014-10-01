@@ -2,7 +2,7 @@
 #define __SLICER_QUERY_TRANSLATOR_H
 
 #include "llvm/Pass.h"
-#include "common/typedefs.h"
+#include "rcs/typedefs.h"
 
 namespace slicer {
 	struct DynamicInsID {

@@ -5,42 +5,26 @@
 #define DEBUG_TYPE "int"
 
 #include "llvm/Support/Debug.h"
-#include "bc2bdd/InitializePasses.h"
-#include "common/InitializePasses.h"
-#include "slicer/InitializePasses.h"
 using namespace llvm;
 
-#include "bc2bdd/BddAliasAnalysis.h"
-using namespace bc2bdd;
-
-#include "common/util.h"
-#include "common/callgraph-fp.h"
-#include "common/exec-once.h"
+#include "rcs/util.h"
+#include "rcs/FPCallGraph.h"
+#include "rcs/ExecOnce.h"
 using namespace rcs;
 
 #include "slicer/may-write-analyzer.h"
 #include "slicer/adv-alias.h"
 using namespace slicer;
 
-INITIALIZE_PASS_BEGIN(MayWriteAnalyzer, "analyze-may-write",
-		"Analyze may write behaviors", false, true)
-INITIALIZE_PASS_DEPENDENCY(BddAliasAnalysis)
-INITIALIZE_PASS_DEPENDENCY(CallGraphFP)
-INITIALIZE_PASS_DEPENDENCY(ExecOnce)
-INITIALIZE_PASS_END(MayWriteAnalyzer, "analyze-may-write",
-		"Analyze may write behaviors", false, true)
-
 void MayWriteAnalyzer::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
-	AU.addRequiredTransitive<BddAliasAnalysis>();
-	AU.addRequiredTransitive<CallGraphFP>();
+	AU.addRequiredTransitive<FPCallGraph>();
 	AU.addRequiredTransitive<ExecOnce>();
 }
 
 char MayWriteAnalyzer::ID = 0;
 
 MayWriteAnalyzer::MayWriteAnalyzer(): ModulePass(ID) {
-	initializeMayWriteAnalyzerPass(*PassRegistry::getPassRegistry());
 }
 
 bool MayWriteAnalyzer::runOnModule(Module &M) {
@@ -60,8 +44,8 @@ bool MayWriteAnalyzer::may_write(const Instruction *i,
 
 	CallSite cs(const_cast<Instruction *>(i));
 	if (cs.getInstruction() && !is_pthread_create(i)) {
-		CallGraphFP &CG = getAnalysis<CallGraphFP>();
-		FuncList callees = CG.get_called_functions(i);
+		FPCallGraph &CG = getAnalysis<FPCallGraph>();
+		FuncList callees = CG.getCalledFunctions(i);
 		for (size_t j = 0; j < callees.size(); ++j) {
 			Function *callee = callees[j];
 			if (callee->isDeclaration()) {
@@ -142,7 +126,7 @@ bool MayWriteAnalyzer::may_alias(const Value *v1, const Value *v2) {
 	if (AAA) {
 		return AAA->may_alias(v1, v2);
 	} else {
-		AliasAnalysis &BAA = getAnalysis<BddAliasAnalysis>();
+		AliasAnalysis &BAA = getAnalysis<AliasAnalysis>();
 		return BAA.alias(v1, 0, v2, 0) == AliasAnalysis::MayAlias;
 	}
 }

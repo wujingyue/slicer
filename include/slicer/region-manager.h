@@ -13,7 +13,7 @@
 #define __SLICER_REGION_MANAGER_H
 
 #include "llvm/Pass.h"
-#include "common/util.h"
+#include "rcs/util.h"
 using namespace llvm;
 
 #include <vector>

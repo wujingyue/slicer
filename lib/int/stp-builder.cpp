@@ -7,8 +7,8 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Analysis/Dominators.h"
-#include "common/util.h"
-#include "common/intra-reach.h"
+#include "rcs/util.h"
+#include "rcs/IntraReach.h"
 using namespace llvm;
 
 #include <list>
@@ -235,7 +235,7 @@ VCExpr SolveConstraints::translate_to_vc(const Value *v,
 
 	IDAssigner &IDA = getAnalysis<IDAssigner>();
 	unsigned value_id = IDA.getValueID(v);
-	assert(value_id != IDAssigner::INVALID_ID);
+	assert(value_id != IDAssigner::InvalidID);
 
 	ostringstream oss;
 	oss << (is_loop_bound ? "lb": "x") << value_id;

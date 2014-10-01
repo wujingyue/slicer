@@ -16,8 +16,8 @@
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/DominatorInternals.h"
 #include "llvm/Analysis/LoopInfo.h"
-#include "common/typedefs.h"
-#include "common/icfg.h"
+#include "rcs/typedefs.h"
+#include "rcs/ICFG.h"
 using namespace llvm;
 
 #include <vector>
@@ -222,7 +222,7 @@ namespace slicer {
 		vector<Clause *> constraints;
 		DenseMap<LoadInst *, vector<Clause *> > captured_loads;
 		ValueSet fixed_integers;
-		const Type *int_type;
+		Type *int_type;
 		DominatorTreeBase<ICFGNode> IDT;
 		unsigned current_level;
 	};

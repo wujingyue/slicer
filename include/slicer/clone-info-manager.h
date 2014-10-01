@@ -14,9 +14,9 @@ using namespace std;
 #include "llvm/ADT/DenseSet.h"
 using namespace llvm;
 
-#include "common/typedefs.h"
-#include "common/util.h"
-#include "common/IDManager.h"
+#include "rcs/typedefs.h"
+#include "rcs/util.h"
+#include "rcs/IDManager.h"
 using namespace rcs;
 
 #include "slicer/trace-manager.h"

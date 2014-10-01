@@ -5,12 +5,10 @@
 #define DEBUG_TYPE "region-manager"
 
 #include "llvm/Support/Debug.h"
-#include "common/exec-once.h"
-#include "common/partial-icfg-builder.h"
-#include "common/reach.h"
-#include "common/callgraph-fp.h"
-#include "common/InitializePasses.h"
-#include "slicer/InitializePasses.h"
+#include "rcs/ExecOnce.h"
+#include "rcs/PartialICFGBuilder.h"
+#include "rcs/Reach.h"
+#include "rcs/FPCallGraph.h"
 using namespace llvm;
 
 #include "slicer/region-manager.h"
@@ -19,19 +17,6 @@ using namespace llvm;
 #include "slicer/landmark-trace.h"
 using namespace slicer;
 
-INITIALIZE_PASS_BEGIN(RegionManager, "manage-region",
-		"Mark each cloned instruction with its previous enforcing landmark "
-		"and next enforcing landmark", false, true)
-INITIALIZE_PASS_DEPENDENCY(CloneInfoManager)
-INITIALIZE_PASS_DEPENDENCY(LandmarkTrace)
-INITIALIZE_PASS_DEPENDENCY(MicroBasicBlockBuilder)
-INITIALIZE_PASS_DEPENDENCY(ExecOnce)
-INITIALIZE_PASS_DEPENDENCY(PartialICFGBuilder)
-INITIALIZE_PASS_DEPENDENCY(CallGraphFP)
-INITIALIZE_PASS_END(RegionManager, "manage-region",
-		"Mark each cloned instruction with its previous enforcing landmark "
-		"and next enforcing landmark", false, true)
-
 void RegionManager::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
 	AU.addRequired<CloneInfoManager>();
@@ -39,7 +24,7 @@ void RegionManager::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<MicroBasicBlockBuilder>();
 	AU.addRequired<ExecOnce>();
 	AU.addRequired<PartialICFGBuilder>();
-	AU.addRequiredTransitive<CallGraphFP>();
+	AU.addRequiredTransitive<FPCallGraph>();
 }
 
 char RegionManager::ID = 0;
@@ -61,7 +46,6 @@ raw_ostream &slicer::operator<<(raw_ostream &O, const Region &r) {
 }
 
 RegionManager::RegionManager(): ModulePass(ID) {
-	initializeRegionManagerPass(*PassRegistry::getPassRegistry());
 }
 
 bool RegionManager::runOnModule(Module &M) {
@@ -288,9 +272,9 @@ void RegionManager::search_containing_regions(
 	}
 	
 	// Trace back via the callgraph
-	CallGraphFP &CG = getAnalysis<CallGraphFP>();
+	FPCallGraph &CG = getAnalysis<FPCallGraph>();
 	const Function *f = ins->getParent()->getParent();
-	InstList call_sites = CG.get_call_sites(f);
+	InstList call_sites = CG.getCallSites(f);
 	forall(InstList, it, call_sites) {
 		if (!is_pthread_create(*it))
 			search_containing_regions(*it, visited, regions);

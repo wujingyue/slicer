@@ -8,9 +8,10 @@
 
 #include "llvm/Support/Debug.h"
 #include "llvm/Target/TargetData.h"
-#include "common/callgraph-fp.h"
-#include "common/exec-once.h"
-#include "common/util.h"
+#include "llvm/Operator.h"
+#include "rcs/FPCallGraph.h"
+#include "rcs/ExecOnce.h"
+#include "rcs/util.h"
 using namespace llvm;
 
 #include "slicer/capture.h"
@@ -110,7 +111,7 @@ void CaptureConstraints::get_in_function(const Function *f,
 }
 
 Clause *CaptureConstraints::get_in_argument(const Argument *formal) {
-	CallGraphFP &CG = getAnalysis<CallGraphFP>();
+	FPCallGraph &CG = getAnalysis<FPCallGraph>();
 	ExecOnce &EO = getAnalysis<ExecOnce>();
 
 	const Function *f = formal->getParent();
@@ -118,7 +119,7 @@ Clause *CaptureConstraints::get_in_argument(const Argument *formal) {
 	if (f->isDeclaration())
 		return NULL;
 	
-	InstList call_sites = CG.get_call_sites(f);
+	InstList call_sites = CG.getCallSites(f);
 	ConstValueSet actuals;
 	for (size_t j = 0; j < call_sites.size(); ++j) {
 		if (!EO.not_executed(call_sites[j])) {
@@ -355,11 +356,11 @@ Clause *CaptureConstraints::get_in_gep(const User *user) {
 	Expr *cur = new Expr(base);
 	// <cur> and <type> need be consistent. 
 	// <type> is the type of the item that <cur> points to. 
-	const Type *type = base->getType();
+	Type *type = base->getType();
 	TargetData &TD = getAnalysis<TargetData>();
 	for (unsigned i = 1; i < user->getNumOperands(); ++i) {
-		if (const SequentialType *sqt = dyn_cast<SequentialType>(type)) {
-			const Type *et = sqt->getElementType();
+		if (SequentialType *sqt = dyn_cast<SequentialType>(type)) {
+			Type *et = sqt->getElementType();
 			uint64_t type_size_in_bits = TD.getTypeSizeInBits(et);
 			assert(type_size_in_bits % 8 == 0);
 			uint64_t type_size = type_size_in_bits / 8;

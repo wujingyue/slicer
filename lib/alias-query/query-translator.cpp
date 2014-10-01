@@ -5,25 +5,13 @@ using namespace std;
 using namespace boost;
 
 #include "llvm/Support/CommandLine.h"
-#include "common/IDManager.h"
-#include "common/IDAssigner.h"
-#include "common/InitializePasses.h"
-#include "slicer/InitializePasses.h"
+#include "rcs/IDManager.h"
+#include "rcs/IDAssigner.h"
 using namespace llvm;
 
 #include "slicer/query-translator.h"
 #include "slicer/clone-info-manager.h"
 using namespace slicer;
-
-INITIALIZE_PASS_BEGIN(QueryTranslator, "translate-queries",
-		"Translate queries on the original program to "
-		"those on the sliced program", false, true)
-INITIALIZE_PASS_DEPENDENCY(IDManager)
-INITIALIZE_PASS_DEPENDENCY(IDAssigner)
-INITIALIZE_PASS_DEPENDENCY(CloneInfoManager)
-INITIALIZE_PASS_END(QueryTranslator, "translate-queries",
-		"Translate queries on the original program to "
-		"those on the sliced program", false, true)
 
 void QueryTranslator::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
@@ -40,7 +28,6 @@ static cl::opt<string> QueryList("output-queries",
 char QueryTranslator::ID = 0;
 
 QueryTranslator::QueryTranslator(): ModulePass(ID) {
-	initializeQueryTranslatorPass(*PassRegistry::getPassRegistry());
 }
 
 bool QueryTranslator::parse_raw_query(const string &line,

@@ -27,8 +27,9 @@ bool CaptureConstraints::get_loop_bound(const Loop *L,
 		return false;
 	}
 
-	// Best case: Already optimized as a loop with a trip count. 
 	Constant *zero = ConstantInt::get(int_type, 0);
+	// Best case: Already optimized as a loop with a trip count. 
+#if 0
 	if (Value *trip = L->getTripCount()) {
 		loop_constraints.push_back(new Clause(new BoolExpr(CmpInst::ICMP_SGE,
 					new Expr(iv), new Expr(zero))));
@@ -36,6 +37,7 @@ bool CaptureConstraints::get_loop_bound(const Loop *L,
 					new Expr(iv), new Expr(trip))));
 		return true;
 	}
+#endif
 
 	// Hard case. 
 	// Borrowed from LLVM.

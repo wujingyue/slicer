@@ -1,8 +1,6 @@
 #include "llvm/Support/CommandLine.h"
-#include "common/IDAssigner.h"
-#include "common/util.h"
-#include "common/InitializePasses.h"
-#include "slicer/InitializePasses.h"
+#include "rcs/IDAssigner.h"
+#include "rcs/util.h"
 using namespace llvm;
 
 #include "slicer/query-gen.h"
@@ -28,21 +26,6 @@ static cl::opt<int> SampleRate("sample",
 			"be picked"),
 		cl::init(1));
 
-INITIALIZE_PASS_BEGIN(QueryGenerator, "gen-queries",
-		"Generate alias queries from a program", false, true)
-INITIALIZE_PASS_DEPENDENCY(IDAssigner)
-if (Concurrent) {
-	INITIALIZE_PASS_DEPENDENCY(RegionManager)
-	INITIALIZE_PASS_DEPENDENCY(EnforcingLandmarks)
-	INITIALIZE_PASS_DEPENDENCY(MarkLandmarks)
-	INITIALIZE_PASS_DEPENDENCY(LandmarkTrace)
-	INITIALIZE_PASS_DEPENDENCY(TraceManager)
-} else {
-	INITIALIZE_PASS_DEPENDENCY(CloneInfoManager)
-}
-INITIALIZE_PASS_END(QueryGenerator, "gen-queries",
-		"Generate alias queries from a program", false, true)
-
 char QueryGenerator::ID = 0;
 
 void QueryGenerator::getAnalysisUsage(AnalysisUsage &AU) const {
@@ -63,7 +46,6 @@ void QueryGenerator::getAnalysisUsage(AnalysisUsage &AU) const {
 	}
 }
 QueryGenerator::QueryGenerator(): ModulePass(ID) {
-	initializeQueryGeneratorPass(*PassRegistry::getPassRegistry());
 }
 
 void QueryGenerator::generate_static_queries(Module &M) {

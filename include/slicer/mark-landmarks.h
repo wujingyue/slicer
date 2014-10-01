@@ -5,7 +5,7 @@
 #include "llvm/Module.h"
 using namespace llvm;
 
-#include "common/typedefs.h"
+#include "rcs/typedefs.h"
 using namespace rcs;
 
 namespace slicer {

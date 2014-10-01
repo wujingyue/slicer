@@ -9,9 +9,9 @@
 #include "llvm/Support/CommandLine.h"
 using namespace llvm;
 
-#include "common/IDManager.h"
-#include "common/ExecOnce.h"
-#include "common/util.h"
+#include "rcs/IDManager.h"
+#include "rcs/ExecOnce.h"
+#include "rcs/util.h"
 using namespace rcs;
 
 #include "slicer/trace.h"
@@ -96,7 +96,7 @@ bool Instrument::runOnModule(Module &M) {
 				// FIXME: Can be invoke pthread_create
 				if (CallInst *ci = dyn_cast<CallInst>(ii)) {
 					if (Function *callee = ci->getCalledFunction()) {
-						if (callee->getNameStr() == "pthread_create") {
+						if (callee->getName() == "pthread_create") {
 							assert(pth_create_wrapper &&
 									"Cannot find the pthread_create wrapper");
 							vector<Value *> args;

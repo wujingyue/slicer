@@ -31,7 +31,6 @@ using namespace std;
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/PluginLoader.h"
 #include "llvm/Support/PrettyStackTrace.h"
-#include "llvm/Support/StandardPasses.h"
 #include "llvm/Support/SystemUtils.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
@@ -106,8 +105,6 @@ Module *LoadModuleFromStdin() {
 	// Load the input module...
 	SMDiagnostic Err;
 	Module *M = ParseIRFile("-", Err, getGlobalContext());
-	if (!M)
-		Err.Print("repeated-lcssa", errs());
 	return M;
 }
 

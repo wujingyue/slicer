@@ -13,8 +13,7 @@ using namespace std;
 #include "llvm/Support/CommandLine.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Target/TargetData.h"
-#include "common/util.h"
-#include "slicer/InitializePasses.h"
+#include "rcs/util.h"
 using namespace llvm;
 
 #include "slicer/iterate.h"
@@ -24,17 +23,6 @@ using namespace llvm;
 #include "slicer/constantizer.h"
 using namespace slicer;
 
-INITIALIZE_PASS_BEGIN(Constantizer, "constantize",
-		"Replace variables with constants whenever possible and "
-		"remove unreachable branches according to int-constraints", false, false)
-INITIALIZE_PASS_DEPENDENCY(TargetData)
-INITIALIZE_PASS_DEPENDENCY(CaptureConstraints)
-INITIALIZE_PASS_DEPENDENCY(SolveConstraints)
-INITIALIZE_PASS_DEPENDENCY(Iterate)
-INITIALIZE_PASS_END(Constantizer, "constantize",
-		"Replace variables with constants whenever possible and "
-		"remove unreachable branches according to int-constraints", false, false)
-
 static cl::opt<bool> DisableConstantizing("disable-constantizing",
 		cl::desc("Disable constantizing"));
 
@@ -43,7 +31,6 @@ STATISTIC(VariablesConstantized, "Number of variables constantized");
 char Constantizer::ID = 0;
 
 Constantizer::Constantizer(): ModulePass(ID) {
-	initializeConstantizerPass(*PassRegistry::getPassRegistry());
 }
 
 void Constantizer::getAnalysisUsage(AnalysisUsage &AU) const {
@@ -136,14 +123,14 @@ bool Constantizer::constantize(Module &M) {
 				} else {
 					actual_args.push_back(v);
 					assert(isa<PointerType>(v->getType()));
-					const PointerType *ptr_type = cast<PointerType>(v->getType());
+					PointerType *ptr_type = cast<PointerType>(v->getType());
 					Value *ptr_c = new IntToPtrInst(c, ptr_type, "", pos);
 					actual_args.push_back(ptr_c);
 				}
 
 				assert(the_slicer_assert);
-				CallInst::Create(the_slicer_assert,
-						actual_args.begin(), actual_args.end(), "", pos);
+				CallInst::Create(the_slicer_assert, ArrayRef<Value *>(actual_args),
+					        "", pos);
 			}
 		}
 
@@ -153,9 +140,9 @@ bool Constantizer::constantize(Module &M) {
 		// the correct integer types. 
 		bool locally_changed = false;
 		for (size_t j = 0; j < local.size(); ++j) {
-			const Type *type = local[j]->get()->getType();
+			Type *type = local[j]->get()->getType();
 			User *user = local[j]->getUser();
-			if (const IntegerType *int_type = dyn_cast<IntegerType>(type)) {
+			if (IntegerType *int_type = dyn_cast<IntegerType>(type)) {
 #if 0
 				/*
 				 * FIXME: This is a quick hack to prevent the constantizer from
@@ -175,7 +162,7 @@ bool Constantizer::constantize(Module &M) {
 					locally_changed = true;
 					DEBUG(dbgs() << "afterwards:" << *user << "\n";);
 				}
-			} else if (const PointerType *ptr_type = dyn_cast<PointerType>(type)) {
+			} else if (PointerType *ptr_type = dyn_cast<PointerType>(type)) {
 				if (c->isZero() && !isa<PHINode>(user)) {
 					DEBUG(dbgs() << *user << "\n";);
 					local[j]->set(ConstantPointerNull::get(ptr_type));
@@ -200,13 +187,13 @@ void Constantizer::setup(Module &M) {
 	// Do nothing for now. 
 }
 
-Function *Constantizer::get_slicer_assert(Module &M, const Type *type) {
+Function *Constantizer::get_slicer_assert(Module &M, Type *type) {
 	if (slicer_assert_eq.count(type))
 		return slicer_assert_eq.lookup(type);
 
-	const Type *void_ty = Type::getVoidTy(M.getContext());
-	vector<const Type *> arg_types(2, type);
-	FunctionType *func_type = FunctionType::get(void_ty, arg_types, false);
+	Type *void_ty = Type::getVoidTy(M.getContext());
+	vector<Type *> arg_types(2, type);
+	FunctionType *func_type = FunctionType::get(void_ty, ArrayRef<Type *>(arg_types), false);
 	Function *f = Function::Create(func_type,
 			GlobalVariable::ExternalLinkage, "slicer_assert_eq", &M);
 	slicer_assert_eq[type] = f;

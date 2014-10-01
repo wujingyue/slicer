@@ -7,6 +7,11 @@
 
 #define DEBUG_TYPE "max-slicing"
 
+#include <iostream>
+#include <fstream>
+#include <sstream>
+using namespace std;
+
 #include "llvm/Module.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Analysis/Dominators.h"
@@ -14,17 +19,12 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/ADT/Statistic.h"
-#include "common/IDManager.h"
-#include "common/callgraph-fp.h"
-#include "common/exec.h"
-#include "common/InitializePasses.h"
-#include "slicer/InitializePasses.h"
 using namespace llvm;
 
-#include <iostream>
-#include <fstream>
-#include <sstream>
-using namespace std;
+#include "rcs/IDManager.h"
+#include "rcs/FPCallGraph.h"
+#include "rcs/Exec.h"
+using namespace rcs;
 
 #include "slicer/max-slicing.h"
 #include "slicer/landmark-trace.h"
@@ -38,23 +38,10 @@ STATISTIC(NumOrigInstructionsLeft,
 STATISTIC(NumInstructionsInSliced,
 		"Number of all instructions in the sliced program");
 
-INITIALIZE_PASS_BEGIN(MaxSlicing, "max-slicing",
-		"Slice and unroll the program according to the trace", false, false)
-INITIALIZE_PASS_DEPENDENCY(IDManager)
-INITIALIZE_PASS_DEPENDENCY(MicroBasicBlockBuilder)
-INITIALIZE_PASS_DEPENDENCY(CallGraphFP)
-INITIALIZE_PASS_DEPENDENCY(Exec)
-INITIALIZE_PASS_DEPENDENCY(MarkLandmarks)
-INITIALIZE_PASS_DEPENDENCY(EnforcingLandmarks)
-INITIALIZE_PASS_DEPENDENCY(LandmarkTrace)
-INITIALIZE_PASS_DEPENDENCY(DominatorTree)
-INITIALIZE_PASS_END(MaxSlicing, "max-slicing",
-		"Slice and unroll the program according to the trace", false, false)
-
 void MaxSlicing::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<IDManager>();
 	AU.addRequired<MicroBasicBlockBuilder>();
-	AU.addRequired<CallGraphFP>();
+	AU.addRequired<FPCallGraph>();
 	AU.addRequired<Exec>();
 	AU.addRequired<MarkLandmarks>();
 	AU.addRequired<EnforcingLandmarks>();
@@ -68,7 +55,6 @@ const string SLICER_SUFFIX;
 const string OLDMAIN_SUFFIX;
 
 MaxSlicing::MaxSlicing(): ModulePass(ID) {
-	initializeMaxSlicingPass(*PassRegistry::getPassRegistry());
 }
 
 void MaxSlicing::print_inst_set(raw_ostream &O, const InstSet &s) {
@@ -257,13 +243,3 @@ void MaxSlicing::volatile_landmarks(Module &M) {
 		}
 	}
 }
-
-struct RegisterMaxSlicingPasses {
-	RegisterMaxSlicingPasses() {
-		PassRegistry &reg = *PassRegistry::getPassRegistry();
-		initializeCloneInfoManagerPass(reg);
-		initializeMaxSlicingPass(reg);
-		initializeRegionManagerPass(reg);
-	}
-};
-static RegisterMaxSlicingPasses X;

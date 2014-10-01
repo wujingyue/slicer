@@ -9,10 +9,10 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
-#include "common/callgraph-fp.h"
-#include "common/exec.h"
-#include "common/reach.h"
-#include "common/IDManager.h"
+#include "rcs/FPCallGraph.h"
+#include "rcs/Exec.h"
+#include "rcs/Reach.h"
+#include "rcs/IDManager.h"
 using namespace llvm;
 
 #include <iostream>
@@ -242,7 +242,7 @@ void MaxSlicing::assign_container(Module &M, Instruction *x,
 			func = Function::Create(
 					old_func->getFunctionType(),
 					old_func->getLinkage(),
-					old_func->getNameStr() + SLICER_SUFFIX,
+					old_func->getName() + SLICER_SUFFIX,
 					&M);
 			func->setAttributes(old_func->getAttributes());
 			func->setCallingConv(old_func->getCallingConv());
@@ -315,12 +315,12 @@ Instruction *MaxSlicing::clone_inst(
 	unsigned orig_ins_id = getAnalysis<IDManager>().getInstructionID(x);
 	assert(orig_ins_id != IDManager::INVALID_ID);
 	vector<Value *> ops;
-	const IntegerType *int_type = IntegerType::get(x->getContext(), 32);
+	IntegerType *int_type = IntegerType::get(x->getContext(), 32);
 	ops.push_back(ConstantInt::get(int_type, thr_id));
 	ops.push_back(ConstantInt::get(int_type, trunk_id));
 	ops.push_back(ConstantInt::get(int_type, orig_ins_id));
-	y->setMetadata(
-			"clone_info", MDNode::get(x->getContext(), &ops[0], ops.size()));
+	y->setMetadata("clone_info",
+                       MDNode::get(x->getContext(), ArrayRef<Value *>(ops)));
 	return y;
 }
 
@@ -515,9 +515,9 @@ void MaxSlicing::dfs(Instruction *x, Instruction *end,
 	if (is_call(x) && !is_pthread_create(x)) {
 		// TODO: To simplify
 		bool may_exec_landmark = false;
-		CallGraphFP &CG = getAnalysis<CallGraphFP>();
+		FPCallGraph &CG = getAnalysis<FPCallGraph>();
 		Exec &EXE = getAnalysis<Exec>();
-		const FuncList &callees = CG.get_called_functions(x);
+		const FuncList &callees = CG.getCalledFunctions(x);
 		for (size_t j = 0, E = callees.size(); j < E; ++j) {
 			if (EXE.may_exec_landmark(callees[j]))
 				may_exec_landmark = true;
@@ -616,7 +616,7 @@ bool MaxSlicing::is_sliced(const Function *f) {
 	// the original function. 
 	if (is_main(f))
 		return true;
-	return f->getNameStr().find(SLICER_SUFFIX) != string::npos;
+	return f->getName().find(SLICER_SUFFIX) != string::npos;
 }
 
 void MaxSlicing::find_invoke_successors(Module &M) {

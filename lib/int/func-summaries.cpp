@@ -5,7 +5,7 @@
 #include "llvm/Target/TargetData.h"
 using namespace llvm;
 
-#include "common/util.h"
+#include "rcs/util.h"
 using namespace rcs;
 
 #include "slicer/capture.h"

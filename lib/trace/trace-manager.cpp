@@ -10,7 +10,7 @@ using namespace std;
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
-#include "common/IDManager.h"
+#include "rcs/IDManager.h"
 using namespace rcs;
 
 #include "slicer/trace-manager.h"

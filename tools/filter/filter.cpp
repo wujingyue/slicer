@@ -7,7 +7,7 @@
 using namespace std;
 
 #include "llvm/Support/CommandLine.h"
-#include "common/util.h"
+#include "rcs/util.h"
 using namespace llvm;
 
 #include "slicer/landmark-trace-record.h"

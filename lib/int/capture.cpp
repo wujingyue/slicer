@@ -13,20 +13,14 @@
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Target/TargetData.h"
-#include "common/util.h"
-#include "common/typedefs.h"
-#include "common/callgraph-fp.h"
-#include "common/intra-reach.h"
-#include "common/icfg.h"
-#include "common/exec-once.h"
-#include "common/partial-icfg-builder.h"
-#include "bc2bdd/InitializePasses.h"
-#include "common/InitializePasses.h"
-#include "slicer/InitializePasses.h"
+#include "rcs/util.h"
+#include "rcs/typedefs.h"
+#include "rcs/FPCallGraph.h"
+#include "rcs/IntraReach.h"
+#include "rcs/ICFG.h"
+#include "rcs/ExecOnce.h"
+#include "rcs/PartialICFGBuilder.h"
 using namespace llvm;
-
-#include "bc2bdd/BddAliasAnalysis.h"
-using namespace bc2bdd;
 
 #include <fstream>
 #include <sstream>
@@ -41,36 +35,16 @@ using namespace std;
 #include "slicer/stratify-loads.h"
 using namespace slicer;
 
-INITIALIZE_PASS_BEGIN(CaptureConstraints, "capture",
-		"Capture all integer constraints", false, true)
-INITIALIZE_PASS_DEPENDENCY(BddAliasAnalysis)
-INITIALIZE_PASS_DEPENDENCY(TargetData)
-INITIALIZE_PASS_DEPENDENCY(IDAssigner)
-INITIALIZE_PASS_DEPENDENCY(DominatorTree)
-INITIALIZE_PASS_DEPENDENCY(LoopInfo)
-INITIALIZE_PASS_DEPENDENCY(IntraReach)
-INITIALIZE_PASS_DEPENDENCY(CallGraphFP)
-INITIALIZE_PASS_DEPENDENCY(ExecOnce)
-INITIALIZE_PASS_DEPENDENCY(LandmarkTrace)
-INITIALIZE_PASS_DEPENDENCY(CloneInfoManager)
-INITIALIZE_PASS_DEPENDENCY(RegionManager)
-INITIALIZE_PASS_DEPENDENCY(PartialICFGBuilder)
-INITIALIZE_PASS_DEPENDENCY(MicroBasicBlockBuilder)
-INITIALIZE_PASS_DEPENDENCY(MayWriteAnalyzer)
-INITIALIZE_PASS_DEPENDENCY(StratifyLoads)
-INITIALIZE_PASS_END(CaptureConstraints, "capture",
-		"Capture all integer constraints", false, true)
-
 void CaptureConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
 	// LLVM 2.9 crashes if I addRequiredTransitive FunctionPasses.
 	AU.setPreservesAll();
-	AU.addRequired<BddAliasAnalysis>(); // Only used in <setup>. 
+	AU.addRequired<AliasAnalysis>(); // Only used in <setup>. 
 	AU.addRequired<TargetData>();
 	AU.addRequired<IDAssigner>();
 	AU.addRequired<DominatorTree>();
 	AU.addRequired<LoopInfo>();
 	AU.addRequired<IntraReach>();
-	AU.addRequired<CallGraphFP>();
+	AU.addRequired<FPCallGraph>();
 	AU.addRequired<ExecOnce>();
 	AU.addRequired<LandmarkTrace>();
 	AU.addRequired<CloneInfoManager>();
@@ -92,7 +66,6 @@ char CaptureConstraints::ID = 0;
 CaptureConstraints::CaptureConstraints():
 	ModulePass(ID), IDT(false), current_level((unsigned)-1)
 {
-	initializeCaptureConstraintsPass(*PassRegistry::getPassRegistry());
 }
 
 CaptureConstraints::~CaptureConstraints() {
@@ -107,9 +80,9 @@ void CaptureConstraints::print(raw_ostream &O, const Module *M) const {
 		if (isa<ConstantInt>(*it))
 			continue;
 		unsigned value_id = IDA.getValueID(*it);
-		if (value_id == IDAssigner::INVALID_ID)
+		if (value_id == IDAssigner::InvalidID)
 			O << **it << "\n";
-		assert(value_id != IDAssigner::INVALID_ID);
+		assert(value_id != IDAssigner::InvalidID);
 		O << "  x" << value_id << ":" << **it << "\n";
 	}
 	O << "\nConstraints:\n";
@@ -123,10 +96,10 @@ void CaptureConstraints::print_value(raw_ostream &O, const Value *v) {
 	if (isa<GlobalVariable>(v))
 		O << "[global] ";
 	else if (const Argument *arg = dyn_cast<Argument>(v))
-		O << "[arg] (" << arg->getParent()->getNameStr() << ") ";
+		O << "[arg] (" << arg->getParent()->getName() << ") ";
 	else if (const Instruction *ins = dyn_cast<Instruction>(v))
-		O << "[inst] (" << ins->getParent()->getParent()->getNameStr() << "." 
-			<< ins->getParent()->getNameStr() << ") ";
+		O << "[inst] (" << ins->getParent()->getParent()->getName() << "." 
+			<< ins->getParent()->getName() << ") ";
 	else if (isa<Constant>(v))
 		O << "[const] ";
 	else
@@ -205,7 +178,7 @@ void CaptureConstraints::calculate(Module &M) {
 	// The algorithm to capture address-taken variables are flow-sensitive.
 	// Need compute the inter-procedural CFG before hand. 
 	ICFG &PIB = getAnalysis<PartialICFGBuilder>();
-	IDT.recalculate(PIB);
+	IDT.recalculate<ICFG>(PIB);
 	capture_addr_taken(M);
 	// Collect constraints from unreachable blocks. 
 	capture_unreachable(M);

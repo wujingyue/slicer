@@ -9,20 +9,14 @@ using namespace std;
 #include "llvm/Support/CFG.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/CommandLine.h"
-#include "common/callgraph-fp.h"
-#include "common/util.h"
-#include "common/InitializePasses.h"
-#include "slicer/InitializePasses.h"
 using namespace llvm;
+
+#include "rcs/FPCallGraph.h"
+#include "rcs/util.h"
+using namespace rcs;
 
 #include "path-counter.h"
 using namespace slicer;
-
-INITIALIZE_PASS_BEGIN(PathCounter, "count-paths",
-		"Count the paths", false, true)
-INITIALIZE_PASS_DEPENDENCY(CallGraphFP)
-INITIALIZE_PASS_END(PathCounter, "count-paths",
-		"Count the paths", false, true)
 
 static cl::opt<int> NumIterations("iter",
 		cl::desc("Number of iterations"),
@@ -42,7 +36,7 @@ void PathCounter::dfs(BasicBlock *x, unsigned &cur_time) {
 }
 
 bool PathCounter::runOnModule(Module &M) {
-	CallGraphFP &CG = getAnalysis<CallGraphFP>();
+	FPCallGraph &CG = getAnalysis<FPCallGraph>();
 
 	for (Module::iterator f = M.begin(); f != M.end(); ++f) {
 		for (Function::iterator bb = f->begin(); bb != f->end(); ++bb) {
@@ -50,7 +44,7 @@ bool PathCounter::runOnModule(Module &M) {
 				g[bb].push_back(Edge(*si, true));
 			for (BasicBlock::iterator ins = bb->begin(); ins != bb->end(); ++ins) {
 				if (is_call(ins)) {
-					FuncList callees = CG.get_called_functions(ins);
+					FuncList callees = CG.getCalledFunctions(ins);
 					for (size_t i = 0; i < callees.size(); ++i) {
 						Function *callee = callees[i];
 						if (callee && !callee->isDeclaration())
@@ -94,13 +88,13 @@ bool PathCounter::runOnModule(Module &M) {
 }
 
 long double PathCounter::compute_num_paths(BasicBlock *x) {
-	CallGraphFP &CG = getAnalysis<CallGraphFP>();
+	FPCallGraph &CG = getAnalysis<FPCallGraph>();
 
 	long double intra_bb = 1;
 	for (BasicBlock::iterator ins = x->begin(); ins != x->end(); ++ins) {
 		if (is_call(ins)) {
 			long double sum = 0;
-			FuncList callees = CG.get_called_functions(ins);
+			FuncList callees = CG.getCalledFunctions(ins);
 			for (size_t i = 0; i < callees.size(); ++i) {
 				Function *callee = callees[i];
 				if (callee && !callee->isDeclaration())
@@ -130,7 +124,7 @@ long double PathCounter::compute_num_paths(BasicBlock *x) {
 
 void PathCounter::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
-	AU.addRequired<CallGraphFP>();
+	AU.addRequired<FPCallGraph>();
 }
 
 void PathCounter::print(raw_ostream &O, const Module *M) const {

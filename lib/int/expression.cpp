@@ -2,7 +2,7 @@
  * Author: Jingyue
  */
 
-#include "common/util.h"
+#include "rcs/util.h"
 using namespace llvm;
 
 #include "slicer/expression.h"
@@ -294,7 +294,7 @@ void slicer::print_expr(raw_ostream &O, const Expr *e, IDAssigner &IDA) {
 			O << "0";
 		} else {
 			unsigned value_id = IDA.getValueID(v);
-			assert(value_id != IDAssigner::INVALID_ID);
+			assert(value_id != IDAssigner::InvalidID);
 			if (e->type == Expr::SingleDef)
 				O << "x";
 			else if (e->type == Expr::SingleUse)

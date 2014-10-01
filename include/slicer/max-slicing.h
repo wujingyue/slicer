@@ -14,7 +14,7 @@
 
 #include "llvm/Pass.h"
 #include "llvm/ADT/DenseSet.h"
-#include "common/typedefs.h"
+#include "rcs/typedefs.h"
 using namespace llvm;
 
 #include <vector>

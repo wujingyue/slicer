@@ -1,26 +1,17 @@
-#include "common/callgraph-fp.h"
-#include "common/InitializePasses.h"
-#include "slicer/InitializePasses.h"
+#include "rcs/FPCallGraph.h"
 using namespace llvm;
 
 #include "slicer/clone-info-manager.h"
 using namespace slicer;
 
-INITIALIZE_PASS_BEGIN(CloneInfoManager, "clone-info-manager",
-		"The CloneInfo manager", false, true)
-INITIALIZE_PASS_DEPENDENCY(CallGraphFP)
-INITIALIZE_PASS_END(CloneInfoManager, "clone-info-manager",
-		"The CloneInfo manager", false, true)
-
 char CloneInfoManager::ID = 0;
 
 void CloneInfoManager::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.setPreservesAll();
-	AU.addRequiredTransitive<CallGraphFP>();
+	AU.addRequiredTransitive<FPCallGraph>();
 }
 
 CloneInfoManager::CloneInfoManager(): ModulePass(ID) {
-	initializeCloneInfoManagerPass(*PassRegistry::getPassRegistry());
 }
 
 bool CloneInfoManager::runOnModule(Module &M) {

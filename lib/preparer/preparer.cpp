@@ -11,8 +11,8 @@
 #include "llvm/Support/CommandLine.h"
 using namespace llvm;
 
-#include "common/IdentifyThreadFuncs.h"
-#include "common/util.h"
+#include "rcs/IdentifyThreadFuncs.h"
+#include "rcs/util.h"
 using namespace rcs;
 
 #include "slicer/enforcing-landmarks.h"
@@ -83,14 +83,14 @@ bool Preparer::runOnModule(Module &M) {
 
     // Needn't instrument entries and exits of function main,
     // because nobody calls main and thus no ambiguity. 
-    if (ITF.is_thread_func(f) || is_main(f) ||
+    if (ITF.isThreadFunction(*f) || is_main(f) ||
         is_specified_thread_function(f)) {
       Instruction *first = f->getEntryBlock().getFirstNonPHI();
       CallInst::Create(pth_self, "", first);
       for (Function::iterator bb = f->begin(); bb != f->end(); ++bb) {
         if (succ_begin(bb) == succ_end(bb)) {
           TerminatorInst *ti = bb->getTerminator();
-          if (isa<ReturnInst>(ti) || isa<UnwindInst>(ti)) {
+          if (isa<ReturnInst>(ti) || isa<ResumeInst>(ti)) {
             CallInst::Create(pth_self, "", ti);
           }
         }

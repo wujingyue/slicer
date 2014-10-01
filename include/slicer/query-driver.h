@@ -8,7 +8,7 @@ using namespace std;
 #include "llvm/Analysis/AliasAnalysis.h"
 using namespace llvm;
 
-#include "common/typedefs.h"
+#include "rcs/typedefs.h"
 using namespace rcs;
 
 namespace slicer {

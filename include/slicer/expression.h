@@ -12,8 +12,8 @@ using namespace std;
 #include "llvm/Use.h"
 using namespace llvm;
 
-#include "common/IDAssigner.h"
-#include "common/typedefs.h"
+#include "rcs/IDAssigner.h"
+#include "rcs/typedefs.h"
 using namespace rcs;
 
 namespace slicer {

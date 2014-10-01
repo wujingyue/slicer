@@ -1,8 +1,8 @@
 #include "llvm/LLVMContext.h"
 #include "llvm/Support/Debug.h"
-#include "common/intra-reach.h"
-#include "common/exec-once.h"
-#include "common/util.h"
+#include "rcs/IntraReach.h"
+#include "rcs/ExecOnce.h"
+#include "rcs/util.h"
 using namespace llvm;
 
 #include "slicer/capture.h"
@@ -86,9 +86,9 @@ Clause *CaptureConstraints::get_avoid_branch(
 			// The condition is equal to one of the case values. 
 			Clause *disj = NULL;
 			// Case 0 is the default branch. It doesn't have a case value. 
-			for (unsigned j = 1; j < si->getNumCases(); ++j) {
+                        for (SwitchInst::ConstCaseIt iter = si->case_begin(); iter != si->case_end(); ++iter) {
 				Clause *c = new Clause(new BoolExpr(
-							CmpInst::ICMP_EQ, new Expr(cond), new Expr(si->getCaseValue(j))));
+							CmpInst::ICMP_EQ, new Expr(cond), new Expr(iter.getCaseValue())));
 				if (!disj)
 					disj = c;
 				else
@@ -101,7 +101,7 @@ Clause *CaptureConstraints::get_avoid_branch(
 			return new Clause(new BoolExpr(
 						CmpInst::ICMP_NE,
 						new Expr(cond),
-						new Expr(si->getCaseValue(i))));
+						new Expr(const_cast<SwitchInst *>(si)->findCaseDest(const_cast<BasicBlock *>(ti->getSuccessor(i))))));
 		}
 	} else if (const IndirectBrInst *ii = dyn_cast<IndirectBrInst>(ti)) {
 		errs() << *ii << "\n";

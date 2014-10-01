@@ -17,10 +17,12 @@ using namespace std;
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Transforms/Utils/SSAUpdater.h"
-#include "common/callgraph-fp.h"
-#include "common/IDManager.h"
-#include "common/exec.h"
 using namespace llvm;
+
+#include "rcs/FPCallGraph.h"
+#include "rcs/IDManager.h"
+#include "rcs/Exec.h"
+using namespace rcs;
 
 #include "slicer/landmark-trace.h"
 #include "slicer/max-slicing.h"
@@ -126,7 +128,7 @@ void MaxSlicing::fix_def_use_terminator(BasicBlock *bb,
 			new UnreachableInst(getGlobalContext(), bb);
 		else {
 			errs() << "[Warning] CFG broken due to incomplete execution: " <<
-				f->getNameStr() << "." << bb->getNameStr() << "\n";
+				f->getName() << "." << bb->getName() << "\n";
 			if (!unreachable_bb)
 				unreachable_bb = create_unreachable(f);
 			BranchInst::Create(unreachable_bb, bb);
@@ -458,7 +460,7 @@ void MaxSlicing::link_thr_funcs(Module &M) {
 }
 
 bool MaxSlicing::is_unreachable(const BasicBlock *bb) {
-	if (bb->getNameStr().find("unreachable" + SLICER_SUFFIX) != string::npos)
+	if (bb->getName().find("unreachable" + SLICER_SUFFIX) != string::npos)
 		return true;
 
 	// Don't always trust the name. Double check the content. 

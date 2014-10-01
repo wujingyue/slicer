@@ -8,10 +8,10 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/ADT/SCCIterator.h"
 #include "llvm/ADT/Statistic.h"
-#include "common/IdentifyThreadFuncs.h"
-#include "common/Exec.h"
-#include "common/FPCallGraph.h"
-#include "common/IDManager.h"
+#include "rcs/IdentifyThreadFuncs.h"
+#include "rcs/Exec.h"
+#include "rcs/FPCallGraph.h"
+#include "rcs/IDManager.h"
 using namespace llvm;
 
 #include "slicer/enforcing-landmarks.h"
@@ -88,7 +88,7 @@ void MarkLandmarks::mark_thread_exits(Module &M) {
   forallfunc(M, fi) {
     if (fi->isDeclaration())
       continue;
-    if (ITF.is_thread_func(fi) || is_main(fi)) {
+    if (ITF.isThreadFunction(*fi) || is_main(fi)) {
       // This should be a pthread_self() call added by the preparer at
       // each thread function entry. 
       // No harm marking it again. 

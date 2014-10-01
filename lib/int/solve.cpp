@@ -15,33 +15,18 @@ using namespace std;
 #include "llvm/Support/Debug.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Target/TargetData.h"
-#include "common/InitializePasses.h"
-#include "slicer/InitializePasses.h"
 using namespace llvm;
 
-#include "common/util.h"
-#include "common/intra-reach.h"
-#include "common/callgraph-fp.h"
-#include "common/exec-once.h"
+#include "rcs/util.h"
+#include "rcs/IntraReach.h"
+#include "rcs/FPCallGraph.h"
+#include "rcs/ExecOnce.h"
 using namespace rcs;
 
 #include "slicer/capture.h"
 #include "slicer/solve.h"
 #include "slicer/adv-alias.h"
 using namespace slicer;
-
-INITIALIZE_PASS_BEGIN(SolveConstraints, "solve",
-		"Solve captured constraints using STP", false, true)
-INITIALIZE_PASS_DEPENDENCY(TargetData)
-INITIALIZE_PASS_DEPENDENCY(IDAssigner)
-INITIALIZE_PASS_DEPENDENCY(DominatorTree)
-INITIALIZE_PASS_DEPENDENCY(LoopInfo)
-INITIALIZE_PASS_DEPENDENCY(IntraReach)
-INITIALIZE_PASS_DEPENDENCY(CaptureConstraints)
-INITIALIZE_PASS_DEPENDENCY(CallGraphFP)
-INITIALIZE_PASS_DEPENDENCY(ExecOnce)
-INITIALIZE_PASS_END(SolveConstraints, "solve",
-		"Solve captured constraints using STP", false, true)
 
 void SolveConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
 	// LLVM 2.9 crashes if I use addRequiredTransitive. 
@@ -52,7 +37,7 @@ void SolveConstraints::getAnalysisUsage(AnalysisUsage &AU) const {
 	AU.addRequired<LoopInfo>();
 	AU.addRequired<IntraReach>();
 	AU.addRequired<CaptureConstraints>();
-	AU.addRequired<CallGraphFP>();
+	AU.addRequired<FPCallGraph>();
 	AU.addRequired<ExecOnce>();
 }
 
@@ -62,7 +47,6 @@ SolveConstraints::SolveConstraints(): ModulePass(ID),
 	print_counterexample_(false),
 	print_asserts_(false), print_minimal_proof_set_(false)
 {
-	initializeSolveConstraintsPass(*PassRegistry::getPassRegistry());
 }
 
 void SolveConstraints::releaseMemory() {
@@ -906,8 +890,8 @@ void SolveConstraints::realize(const Instruction *ins, unsigned context) {
 
 	// Realize the caller of its containing functions. Calling contexts would
 	// help a lot with resolving the ambiguity. 
-	CallGraphFP &CG = getAnalysis<CallGraphFP>();
-	InstList call_sites = CG.get_call_sites(f);
+	FPCallGraph &CG = getAnalysis<FPCallGraph>();
+	InstList call_sites = CG.getCallSites(f);
 	if (call_sites.size() == 1)
 		realize(call_sites[0], context);
 

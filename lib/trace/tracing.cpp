@@ -5,8 +5,9 @@
 #include <errno.h>
 #include <pthread.h>
 
-#include <cstdlib>
-#include <iostream>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
 #include <fstream>
 #include <sstream>
 using namespace std;
