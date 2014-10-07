@@ -1,0 +1,6 @@
+[submodule "submodules/rcs"]
+	path = submodules/rcs
+	url = https://github.com/wujingyue/rcs.git
+[submodule "submodules/stp"]
+	path = submodules/stp
+	url = https://github.com/stp/stp.git

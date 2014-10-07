@@ -7,16 +7,12 @@ dnl Compile-time options
 AC_CONFIG_HEADERS([config.h])
 
 dnl Identify where LLVM source tree is
-LLVM_SRC_ROOT="."
-LLVM_OBJ_ROOT="."
-
-dnl Find absolute paths to LLVM source and object trees
-LLVM_ABS_SRC_ROOT="`cd $srcdir ; cd $LLVM_SRC_ROOT ; pwd`"
-LLVM_ABS_OBJ_ROOT="`cd $LLVM_OBJ_ROOT ; pwd`"
+LLVM_SRC_ROOT=`llvm-config --src-root`
+LLVM_OBJ_ROOT=`llvm-config --obj-root`
 
 dnl Tell autoconf that this is an LLVM project being configured
 dnl This provides the --with-llvmsrc and --with-llvmobj options
-LLVM_CONFIG_PROJECT($LLVM_ABS_SRC_ROOT,$LLVM_ABS_OBJ_ROOT)
+LLVM_CONFIG_PROJECT($LLVM_SRC_ROOT,$LLVM_OBJ_ROOT)
 
 dnl Tell autoconf that the auxilliary files are actually located in
 dnl the LLVM autoconf directory, not here.
@@ -31,6 +27,8 @@ AC_CONFIG_FILES(Makefile.common)
 dnl Configure project makefiles
 dnl List every Makefile that exists within your source tree
 AC_CONFIG_MAKEFILE(Makefile)
+
+AC_CONFIG_SUBDIRS(submodules/rcs)
 
 dnl **************************************************************************
 dnl * Determine which system we are building on

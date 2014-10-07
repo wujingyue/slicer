@@ -1,7 +1,7 @@
 LEVEL = .
 
 # TODO: tests => test
-DIRS = lib tools
+DIRS = submodules lib tools
 EXTRA_DIST = include
 
 include $(LEVEL)/Makefile.common

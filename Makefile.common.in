@@ -18,10 +18,15 @@ PROJ_OBJ_ROOT := $(subst //,/,@abs_top_objdir@)
 # Set the root directory of this project's install prefix
 PROJ_INSTALL_ROOT := @prefix@
 
+RCS_SRC_ROOT = $(PROJ_SRC_ROOT)/submodules/rcs
+RCS_OBJ_ROOT = $(PROJ_OBJ_ROOT)/submodules/rcs
+STP_SRC_ROOT = $(PROJ_SRC_ROOT)/submodules/stp
+STP_OBJ_ROOT = $(PROJ_OBJ_ROOT)/submodules/stp/build
+
 # Include LLVM's Master Makefile.
 include $(LLVM_SRC_ROOT)/Makefile.common
 
-AdditionalIncludes = -I$(BC2BDD_ROOT)/include -I$(RCS_COMMON_ROOT)/include -I$(PROJ_SRC_ROOT)/lib/stp/stp-svn/include
+AdditionalIncludes = -I$(RCS_SRC_ROOT)/include -I$(STP_SRC_ROOT)/include
 
 CFLAGS += $(AdditionalIncludes)
 CXXFLAGS += $(AdditionalIncludes)

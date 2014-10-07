@@ -1,8 +1,53 @@
-Notes:
+Schedule Specialization Framework
+=================================
 
-* The slicer is not guaranteed to work with gcc-4.2 or earlier versions. 
-* When building bc2bdd, rcs-common, and slicer, don't use make -jx. The
-  makefiles use global temporary files.
+Schedule specialization framework is a research prototype we created at
+Columbia that specialize a multithreaded program towards a schedule for better
+analysis. It is implemented on the LLVM framework.
+
+Publications
+------------
+
+[Sound and Precise Analysis of Parallel Programs through Schedule
+Specialization](http://www.cs.columbia.edu/~junfeng/papers/wu-pldi12.pdf)
+
+Installation
+------------
+
+1. Download the source code of LLVM 3.1 and clang 3.1 from
+   [LLVM Download Page](http://llvm.org/releases/download.html). Other version
+of LLVM and clang are not guaranteed to work with NeonGoby.
+
+2. Build LLVM and clang from source code.
+```bash
+cd <llvm-source-code-root>
+mv <clang-source-code-root> tools/clang
+./configure --prefix=<where-you-want-to-install-LLVM>
+make [-j] install
+```
+
+3. Add LLVM's install directory to PATH, so that you can run LLVM commands
+   (e.g., `llvm-config`) everywhere.
+
+4. Build the RCS common utility library
+```bash
+git clone https://github.com/wujingyue/rcs.git
+cd rcs
+./configure --prefix=`llvm-config --prefix`
+make
+make install
+```
+
+5. Build the specialization framework (a.k.a. slicer)
+```bash
+git clone https://github.com/wujingyue/slicer.git
+cd slicer
+./configure --prefix=`llvm-config --prefix`
+make
+make install
+```
+
+FIXME: AutoGen, BC2BDD
 
 1. Check out source code from the git server
 
