@@ -3,7 +3,19 @@ Schedule Specialization Framework
 
 Schedule specialization framework is a research prototype we created at
 Columbia that specialize a multithreaded program towards a schedule for better
-analysis. It is implemented on the LLVM framework.
+analysis. We implemented this framework based on the LLVM compiler. Given the
+bitcode of a program and a schedule in the format of a total order of
+synchronizations, the framework specializes the program with respect to the
+schedule and emits the bitcode of the specialized program for more precise
+analysis.
+
+The entire schedule specialization system contains several components: the
+Peregrine determinisitc multithreading system, a precise alias analysis based
+on bddbddb (bc2bdd), and the specialization framework.  This repository
+contains the source code that implements the specialization framework. The
+source code of the Peregrine system is available
+[here](https://github.com/columbia/xtern), and we are in the process of
+open-sourcing bc2bdd.
 
 Publications
 ------------

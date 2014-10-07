@@ -18,9 +18,8 @@ all: $(PROGS:=.prep.bc)
 # <opt> will remove the output file on failure.
 %.prep.bc: %.bc
 	opt -o $@ \
-		-load $(LLVM_ROOT)/install/lib/id.so \
-		-load $(LLVM_ROOT)/install/lib/bc2bdd.so \
-		-load $(LLVM_ROOT)/install/lib/cfg.so \
+		-load $(LLVM_ROOT)/install/lib/libRCSID.so \
+		-load $(LLVM_ROOT)/install/lib/libRCSCFG.so \
 		-load $(LLVM_ROOT)/install/lib/slicer-trace.so \
 		-load $(LLVM_ROOT)/install/lib/preparer.so \
 		-break-crit-edges \
