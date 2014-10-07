@@ -41,7 +41,17 @@ make [-j] install
 3. Add LLVM's install directory to PATH, so that you can run LLVM commands
    (e.g., `llvm-config`) everywhere.
 
-4. Build the specialization framework (a.k.a. slicer)
+4. To verify whether LLVM/clang 3.1 is correctly, compile and run a simple
+   hello world program. Clang 3.1 does not work with some new versions of
+   Ubuntu on some programs using STL, because the default include paths Clang
+   sets up are incomplete. In that case, you may want to apply
+   `patches/clang-3.1-ubuntu.patch`.
+```bash
+cd <llvm-source-code-root>
+patch -p1 < patches/clang-3.1-ubuntu.patch
+```
+
+5. Build the specialization framework (a.k.a. slicer)
 ```bash
 git clone https://github.com/wujingyue/slicer.git
 cd slicer

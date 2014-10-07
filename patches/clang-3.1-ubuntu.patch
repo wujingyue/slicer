@@ -1,0 +1,43 @@
+--- llvm-3.1.src/tools/clang/lib/Driver/ToolChains.cpp	2012-05-11 17:16:02.000000000 -0700
++++ llvm-3.1/tools/clang/lib/Driver/ToolChains.cpp	2014-10-01 09:34:02.341869053 -0700
+@@ -1840,6 +1840,10 @@
+   UbuntuNatty,
+   UbuntuOneiric,
+   UbuntuPrecise,
++  UbuntuQuantal,
++  UbuntuRaring,
++  UbuntuSaucy,
++  UbuntuTrusty,
+   UnknownDistro
+ };
+ 
+@@ -1857,7 +1861,7 @@
+ }
+ 
+ static bool IsUbuntu(enum LinuxDistro Distro) {
+-  return Distro >= UbuntuHardy && Distro <= UbuntuPrecise;
++  return Distro >= UbuntuHardy && Distro <= UbuntuTrusty;
+ }
+ 
+ static LinuxDistro DetectLinuxDistro(llvm::Triple::ArchType Arch) {
+@@ -1879,6 +1883,9 @@
+           .Case("natty", UbuntuNatty)
+           .Case("oneiric", UbuntuOneiric)
+           .Case("precise", UbuntuPrecise)
++          .Case("quantal", UbuntuQuantal)
++          .Case("saucy", UbuntuSaucy)
++          .Case("trusty", UbuntuTrusty)
+           .Default(UnknownDistro);
+     return Version;
+   }
+@@ -2293,6 +2300,10 @@
+                               GCCInstallation.getMultiarchSuffix()),
+                              DriverArgs, CC1Args);
+   }
++  addLibStdCXXIncludePaths(LibDir.str() + "/../include/" +
++                               GCCInstallation.getTriple().str() +
++                               "/c++/" + Version,
++                           "", DriverArgs, CC1Args);
+ }
+ 
+ /// DragonFly - DragonFly tool chain which can call as(1) and ld(1) directly.
