@@ -29,110 +29,13 @@ make [-j] install
 3. Add LLVM's install directory to PATH, so that you can run LLVM commands
    (e.g., `llvm-config`) everywhere.
 
-4. Build the RCS common utility library
-```bash
-git clone https://github.com/wujingyue/rcs.git
-cd rcs
-./configure --prefix=`llvm-config --prefix`
-make
-make install
-```
-
-5. Build the specialization framework (a.k.a. slicer)
+4. Build the specialization framework (a.k.a. slicer)
 ```bash
 git clone https://github.com/wujingyue/slicer.git
 cd slicer
+git submodule init
+git submodule update
 ./configure --prefix=`llvm-config --prefix`
 make
 make install
 ```
-
-FIXME: AutoGen, BC2BDD
-
-1. Check out source code from the git server
-
-Pick a directory as your workspace, e.g. /home/jingyue/Research. From now on,
-we denote this directory by $WORKSPACE, but it doesn't have to be an
-environmental variable. 
-
-cd $WORKSPACE
-git clone git@repair.cs.columbia.edu llvm
-git clone git@repair.cs.columbia.edu slicer
-git clone git@repair.cs.columbia.edu rcs-common
-git clone git@repair.cs.columbia.edu bc2bdd
-
-2. Set environmental variables
-
-Make sure the following variables are set correctly:
-LLVM_ROOT=$WORKSPACE/llvm
-RCS_COMMON_ROOT=$WORKSPACE/rcs-common
-BC2BDD_ROOT=$WORKSPACE/bc2bdd
-SLICER_ROOT=$WORKSPACE/slicer
-APPS_DIR=$WORKSPACE/apps
-
-Add $LLVM_ROOT/install/bin and $LLVM_ROOT/scripts to PATH. 
-
-I recommend you setting these variables in .bashrc so that terminals will load
-them automatically on start up. 
-
-3. Install libraries
-
-sudo apt-get install libbdd-dev libbz2-dev openjdk-6-jdk libboost-regex-dev shtool subversion zip libzip-dev flex bison
-
-4. Building LLVM 2.9
-
-cd LLVM_ROOT
-wget http://llvm.org/releases/2.9/llvm-2.9.tgz
-wget http://llvm.org/releases/2.9/clang-2.9.tgz
-tar xzvf llvm-2.9.tgz
-cd llvm-2.9/tools
-tar xzvf ../../clang-2.9.tgz
-mv clang-2.9 clang
-
-cd LLVM_ROOT/llvm-2.9
-./configure --prefix=$LLVM_ROOT/install --enable-assertions --enable-docs=no
-make (you may use -jx to run it with multiple cores)
-make install 
-
-Note: Option --enable-assertions enables "assert" function calls, which is
-necessary to slicer. We disable generating ocaml docs by --enable-docs=no
-because LLVM 2.9 has a bug with generating ocaml docs.
-
-You need apply the following patches to fix some bugs in LLVM 2.9:
-$WORKSPACE/llvm/disable-i8.patch
-$WORKSPACE/llvm/fix-dae-2.9.patch
-$WORKSPACE/llvm/fix-fppassmanager-2.9.patch
-$WORKSPACE/llvm/fix-toolchains-2.9.patch
-
-Some of them are fixed in later versions, but others are not. 
-
-fix-toolchains-2.9.patch adds some include paths to clang's default include
-paths, and lets clang recognize later versions of Ubuntu. If you are using a
-Linux distribution other than Ubuntu, you may need to make similar changes by
-yourself. 
-
-5. Building common modules
-
-cd $BC2BDD_ROOT
-./configure --with-llvmsrc=$LLVM_ROOT/llvm-2.9 --with-llvmobj=$LLVM_ROOT/llvm-2.9 --prefix=$LLVM_ROOT/install
-make
-make install
-cd $RCS_COMMON_ROOT
-./configure --with-llvmsrc=$LLVM_ROOT/llvm-2.9 --with-llvmobj=$LLVM_ROOT/llvm-2.9 --prefix=$LLVM_ROOT/install
-make
-make install
-
-6. Building Slicer
-
-cd $SLICER_ROOT
-./configure --with-llvmsrc=$LLVM_ROOT/llvm-2.9 --with-llvmobj=$LLVM_ROOT/llvm-2.9 --prefix=$LLVM_ROOT/install
-make
-make install
-
-7. Test Slicer
-
-cd $SLICER_ROOT/tests
-make build
-make run
-
-If no crashes or assertion failures, all test cases are passed. 
